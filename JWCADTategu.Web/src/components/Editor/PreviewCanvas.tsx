@@ -8,6 +8,30 @@ export const PreviewCanvas: React.FC<{ dimensions: DoorDimensions }> = ({ dimens
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        const resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                canvas.width = width;
+                canvas.height = height;
+                // Re-trigger render
+                // We can just rely on the next effect or force update? 
+                // Actually if width/height change, we need to redraw.
+                // Let's extract draw logic to a function or effect dependency.
+            }
+            // To ensure redraw after resize, we can increment a state or similar. 
+            // Or simpler: put the draw logic in a function and call it here.
+            draw();
+        });
+
+        resizeObserver.observe(canvas.parentElement!);
+
+        return () => resizeObserver.disconnect();
+    }, []);
+
+    const draw = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
@@ -19,12 +43,16 @@ export const PreviewCanvas: React.FC<{ dimensions: DoorDimensions }> = ({ dimens
 
         // Scaling Logic (Fit to canvas)
         const margin = 40;
-        const scaleX = (canvas.width - margin * 2) / dimensions.width;
-        const scaleY = (canvas.height - margin * 2) / dimensions.height;
+        // Verify dimensions to avoid division by zero
+        const dW = dimensions.width || 1;
+        const dH = dimensions.height || 1;
+
+        const scaleX = (canvas.width - margin * 2) / dW;
+        const scaleY = (canvas.height - margin * 2) / dH;
         const scale = Math.min(scaleX, scaleY);
 
-        const offsetX = (canvas.width - dimensions.width * scale) / 2;
-        const offsetY = (canvas.height - dimensions.height * scale) / 2;
+        const offsetX = (canvas.width - dW * scale) / 2;
+        const offsetY = (canvas.height - dH * scale) / 2;
 
         // Draw Grid
         drawGrid(ctx, canvas.width, canvas.height);
@@ -54,12 +82,16 @@ export const PreviewCanvas: React.FC<{ dimensions: DoorDimensions }> = ({ dimens
             ctx.lineTo(ex, ey);
         });
         ctx.stroke();
+    };
 
+    // Redraw when dimensions change
+    useEffect(() => {
+        draw();
     }, [dimensions]);
 
     return (
         <div className="flex-1 bg-slate-900 relative overflow-hidden flex items-center justify-center">
-            <canvas ref={canvasRef} width={800} height={600} className="w-full h-full" />
+            <canvas ref={canvasRef} className="w-full h-full block" />
         </div>
     );
 };

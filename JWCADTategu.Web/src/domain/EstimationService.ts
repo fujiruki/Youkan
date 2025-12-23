@@ -51,10 +51,15 @@ export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings)
         const effHozo = override?.hozo ?? hozoLen;
         const effPriceM3 = override?.unitPrice ?? priceM3;
 
+        // Dimension Overrides
+        const effW = override?.width ?? w;
+        const effD = override?.depth ?? d;
+        const effL = override?.length ?? l;
+
         // Wood Taking Dimensions (木取り寸法)
-        const takeW = w + effMW;
-        const takeT = d + effMT;
-        const takeL = l + (effHozo * 2) + effML;
+        const takeW = effW + effMW;
+        const takeT = effD + effMT;
+        const takeL = effL + (effHozo * 2) + effML;
 
         // Volume (m3)
         const vol = (takeW * takeT * takeL * count) / 1_000_000_000;
@@ -62,16 +67,16 @@ export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings)
 
         items.push({
             name,
-            width: w,
-            depth: d,
-            length: l,
+            width: effW,
+            depth: effD,
+            length: effL,
             count,
             hozo: effHozo,
             margins: { w: effMW, l: effML, t: effMT },
             volumeM3: vol,
             cost,
             unitPrice: effPriceM3, // Add unitPrice to result item
-            note: `${w}x${d}x${l}(+${effHozo * 2})`
+            note: `${effW}x${effD}x${effL}(+${effHozo * 2})`
         });
     };
 
@@ -94,20 +99,62 @@ export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings)
         addMember("中桟", dim.middleRailWidth, dim.depth, railVisibleLen, dim.middleRailCount, railHozo);
     }
 
-    // 4. 束 (Tsuka) - Hozo: VerticalHozo (30mm)
+    // 4. 束 (Tsuka) logic update
+    // Condition: Only if MiddleRailCount > 0
     const tsukaCount = dim.tsukaCount || 0;
     const tsukaWidth = dim.tsukaWidth || 30;
-    if (tsukaCount > 0) {
+    if (tsukaCount > 0 && dim.middleRailCount > 0) {
+        // Length: Bottom Middle Rail Bottom ~ Bottom Rail Top
+        // But geometrically, Middle Rails are usually evenly spaced or centered.
+        // Assuming Middle Rails are distributed.
+        // Simplified Logic: 
+        // If 1 Middle Rail: M1 Bottom ~ B Top
+        // If Multiple: Lowest M Bottom ~ B Top
+
+        // Calculate Bottom Rail Top Y: (0 + Brw)
+        // Calculate Middle Rail Y. 
+        // NOTE: Without full geometry engine here, we approximate.
+        // Usually Middle Rail is centered. 
+        // Let's assume Middle Rail Y range is roughly center of internal space.
+        // For accurate estimation, we should strictly follow "Lowest Middle Rail".
+        // Let's calculate Inner Height below lowest middle rail.
+
+        // Approximation:
+        // Total Inner Height = H - Trw - Brw
+        // Middle Rail Total Height = Mrw * Count
+        // Remainder Space = InnerH - MiddleH
+        // Spaces count = Count + 1
+        // One Space Height = Remainder / (Count + 1)
+
         const innerH = dim.height - dim.topRailWidth - dim.bottomRailWidth;
-        addMember("束", tsukaWidth, dim.depth, innerH, tsukaCount, verticalHozo);
+        const totalMrH = dim.middleRailWidth * dim.middleRailCount;
+        const spaceH = (innerH - totalMrH) / (dim.middleRailCount + 1);
+
+        // Tsuka Length is effectively "Bottom Space Height"
+        const tsukaLen = Math.floor(spaceH); // Floor to int
+
+        addMember("束", tsukaWidth, dim.depth, tsukaLen, tsukaCount, verticalHozo);
     }
 
-    // 5. 組子 タテ (Kumiko Vert) - Hozo: VerticalHozo (30mm)
+    // 5. 組子 タテ (Kumiko Vert) logic update
     const kvCount = dim.kumikoVertCount || 0;
     const kvWidth = dim.kumikoVertWidth || 6;
     if (kvCount > 0) {
-        const innerH = dim.height - dim.topRailWidth - dim.bottomRailWidth;
-        addMember("組子 タテ", kvWidth, dim.depth, innerH, kvCount, verticalHozo);
+        let kvLen = 0;
+        // Case A: No Middle Rail -> Top Rail Bottom ~ Bottom Rail Top
+        if (dim.middleRailCount === 0) {
+            kvLen = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+        }
+        // Case B: Middle Rail Exists -> Top Rail Bottom ~ Top-most Middle Rail Top
+        else {
+            // Same approximation logic as Tsuka: Top Space Height
+            const innerH = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+            const totalMrH = dim.middleRailWidth * dim.middleRailCount;
+            const spaceH = (innerH - totalMrH) / (dim.middleRailCount + 1);
+            kvLen = Math.floor(spaceH);
+        }
+
+        addMember("組子 タテ", kvWidth, dim.depth, kvLen, kvCount, verticalHozo);
     }
 
     // 6. 組子 ヨコ (Kumiko Horiz) - Hozo: StileWidth or Config? Spec says "Horizontal: Stile Width * 2"

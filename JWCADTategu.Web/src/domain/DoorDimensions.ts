@@ -5,6 +5,10 @@ export interface EstimationOverride {
     marginLength?: number;
     marginThickness?: number;
     unitPrice?: number;
+    // Dimensions overrides
+    width?: number;
+    depth?: number;
+    length?: number;
 }
 
 export type EstimationOverrides = Record<string, EstimationOverride>;
