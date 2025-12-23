@@ -1,0 +1,46 @@
+# Tasks
+
+- [ ] initialize_project <!-- id: 0 -->
+    - [x] Initialize Vite Project (React + TS) `JWCADTategu.Web` <!-- id: 1 -->
+    - [x] Setup Tailwind CSS & Lucide Icons <!-- id: 2 -->
+    - [x] Setup Vitest <!-- id: 3 -->
+- [x] domain_logic_porting <!-- id: 4 -->
+    - [x] Port `DoorDimensions` (Validation logic) <!-- id: 5 -->
+    - [x] Port `GeometryGenerator` (Core drawing logic) <!-- id: 6 -->
+    - [x] Verify with Unit Tests <!-- id: 7 -->
+- [x] feature_editor_mvp <!-- id: 8 -->
+    - [x] Implement `useDoorViewModel` (State management) <!-- id: 9 -->
+    - [x] Create `PreviewCanvas` (Real-time rendering) <!-- id: 10 -->
+    - [x] Create Parameter Inputs (Accordion UI) <!-- id: 11 -->
+    - [x] Implement JWCAD Clipboard Copy <!-- id: 12 -->
+- [x] feature_persistence <!-- id: 13 -->
+    - [x] Setup Dexie.js (IndexedDB) <!-- id: 14 -->
+    - [x] Create Project/Template Schema <!-- id: 15 -->
+    - [ ] Implement Save/Load logic <!-- id: 16 -->
+- [ ] feature_architecture_refactor <!-- id: 200 -->
+    - [x] Update DB Schema (Projects <-> Doors 1:N) <!-- id: 201 -->
+    - [x] Implement `JoineryScheduleScreen` (Listing Doors) <!-- id: 202 -->
+    - [x] Connect Editor to use Door ID <!-- id: 203 -->
+    - [x] Implement Pro Feature Password ('passwordA') <!-- id: 204 -->
+
+- [ ] feature_estimation <!-- id: 100 -->
+    - [x] Create `EstimationSettings` domain model <!-- id: 101 -->
+    - [x] Implement `EstimationService` (Volume/Cost Calculation) <!-- id: 102 -->
+    - [x] Add Estimation UI to Editor (Pro Feature) <!-- id: 103 -->
+    - [x] Refactor: Switch to M3 Unit Price & Add Editable Settings <!-- id: 105 -->
+    - [x] Refactor: Refine Settings UI (Margin/Spacing) <!-- id: 106 -->
+    - [x] Feature: Add Door Preview to Joinery Schedule <!-- id: 205 -->
+    - [ ] specific: Verify Calculation Logic against Spec <!-- id: 104 -->
+- [ ] feature_dashboard <!-- id: 17 -->
+    - [x] Create Template Gallery UI <!-- id: 18 -->
+    - [x] Create Recent Projects List <!-- id: 19 -->
+    - [x] Localize Dashboard & Schedule UI <!-- id: 24 -->
+    - [x] Feature: Enhance Joinery Schedule (Cost, Name Edit, Project Rename) <!-- id: 25 -->
+    - [ ] Feature: Editor - Editable Door Name above Preview <!-- id: 26 -->
+    - [ ] Feature: Global Settings - Project Defaults (Price, Color) <!-- id: 27 -->
+- [ ] project_restructure <!-- id: 30 -->
+    - [ ] Separate Web Project from Plugin Project <!-- id: 31 -->
+- [ ] monetization_marketing <!-- id: 20 -->
+    - [ ] Implement Estimation Logic <!-- id: 21 -->
+    - [ ] Implement Pro Lock (Password check) <!-- id: 22 -->
+    - [ ] Create Marketing Asset Generator (Auto-Screenshot) <!-- id: 23 -->
