@@ -38,7 +38,10 @@ export class DoorGeometryGenerator {
         addPart(startX, 0, effectiveWidth, dim.topRailWidth); // Top Rail
         addPart(startX, dim.height - dim.bottomRailWidth, effectiveWidth, dim.bottomRailWidth); // Bottom Rail
 
-        // 3. Middle Rails (Naka-Zan)
+        // 3. Middle Rails (Naka-Zan) & Gap Calculation
+        let firstMiddleRailTopY: number | null = null;
+        let lastMiddleRailBottomY: number | null = null;
+
         if (dim.middleRailCount > 0 && dim.middleRailWidth > 0) {
             const innerHeight = dim.height - dim.topRailWidth - dim.bottomRailWidth;
             const totalMiddleRailHeight = dim.middleRailCount * dim.middleRailWidth;
@@ -46,8 +49,16 @@ export class DoorGeometryGenerator {
             const gap = remainingSpace / (dim.middleRailCount + 1);
 
             let currentY = dim.topRailWidth + gap;
+
+            // Record first MR top position
+            firstMiddleRailTopY = currentY;
+
             for (let i = 0; i < dim.middleRailCount; i++) {
                 addPart(startX, currentY, effectiveWidth, dim.middleRailWidth);
+
+                // Update last bottom
+                lastMiddleRailBottomY = currentY + dim.middleRailWidth;
+
                 currentY += dim.middleRailWidth + gap;
             }
         }
@@ -62,8 +73,15 @@ export class DoorGeometryGenerator {
             const remainingWidth = innerWidth - totalTsukaWidth;
             const gap = remainingWidth / (tsukaCount + 1);
 
-            const startY = dim.topRailWidth;
-            const h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+            // Determine Y Range
+            let startY = dim.topRailWidth;
+            let h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+
+            // If Middle Rails exist, Tsuka is only from Bottom MR to Bottom Rail
+            if (lastMiddleRailBottomY !== null) {
+                startY = lastMiddleRailBottomY;
+                h = (dim.height - dim.bottomRailWidth) - lastMiddleRailBottomY;
+            }
 
             let currentX = dim.stileWidth + gap;
             for (let i = 0; i < tsukaCount; i++) {
@@ -82,8 +100,15 @@ export class DoorGeometryGenerator {
             const remaining = innerWidth - totalWidth;
             const gap = remaining / (kvCount + 1);
 
-            const startY = dim.topRailWidth;
-            const h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+            // Determine Y Range
+            let startY = dim.topRailWidth;
+            let h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+
+            // If Middle Rails exist, Kumiko Vert is only from Top Rail to Top MR
+            if (firstMiddleRailTopY !== null) {
+                // startY remains Top Rail Bottom (dim.topRailWidth)
+                h = firstMiddleRailTopY - startY;
+            }
 
             let currentX = dim.stileWidth + gap;
             for (let i = 0; i < kvCount; i++) {
