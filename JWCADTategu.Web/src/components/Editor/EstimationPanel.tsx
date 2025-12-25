@@ -125,8 +125,8 @@ export const EstimationPanel: React.FC<EstimationPanelProps> = ({ dimensions, se
                         onDimensionChange('estimationOverrides', newOverrides as any);
                     };
 
-                    const inputClass = "w-full bg-slate-800 rounded px-0.5 text-center text-emerald-400 focus:bg-slate-700 outline-none h-6";
-                    const marginInputClass = "w-full bg-slate-800 rounded px-0.5 text-center text-slate-400 focus:bg-slate-700 outline-none h-6 text-xs";
+                    const inputClass = "min-w-[50px] w-full bg-slate-800 rounded px-1 text-center text-emerald-400 focus:bg-slate-700 outline-none h-7 text-sm";
+                    const marginInputClass = "min-w-[40px] w-full bg-slate-800 rounded px-1 text-center text-slate-400 focus:bg-slate-700 outline-none h-7 text-xs";
 
                     return (
                         <div key={idx} className="grid grid-cols-[2fr_1fr_1fr_1fr_0.6fr_1fr_0.8fr_0.8fr_0.8fr_1.5fr_1.5fr] gap-1 py-1 border-b border-slate-800/50 items-center hover:bg-slate-800/30 transition-colors text-xs">

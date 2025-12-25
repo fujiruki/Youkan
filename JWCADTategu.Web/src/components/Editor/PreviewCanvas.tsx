@@ -70,7 +70,7 @@ export const PreviewCanvas: React.FC<{ dimensions: DoorDimensions }> = ({ dimens
         // Draw Door Lines (Wireframe)
         ctx.beginPath();
         ctx.strokeStyle = '#334155'; // darker slate for contrast against wood
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 0.75;
 
         lines.forEach(line => {
             const sx = line.start.x * scale + offsetX;

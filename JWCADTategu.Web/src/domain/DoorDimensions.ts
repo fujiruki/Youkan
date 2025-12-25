@@ -31,6 +31,8 @@ export interface DoorDimensions {
     kumikoVertWidth: number;
     kumikoVertCount: number;
     kumikoHorizWidth: number;
+    // Position Overrides
+    middleRailPosition?: number; // Height from floor to Top of Top-Middle-Rail
     kumikoHorizCount: number;
 
     // Overrides

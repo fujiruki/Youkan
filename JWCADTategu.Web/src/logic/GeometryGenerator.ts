@@ -43,12 +43,28 @@ export class DoorGeometryGenerator {
         let lastMiddleRailBottomY: number | null = null;
 
         if (dim.middleRailCount > 0 && dim.middleRailWidth > 0) {
-            const innerHeight = dim.height - dim.topRailWidth - dim.bottomRailWidth;
-            const totalMiddleRailHeight = dim.middleRailCount * dim.middleRailWidth;
-            const remainingSpace = innerHeight - totalMiddleRailHeight;
-            const gap = remainingSpace / (dim.middleRailCount + 1);
+            let startY = 0;
+            let gap = 0;
 
-            let currentY = dim.topRailWidth + gap;
+            // Positioning Logic
+            if (dim.middleRailPosition && dim.middleRailPosition > 0) {
+                // Manual Positioning: Top-most Rail Top matches Position
+                // "Height" from Bottom => Top Y = H - Height
+                const topY = dim.height - dim.middleRailPosition;
+                startY = topY;
+
+                // Gap is fixed to Width (or could be 0, but let's use Width for grouping)
+                gap = dim.middleRailWidth;
+            } else {
+                // Auto Positioning (Evenly Spaced)
+                const innerHeight = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+                const totalMiddleRailHeight = dim.middleRailCount * dim.middleRailWidth;
+                const remainingSpace = innerHeight - totalMiddleRailHeight;
+                gap = remainingSpace / (dim.middleRailCount + 1);
+                startY = dim.topRailWidth + gap;
+            }
+
+            let currentY = startY;
 
             // Record first MR top position
             firstMiddleRailTopY = currentY;
@@ -122,15 +138,23 @@ export class DoorGeometryGenerator {
         const khWidth = dim.kumikoHorizWidth || 6; // Default 6mm
 
         if (khCount > 0 && khWidth > 0) {
-            const innerHeight = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+            // Updated Logic: If Middle Rails exist, distribute ONLY in Top Space
+            let startYforGrid = dim.topRailWidth;
+            let heightForGrid = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+
+            if (firstMiddleRailTopY !== null) {
+                // Limit to Top Space
+                heightForGrid = firstMiddleRailTopY - startYforGrid;
+            }
+
             const totalHeight = khCount * khWidth;
-            const remaining = innerHeight - totalHeight;
+            const remaining = heightForGrid - totalHeight;
             const gap = remaining / (khCount + 1);
 
             const startX = dim.stileWidth;
             const w = dim.width - (dim.stileWidth * 2);
 
-            let currentY = dim.topRailWidth + gap;
+            let currentY = startYforGrid + gap;
             for (let i = 0; i < khCount; i++) {
                 addPart(startX, currentY, w, khWidth);
                 currentY += khWidth + gap;

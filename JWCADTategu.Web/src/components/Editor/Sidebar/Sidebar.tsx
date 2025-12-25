@@ -130,6 +130,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ dimensions, onChange, viewMode
                                 <InputGroup label="中桟見付 (Width)">
                                     <NumberInput dimensionKey="middleRailWidth" value={dimensions.middleRailWidth} onChange={onChange} />
                                 </InputGroup>
+                                <InputGroup label="中桟高さ (Height from Bottom)">
+                                    <NumberInput
+                                        dimensionKey="middleRailPosition"
+                                        value={dimensions.middleRailPosition || 0}
+                                        onChange={onChange}
+                                        placeholder="0 (Auto)"
+                                    />
+                                </InputGroup>
                                 <div className="h-px bg-slate-800 my-2"></div>
                                 <InputGroup label="束本数 (Tsuka Count)">
                                     <NumberInput dimensionKey="tsukaCount" value={dimensions.tsukaCount || 0} onChange={onChange} />
