@@ -1,6 +1,6 @@
 import { Door } from '../db/db';
 import { DoorGeometryGenerator, GeometryResult, GeometryPart } from '../logic/GeometryGenerator';
-import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG } from '../domain/DxfConfig';
+import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG, selectLayerGroupForDoor, FRAME_LAYER_GROUP } from '../domain/DxfConfig';
 import { DxfExportOptions, DEFAULT_DXF_EXPORT_OPTIONS } from '../domain/DxfExportOptions';
 import { debugDxf } from '../config/debug';
 import { BUILD_TIME_DISPLAY } from '../config/debug';
@@ -154,20 +154,20 @@ export class DxfGenerator {
 function getPartColor(partType: string, colorConfig: DxfColorConfig): number {
     switch (partType) {
         case 'stile':
-            return colorConfig.stile;
+            return colorConfig.stile ?? 150;
         case 'top-rail':
         case 'bottom-rail':
         case 'middle-rail':
-            return colorConfig.rail;
+            return colorConfig.rail ?? 150;
         case 'kumiko-vert':
         case 'kumiko-horiz':
-            return colorConfig.kumiko;
+            return colorConfig.kumiko ?? 200;
         case 'tsuka':
-            return colorConfig.tsuka;
+            return colorConfig.tsuka ?? 180;
         case 'glass':
-            return colorConfig.glass;
+            return colorConfig.glass ?? 140;
         default:
-            return colorConfig.panel;
+            return 150; // Default wood color
     }
 }
 
@@ -179,7 +179,7 @@ export const generateDoorDxf = (
 ): string => {
     const dxf = new DxfGenerator(layerConfig, colorConfig);
     const effectiveColorConfig = colorConfig || DEFAULT_DXF_COLOR_CONFIG;
-    const effectiveLayerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;
+    let effectiveLayerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;  // Changed to let
     const effectiveOptions = { ...DEFAULT_DXF_EXPORT_OPTIONS, ...options };
 
     // デバッグログ: DXF生成パラメータ
@@ -199,6 +199,8 @@ export const generateDoorDxf = (
     const HEADER_HEIGHT = 15;
     const SPEC_HEIGHT = 25;
     const DRAWING_AREA_HEIGHT = CELL_HEIGHT - HEADER_HEIGHT - SPEC_HEIGHT; // 80mm
+    const CELL_DRAW_WIDTH = CELL_WIDTH * 0.75;  // 97.5mm drawing area
+    const CELL_DRAW_HEIGHT = DRAWING_AREA_HEIGHT * 0.75; // 60mm drawing area
 
     // Calculate common scale for A3 layout to preserve relative door sizes
     let commonScale = 1;
@@ -241,30 +243,41 @@ export const generateDoorDxf = (
         let offsetX: number, offsetY: number, scale: number;
 
         if (effectiveOptions.useA3Layout) {
-            // **A3 Grid Layout (2×3)** - Use common scale to preserve relative sizes
-            debugDxf(`Door ${doorIndex}: Using A3 Grid Layout`, { doorIndex, useA3Layout: true });
+            // **A3 Grid Layout (2×3)** - Draw at actual size, use JWCAD group scale
             const col = doorIndex % 3;
             const row = Math.floor(doorIndex / 3);
 
+            // Select layer group based on door dimensions
+            const layerGroup = selectLayerGroupForDoor(door.dimensions, CELL_DRAW_WIDTH, CELL_DRAW_HEIGHT);
+
+            // Calculate display size (what JWCAD will show)
+            const displayWidth = width * layerGroup.scale;
+            const displayHeight = height * layerGroup.scale;
+
             // Cell position
             const cellX = col * CELL_SPACING_X;
-            // Base Y position for the row (increasing downward in layout terms)
             const baseY = row * CELL_SPACING_Y;
 
-            // Use common scale (calculated once for all doors)
-            scale = commonScale;
+            // Center door in cell (based on display size)
+            offsetX = cellX + (CELL_WIDTH - displayWidth) / 2;
+            offsetY = baseY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - displayHeight) / 2;
 
-            const scaledWidth = width * scale;
-            const scaledHeight = height * scale;
+            // Draw at actual size (scale = 1)
+            scale = 1;
 
-            // Center door in cell
-            offsetX = cellX + (CELL_WIDTH - scaledWidth) / 2;
-            offsetY = baseY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
+            // Override layer config with selected group
+            effectiveLayerConfig = {
+                ...effectiveLayerConfig,
+                joineryOutline: `${layerGroup.group}-2`,
+                joineryFill: `${layerGroup.group}-E`
+            };
 
-            debugDxf(`Door ${doorIndex} Grid Calculations`, {
+            debugDxf(`Door ${doorIndex} Layer Group Selection`, {
                 row, col,
-                cellX, baseY,
-                CELL_SPACING_Y,
+                group: layerGroup.group,
+                scale: layerGroup.displayScale,
+                actualSize: `${width}x${height}`,
+                displaySize: `${displayWidth.toFixed(1)}x${displayHeight.toFixed(1)}`,
                 offsetX: offsetX.toFixed(2),
                 offsetY: offsetY.toFixed(2)
             });
