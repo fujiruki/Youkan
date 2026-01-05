@@ -208,6 +208,7 @@ export const generateDoorDxf = (
 
         if (effectiveOptions.useA3Layout) {
             // **A3 Grid Layout (2×3)**
+            debugDxf(`Door ${doorIndex}: Using A3 Grid Layout`, { doorIndex, useA3Layout: true });
             const col = doorIndex % 3;
             const row = Math.floor(doorIndex / 3);
 
@@ -232,6 +233,7 @@ export const generateDoorDxf = (
             offsetY = baseY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
         } else {
             // **Linear Layout (original)**
+            debugDxf(`Door ${doorIndex}: Using Linear Layout`, { doorIndex, useA3Layout: false });
             offsetX = doorIndex * (width + 2000);
             offsetY = 0;
             scale = 1; // No scaling
