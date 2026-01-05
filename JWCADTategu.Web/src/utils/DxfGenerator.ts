@@ -2,6 +2,7 @@ import { Door } from '../db/db';
 import { DoorGeometryGenerator, GeometryResult, GeometryPart } from '../logic/GeometryGenerator';
 import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG } from '../domain/DxfConfig';
 import { DxfExportOptions, DEFAULT_DXF_EXPORT_OPTIONS } from '../domain/DxfExportOptions';
+import { debugDxf } from '../config/debug';
 
 /**
  * Enhanced DXF Generator for JWCAD compatibility.
@@ -177,6 +178,15 @@ export const generateDoorDxf = (
     const effectiveColorConfig = colorConfig || DEFAULT_DXF_COLOR_CONFIG;
     const effectiveLayerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;
     const effectiveOptions = { ...DEFAULT_DXF_EXPORT_OPTIONS, ...options };
+
+    // デバッグログ: DXF生成パラメータ
+    debugDxf('generateDoorDxf called', {
+        doorCount: doors.length,
+        passedOptions: options,
+        effectiveOptions: effectiveOptions,
+        useA3Layout: effectiveOptions.useA3Layout,
+        includeHumanScale: effectiveOptions.includeHumanScale
+    });
 
     // A3 Layout constants (mm)
     const CELL_WIDTH = 130;

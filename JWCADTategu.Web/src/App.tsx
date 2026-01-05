@@ -3,6 +3,7 @@ import { DashboardScreen } from './components/Dashboard/DashboardScreen';
 import { JoineryScheduleScreen } from './components/Dashboard/JoineryScheduleScreen';
 import { EditorScreen } from './components/Editor/EditorScreen';
 import { Project, Door } from './db/db';
+import { DebugBanner } from './components/Debug/DebugBanner';
 
 type ViewState = 'dashboard' | 'schedule' | 'editor';
 
@@ -37,6 +38,7 @@ function App() {
 
     return (
         <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans">
+            <DebugBanner />
             {currentView === 'dashboard' && (
                 <DashboardScreen onOpenProject={handleOpenProject} />
             )}
