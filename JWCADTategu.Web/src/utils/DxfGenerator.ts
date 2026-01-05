@@ -108,6 +108,7 @@ export class DxfGenerator {
      * Add filled rectangle using SOLID entity
      */
     public addFilledRect(x: number, y: number, w: number, h: number, layer: string, color: number) {
+        const beforeLines = this.lines.length;
         // SOLID entity: corners in specific order
         this.addSolid(
             x, y,           // Bottom-left
@@ -117,6 +118,7 @@ export class DxfGenerator {
             layer,
             color
         );
+        debugDxf('[TRACE] addFilledRect', { layer, beforeLines, afterLines: this.lines.length, added: this.lines.length - beforeLines });
     }
 
     public addText(x: number, y: number, text: string, height: number, layer: string) {
@@ -150,9 +152,12 @@ export class DxfGenerator {
     }
 
     public generate(): string {
+        debugDxf('[CRITICAL] DxfGenerator.generate() called', { totalLines: this.lines.length });
         this.add(0, 'ENDSEC'); // End ENTITIES
         this.add(0, 'EOF');
-        return this.lines.join('\n');
+        const result = this.lines.join('\n');
+        debugDxf('[CRITICAL] DXF string generated', { stringLength: result.length, lineCount: this.lines.length });
+        return result;
     }
 }
 
@@ -240,6 +245,12 @@ export const generateDoorDxf = (
             commonScale: commonScale.toFixed(4)
         });
     }
+
+
+    debugDxf('[CRITICAL] Starting door forEach loop', {
+        doorCount: doors.length,
+        currentLinesInDxf: dxf.lines ? dxf.lines.length : 'N/A - lines not accessible'
+    });
 
     doors.forEach((door, doorIndex) => {
         const { width, height } = door.dimensions;
@@ -424,5 +435,16 @@ export const generateDoorDxf = (
         }
     });
 
-    return dxf.generate();
+    debugDxf('[CRITICAL] forEach loop completed', {
+        totalDoorsProcessed: doors.length,
+        finalLinesInDxf: dxf.lines ? dxf.lines.length : 'N/A'
+    });
+
+    const finalDxf = dxf.generate();
+    debugDxf('[CRITICAL] DXF generation complete', {
+        dxfStringLength: finalDxf.length,
+        lineCount: finalDxf.split('\\n').length
+    });
+
+    return finalDxf;
 };
