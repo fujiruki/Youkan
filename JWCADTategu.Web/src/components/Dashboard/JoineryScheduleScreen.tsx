@@ -4,7 +4,7 @@ import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { generateDoorDxf } from '../../utils/DxfGenerator';
-import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, MoreVertical } from 'lucide-react';
+import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search } from 'lucide-react';
 import clsx from 'clsx';
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
@@ -108,7 +108,11 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             return;
         }
 
-        const dxfContent = generateDoorDxf(filteredDoors);
+        // Use project's DXF layer config if available
+        const dxfContent = generateDoorDxf(
+            filteredDoors,
+            project.dxfLayerConfig
+        );
 
         const blob = new Blob([dxfContent], { type: 'application/dxf' });
         const url = URL.createObjectURL(blob);
