@@ -81,6 +81,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ dimensions, onChange, viewMode
                                 <SliderInput dimensionKey="middleRailCount" value={dimensions.middleRailCount} onChange={onChange} min={0} max={10} />
                             </InputGroup>
 
+                            {dimensions.middleRailCount === 1 && (
+                                <InputGroup label="中桟位置 (Position)">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="text-[10px] text-slate-500 mb-1">中桟上端ー下桟下端距離</div>
+                                        <SliderInput
+                                            dimensionKey="middleRailPosition"
+                                            value={dimensions.middleRailPosition || (dimensions.height / 2)}
+                                            onChange={onChange}
+                                            min={dimensions.bottomRailWidth}
+                                            max={dimensions.height - dimensions.topRailWidth}
+                                            step={10}
+                                        />
+                                    </div>
+                                </InputGroup>
+                            )}
+
                             <InputGroup label="束の本数 (Tsuka)">
                                 <SliderInput dimensionKey="tsukaCount" value={dimensions.tsukaCount || 0} onChange={onChange} min={0} max={10} />
                             </InputGroup>
