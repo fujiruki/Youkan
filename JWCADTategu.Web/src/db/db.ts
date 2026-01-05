@@ -1,12 +1,14 @@
 import Dexie, { Table } from 'dexie';
 import { DoorDimensions } from '../domain/DoorDimensions';
 import { EstimationSettings } from '../domain/EstimationSettings';
+import { DxfLayerConfig } from '../domain/DxfConfig';
 
 export interface Project {
     id?: number;
     name: string;
     client?: string;
     settings?: EstimationSettings;
+    dxfLayerConfig?: DxfLayerConfig;
     updatedAt: Date;
     createdAt: Date;
 }
