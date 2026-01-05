@@ -1,4 +1,4 @@
-import { Project } from '../db/db';
+import { Project, Door } from '../db/db';
 import { BUILD_TIMESTAMP, BUILD_TIME_DISPLAY } from '../config/debug';
 
 /**
@@ -49,11 +49,10 @@ export interface ProjectExportData {
 /**
  * Export project data to JSON format
  * @param project Project to export
+ * @param doors Array of doors in the project
  * @returns JSON string (formatted with 2-space indentation)
  */
-export function exportProjectToJson(project: Project): string {
-    // Safety check: ensure doors array exists
-    const doors = project.doors || [];
+export function exportProjectToJson(project: Project, doors: Door[]): string {
 
     const exportData: ProjectExportData = {
         exportInfo: {

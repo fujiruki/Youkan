@@ -140,7 +140,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             settings: project.settings
         });
 
-        const jsonContent = exportProjectToJson(project);
+        const jsonContent = exportProjectToJson(project, doors);
 
         debugLog('PROJECT_EXPORT', 'JSON generated', {
             dataSize: jsonContent.length,
