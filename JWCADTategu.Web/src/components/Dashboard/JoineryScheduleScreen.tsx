@@ -3,6 +3,7 @@ import { Door, db } from '../../db/db';
 import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { projectRepository } from '../../repositories/ProjectRepository';
+import { generateDoorDxf } from '../../utils/DxfGenerator';
 import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
 
