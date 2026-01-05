@@ -6,9 +6,13 @@ import { projectRepository } from '../../repositories/ProjectRepository';
 import { PreviewCanvas } from '../Editor/PreviewCanvas';
 import { Trash2, Copy, ArrowLeft, Plus } from 'lucide-react';
 
-const DoorPreview: React.FC<{ dim: any }> = ({ dim }) => (
-    <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center overflow-hidden">
-        <PreviewCanvas dimensions={dim} />
+const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
+    <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center overflow-hidden border border-slate-700">
+        {door.thumbnail ? (
+            <img src={door.thumbnail} alt={door.name} className="w-full h-full object-contain" />
+        ) : (
+            <span className="text-[10px] text-slate-500 text-center leading-tight">No<br />Image</span>
+        )}
     </div>
 );
 
@@ -45,6 +49,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     };
 
     const handleCreateDoor = async () => {
+        console.log('[Schedule] Create Door Clicked');
         const newDoor: Door = {
             projectId: project.id!,
             tag: `D-${doors.length + 1}`,
@@ -62,10 +67,14 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        const id = await projectRepository.saveDoor(newDoor);
-        onOpenDoor({ ...newDoor, id }); // Open directly or just load reload?
-        // Ideally reload list or jump to editor. Let's look at specs.
-        // Usually jump to editor:
+        console.log('[Schedule] Saving new door to DB...');
+        try {
+            const id = await projectRepository.saveDoor(newDoor);
+            console.log('[Schedule] Door Saved, ID:', id);
+            onOpenDoor({ ...newDoor, id });
+        } catch (e) {
+            console.error('[Schedule] Failed to save door', e);
+        }
     };
 
     const handleDuplicate = async (e: React.MouseEvent, door: Door) => {
@@ -97,7 +106,13 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             {/* Header UI */}
             <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="text-slate-500 hover:text-white flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            console.log('[Schedule] Back Clicked');
+                            onBack();
+                        }}
+                        className="text-slate-500 hover:text-white flex items-center gap-2"
+                    >
                         <ArrowLeft size={20} />
                         一覧に戻る
                     </button>
@@ -157,7 +172,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             return (
                                 <tr key={door.id} onClick={() => onOpenDoor(door)} className="hover:bg-slate-800/50 cursor-pointer transition-colors group">
                                     <td className="p-3 text-center">
-                                        <DoorPreview dim={door.dimensions} />
+                                        <DoorPreview door={door} />
                                     </td>
                                     <td className="p-4 font-mono text-emerald-500 font-medium">{door.tag}</td>
                                     <td className="p-4" onClick={e => e.stopPropagation()}>

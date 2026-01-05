@@ -2,21 +2,31 @@ import { DoorDimensions } from '../domain/DoorDimensions';
 
 export interface Point { x: number; y: number; }
 export interface LineSegment { start: Point; end: Point; type: 'outline' | 'detail'; }
-export interface Rect { x: number; y: number; w: number; h: number; type: 'frame' | 'panel'; }
+
+export type PartType = 'stile' | 'top-rail' | 'bottom-rail' | 'middle-rail' | 'tsuka' | 'kumiko-vert' | 'kumiko-horiz' | 'glass';
+
+export interface GeometryPart {
+    id: string; // Unique ID for interaction (e.g., 'stile-left', 'mr-0')
+    type: PartType;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    meta?: any; // Extra data like index
+}
 
 export interface GeometryResult {
     lines: LineSegment[];
-    rects: Rect[];
+    parts: GeometryPart[];
 }
 
 export class DoorGeometryGenerator {
     static generate(dim: DoorDimensions): GeometryResult {
         const lines: LineSegment[] = [];
-        const rects: Rect[] = [];
+        const parts: GeometryPart[] = [];
 
-        // Helper to add rect and its outline lines
-        const addPart = (x: number, y: number, w: number, h: number) => {
-            rects.push({ x, y, w, h, type: 'frame' });
+        // Helper to add lines for a rect (Visuals)
+        const addLines = (x: number, y: number, w: number, h: number) => {
             // Top
             lines.push({ start: { x, y }, end: { x: x + w, y }, type: 'detail' });
             // Bottom
@@ -27,16 +37,22 @@ export class DoorGeometryGenerator {
             lines.push({ start: { x: x + w, y }, end: { x: x + w, y: y + h }, type: 'detail' });
         };
 
+        // Helper to add a fully defined part (Interaction + Visuals)
+        const addPart = (type: PartType, id: string, x: number, y: number, w: number, h: number, meta?: any) => {
+            parts.push({ id, type, x, y, w, h, meta });
+            addLines(x, y, w, h);
+        };
+
         // 1. Stiles (Left/Right)
-        addPart(0, 0, dim.stileWidth, dim.height); // Left
-        addPart(dim.width - dim.stileWidth, 0, dim.stileWidth, dim.height); // Right
+        addPart('stile', 'stile-left', 0, 0, dim.stileWidth, dim.height);
+        addPart('stile', 'stile-right', dim.width - dim.stileWidth, 0, dim.stileWidth, dim.height);
 
         // 2. Rails (Top/Bottom) - Draw BETWEEN stiles
         const effectiveWidth = dim.width - (dim.stileWidth * 2);
         const startX = dim.stileWidth;
 
-        addPart(startX, 0, effectiveWidth, dim.topRailWidth); // Top Rail
-        addPart(startX, dim.height - dim.bottomRailWidth, effectiveWidth, dim.bottomRailWidth); // Bottom Rail
+        addPart('top-rail', 'rail-top', startX, 0, effectiveWidth, dim.topRailWidth);
+        addPart('bottom-rail', 'rail-bottom', startX, dim.height - dim.bottomRailWidth, effectiveWidth, dim.bottomRailWidth);
 
         // 3. Middle Rails (Naka-Zan) & Gap Calculation
         let firstMiddleRailTopY: number | null = null;
@@ -48,15 +64,12 @@ export class DoorGeometryGenerator {
 
             // Positioning Logic
             if (dim.middleRailPosition && dim.middleRailPosition > 0) {
-                // Manual Positioning: Top-most Rail Top matches Position
-                // "Height" from Bottom => Top Y = H - Height
+                // Manual Positioning
                 const topY = dim.height - dim.middleRailPosition;
                 startY = topY;
-
-                // Gap is fixed to Width (or could be 0, but let's use Width for grouping)
                 gap = dim.middleRailWidth;
             } else {
-                // Auto Positioning (Evenly Spaced)
+                // Auto Positioning
                 const innerHeight = dim.height - dim.topRailWidth - dim.bottomRailWidth;
                 const totalMiddleRailHeight = dim.middleRailCount * dim.middleRailWidth;
                 const remainingSpace = innerHeight - totalMiddleRailHeight;
@@ -65,23 +78,21 @@ export class DoorGeometryGenerator {
             }
 
             let currentY = startY;
-
-            // Record first MR top position
             firstMiddleRailTopY = currentY;
 
-            for (let i = 0; i < dim.middleRailCount; i++) {
-                addPart(startX, currentY, effectiveWidth, dim.middleRailWidth);
+            // SAFETY CAP for Middle Rails
+            const safeMiddleRailCount = Math.min(dim.middleRailCount, 500);
+            for (let i = 0; i < safeMiddleRailCount; i++) {
+                addPart('middle-rail', `rail-middle-${i}`, startX, currentY, effectiveWidth, dim.middleRailWidth, { index: i });
 
-                // Update last bottom
                 lastMiddleRailBottomY = currentY + dim.middleRailWidth;
-
                 currentY += dim.middleRailWidth + gap;
             }
         }
 
         // 4. Tsuka (Verticals)
         const tsukaCount = dim.tsukaCount || 0;
-        const tsukaWidth = dim.tsukaWidth || 30; // Default 30mm
+        const tsukaWidth = dim.tsukaWidth || 30;
 
         if (tsukaCount > 0 && tsukaWidth > 0) {
             const innerWidth = dim.width - (dim.stileWidth * 2);
@@ -89,26 +100,26 @@ export class DoorGeometryGenerator {
             const remainingWidth = innerWidth - totalTsukaWidth;
             const gap = remainingWidth / (tsukaCount + 1);
 
-            // Determine Y Range
             let startY = dim.topRailWidth;
             let h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
 
-            // If Middle Rails exist, Tsuka is only from Bottom MR to Bottom Rail
             if (lastMiddleRailBottomY !== null) {
                 startY = lastMiddleRailBottomY;
                 h = (dim.height - dim.bottomRailWidth) - lastMiddleRailBottomY;
             }
 
+            // SAFETY CAP for Tsuka
+            const safeTsukaCount = Math.min(tsukaCount, 500);
             let currentX = dim.stileWidth + gap;
-            for (let i = 0; i < tsukaCount; i++) {
-                addPart(currentX, startY, tsukaWidth, h);
+            for (let i = 0; i < safeTsukaCount; i++) {
+                addPart('tsuka', `tsuka-${i}`, currentX, startY, tsukaWidth, h, { index: i });
                 currentX += tsukaWidth + gap;
             }
         }
 
         // 5. Kumiko (Fine Grid) - Vertical
         const kvCount = dim.kumikoVertCount || 0;
-        const kvWidth = dim.kumikoVertWidth || 6; // Default 6mm
+        const kvWidth = dim.kumikoVertWidth || 6;
 
         if (kvCount > 0 && kvWidth > 0) {
             const innerWidth = dim.width - (dim.stileWidth * 2);
@@ -116,34 +127,31 @@ export class DoorGeometryGenerator {
             const remaining = innerWidth - totalWidth;
             const gap = remaining / (kvCount + 1);
 
-            // Determine Y Range
             let startY = dim.topRailWidth;
             let h = dim.height - dim.topRailWidth - dim.bottomRailWidth;
 
-            // If Middle Rails exist, Kumiko Vert is only from Top Rail to Top MR
             if (firstMiddleRailTopY !== null) {
-                // startY remains Top Rail Bottom (dim.topRailWidth)
                 h = firstMiddleRailTopY - startY;
             }
 
+            // SAFETY CAP for Kumiko Vert
+            const safeKvCount = Math.min(kvCount, 500);
             let currentX = dim.stileWidth + gap;
-            for (let i = 0; i < kvCount; i++) {
-                addPart(currentX, startY, kvWidth, h);
+            for (let i = 0; i < safeKvCount; i++) {
+                addPart('kumiko-vert', `kumiko-v-${i}`, currentX, startY, kvWidth, h, { index: i });
                 currentX += kvWidth + gap;
             }
         }
 
         // 6. Kumiko (Fine Grid) - Horizontal
         const khCount = dim.kumikoHorizCount || 0;
-        const khWidth = dim.kumikoHorizWidth || 6; // Default 6mm
+        const khWidth = dim.kumikoHorizWidth || 6;
 
         if (khCount > 0 && khWidth > 0) {
-            // Updated Logic: If Middle Rails exist, distribute ONLY in Top Space
             let startYforGrid = dim.topRailWidth;
             let heightForGrid = dim.height - dim.topRailWidth - dim.bottomRailWidth;
 
             if (firstMiddleRailTopY !== null) {
-                // Limit to Top Space
                 heightForGrid = firstMiddleRailTopY - startYforGrid;
             }
 
@@ -154,14 +162,16 @@ export class DoorGeometryGenerator {
             const startX = dim.stileWidth;
             const w = dim.width - (dim.stileWidth * 2);
 
+            // SAFETY CAP for Kumiko Horiz
+            const safeKhCount = Math.min(khCount, 500);
             let currentY = startYforGrid + gap;
-            for (let i = 0; i < khCount; i++) {
-                addPart(startX, currentY, w, khWidth);
+            for (let i = 0; i < safeKhCount; i++) {
+                addPart('kumiko-horiz', `kumiko-h-${i}`, startX, currentY, w, khWidth, { index: i });
                 currentY += khWidth + gap;
             }
         }
 
-        // 5. Outer Frame Outline (for emphasis in CAD) - optional, but good for JWCAD
+        // 7. Outer Frame Outline
         lines.push(
             { start: { x: 0, y: 0 }, end: { x: dim.width, y: 0 }, type: 'outline' },
             { start: { x: dim.width, y: 0 }, end: { x: dim.width, y: dim.height }, type: 'outline' },
@@ -169,6 +179,6 @@ export class DoorGeometryGenerator {
             { start: { x: 0, y: dim.height }, end: { x: 0, y: 0 }, type: 'outline' }
         );
 
-        return { lines, rects };
+        return { lines, parts };
     }
 }

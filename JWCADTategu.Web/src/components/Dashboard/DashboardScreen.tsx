@@ -17,9 +17,16 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void }> 
     useEffect(() => { loadProjects(); }, []);
 
     const handleCreate = async () => {
-        const p = await projectRepository.createProjectDraft("New Project");
-        const id = await projectRepository.saveProject(p);
-        onOpenProject({ ...p, id });
+        console.log('[Dashboard] Create Clicked');
+        try {
+            const p = await projectRepository.createProjectDraft("New Project");
+            console.log('[Dashboard] Draft created, saving...');
+            const id = await projectRepository.saveProject(p);
+            console.log('[Dashboard] Project Saved ID:', id);
+            onOpenProject({ ...p, id });
+        } catch (e) {
+            console.error('[Dashboard] Create Failed', e);
+        }
     };
 
     const handleDelete = async (e: React.MouseEvent, id: number) => {

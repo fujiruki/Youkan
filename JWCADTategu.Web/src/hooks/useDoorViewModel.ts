@@ -15,8 +15,22 @@ export const useDoorViewModel = (initialDoor: Door) => {
         setIsDirty(true);
     };
 
+    const updateDimensions = (newDimensions: DoorDimensions) => {
+        setDoor(prev => ({
+            ...prev,
+            dimensions: newDimensions,
+            updatedAt: new Date()
+        }));
+        setIsDirty(true);
+    };
+
     const updateName = (name: string) => {
         setDoor(prev => ({ ...prev, name, updatedAt: new Date() }));
+        setIsDirty(true);
+    };
+
+    const replaceDoor = (newDoor: Door) => {
+        setDoor(newDoor);
         setIsDirty(true);
     };
 
@@ -25,6 +39,8 @@ export const useDoorViewModel = (initialDoor: Door) => {
         dimensions: door.dimensions,
         isDirty,
         updateDimension,
-        updateName
+        updateDimensions,
+        updateName,
+        replaceDoor
     };
 };

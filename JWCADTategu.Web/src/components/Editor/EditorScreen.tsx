@@ -10,7 +10,7 @@ import { EstimationPanel } from './EstimationPanel';
 import { DefaultEstimationSettings } from '../../domain/EstimationSettings';
 import { calculateCost } from '../../domain/EstimationService';
 // Icons
-import { Home, Save, Check } from 'lucide-react';
+import { Home, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
 
 type ViewMode = 'design' | 'pro';
@@ -37,7 +37,16 @@ export const EditorScreen: React.FC<{ doorId: number; onBack: () => void }> = ({
 };
 
 const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBack: () => void }> = ({ initialDoor, initialProject, onBack }) => {
-    const { door, updateDimension, updateName } = useDoorViewModel(initialDoor);
+    // State for Reset / Undo
+    const initialSnapshot = React.useRef<Door>(initialDoor);
+    const preResetSnapshot = React.useRef<Door | null>(null);
+    const [isResetMode, setIsResetMode] = useState(false);
+
+    // Ref for Thumbnail Capture (still needed for exit)
+    const previewRef = React.useRef<{ toDataURL: () => string | null }>(null);
+
+    // Expose replaceDoor
+    const { door, updateDimension, updateDimensions, updateName, replaceDoor } = useDoorViewModel(initialDoor);
     const [project, setProject] = useState<Project>(initialProject);
     const [copyStatus, setCopyStatus] = useState<string>('');
     const [isEditingName, setIsEditingName] = useState(false);
@@ -45,7 +54,6 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
     // UI State
     const [viewMode, setViewMode] = useState<ViewMode>('design');
-    const [isSaving, setIsSaving] = useState(false);
 
     // Calculated Cost for Header
     const settings = project.settings || DefaultEstimationSettings;
@@ -54,6 +62,59 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
     useEffect(() => {
         setTempName(door.name);
     }, [door.name]);
+
+    // Auto-Save Effect
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            // Simply save current state to DB (without thumbnail for performance)
+            if (door.id) {
+                await db.doors.update(door.id, {
+                    ...door,
+                    updatedAt: new Date()
+                });
+            }
+        }, 1000); // 1s Debounce
+
+        return () => clearTimeout(timer);
+    }, [door]);
+
+    // Reset Logic
+    const handleResetToggle = () => {
+        if (!isResetMode) {
+            // Enter Reset Mode: Backup current -> Restore Initial
+            preResetSnapshot.current = JSON.parse(JSON.stringify(door));
+            replaceDoor(initialSnapshot.current);
+            setIsResetMode(true);
+        } else {
+            // Undo Reset: Restore Pre-Reset
+            if (preResetSnapshot.current) {
+                replaceDoor(preResetSnapshot.current);
+            }
+            setIsResetMode(false);
+        }
+    };
+
+    // Exit Logic (Back Button)
+    const handleFinalSaveAndExit = async () => {
+        // Capture Thumbnail and Save one last time before exit
+        let thumbnail: string | undefined;
+        if (previewRef.current) {
+            const dataUrl = previewRef.current.toDataURL();
+            if (dataUrl) thumbnail = dataUrl;
+        }
+
+        const finalDoor = {
+            ...door,
+            updatedAt: new Date(),
+            ...(thumbnail ? { thumbnail } : {})
+        };
+
+        if (door.id) {
+            await db.doors.update(door.id, finalDoor);
+        }
+
+        onBack();
+    };
 
     const handleCopy = async () => {
         try {
@@ -81,17 +142,6 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         setIsEditingName(false);
     };
 
-    const handleSaveDoor = async () => {
-        setIsSaving(true);
-        // Persistence is actually handled by hooks/db usually, but update timestamp or explicit save could happen here.
-        // For now, just visual feedback as data is auto-saved by useDoorViewModel/Dexie mostly (except explicit fields if any)
-        // Actually useDoorViewModel calls repository.saveDoor internally on changes if configured, 
-        // but typically we might want an explicit save point or just flash.
-        // Let's assume auto-save but give feedback.
-        await new Promise(r => setTimeout(r, 500));
-        setIsSaving(false);
-    };
-
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') handleNameSave();
         if (e.key === 'Escape') {
@@ -107,7 +157,14 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
             <header className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 z-20">
                 {/* Left: Home & Name */}
                 <div className="flex items-center gap-4 w-1/3">
-                    <button onClick={onBack} className="text-slate-400 hover:text-white transition-colors" title="Back to Home">
+                    <button
+                        onClick={() => {
+                            console.log('[EditorScreen] Back button clicked');
+                            handleFinalSaveAndExit();
+                        }}
+                        className="text-slate-400 hover:text-white transition-colors"
+                        title="Save & Back"
+                    >
                         <Home size={20} />
                     </button>
                     <div className="h-6 w-px bg-slate-700 mx-2"></div>
@@ -160,18 +217,25 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                     </div>
                 </div>
 
-                {/* Right: Price & Save */}
+                {/* Right: Price & Reset */}
                 <div className="flex items-center justify-end gap-6 w-1/3">
                     <div className="flex flex-col items-end leading-none">
                         <span className="text-[10px] text-slate-500 uppercase">Est. Price</span>
                         <span className="text-lg font-bold text-amber-400">¥ {unitPrice.toLocaleString()}</span>
                     </div>
+
+                    {/* Reset / Undo Toggle */}
                     <button
-                        onClick={handleSaveDoor}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20"
+                        onClick={handleResetToggle}
+                        className={clsx(
+                            "px-4 py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-colors shadow-lg",
+                            isResetMode
+                                ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/20"
+                                : "bg-slate-700 hover:bg-slate-600 text-slate-200 shadow-slate-900/20"
+                        )}
                     >
-                        {isSaving ? <Check size={16} /> : <Save size={16} />}
-                        {isSaving ? 'Saved' : 'Save'}
+                        <RotateCcw size={16} className={clsx(isResetMode && "rotate-180")} />
+                        {isResetMode ? '直前 (Undo)' : 'リセット (Reset)'}
                     </button>
                 </div>
             </header>
@@ -192,8 +256,14 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                         {/* <button className="p-2 bg-slate-800 rounded text-slate-400 hover:text-white opacity-50 hover:opacity-100"><Ruler size={16}/></button> */}
                     </div>
 
+
+
                     <div className="flex-1">
-                        <PreviewCanvas dimensions={door.dimensions} />
+                        <PreviewCanvas
+                            ref={previewRef}
+                            dimensions={door.dimensions}
+                            onDimensionsChange={updateDimensions}
+                        />
                     </div>
                 </div>
 

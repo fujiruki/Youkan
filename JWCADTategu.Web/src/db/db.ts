@@ -19,6 +19,7 @@ export interface Door {
     dimensions: DoorDimensions;
     specs: Record<string, any>;
     count: number;
+    thumbnail?: string; // Data URL for preview image
     updatedAt: Date;
     createdAt: Date;
 }

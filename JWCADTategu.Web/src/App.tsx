@@ -12,21 +12,25 @@ function App() {
     const [activeDoor, setActiveDoor] = useState<Door | null>(null);
 
     const handleOpenProject = (project: Project) => {
+        console.log('[App] Opening Project:', project.id);
         setActiveProject(project);
         setCurrentView('schedule');
     };
 
     const handleOpenDoor = (door: Door) => {
+        console.log('[App] Opening Door:', door.id);
         setActiveDoor(door);
         setCurrentView('editor');
     };
 
     const handleBackToDashboard = () => {
+        console.log('[App] Back to Dashboard');
         setCurrentView('dashboard');
         setActiveProject(null);
     };
 
     const handleBackToSchedule = () => {
+        console.log('[App] Back to Schedule');
         setCurrentView('schedule');
         setActiveDoor(null);
     };

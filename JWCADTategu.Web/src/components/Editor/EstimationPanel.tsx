@@ -125,7 +125,10 @@ export const EstimationPanel: React.FC<EstimationPanelProps> = ({ dimensions, se
                         onDimensionChange('estimationOverrides', newOverrides as any);
                     };
 
-                    const inputClass = "min-w-[50px] w-full bg-slate-800 rounded px-1 text-center text-emerald-400 focus:bg-slate-700 outline-none h-7 text-sm";
+                    // 7 digits ~ 60-70px
+                    const inputClass = "min-w-[70px] w-full bg-slate-800 rounded px-1 text-center text-emerald-400 focus:bg-slate-700 outline-none h-7 text-sm";
+                    // 8 digits ~ 80-100px
+                    const priceInputClass = "min-w-[90px] w-full bg-slate-800 rounded px-1 text-right text-emerald-400 focus:bg-slate-700 outline-none h-7 text-sm";
                     const marginInputClass = "min-w-[40px] w-full bg-slate-800 rounded px-1 text-center text-slate-400 focus:bg-slate-700 outline-none h-7 text-xs";
 
                     return (
@@ -171,7 +174,7 @@ export const EstimationPanel: React.FC<EstimationPanelProps> = ({ dimensions, se
 
                             {/* Unit Price (Editable) */}
                             <div>
-                                <input type="number" className={inputClass + " text-right"} value={item.unitPrice} onChange={(e) => handleOverride('unitPrice', Number(e.target.value))} />
+                                <input type="number" className={priceInputClass} value={item.unitPrice} onChange={(e) => handleOverride('unitPrice', Number(e.target.value))} />
                             </div>
 
                             {/* Cost */}

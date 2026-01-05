@@ -20,7 +20,7 @@ const InputGroup = ({ label, children }: { label: string, children: React.ReactN
 const NumberInput = ({ dimensionKey, value, onChange, placeholder }: { dimensionKey: keyof DoorDimensions, value: number, onChange: (k: keyof DoorDimensions, v: number) => void, placeholder?: string }) => (
     <input
         type="number"
-        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200 focus:border-emerald-500 outline-none transition-colors"
+        className="w-full min-w-[70px] bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200 focus:border-emerald-500 outline-none transition-colors"
         value={value}
         onChange={(e) => onChange(dimensionKey, Number(e.target.value))}
         placeholder={placeholder}
