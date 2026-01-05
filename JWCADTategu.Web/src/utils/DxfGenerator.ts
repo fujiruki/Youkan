@@ -178,15 +178,53 @@ export const generateDoorDxf = (
     const effectiveLayerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;
     const effectiveOptions = { ...DEFAULT_DXF_EXPORT_OPTIONS, ...options };
 
-    let offsetX = 0;
-    const GAP = 2000; // Gap between drawings
+    // A3 Layout constants (mm)
+    const CELL_WIDTH = 130;
+    const CELL_HEIGHT = 120;
+    const CELL_SPACING_X = 140;
+    const CELL_SPACING_Y = 148.5;
+    const HEADER_HEIGHT = 15;
+    const SPEC_HEIGHT = 25;
+    const DRAWING_AREA_HEIGHT = CELL_HEIGHT - HEADER_HEIGHT - SPEC_HEIGHT; // 80mm
 
-    doors.forEach(door => {
+    doors.forEach((door, doorIndex) => {
         const { width, height } = door.dimensions;
 
         // Calculate inner dimensions
         const innerW = width - (door.dimensions.stileWidth * 2);
         const innerH = height - door.dimensions.topRailWidth - door.dimensions.bottomRailWidth;
+
+        let offsetX: number, offsetY: number, scale: number;
+
+        if (effectiveOptions.useA3Layout) {
+            // **A3 Grid Layout (2×3)**
+            const col = doorIndex % 3;
+            const row = Math.floor(doorIndex / 3);
+
+            // Cell position
+            const cellX = col * CELL_SPACING_X;
+            const cellY = row * CELL_SPACING_Y;
+
+            // Calculate scale to fit door in drawing area
+            const maxDoorWidth = CELL_WIDTH * 0.75; // 97.5mm (25% margin)
+            const maxDoorHeight = DRAWING_AREA_HEIGHT * 0.75; // 60mm (25% margin)
+
+            const scaleX = maxDoorWidth / width;
+            const scaleY = maxDoorHeight / height;
+            scale = Math.min(scaleX, scaleY); // Use smaller scale to fit
+
+            const scaledWidth = width * scale;
+            const scaledHeight = height * scale;
+
+            // Center door in cell
+            offsetX = cellX + (CELL_WIDTH - scaledWidth) / 2;
+            offsetY = cellY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
+        } else {
+            // **Linear Layout (original)**
+            offsetX = doorIndex * (width + 2000);
+            offsetY = 0;
+            scale = 1; // No scaling
+        }
 
         // 1. Generate Geometry (Detailed parts)
         const geometry: GeometryResult = DoorGeometryGenerator.generate(door.dimensions);
@@ -194,13 +232,12 @@ export const generateDoorDxf = (
         // 2. Draw SOLID fills for each part (Layer Group 0, Layer E)
         geometry.parts.forEach(part => {
             const color = getPartColor(part.type, effectiveColorConfig);
-            // Convert canvas coords to DXF coords (Y-flip)
             const dxfY = height - part.y - part.h;
             dxf.addFilledRect(
-                offsetX + part.x,
-                dxfY,
-                part.w,
-                part.h,
+                offsetX + part.x * scale,
+                offsetY + dxfY * scale,
+                part.w * scale,
+                part.h * scale,
                 effectiveLayerConfig.joineryFill,
                 color
             );
@@ -210,94 +247,108 @@ export const generateDoorDxf = (
         geometry.parts.forEach(part => {
             const dxfY = height - part.y - part.h;
             dxf.addRect(
-                offsetX + part.x,
-                dxfY,
-                part.w,
-                part.h,
+                offsetX + part.x * scale,
+                offsetY + dxfY * scale,
+                part.w * scale,
+                part.h * scale,
                 effectiveLayerConfig.joineryOutline
             );
         });
 
         // 4. Overall Frame (Layer Group 8, Layer 1)
-        dxf.addRect(offsetX, 0, width, height, effectiveLayerConfig.frame);
+        dxf.addRect(offsetX, offsetY, width * scale, height * scale, effectiveLayerConfig.frame);
 
         // 5. Detailed Dimensions (Layer Group 8, Layer F)
+        const scaledInnerW = innerW * scale;
+        const scaledInnerH = innerH * scale;
+        const scaledStileWidth = door.dimensions.stileWidth * scale;
+        const scaledBottomRailWidth = door.dimensions.bottomRailWidth * scale;
 
         // Horizontal dimensions (bottom)
-        const dimY1 = -200; // Outer dimension
-        const dimY2 = -350; // Inner dimension
+        const dimY1 = offsetY - 50 * scale; // Outer dimension
+        const dimY2 = offsetY - 100 * scale; // Inner dimension
 
         // Outer width dimension
-        dxf.addLine(offsetX, dimY1, offsetX + width, dimY1, effectiveLayerConfig.dimensions);
-        dxf.addLine(offsetX, dimY1 + 20, offsetX, dimY1 - 20, effectiveLayerConfig.dimensions);
-        dxf.addLine(offsetX + width, dimY1 + 20, offsetX + width, dimY1 - 20, effectiveLayerConfig.dimensions);
-        dxf.addText(offsetX + width / 2 - 80, dimY1 + 30, `W ${width}`, 40, effectiveLayerConfig.dimensions);
+        dxf.addLine(offsetX, dimY1, offsetX + width * scale, dimY1, effectiveLayerConfig.dimensions);
+        dxf.addLine(offsetX, dimY1 + 10, offsetX, dimY1 - 10, effectiveLayerConfig.dimensions);
+        dxf.addLine(offsetX + width * scale, dimY1 + 10, offsetX + width * scale, dimY1 - 10, effectiveLayerConfig.dimensions);
+        dxf.addText(offsetX + width * scale / 2 - 40, dimY1 + 15, `W ${width}`, 20 * scale, effectiveLayerConfig.dimensions);
 
         // Inner width dimension
-        const innerStartX = offsetX + door.dimensions.stileWidth;
-        dxf.addLine(innerStartX, dimY2, innerStartX + innerW, dimY2, effectiveLayerConfig.dimensions);
-        dxf.addLine(innerStartX, dimY2 + 15, innerStartX, dimY2 - 15, effectiveLayerConfig.dimensions);
-        dxf.addLine(innerStartX + innerW, dimY2 + 15, innerStartX + innerW, dimY2 - 15, effectiveLayerConfig.dimensions);
-        dxf.addText(innerStartX + innerW / 2 - 60, dimY2 + 25, `${innerW}`, 35, effectiveLayerConfig.dimensions);
+        const innerStartX = offsetX + scaledStileWidth;
+        dxf.addLine(innerStartX, dimY2, innerStartX + scaledInnerW, dimY2, effectiveLayerConfig.dimensions);
+        dxf.addLine(innerStartX, dimY2 + 8, innerStartX, dimY2 - 8, effectiveLayerConfig.dimensions);
+        dxf.addLine(innerStartX + scaledInnerW, dimY2 + 8, innerStartX + scaledInnerW, dimY2 - 8, effectiveLayerConfig.dimensions);
+        dxf.addText(innerStartX + scaledInnerW / 2 - 30, dimY2 + 12, `${innerW}`, 18 * scale, effectiveLayerConfig.dimensions);
 
         // Vertical dimensions (left)
-        const dimX1 = offsetX - 200; // Outer dimension
-        const dimX2 = offsetX - 350; // Inner dimension
+        const dimX1 = offsetX - 50 * scale; // Outer dimension
+        const dimX2 = offsetX - 100 * scale; // Inner dimension
 
         // Outer height dimension
-        dxf.addLine(dimX1, 0, dimX1, height, effectiveLayerConfig.dimensions);
-        dxf.addLine(dimX1 - 20, 0, dimX1 + 20, 0, effectiveLayerConfig.dimensions);
-        dxf.addLine(dimX1 - 20, height, dimX1 + 20, height, effectiveLayerConfig.dimensions);
-        dxf.addText(dimX1 - 80, height / 2 + 20, `H ${height}`, 40, effectiveLayerConfig.dimensions);
+        dxf.addLine(dimX1, offsetY, dimX1, offsetY + height * scale, effectiveLayerConfig.dimensions);
+        dxf.addLine(dimX1 - 10, offsetY, dimX1 + 10, offsetY, effectiveLayerConfig.dimensions);
+        dxf.addLine(dimX1 - 10, offsetY + height * scale, dimX1 + 10, offsetY + height * scale, effectiveLayerConfig.dimensions);
+        dxf.addText(dimX1 - 40, offsetY + height * scale / 2 + 10, `H ${height}`, 20 * scale, effectiveLayerConfig.dimensions);
 
         // Inner height dimension
-        const innerStartY = door.dimensions.bottomRailWidth;
-        dxf.addLine(dimX2, innerStartY, dimX2, innerStartY + innerH, effectiveLayerConfig.dimensions);
-        dxf.addLine(dimX2 - 15, innerStartY, dimX2 + 15, innerStartY, effectiveLayerConfig.dimensions);
-        dxf.addLine(dimX2 - 15, innerStartY + innerH, dimX2 + 15, innerStartY + innerH, effectiveLayerConfig.dimensions);
-        dxf.addText(dimX2 - 60, innerStartY + innerH / 2 + 15, `${innerH}`, 35, effectiveLayerConfig.dimensions);
+        const innerStartY = offsetY + scaledBottomRailWidth;
+        dxf.addLine(dimX2, innerStartY, dimX2, innerStartY + scaledInnerH, effectiveLayerConfig.dimensions);
+        dxf.addLine(dimX2 - 8, innerStartY, dimX2 + 8, innerStartY, effectiveLayerConfig.dimensions);
+        dxf.addLine(dimX2 - 8, innerStartY + scaledInnerH, dimX2 + 8, innerStartY + scaledInnerH, effectiveLayerConfig.dimensions);
+        dxf.addText(dimX2 - 30, innerStartY + scaledInnerH / 2 + 8, `${innerH}`, 18 * scale, effectiveLayerConfig.dimensions);
 
         // 6. Human Scale Figure (Layer 5_SCALE) - Optional
-        if (effectiveOptions.includeHumanScale) {
-            const humanX = offsetX + width + 500; // 500mm to the right of door
-            const humanHeight = 1600; // 160cm standard human height
-            const humanWidth = 400; // Approximate shoulder width
+        if (effectiveOptions.includeHumanScale && !effectiveOptions.useA3Layout) {
+            // Only show human scale in linear layout (too crowded in A3)
+            const humanX = offsetX + width * scale + 500;
+            const humanHeight = 1600;
+            const humanWidth = 400;
 
-            // Head (circle)
             const headRadius = 80;
             const headY = humanHeight - headRadius;
             dxf.addCircle(humanX, headY, headRadius, '5_SCALE', 3);
 
-            // Body (torso)
             const torsoTop = humanHeight - headRadius * 2 - 20;
             const torsoBottom = humanHeight * 0.55;
             dxf.addLine(humanX, torsoTop, humanX, torsoBottom, '5_SCALE', 3);
 
-            // Shoulders
             dxf.addLine(humanX - humanWidth / 2, torsoTop + 50, humanX + humanWidth / 2, torsoTop + 50, '5_SCALE', 3);
 
-            // Arms
             dxf.addLine(humanX - humanWidth / 2, torsoTop + 50, humanX - humanWidth / 2 - 50, torsoBottom + 100, '5_SCALE', 3);
             dxf.addLine(humanX + humanWidth / 2, torsoTop + 50, humanX + humanWidth / 2 + 50, torsoBottom + 100, '5_SCALE', 3);
 
-            // Legs
             dxf.addLine(humanX, torsoBottom, humanX - 150, 0, '5_SCALE', 3);
             dxf.addLine(humanX, torsoBottom, humanX + 150, 0, '5_SCALE', 3);
         }
 
-        // 7. Header / Tag (Layer Group 8, Layer 0)
-        dxf.addRect(offsetX, height + 300, 300, 150, effectiveLayerConfig.text);
-        dxf.addText(offsetX + 50, height + 350, door.tag, 80, effectiveLayerConfig.text);
+        if (effectiveOptions.useA3Layout) {
+            // 7. Header / Tag (in cell) - A3 Layout
+            const col = doorIndex % 3;
+            const row = Math.floor(doorIndex / 3);
+            const cellX = col * CELL_SPACING_X;
+            const cellY = row * CELL_SPACING_Y;
 
-        // Name
-        dxf.addText(offsetX + 350, height + 350, door.name, 60, effectiveLayerConfig.text);
+            // Tag box
+            dxf.addRect(cellX, cellY + CELL_HEIGHT, 60, 12, effectiveLayerConfig.text);
+            dxf.addText(cellX + 5, cellY + CELL_HEIGHT + 3, door.tag, 8, effectiveLayerConfig.text);
 
-        // 8. Specs (Layer Group 8, Layer 0)
-        const specY = -500;
-        dxf.addText(offsetX, specY, `Specifications:`, 40, effectiveLayerConfig.text);
+            // Name
+            dxf.addText(cellX + 65, cellY + CELL_HEIGHT + 3, door.name, 6, effectiveLayerConfig.text);
 
-        // Advance Offset
-        offsetX += width + GAP;
+            // 8. Specs (bottom of cell)
+            const specY = cellY - 15;
+            dxf.addText(cellX, specY, `Spec:`, 5, effectiveLayerConfig.text);
+        } else {
+            // 7. Header / Tag (above door) - Linear Layout
+            dxf.addRect(offsetX, offsetY + height * scale + 50, 300, 150, effectiveLayerConfig.text);
+            dxf.addText(offsetX + 50, offsetY + height * scale + 100, door.tag, 80, effectiveLayerConfig.text);
+            dxf.addText(offsetX + 350, offsetY + height * scale + 100, door.name, 60, effectiveLayerConfig.text);
+
+            // 8. Specs (below door)
+            const specY = offsetY - 200;
+            dxf.addText(offsetX, specY, `Specifications:`, 40, effectiveLayerConfig.text);
+        }
     });
 
     return dxf.generate();
