@@ -4,8 +4,9 @@ import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { generateDoorDxf } from '../../utils/DxfGenerator';
-import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search } from 'lucide-react';
+import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings } from 'lucide-react';
 import clsx from 'clsx';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
     <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
@@ -28,6 +29,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     // UI Options
     const [showCost, setShowCost] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const loadDoors = async () => {
         if (project.id) {
@@ -125,6 +127,11 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         URL.revokeObjectURL(url);
     };
 
+    const handleSaveSettings = async (updatedProject: Project) => {
+        await projectRepository.saveProject(updatedProject);
+        onUpdateProject(updatedProject);
+    };
+
     return (
         <div className="p-8 h-full bg-slate-950 text-slate-200 overflow-auto flex flex-col">
             {/* Header UI */}
@@ -177,6 +184,15 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         >
                             <DollarSign size={16} />
                             {showCost ? 'ON' : 'OFF'}
+                        </button>
+
+                        {/* Settings Button */}
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            title="Project Settings"
+                            className="p-2 border border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 rounded-md transition-all"
+                        >
+                            <Settings size={18} />
                         </button>
 
                         {/* JWCAD Export */}
@@ -289,6 +305,14 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                     <span className="font-bold">新しい建具を作成</span>
                 </button>
             </div>
+
+            {/* Settings Modal */}
+            <ProjectSettingsModal
+                project={project}
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                onSave={handleSaveSettings}
+            />
         </div>
     );
 };
