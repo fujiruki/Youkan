@@ -258,6 +258,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             <Settings size={18} />
                         </button>
 
+
                         {/* JWCAD Export */}
                         <button
                             onClick={handleExportDxf}
@@ -266,6 +267,16 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         >
                             <FileDown size={18} />
                             DXF出力
+                        </button>
+
+                        {/* JSON Export (Backup) */}
+                        <button
+                            onClick={handleExportJson}
+                            title="プロジェクトデータをJSON形式でバックアップ"
+                            className="bg-purple-700 hover:bg-purple-600 border border-purple-600 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-purple-900/20 transition-all"
+                        >
+                            <Package size={18} />
+                            JSON出力
                         </button>
 
                         {/* Create New */}
