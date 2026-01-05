@@ -31,6 +31,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [searchQuery, setSearchQuery] = useState('');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [includeHumanScale, setIncludeHumanScale] = useState(true);
+    const [useA3Layout, setUseA3Layout] = useState(true);
 
     const loadDoors = async () => {
         if (project.id) {
@@ -116,7 +117,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             filteredDoors,
             project.dxfLayerConfig,
             undefined, // Use default color config
-            { includeHumanScale } // Export options
+            { includeHumanScale, useA3Layout } // Export options
         );
 
         const blob = new Blob([dxfContent], { type: 'application/dxf' });
@@ -202,6 +203,21 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         >
                             👤
                             {includeHumanScale ? 'ON' : 'OFF'}
+                        </button>
+
+                        {/* A3 Layout Toggle */}
+                        <button
+                            onClick={() => setUseA3Layout(!useA3Layout)}
+                            className={clsx(
+                                "p-2 rounded-md border transition-all flex items-center gap-2 text-sm font-medium",
+                                useA3Layout
+                                    ? "bg-blue-900/20 border-blue-500/50 text-blue-400"
+                                    : "bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300"
+                            )}
+                            title="Use A3 Layout (2×3 Grid)"
+                        >
+                            📄
+                            {useA3Layout ? 'A3' : 'リニア'}
                         </button>
 
                         {/* Settings Button */}
