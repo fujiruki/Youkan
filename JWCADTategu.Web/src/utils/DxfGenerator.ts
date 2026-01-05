@@ -42,13 +42,21 @@ export class DxfGenerator {
         this.add(0, 'TABLE');
         this.add(2, 'LAYER');
 
-        // Define all layers used
-        this.defineLayer(this.layerConfig.joineryOutline, 7);
-        this.defineLayer(this.layerConfig.joineryFill, 7);
-        this.defineLayer(this.layerConfig.dimensions, 4);
-        this.defineLayer(this.layerConfig.text, 4);
-        this.defineLayer(this.layerConfig.frame, 7);
-        this.defineLayer('5_SCALE', 3); // Human scale layer (green)
+        // Define all possible layer combinations for door groups
+        // Groups 0-5 can be used, each with layers 2 (outline) and E (fill)
+        for (let group = 0; group <= 5; group++) {
+            this.defineLayer(`${group}-2`, 7);  // Outline
+            this.defineLayer(`${group}-E`, 7);  // Fill
+        }
+
+        // Define frame and text layers (group F)
+        this.defineLayer('F-1', 7);   // Frame
+        this.defineLayer('F-F', 4);   // Dimensions
+        this.defineLayer('F-0', 4);   // Text
+        this.defineLayer('F-9', 4);   // Human scale
+
+        // Legacy layer for compatibility
+        this.defineLayer('5_SCALE', 3);
 
         this.add(0, 'ENDTAB');
         this.add(0, 'ENDSEC');
