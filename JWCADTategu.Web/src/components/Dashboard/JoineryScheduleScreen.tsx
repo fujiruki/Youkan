@@ -102,6 +102,25 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
 
     const totalEstimate = doors.reduce((acc, d) => acc + calculateCost(d.dimensions, project.settings!).totalCost * d.count, 0);
 
+    const handleExportDxf = () => {
+        if (filteredDoors.length === 0) {
+            alert('出力する建具がありません。\n(No doors to export)');
+            return;
+        }
+
+        const dxfContent = generateDoorDxf(filteredDoors);
+
+        const blob = new Blob([dxfContent], { type: 'application/dxf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.name}_${new Date().toISOString().slice(0, 10)}.dxf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="p-8 h-full bg-slate-950 text-slate-200 overflow-auto flex flex-col">
             {/* Header UI */}
@@ -158,11 +177,12 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
 
                         {/* JWCAD Export */}
                         <button
-                            onClick={() => alert('JWCAD出力機能は準備中です。\n(JWCAD Output logic will be implemented here)')}
+                            onClick={handleExportDxf}
+                            title="Download DXF (JWCAD Compatible)"
                             className="bg-sky-700 hover:bg-sky-600 border border-sky-600 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-sky-900/20 transition-all"
                         >
                             <FileDown size={18} />
-                            JWW書き出し
+                            DXF出力
                         </button>
 
                         {/* Create New */}
