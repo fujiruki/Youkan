@@ -1,4 +1,4 @@
-import { DEBUG_MODE, DEBUG_INFO } from '../config/debug';
+import { DEBUG_MODE, DEBUG_INFO } from '../../config/debug';
 
 /**
  * Debug Banner Component
