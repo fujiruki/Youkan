@@ -52,6 +52,9 @@ export interface ProjectExportData {
  * @returns JSON string (formatted with 2-space indentation)
  */
 export function exportProjectToJson(project: Project): string {
+    // Safety check: ensure doors array exists
+    const doors = project.doors || [];
+
     const exportData: ProjectExportData = {
         exportInfo: {
             version: '1.0',
@@ -60,14 +63,14 @@ export function exportProjectToJson(project: Project): string {
             buildTimestamp: BUILD_TIMESTAMP
         },
         project: {
-            id: project.id,
+            id: project.id?.toString(),
             name: project.name,
-            createdAt: project.createdAt,
-            updatedAt: project.updatedAt,
-            doorCount: project.doors.length
+            createdAt: project.createdAt?.toISOString(),
+            updatedAt: project.updatedAt?.toISOString(),
+            doorCount: doors.length
         },
-        doors: project.doors.map(door => ({
-            id: door.id,
+        doors: doors.map(door => ({
+            id: door.id?.toString(),
             tag: door.tag,
             name: door.name,
             dimensions: {
@@ -82,8 +85,15 @@ export function exportProjectToJson(project: Project): string {
             estimatedCost: door.estimatedCost
         })),
         settings: {
-            dxfLayerConfig: project.dxfLayerConfig,
-            dxfColorConfig: project.dxfColorConfig
+            dxfLayerConfig: project.dxfLayerConfig || {
+                frame: '8-1',
+                joineryOutline: '0-2',
+                joineryFill: '0-E',
+                dimensions: '8-F',
+                text: '8-0',
+                humanScale: '5_SCALE'
+            },
+            dxfColorConfig: (project as any).dxfColorConfig
         }
     };
 
