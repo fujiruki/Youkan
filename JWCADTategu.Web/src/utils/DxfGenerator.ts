@@ -231,6 +231,14 @@ export const generateDoorDxf = (
             // Center door in cell
             offsetX = cellX + (CELL_WIDTH - scaledWidth) / 2;
             offsetY = baseY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
+
+            debugDxf(`Door ${doorIndex} Grid Calculations`, {
+                row, col,
+                cellX, baseY,
+                CELL_SPACING_Y,
+                offsetX: offsetX.toFixed(2),
+                offsetY: offsetY.toFixed(2)
+            });
         } else {
             // **Linear Layout (original)**
             debugDxf(`Door ${doorIndex}: Using Linear Layout`, { doorIndex, useA3Layout: false });
@@ -241,6 +249,8 @@ export const generateDoorDxf = (
 
         // 1. Generate Geometry (Detailed parts)
         const geometry: GeometryResult = DoorGeometryGenerator.generate(door.dimensions);
+
+        debugDxf(`Door ${doorIndex} Drawing with offsets`, { offsetX, offsetY, scale, width, height });
 
         // 2. Draw SOLID fills for each part (Layer Group 0, Layer E)
         geometry.parts.forEach(part => {

@@ -4,7 +4,9 @@ import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { generateDoorDxf } from '../../utils/DxfGenerator';
-import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings } from 'lucide-react';
+import { exportProjectToJson, generateExportFilename } from '../../utils/ProjectExport';
+import { debugLog } from '../../config/debug';
+import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package } from 'lucide-react';
 import clsx from 'clsx';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 
@@ -129,6 +131,33 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    };
+
+    const handleExportJson = () => {
+        debugLog('PROJECT_EXPORT', `Exporting project: ${project.name}`, {
+            doorCount: doors.length,
+            projectId: project.id,
+            settings: project.settings
+        });
+
+        const jsonContent = exportProjectToJson(project);
+
+        debugLog('PROJECT_EXPORT', 'JSON generated', {
+            dataSize: jsonContent.length,
+            preview: jsonContent.substring(0, 200) + '...'
+        });
+
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = generateExportFilename(project.name);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log('✅ Project exported to JSON:', generateExportFilename(project.name));
     };
 
     const handleSaveSettings = async (updatedProject: Project) => {
