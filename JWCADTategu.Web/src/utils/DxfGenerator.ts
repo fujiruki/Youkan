@@ -1,4 +1,5 @@
 import { Door } from '../db/db';
+import { DoorGeometryGenerator, GeometryResult } from '../logic/GeometryGenerator';
 
 /**
  * Simple DXF Generator for JWCAD compatibility.
@@ -33,9 +34,11 @@ export class DxfGenerator {
 
         this.defineLayer('0_FRAME', 7); // White
         this.defineLayer('1_VISUAL', 7); // White
+        this.defineLayer('2_CENTER', 4); // Cyan (Center lines)
         this.defineLayer('3_DIMS', 4); // Cyan
         this.defineLayer('4_TEXT', 4); // Cyan
-        this.defineLayer('6_COST', 6); // Magenta (Hidden usually)
+        this.defineLayer('5_SCALE', 3); // Green (Human scale)
+        this.defineLayer('6_COST', 6); // Magenta
 
         this.add(0, 'ENDTAB');
         this.add(0, 'ENDSEC');
@@ -85,40 +88,64 @@ export class DxfGenerator {
     }
 }
 
-export const generateDoorDxf = (door: Door): string => {
+export const generateDoorDxf = (doors: Door[]): string => {
     const dxf = new DxfGenerator();
-    const { width, height, stileWidth, topRailWidth, bottomRailWidth } = door.dimensions;
+    let offsetX = 0;
+    const GAP = 2000; // Gap between drawings
 
-    // 1. Frame (Outer) - Layer 0
-    dxf.addRect(0, 0, width, height, '0_FRAME');
+    doors.forEach(door => {
+        const { width, height } = door.dimensions;
 
-    // 2. Stiles & Rails (Inner visual) - Layer 1
-    // Left Stile
-    dxf.addRect(0, 0, stileWidth, height, '1_VISUAL');
-    // Right Stile
-    dxf.addRect(width - stileWidth, 0, stileWidth, height, '1_VISUAL');
-    // Top Rail
-    dxf.addRect(stileWidth, height - topRailWidth, width - (stileWidth * 2), topRailWidth, '1_VISUAL');
-    // Bottom Rail
-    dxf.addRect(stileWidth, 0, width - (stileWidth * 2), bottomRailWidth, '1_VISUAL');
+        // 1. Generate Geometry (Detailed lines)
+        const geometry: GeometryResult = DoorGeometryGenerator.generate(door.dimensions);
 
-    // 3. Dimensions - Layer 3
-    // Width Dim
-    const dimY = -150;
-    dxf.addLine(0, dimY, width, dimY, '3_DIMS');
-    dxf.addLine(0, dimY + 20, 0, dimY - 20, '3_DIMS'); // Tick
-    dxf.addLine(width, dimY + 20, width, dimY - 20, '3_DIMS'); // Tick
-    dxf.addText(width / 2 - 50, dimY + 30, `W ${width}`, 50, '3_DIMS');
+        // 2. Draw Geometry Lines (Layer 1_VISUAL usually, Frame on Layer 0)
+        geometry.lines.forEach(line => {
+            // Map types to layers
+            const layer = line.type === 'outline' ? '0_FRAME' : '1_VISUAL';
+            // Flip Y for CAD (CAD is Y-up, our logic might be Y-down or we just treat canvas coords)
+            // Canvas is Y-down (0 at top). CAD is usually Y-up.
+            // Standard JWW export often keeps coords. Let's do Y-up by flipping.
 
-    // Height Dim
-    const dimX = -150;
-    dxf.addLine(dimX, 0, dimX, height, '3_DIMS');
-    dxf.addLine(dimX - 20, 0, dimX + 20, 0, '3_DIMS');
-    dxf.addLine(dimX - 20, height, dimX + 20, height, '3_DIMS');
-    dxf.addText(dimX - 100, height / 2, `H ${height}`, 50, '3_DIMS');
+            dxf.addLine(
+                offsetX + line.start.x, -line.start.y + height, // Flip Y for display
+                offsetX + line.end.x, -line.end.y + height,
+                layer
+            );
+        });
 
-    // 4. Text Info - Layer 4
-    dxf.addText(0, height + 200, `${door.tag} : ${door.name}`, 80, '4_TEXT');
+        // 3. Frame Rect (Outer) - to ensure clean outline
+        dxf.addRect(offsetX, 0, width, height, '0_FRAME');
+
+        // 4. Dimensions
+        const dimY = -150;
+        dxf.addLine(offsetX, dimY, offsetX + width, dimY, '3_DIMS');
+        dxf.addLine(offsetX, dimY + 20, offsetX, dimY - 20, '3_DIMS');
+        dxf.addLine(offsetX + width, dimY + 20, offsetX + width, dimY - 20, '3_DIMS');
+        dxf.addText(offsetX + width / 2 - 100, dimY + 30, `W ${width}`, 50, '3_DIMS');
+
+        const dimX = offsetX - 150;
+        dxf.addLine(dimX, 0, dimX, height, '3_DIMS');
+        dxf.addLine(dimX - 20, 0, dimX + 20, 0, '3_DIMS');
+        dxf.addLine(dimX - 20, height, dimX + 20, height, '3_DIMS');
+        dxf.addText(dimX - 100, height / 2, `H ${height}`, 50, '3_DIMS');
+
+        // 5. Header / Tag
+        // Tag Badge
+        dxf.addRect(offsetX, height + 300, 300, 150, '4_TEXT'); // Box
+        dxf.addText(offsetX + 50, height + 350, door.tag, 80, '4_TEXT');
+
+        // Name
+        dxf.addText(offsetX + 350, height + 350, door.name, 60, '4_TEXT');
+
+        // 6. Specs (Simple list below)
+        const specY = -400;
+        dxf.addText(offsetX, specY, `Specifications:`, 40, '4_TEXT');
+        // Add more spec details if needed later
+
+        // Advance Offset
+        offsetX += width + GAP;
+    });
 
     return dxf.generate();
 };
