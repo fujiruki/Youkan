@@ -3,15 +3,18 @@ import { Door, db } from '../../db/db';
 import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { projectRepository } from '../../repositories/ProjectRepository';
-import { PreviewCanvas } from '../Editor/PreviewCanvas';
-import { Trash2, Copy, ArrowLeft, Plus } from 'lucide-react';
+import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, MoreVertical } from 'lucide-react';
+import clsx from 'clsx';
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
-    <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center overflow-hidden border border-slate-700">
+    <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
+        {/* Floor Line (Mock) */}
+        <div className="absolute bottom-4 left-0 right-0 h-px bg-slate-800 z-0"></div>
+
         {door.thumbnail ? (
-            <img src={door.thumbnail} alt={door.name} className="w-full h-full object-contain" />
+            <img src={door.thumbnail} alt={door.name} className="h-[90%] w-auto object-contain z-10 relative" />
         ) : (
-            <span className="text-[10px] text-slate-500 text-center leading-tight">No<br />Image</span>
+            <span className="text-[10px] text-slate-600 text-center leading-tight">No Preview</span>
         )}
     </div>
 );
@@ -20,6 +23,10 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [doors, setDoors] = useState<Door[]>([]);
     const [editTableName, setEditTableName] = useState(project.name);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+    // UI Options
+    const [showCost, setShowCost] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const loadDoors = async () => {
         if (project.id) {
@@ -39,17 +46,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         setIsEditingTitle(false);
     };
 
-    const updateDoorName = async (id: number, name: string) => {
-        const door = doors.find(d => d.id === id);
-        if (door) {
-            const updated = { ...door, name };
-            setDoors(doors.map(d => d.id === id ? updated : d));
-            await projectRepository.saveDoor(updated);
-        }
-    };
-
     const handleCreateDoor = async () => {
-        console.log('[Schedule] Create Door Clicked');
         const newDoor: Door = {
             projectId: project.id!,
             tag: `D-${doors.length + 1}`,
@@ -67,10 +64,8 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        console.log('[Schedule] Saving new door to DB...');
         try {
             const id = await projectRepository.saveDoor(newDoor);
-            console.log('[Schedule] Door Saved, ID:', id);
             onOpenDoor({ ...newDoor, id });
         } catch (e) {
             console.error('[Schedule] Failed to save door', e);
@@ -99,126 +94,175 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         }
     };
 
+    // Filter Doors
+    const filteredDoors = doors.filter(d =>
+        d.name.includes(searchQuery) || d.tag.includes(searchQuery)
+    );
+
     const totalEstimate = doors.reduce((acc, d) => acc + calculateCost(d.dimensions, project.settings!).totalCost * d.count, 0);
 
     return (
-        <div className="p-8 h-full bg-slate-950 text-slate-200 overflow-auto">
+        <div className="p-8 h-full bg-slate-950 text-slate-200 overflow-auto flex flex-col">
             {/* Header UI */}
-            <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-4">
+            <div className="flex justify-between items-start mb-8 shrink-0">
+                <div className="flex flex-col gap-2">
                     <button
-                        onClick={() => {
-                            console.log('[Schedule] Back Clicked');
-                            onBack();
-                        }}
-                        className="text-slate-500 hover:text-white flex items-center gap-2"
+                        onClick={onBack}
+                        className="text-slate-500 hover:text-white flex items-center gap-2 text-sm transition-colors mb-1"
                     >
-                        <ArrowLeft size={20} />
-                        一覧に戻る
+                        <ArrowLeft size={16} />
+                        プロジェクト一覧に戻る
                     </button>
-                    <div className="h-8 w-px bg-slate-800 mx-2"></div>
-                    {isEditingTitle ? (
-                        <input
-                            value={editTableName}
-                            onChange={e => setEditTableName(e.target.value)}
-                            onBlur={handleProjectNameSave}
-                            autoFocus
-                            className="bg-slate-800 text-2xl font-bold border border-emerald-500 rounded px-2 text-white"
-                        />
-                    ) : (
-                        <h1 onClick={() => setIsEditingTitle(true)} className="text-2xl font-bold cursor-pointer hover:text-emerald-400 decoration-emerald-500/30 hover:underline hover:underline-offset-4 transition-all">
-                            {project.name}
-                        </h1>
-                    )}
-                </div>
-                <div className="flex items-center gap-4">
-                    <button onClick={handleCreateDoor} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20">
-                        <Plus size={20} />
-                        新規作成
-                    </button>
-                    <button onClick={() => onDeleteProject(project.id!)} className="text-red-500 hover:text-red-400 text-sm flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-                        <Trash2 size={14} /> 案件削除
-                    </button>
-                </div>
-            </div>
 
-            {/* Total Calculation */}
-            <div className="mb-6 flex justify-end">
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl min-w-[200px]">
-                    <div className="text-xs text-slate-500 mb-1">見積合計 (Total Estimate)</div>
-                    <div className="text-3xl font-bold text-emerald-400 tracking-tight">
-                        ¥ {totalEstimate.toLocaleString()}
+                    <div className="flex items-center gap-4">
+                        {isEditingTitle ? (
+                            <input
+                                value={editTableName}
+                                onChange={e => setEditTableName(e.target.value)}
+                                onBlur={handleProjectNameSave}
+                                autoFocus
+                                className="bg-slate-800 text-3xl font-bold border border-emerald-500 rounded px-2 text-white outline-none"
+                            />
+                        ) : (
+                            <h1
+                                onClick={() => setIsEditingTitle(true)}
+                                className="text-3xl font-bold cursor-pointer hover:text-emerald-400 decoration-emerald-500/30 hover:underline hover:underline-offset-4 transition-all"
+                            >
+                                {project.name}
+                            </h1>
+                        )}
+                        <span className="bg-slate-800 text-slate-400 px-2 py-1 rounded text-xs">
+                            {doors.length} sheets
+                        </span>
                     </div>
                 </div>
+
+                {/* Right Actions */}
+                <div className="flex flex-col items-end gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* Cost Toggle */}
+                        <button
+                            onClick={() => setShowCost(!showCost)}
+                            className={clsx(
+                                "p-2 rounded-md border transition-all flex items-center gap-2 text-sm font-medium",
+                                showCost
+                                    ? "bg-amber-900/20 border-amber-500/50 text-amber-400"
+                                    : "bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300"
+                            )}
+                            title="Toggle Cost Visibility"
+                        >
+                            <DollarSign size={16} />
+                            {showCost ? 'ON' : 'OFF'}
+                        </button>
+
+                        {/* JWCAD Export */}
+                        <button
+                            onClick={() => alert('JWCAD出力機能は準備中です。\n(JWCAD Output logic will be implemented here)')}
+                            className="bg-sky-700 hover:bg-sky-600 border border-sky-600 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-sky-900/20 transition-all"
+                        >
+                            <FileDown size={18} />
+                            JWW書き出し
+                        </button>
+
+                        {/* Create New */}
+                        <button
+                            onClick={handleCreateDoor}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all ml-2"
+                        >
+                            <Plus size={18} />
+                            新規建具
+                        </button>
+                    </div>
+
+                    {showCost && (
+                        <div className="text-sm font-mono text-slate-400">
+                            Total: <span className="text-amber-400 text-lg font-bold">¥{totalEstimate.toLocaleString()}</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Table UI */}
-            <div className="rounded-lg border border-slate-800 overflow-hidden">
-                <table className="w-full text-left border-collapse bg-slate-900/30">
-                    <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-medium">
-                        <tr>
-                            <th className="p-4 w-24 text-center">Preview</th>
-                            <th className="p-4 w-32">Ref / Tag</th>
-                            <th className="p-4">Name</th>
-                            <th className="p-4 w-40">Size (WxH)</th>
-                            <th className="p-4 text-right w-40">Cost</th>
-                            <th className="p-4 w-24 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                        {doors.map(door => {
-                            const { totalCost } = calculateCost(door.dimensions, project.settings!);
+            {/* Toolbar (Search) */}
+            <div className="mb-6 flex items-center justify-between shrink-0">
+                <div className="relative group">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search doors..."
+                        className="bg-slate-900 border border-slate-700 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
+                    />
+                </div>
+            </div>
 
-                            return (
-                                <tr key={door.id} onClick={() => onOpenDoor(door)} className="hover:bg-slate-800/50 cursor-pointer transition-colors group">
-                                    <td className="p-3 text-center">
-                                        <DoorPreview door={door} />
-                                    </td>
-                                    <td className="p-4 font-mono text-emerald-500 font-medium">{door.tag}</td>
-                                    <td className="p-4" onClick={e => e.stopPropagation()}>
-                                        <input
-                                            value={door.name}
-                                            onChange={(e) => updateDoorName(door.id!, e.target.value)}
-                                            className="bg-transparent border border-transparent hover:border-slate-600 focus:border-emerald-500 rounded px-2 py-1 -ml-2 w-full outline-none text-slate-200 transition-colors"
-                                        />
-                                    </td>
-                                    <td className="p-4 text-slate-400 font-mono text-sm">
-                                        {door.dimensions.width} <span className="text-slate-600">x</span> {door.dimensions.height}
-                                    </td>
-                                    <td className="p-4 font-mono text-right text-slate-300">
-                                        ¥ {totalCost.toLocaleString()}
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => handleDuplicate(e, door)}
-                                                className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded transition-colors"
-                                                title="Duplicate"
-                                            >
-                                                <Copy size={16} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleDelete(e, door.id!)}
-                                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+            {/* Grid UI */}
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+                {filteredDoors.map(door => {
+                    const { totalCost } = calculateCost(door.dimensions, project.settings!);
+
+                    return (
+                        <div
+                            key={door.id}
+                            onClick={() => onOpenDoor(door)}
+                            className="group bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl p-4 cursor-pointer transition-all hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 relative"
+                        >
+                            {/* Card Header */}
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="bg-slate-800 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-slate-700 font-mono">
+                                    {door.tag}
+                                </div>
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                    <button
+                                        onClick={(e) => handleDuplicate(e, door)}
+                                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                                        title="複製 (Duplicate)"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleDelete(e, door.id!)}
+                                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded transition-colors"
+                                        title="削除 (Delete)"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Preview */}
+                            <DoorPreview door={door} />
+
+                            {/* Card Body */}
+                            <div>
+                                <h3 className="font-bold text-slate-200 mb-1 truncate group-hover:text-emerald-400 transition-colors">{door.name}</h3>
+                                <div className="flex justify-between items-end">
+                                    <div className="text-xs text-slate-500 font-mono">
+                                        W{door.dimensions.width} x H{door.dimensions.height}
+                                    </div>
+                                    {showCost && (
+                                        <div className="text-sm font-bold text-amber-500 font-mono">
+                                            ¥{totalCost.toLocaleString()}
                                         </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                        {doors.length === 0 && (
-                            <tr>
-                                <td colSpan={6} className="p-12 text-center text-slate-500">
-                                    建具が登録されていません。<br />
-                                    右上の「新規作成」ボタンなどを作成してください。
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Selection Effect Border (optional) */}
+                            <div className="absolute inset-0 border-2 border-transparent group-hover:border-emerald-500/20 rounded-xl pointer-events-none"></div>
+                        </div>
+                    );
+                })}
+
+                {/* Empty State / Add New Card */}
+                <button
+                    onClick={handleCreateDoor}
+                    className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900/50 rounded-xl flex flex-col items-center justify-center gap-4 text-slate-600 hover:text-emerald-500 transition-all min-h-[280px]"
+                >
+                    <div className="p-4 bg-slate-900 rounded-full group-hover:scale-110 transition-transform">
+                        <Plus size={32} />
+                    </div>
+                    <span className="font-bold">新しい建具を作成</span>
+                </button>
             </div>
         </div>
     );
