@@ -42,42 +42,89 @@ AIモデルが変更された場合でも、必ずこのドキュメントを読
 - **二重起動防止**: バッチファイルには、ポート占有確認（例: `netstat`）を行い、既に起動している場合は何もしないロジックを必ず含めてください。 "いちいち起動をお願いしない" で済む環境を構築します。
 
 ## 9. ブラウザ検証の手順
-AIが自律的にブラウザ検証を行う際の標準手順です。この手順を守ることで、スムーズな検証が可能になります。
+AIが自律的にブラウザ検証を行う際の標準手順です。**プロジェクト固有の設定（ポート番号、フォルダパスなど）は `PROJECT_CONFIG.md` を参照してください。**
 
-### 9.1 サーバー起動確認
+### 9.1 事前準備：プロジェクト設定の確認
+検証前に、以下の情報を `PROJECT_CONFIG.md` または `package.json` から取得してください：
+- **開発サーバーのポート番号** (例: 5173, 3000, 8080)
+- **アプリケーションのルートディレクトリ** (例: `./src`, `./app`)
+- **起動コマンド** (例: `npm.cmd run dev`, `npm.cmd start`)
+- **成功メッセージのパターン** (例: `ready`, `started`, `listening`)
+
+### 9.2 サーバー起動確認
 **重要**: PowerShellの実行ポリシー制限により、`npm` コマンドは直接実行できません。**必ず `npm.cmd` を使用**してください。
 
-#### Step 1: ポート5173の状態確認
+#### Step 1: ポートの状態確認
 ```powershell
-netstat -ano | findstr ":5173"
+netstat -ano | findstr ":{PORT_NUMBER}"
 ```
+- **`{PORT_NUMBER}`**: プロジェクト設定から取得したポート番号に置き換える
 - **結果あり**: サーバー起動済み → Step 3へ
 - **結果なし**: サーバー未起動 → Step 2へ
 
+**例**:
+```powershell
+# ポート5173の場合
+netstat -ano | findstr ":5173"
+
+# ポート3000の場合
+netstat -ano | findstr ":3000"
+```
+
 #### Step 2: サーバー起動
 ```powershell
-# JWCADTategu.Web フォルダで実行
-npm.cmd run dev
+# プロジェクトのルートディレクトリで実行
+cd {APP_ROOT_DIR}
+npm.cmd run {START_COMMAND}
 ```
-- WaitMsBeforeAsync: 8000ms 以上（Viteの起動を待つ）
-- 成功メッセージ: `VITE v5.x.x ready` の出力を確認
+- **`{APP_ROOT_DIR}`**: アプリケーションディレクトリ (package.jsonがある場所)
+- **`{START_COMMAND}`**: 起動コマンド (通常 `dev` または `start`)
+- **WaitMsBeforeAsync**: フレームワークに応じて調整
+  - Vite/Webpack: 8000ms 以上
+  - Next.js: 10000ms 以上
+  - CRA: 15000ms 以上
+- **成功確認**: コンソール出力に成功メッセージが表示されることを確認
+  - Vite: `VITE v{version} ready`
+  - Next.js: `ready - started server`
+  - CRA: `webpack compiled successfully`
 
 #### Step 3: ブラウザサブエージェントの実行
-- URL: `http://localhost:5173/`
+```
+URL: http://localhost:{PORT_NUMBER}/
+```
 - タスク: 具体的な検証手順を明記
 - Recording: 動作記録を保存
 
-### 9.2 トラブルシューティング
-**エラー**: `npm: ファイル ... を読み込めません ... PSSecurityException`
-- **原因**: PowerShellの実行ポリシー
-- **解決**: `npm` → `npm.cmd` に変更
+### 9.3 トラブルシューティング
 
-**エラー**: `net::ERR_CONNECTION_REFUSED`
-- **原因**: サーバー未起動
-- **解決**: Step 1-2 を実行
+#### エラー1: PSSecurityException
+```
+npm : ファイル ... を読み込めません ... PSSecurityException
+```
+**原因**: PowerShellの実行ポリシー制限  
+**解決**: `npm` → `npm.cmd` に変更
 
-### 9.3 検証後の処理
+#### エラー2: ERR_CONNECTION_REFUSED
+```
+net::ERR_CONNECTION_REFUSED at http://localhost:{PORT}/
+```
+**原因**: サーバー未起動  
+**解決**: Step 1-2 を実行
+
+#### エラー3: Port already in use
+```
+Error: listen EADDRINUSE: address already in use :{PORT}
+```
+**原因**: ポートが既に使用中  
+**解決1**: 既存サーバーを使用（正常動作している場合）  
+**解決2**: 既存プロセスを停止してから再起動
+
+### 9.4 検証後の処理
 - **サーバー停止不要**: 開発継続のため起動したままにする
-- **スクリーンショット**: 重要な画面は自動保存される
-- **Walkthrough更新**: 検証結果をwalkthroughに記録
+- **スクリーンショット**: 重要な画面は自動保存される (`{artifact_dir}` 内)
+- **Walkthrough更新**: 検証結果を walkthrough.md に記録
+
+### 9.5 プロジェクト固有情報の参照先
+- **このプロジェクト**: `PROJECT_CONFIG.md` を参照
+- **別プロジェクト**: 各プロジェクトの設定ファイルを確認
 
