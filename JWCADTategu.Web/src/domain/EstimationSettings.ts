@@ -11,7 +11,7 @@ export interface EstimationSettings {
 }
 
 export const DefaultEstimationSettings: EstimationSettings = {
-    pricePerM3: 200000,
+    pricePerM3: 800000, // 立米単価 (円/m³)
     markup: 0.2, // 20%
     taxRate: 0.1, // 10%
     defaultMaterial: 'Spruce',
