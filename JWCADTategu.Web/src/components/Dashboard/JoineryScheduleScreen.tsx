@@ -30,6 +30,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [showCost, setShowCost] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [includeHumanScale, setIncludeHumanScale] = useState(true);
 
     const loadDoors = async () => {
         if (project.id) {
@@ -110,10 +111,12 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             return;
         }
 
-        // Use project's DXF layer config if available
+        // Use project's DXF layer config and export options
         const dxfContent = generateDoorDxf(
             filteredDoors,
-            project.dxfLayerConfig
+            project.dxfLayerConfig,
+            undefined, // Use default color config
+            { includeHumanScale } // Export options
         );
 
         const blob = new Blob([dxfContent], { type: 'application/dxf' });
@@ -184,6 +187,21 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         >
                             <DollarSign size={16} />
                             {showCost ? 'ON' : 'OFF'}
+                        </button>
+
+                        {/* Human Scale Toggle */}
+                        <button
+                            onClick={() => setIncludeHumanScale(!includeHumanScale)}
+                            className={clsx(
+                                "p-2 rounded-md border transition-all flex items-center gap-2 text-sm font-medium",
+                                includeHumanScale
+                                    ? "bg-emerald-900/20 border-emerald-500/50 text-emerald-400"
+                                    : "bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300"
+                            )}
+                            title="Include Human Scale Figure in DXF"
+                        >
+                            👤
+                            {includeHumanScale ? 'ON' : 'OFF'}
                         </button>
 
                         {/* Settings Button */}
