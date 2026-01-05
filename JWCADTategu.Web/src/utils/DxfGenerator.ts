@@ -203,7 +203,8 @@ export const generateDoorDxf = (
 
             // Cell position
             const cellX = col * CELL_SPACING_X;
-            const cellY = row * CELL_SPACING_Y;
+            // Base Y position for the row (increasing downward in layout terms)
+            const baseY = row * CELL_SPACING_Y;
 
             // Calculate scale to fit door in drawing area
             const maxDoorWidth = CELL_WIDTH * 0.75; // 97.5mm (25% margin)
@@ -218,7 +219,7 @@ export const generateDoorDxf = (
 
             // Center door in cell
             offsetX = cellX + (CELL_WIDTH - scaledWidth) / 2;
-            offsetY = cellY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
+            offsetY = baseY + HEADER_HEIGHT + (DRAWING_AREA_HEIGHT - scaledHeight) / 2;
         } else {
             // **Linear Layout (original)**
             offsetX = doorIndex * (width + 2000);
@@ -327,17 +328,17 @@ export const generateDoorDxf = (
             const col = doorIndex % 3;
             const row = Math.floor(doorIndex / 3);
             const cellX = col * CELL_SPACING_X;
-            const cellY = row * CELL_SPACING_Y;
+            const baseY = row * CELL_SPACING_Y;
 
             // Tag box
-            dxf.addRect(cellX, cellY + CELL_HEIGHT, 60, 12, effectiveLayerConfig.text);
-            dxf.addText(cellX + 5, cellY + CELL_HEIGHT + 3, door.tag, 8, effectiveLayerConfig.text);
+            dxf.addRect(cellX, baseY + CELL_HEIGHT, 60, 12, effectiveLayerConfig.text);
+            dxf.addText(cellX + 5, baseY + CELL_HEIGHT + 3, door.tag, 8, effectiveLayerConfig.text);
 
             // Name
-            dxf.addText(cellX + 65, cellY + CELL_HEIGHT + 3, door.name, 6, effectiveLayerConfig.text);
+            dxf.addText(cellX + 65, baseY + CELL_HEIGHT + 3, door.name, 6, effectiveLayerConfig.text);
 
             // 8. Specs (bottom of cell)
-            const specY = cellY - 15;
+            const specY = baseY - 15;
             dxf.addText(cellX, specY, `Spec:`, 5, effectiveLayerConfig.text);
         } else {
             // 7. Header / Tag (above door) - Linear Layout
