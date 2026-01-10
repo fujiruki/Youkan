@@ -6,15 +6,40 @@ import { InteractionOverlay } from './InteractionOverlay';
 import { PresetBar } from './PresetBar';
 import { MiniEditor } from './MiniEditor';
 import { GeometryPart } from '../../logic/GeometryGenerator';
+import { MaterialTexture } from '../../domain/DoorSpecs';
+
+// Helper: Adjust color brightness (hex)
+function adjustColor(hex: string, percent: number): string {
+    let r = parseInt(hex.substring(1, 3), 16);
+    let g = parseInt(hex.substring(3, 5), 16);
+    let b = parseInt(hex.substring(5, 7), 16);
+
+    r = Math.round(r * (1 + percent / 100));
+    g = Math.round(g * (1 + percent / 100));
+    b = Math.round(b * (1 + percent / 100));
+
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+
+    const rr = (r.toString(16).length === 1 ? '0' : '') + r.toString(16);
+    const gg = (g.toString(16).length === 1 ? '0' : '') + g.toString(16);
+    const bb = (b.toString(16).length === 1 ? '0' : '') + b.toString(16);
+
+    return `#${rr}${gg}${bb}`;
+}
 
 export interface PreviewCanvasRef {
     toDataURL: () => string | null;
 }
 
+import { DoorTextureSpecs, defaultTextureSpecs } from '../../domain/DoorSpecs';
+
 export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, {
     dimensions: DoorDimensions;
+    textureSpecs?: DoorTextureSpecs; // [NEW] Optional prop
     onDimensionsChange?: (dims: DoorDimensions) => void;
-}>(({ dimensions, onDimensionsChange }, ref) => {
+}>(({ dimensions, textureSpecs = defaultTextureSpecs, onDimensionsChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [canvasSize, setCanvasSize] = React.useState({ width: 0, height: 0 });
     const [selectedPart, setSelectedPart] = React.useState<GeometryPart | null>(null);
@@ -162,7 +187,7 @@ export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Generate Geometry
-        const { lines, parts } = DoorGeometryGenerator.generate(dimensions);
+        const { lines, parts } = DoorGeometryGenerator.generate(dimensions, textureSpecs);
 
         // Use Transform
         const { x: offsetX, y: offsetY, k: scale } = transform;
@@ -175,14 +200,73 @@ export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, {
             drawHumanSilhouette(ctx, scale, offsetX, offsetY, dimensions.width || 1);
         }
 
-        // Draw Fills
-        ctx.fillStyle = '#d4c5b0';
-        parts.forEach(r => {
-            const rx = r.x * scale + offsetX;
-            const ry = r.y * scale + offsetY;
-            const rw = r.w * scale;
-            const rh = r.h * scale;
-            ctx.fillRect(rx, ry, rw, rh);
+        // Draw Fills with Texture
+        parts.forEach(part => {
+            const rx = part.x * scale + offsetX;
+            const ry = part.y * scale + offsetY;
+            const rw = part.w * scale;
+            const rh = part.h * scale;
+
+            // Skip tiny parts
+            if (rw < 0.5 || rh < 0.5) return;
+
+            if (part.texture) {
+                const { material, color = '#d4c5b0', grainDir, opacity = 1.0 } = part.texture;
+
+                // Setup Context
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.fillStyle = color;
+                ctx.fillRect(rx, ry, rw, rh);
+
+                // Wood Grain (Simple Procedural)
+                if (material === 'wood' && rw > 2 && rh > 2) {
+                    ctx.beginPath();
+                    ctx.rect(rx, ry, rw, rh);
+                    ctx.clip();
+
+                    ctx.strokeStyle = adjustColor(color, -15); // Darker grain
+                    ctx.lineWidth = Math.max(0.5, 1 / scale); // Keep grain thin
+
+                    const grainDensity = 4 * scale;
+                    const noise = () => (Math.random() - 0.5) * 5 * scale;
+
+                    ctx.beginPath();
+                    if (grainDir === 'vertical') {
+                        for (let i = rx; i < rx + rw; i += grainDensity + Math.random() * scale) {
+                            ctx.moveTo(i, ry);
+                            ctx.lineTo(i + noise(), ry + rh);
+                        }
+                    } else {
+                        for (let i = ry; i < ry + rh; i += grainDensity + Math.random() * scale) {
+                            ctx.moveTo(rx, i);
+                            ctx.lineTo(rx + rw, i + noise());
+                        }
+                    }
+                    ctx.stroke();
+                }
+
+                // Glass Effect (Glare)
+                if (material === 'glass') {
+                    ctx.beginPath();
+                    ctx.rect(rx, ry, rw, rh);
+                    ctx.clip();
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 20 * scale;
+
+                    ctx.beginPath();
+                    ctx.moveTo(rx - rw, ry + rh);
+                    ctx.lineTo(rx + rw * 2, ry - rh);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            } else {
+                // Fallback
+                ctx.fillStyle = '#d4c5b0';
+                ctx.fillRect(rx, ry, rw, rh);
+            }
         });
 
         // Draw Lines
@@ -253,7 +337,7 @@ export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, {
     // Redraw when dimensions OR transform OR canvasSize changes
     useEffect(() => {
         draw();
-    }, [dimensions, transform, showHumanScale, canvasSize]);
+    }, [dimensions, transform, showHumanScale, canvasSize, textureSpecs]);
 
     return (
         <div className="flex flex-col h-full bg-slate-900 overflow-hidden">

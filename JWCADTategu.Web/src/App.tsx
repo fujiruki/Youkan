@@ -4,8 +4,9 @@ import { JoineryScheduleScreen } from './components/Dashboard/JoineryScheduleScr
 import { EditorScreen } from './components/Editor/EditorScreen';
 import { Project, Door } from './db/db';
 import { DebugBanner } from './components/Debug/DebugBanner';
+import { CatalogScreen } from './components/Catalog/CatalogScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'schedule' | 'editor';
+type ViewState = 'dashboard' | 'schedule' | 'editor' | 'catalog'; // [NEW] catalog
 
 function App() {
     const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -36,11 +37,19 @@ function App() {
         setActiveDoor(null);
     };
 
+    const handleOpenCatalog = () => {
+        console.log('[App] Opening Catalog');
+        setCurrentView('catalog');
+    };
+
     return (
         <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans">
             <DebugBanner />
             {currentView === 'dashboard' && (
-                <DashboardScreen onOpenProject={handleOpenProject} />
+                <DashboardScreen
+                    onOpenProject={handleOpenProject}
+                    onOpenCatalog={handleOpenCatalog} // [NEW]
+                />
             )}
             {currentView === 'schedule' && activeProject && (
                 <JoineryScheduleScreen
@@ -55,6 +64,11 @@ function App() {
                 <EditorScreen
                     doorId={activeDoor.id!}
                     onBack={handleBackToSchedule}
+                />
+            )}
+            {currentView === 'catalog' && (
+                <CatalogScreen
+                    onBack={handleBackToDashboard}
                 />
             )}
         </div>

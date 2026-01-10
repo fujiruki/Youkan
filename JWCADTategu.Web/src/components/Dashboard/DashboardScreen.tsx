@@ -3,9 +3,9 @@ import { Project } from '../../db/db';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
-import { Folder, Plus, Trash2, Clock, Calendar, Settings } from 'lucide-react';
+import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate } from 'lucide-react'; // [NEW] BookTemplate icon
 
-export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void }> = ({ onOpenProject }) => {
+export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => { // [NEW] prop
     const [projects, setProjects] = useState<Project[]>([]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -46,13 +46,23 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void }> 
                     <Folder size={32} />
                     {t.dashboard.title}
                 </h1>
-                <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
-                    title="全体設定"
-                >
-                    <Settings size={24} />
-                </button>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onOpenCatalog}
+                        className="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-slate-700"
+                    >
+                        <BookTemplate size={18} />
+                        Catalog
+                    </button>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-colors"
+                        title="全体設定"
+                    >
+                        <Settings size={24} />
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

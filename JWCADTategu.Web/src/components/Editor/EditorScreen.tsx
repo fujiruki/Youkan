@@ -9,8 +9,10 @@ import { DoorGeometryGenerator } from '../../logic/GeometryGenerator';
 import { EstimationPanel } from './EstimationPanel';
 import { DefaultEstimationSettings } from '../../domain/EstimationSettings';
 import { calculateCost } from '../../domain/EstimationService';
-// Icons
-import { Home, RotateCcw } from 'lucide-react';
+import { TextureSettingsPanel } from './TextureSettingsPanel';
+import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../../domain/DoorSpecs';
+import { CatalogService } from '../../domain/CatalogService'; // [NEW]
+import { Home, RotateCcw, Save, BookTemplate } from 'lucide-react'; // [NEW] Icons
 import clsx from 'clsx';
 
 type ViewMode = 'design' | 'pro';
@@ -53,7 +55,15 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
     const [tempName, setTempName] = useState(door.name);
 
     // UI State
+    // UI State
     const [viewMode, setViewMode] = useState<ViewMode>('design');
+    const [textureSpecs, setTextureSpecs] = useState<DoorTextureSpecs>(
+        initialDoor.specs?.texture || defaultTextureSpecs
+    );
+
+    // Catalog Modal State
+    const [showCatalogModal, setShowCatalogModal] = useState(false);
+    const [catalogForm, setCatalogForm] = useState({ category: 'General', tags: '' });
 
     // Calculated Cost for Header
     const settings = project.settings || DefaultEstimationSettings;
@@ -70,6 +80,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
             if (door.id) {
                 await db.doors.update(door.id, {
                     ...door,
+                    specs: { ...door.specs, texture: textureSpecs }, // [NEW] Persist texture
                     updatedAt: new Date()
                 });
             }
@@ -105,6 +116,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
         const finalDoor = {
             ...door,
+            specs: { ...door.specs, texture: textureSpecs }, // [NEW] Persist texture
             updatedAt: new Date(),
             ...(thumbnail ? { thumbnail } : {})
         };
@@ -126,6 +138,34 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         } catch (err) {
             console.error('Failed to copy', err);
             setCopyStatus('Error');
+        }
+    };
+
+    const handleSaveToCatalog = async () => {
+        if (!previewRef.current) return;
+
+        try {
+            const thumbnail = previewRef.current.toDataURL() || '';
+            const keywords = catalogForm.tags.split(',').map(s => s.trim()).filter(Boolean);
+
+            // Prepare Catalog Item
+            const catalogItem: Omit<CatalogItem, 'id' | 'createdAt' | 'updatedAt'> = {
+                name: door.name,
+                category: catalogForm.category,
+                keywords: keywords,
+                thumbnail: thumbnail,
+                doorData: {
+                    dimensions: door.dimensions,
+                    specs: { ...door.specs, texture: textureSpecs }
+                }
+            };
+
+            await CatalogService.add(catalogItem);
+            setShowCatalogModal(false);
+            alert('Saved to Catalog!');
+        } catch (e) {
+            console.error('Failed to save to catalog', e);
+            alert('Error saving to catalog');
         }
     };
 
@@ -262,25 +302,33 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                         <PreviewCanvas
                             ref={previewRef}
                             dimensions={door.dimensions}
+                            textureSpecs={textureSpecs} // [NEW]
                             onDimensionsChange={updateDimensions}
                         />
                     </div>
                 </div>
 
-                {/* Right Panel (Pro Mode Only) */}
+                {/* Right Panel (Pro & Design Mode) */}
                 <div
                     className={clsx(
                         "transition-all duration-300 ease-in-out border-l border-slate-800 bg-slate-900 flex flex-col",
-                        viewMode === 'pro' ? "w-80 translate-x-0" : "w-0 translate-x-full opacity-0 overflow-hidden border-none"
+                        "w-80 translate-x-0"
                     )}
                 >
-                    <div className="flex-1 overflow-hidden h-full">
-                        <EstimationPanel
-                            dimensions={door.dimensions}
-                            settings={settings}
-                            onSettingsChange={handleSettingsChange}
-                            onDimensionChange={updateDimension}
-                        />
+                    <div className="flex-1 overflow-hidden h-full overflow-y-auto">
+                        {viewMode === 'pro' ? (
+                            <EstimationPanel
+                                dimensions={door.dimensions}
+                                settings={settings}
+                                onSettingsChange={handleSettingsChange}
+                                onDimensionChange={updateDimension}
+                            />
+                        ) : (
+                            <TextureSettingsPanel
+                                specs={textureSpecs}
+                                onChange={setTextureSpecs}
+                            />
+                        )}
                     </div>
 
                     {/* Copy Action in Footer of Right Panel */}
@@ -291,9 +339,74 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                         >
                             {copyStatus || 'Copy JWCAD Data'}
                         </button>
+
+                        <button
+                            onClick={() => setShowCatalogModal(true)}
+                            className="mt-2 w-full py-2 bg-emerald-900/40 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/60 hover:border-emerald-500 rounded transition-colors text-xs flex items-center justify-center gap-2"
+                        >
+                            <BookTemplate size={14} />
+                            Save as Template (Catalog)
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Catalog Save Modal */}
+            {showCatalogModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-96 shadow-2xl">
+                        <h3 className="text-lg font-bold text-white mb-4">Register to Catalog</h3>
+
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">Name</label>
+                                <div className="text-slate-300 font-bold">{door.name}</div>
+                                <p className="text-[10px] text-slate-600">Door name is used. Change it in the header if needed.</p>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">Category</label>
+                                <select
+                                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
+                                    value={catalogForm.category}
+                                    onChange={e => setCatalogForm({ ...catalogForm, category: e.target.value })}
+                                >
+                                    <option value="General">General</option>
+                                    <option value="Shoji">Shoji (障子)</option>
+                                    <option value="Door">Door (フラッシュ/框)</option>
+                                    <option value="Window">Window (窓)</option>
+                                    <option value="Furniture">Furniture (家具建具)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">Keywords (comma separated)</label>
+                                <input
+                                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
+                                    placeholder="e.g. Modern, Living, Cedar"
+                                    value={catalogForm.tags}
+                                    onChange={e => setCatalogForm({ ...catalogForm, tags: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="flex gap-2 mt-2">
+                                <button
+                                    onClick={() => setShowCatalogModal(false)}
+                                    className="flex-1 py-2 text-slate-400 hover:text-white border border-slate-700 rounded hover:bg-slate-800 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveToCatalog}
+                                    className="flex-1 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500 transition font-bold"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

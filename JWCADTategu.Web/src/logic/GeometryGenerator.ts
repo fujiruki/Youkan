@@ -1,9 +1,10 @@
 import { DoorDimensions } from '../domain/DoorDimensions';
+import { DoorTextureSpecs, defaultTextureSpecs, MaterialTexture } from '../domain/DoorSpecs';
 
 export interface Point { x: number; y: number; }
 export interface LineSegment { start: Point; end: Point; type: 'outline' | 'detail'; }
 
-export type PartType = 'stile' | 'top-rail' | 'bottom-rail' | 'middle-rail' | 'tsuka' | 'kumiko-vert' | 'kumiko-horiz' | 'glass';
+export type PartType = 'stile' | 'top-rail' | 'bottom-rail' | 'middle-rail' | 'tsuka' | 'kumiko-vert' | 'kumiko-horiz' | 'glass' | 'panel';
 
 export interface GeometryPart {
     id: string; // Unique ID for interaction (e.g., 'stile-left', 'mr-0')
@@ -13,6 +14,7 @@ export interface GeometryPart {
     w: number;
     h: number;
     meta?: any; // Extra data like index
+    texture?: MaterialTexture; // [NEW] Texture metadata
 }
 
 export interface GeometryResult {
@@ -21,7 +23,7 @@ export interface GeometryResult {
 }
 
 export class DoorGeometryGenerator {
-    static generate(dim: DoorDimensions): GeometryResult {
+    static generate(dim: DoorDimensions, textureSpecs: DoorTextureSpecs = defaultTextureSpecs): GeometryResult {
         const lines: LineSegment[] = [];
         const parts: GeometryPart[] = [];
 
@@ -37,11 +39,45 @@ export class DoorGeometryGenerator {
             lines.push({ start: { x: x + w, y }, end: { x: x + w, y: y + h }, type: 'detail' });
         };
 
+        // Helper to get texture based on part type
+        const getTexture = (type: PartType): MaterialTexture | undefined => {
+            switch (type) {
+                case 'stile': return textureSpecs.stile;
+                case 'top-rail': return textureSpecs.topRail;
+                case 'bottom-rail': return textureSpecs.bottomRail;
+                case 'middle-rail': return textureSpecs.middleRail;
+                case 'tsuka': return textureSpecs.tsuka;
+                case 'kumiko-vert':
+                case 'kumiko-horiz': return textureSpecs.kumiko;
+                case 'glass': return textureSpecs.glass;
+                case 'panel': return textureSpecs.panel;
+                default: return undefined;
+            }
+        };
+
         // Helper to add a fully defined part (Interaction + Visuals)
         const addPart = (type: PartType, id: string, x: number, y: number, w: number, h: number, meta?: any) => {
-            parts.push({ id, type, x, y, w, h, meta });
+            const part: GeometryPart = {
+                id, type, x, y, w, h, meta,
+                texture: getTexture(type)
+            };
+            parts.push(part);
             addLines(x, y, w, h);
         };
+
+        // 0. Base Panel (Glass/Wood) - Draw FIRST (Background)
+        // Currently assumes a single panel filling the void between stile/rails.
+        // Future improvement: Split panels based on middle rails for mixed materials.
+        const panelX = dim.stileWidth;
+        const panelY = dim.topRailWidth;
+        const panelW = dim.width - (dim.stileWidth * 2);
+        const panelH = dim.height - dim.topRailWidth - dim.bottomRailWidth;
+
+        // For visual enhancement, we default to 'glass' for now unless specified otherwise in future logic.
+        // If middle rails exist, it currently draws glass behind them, which is acceptable for v1.
+        if (panelW > 0 && panelH > 0) {
+            addPart('glass', 'main-glass', panelX, panelY, panelW, panelH);
+        }
 
         // 1. Stiles (Left/Right)
         addPart('stile', 'stile-left', 0, 0, dim.stileWidth, dim.height);
