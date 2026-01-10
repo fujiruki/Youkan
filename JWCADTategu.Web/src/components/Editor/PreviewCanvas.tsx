@@ -35,11 +35,13 @@ export interface PreviewCanvasRef {
 
 import { DoorTextureSpecs, defaultTextureSpecs } from '../../domain/DoorSpecs';
 
-export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, {
+interface PreviewCanvasProps {
     dimensions: DoorDimensions;
-    textureSpecs?: DoorTextureSpecs; // [NEW] Optional prop
+    textureSpecs?: DoorTextureSpecs; // [NEW] Make optional or required
     onDimensionsChange?: (dims: DoorDimensions) => void;
-}>(({ dimensions, textureSpecs = defaultTextureSpecs, onDimensionsChange }, ref) => {
+}
+
+export const PreviewCanvas = React.forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({ dimensions, textureSpecs = defaultTextureSpecs, onDimensionsChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [canvasSize, setCanvasSize] = React.useState({ width: 0, height: 0 });
     const [selectedPart, setSelectedPart] = React.useState<GeometryPart | null>(null);

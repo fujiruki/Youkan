@@ -33,18 +33,35 @@ export interface CatalogItemEntity extends CatalogItem {
     // Let's use string id as primary key for Catalog.
 }
 
+export interface DoorPhoto {
+    id?: number;
+    doorId: number;
+    blob: Blob;
+    mimeType: string;
+    memo?: string;
+    createdAt: Date;
+}
+
 export class TateguDatabase extends Dexie {
     projects!: Table<Project>;
     doors!: Table<Door>;
-    catalog!: Table<CatalogItemEntity>; // [NEW]
+    catalog!: Table<CatalogItemEntity>;
+    doorPhotos!: Table<DoorPhoto>; // [NEW]
 
     constructor() {
         super('JWCADTateguDB');
 
-        this.version(2).stores({ // Bump version
+        this.version(3).stores({ // Bump version
             projects: '++id, name, updatedAt',
             doors: '++id, projectId, tag, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt' // [NEW] id is string UUID
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId' // [NEW]
+        });
+
+        this.version(2).stores({
+            projects: '++id, name, updatedAt',
+            doors: '++id, projectId, tag, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt'
         });
 
         // Backward compatibility for v1

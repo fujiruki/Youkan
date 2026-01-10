@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { db, Door, Project } from '../../db/db';
+import { db, Door, Project, DoorPhoto } from '../../db/db';
 import { useDoorViewModel } from '../../hooks/useDoorViewModel';
 import { PreviewCanvas } from './PreviewCanvas';
 import { Sidebar } from './Sidebar/Sidebar';
@@ -11,11 +10,10 @@ import { DefaultEstimationSettings } from '../../domain/EstimationSettings';
 import { calculateCost } from '../../domain/EstimationService';
 import { TextureSettingsPanel } from './TextureSettingsPanel';
 import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../../domain/DoorSpecs';
-import { CatalogService } from '../../domain/CatalogService'; // [NEW]
-import { Home, RotateCcw, Save, BookTemplate } from 'lucide-react'; // [NEW] Icons
+import { CatalogService } from '../../domain/CatalogService';
+import { PhotoPanel } from './PhotoPanel';
 import clsx from 'clsx';
-
-type ViewMode = 'design' | 'pro';
+import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal } from 'lucide-react';
 
 export const EditorScreen: React.FC<{ doorId: number; onBack: () => void }> = ({ doorId, onBack }) => {
     const [initialDoor, setInitialDoor] = useState<Door | null>(null);
@@ -55,11 +53,13 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
     const [tempName, setTempName] = useState(door.name);
 
     // UI State
-    // UI State
-    const [viewMode, setViewMode] = useState<ViewMode>('design');
+    const [activeTab, setActiveTab] = useState<'dimensions' | 'visual' | 'estimation' | 'photo'>('dimensions');
     const [textureSpecs, setTextureSpecs] = useState<DoorTextureSpecs>(
         initialDoor.specs?.texture || defaultTextureSpecs
     );
+    // Photo State
+    const [doorPhoto, setDoorPhoto] = useState<DoorPhoto | null>(null);
+    const [isCompareMode, setIsCompareMode] = useState(false);
 
     // Catalog Modal State
     const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -71,7 +71,13 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
     useEffect(() => {
         setTempName(door.name);
-    }, [door.name]);
+        if (initialDoor.id) {
+            // Load Photo
+            db.doorPhotos.where('doorId').equals(initialDoor.id).first().then(p => {
+                if (p) setDoorPhoto(p);
+            });
+        }
+    }, [initialDoor.id, door.name]);
 
     // Auto-Save Effect
     useEffect(() => {
@@ -80,14 +86,14 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
             if (door.id) {
                 await db.doors.update(door.id, {
                     ...door,
-                    specs: { ...door.specs, texture: textureSpecs }, // [NEW] Persist texture
+                    specs: { ...door.specs, texture: textureSpecs },
                     updatedAt: new Date()
                 });
             }
         }, 1000); // 1s Debounce
 
         return () => clearTimeout(timer);
-    }, [door]);
+    }, [door, textureSpecs]);
 
     // Reset Logic
     const handleResetToggle = () => {
@@ -116,7 +122,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
         const finalDoor = {
             ...door,
-            specs: { ...door.specs, texture: textureSpecs }, // [NEW] Persist texture
+            specs: { ...door.specs, texture: textureSpecs },
             updatedAt: new Date(),
             ...(thumbnail ? { thumbnail } : {})
         };
@@ -126,6 +132,45 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         }
 
         onBack();
+    };
+
+    const handlePhotoUpload = async (file: File) => {
+        if (!door.id) return;
+
+        // Resize/Compress logic could go here? For now save raw.
+        // Create new DoorPhoto
+        const newPhoto: DoorPhoto = {
+            doorId: door.id,
+            blob: file, // Store File directly (File extends Blob)
+            mimeType: file.type,
+            memo: '',
+            createdAt: new Date()
+        };
+
+        if (doorPhoto?.id) {
+            // Update
+            await db.doorPhotos.update(doorPhoto.id, { blob: file, mimeType: file.type });
+            setDoorPhoto({ ...doorPhoto, blob: file, mimeType: file.type });
+        } else {
+            // Add
+            const id = await db.doorPhotos.add(newPhoto); // returns id
+            setDoorPhoto({ ...newPhoto, id: Number(id) });
+        }
+    };
+
+    const handlePhotoDelete = async () => {
+        if (doorPhoto?.id) {
+            await db.doorPhotos.delete(doorPhoto.id);
+            setDoorPhoto(null);
+            setIsCompareMode(false);
+        }
+    };
+
+    const handlePhotoMemoChange = async (memo: string) => {
+        if (doorPhoto?.id) {
+            await db.doorPhotos.update(doorPhoto.id, { memo });
+            setDoorPhoto(prev => prev ? { ...prev, memo } : null);
+        }
     };
 
     const handleCopy = async () => {
@@ -231,28 +276,50 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
                 {/* Center: Mode Switch */}
                 <div className="flex items-center justify-center w-1/3">
-                    <div className="bg-slate-800 p-1 rounded-lg flex items-center">
+                    {/* Compare Toggle (Only if photo exists) */}
+                    {doorPhoto && (
                         <button
-                            onClick={() => setViewMode('design')}
+                            onClick={() => setIsCompareMode(!isCompareMode)}
                             className={clsx(
-                                "px-4 py-1 text-xs font-bold rounded-md transition-all",
-                                viewMode === 'design'
-                                    ? "bg-slate-700 text-emerald-400 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-300"
+                                "flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold transition-all border",
+                                isCompareMode
+                                    ? "bg-purple-900/50 border-purple-500 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                    : "bg-slate-900 border-slate-700 text-slate-500 hover:text-white"
                             )}
                         >
-                            Design
+                            <SplitSquareHorizontal size={16} />
+                            比較モード {isCompareMode ? 'ON' : 'OFF'}
+                        </button>
+                    )}
+
+                    <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
+                        <button
+                            onClick={() => setActiveTab('dimensions')}
+                            className={clsx("px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2", activeTab === 'dimensions' ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-white hover:bg-slate-800/50")}
+                        >
+                            <LayoutGrid size={16} />
+                            寸法
                         </button>
                         <button
-                            onClick={() => setViewMode('pro')}
-                            className={clsx(
-                                "px-4 py-1 text-xs font-bold rounded-md transition-all",
-                                viewMode === 'pro'
-                                    ? "bg-slate-700 text-sky-400 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-300"
-                            )}
+                            onClick={() => setActiveTab('visual')}
+                            className={clsx("px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2", activeTab === 'visual' ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-white hover:bg-slate-800/50")}
                         >
-                            Pro
+                            <Settings size={16} />
+                            Visual
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('estimation')}
+                            className={clsx("px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2", activeTab === 'estimation' ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-white hover:bg-slate-800/50")}
+                        >
+                            <Calculator size={16} />
+                            見積
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('photo')}
+                            className={clsx("px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2", activeTab === 'photo' ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-white hover:bg-slate-800/50")}
+                        >
+                            <Camera size={16} />
+                            写真
                         </button>
                     </div>
                 </div>
@@ -286,26 +353,44 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                 <Sidebar
                     dimensions={door.dimensions}
                     onChange={updateDimension}
-                    viewMode={viewMode}
+                    viewMode={activeTab === 'dimensions' ? 'design' : 'pro'} // Sidebar still uses viewMode, map activeTab to it
                 />
 
-                {/* Center Canvas */}
-                <div className="flex-1 relative bg-slate-950 flex flex-col">
-                    {/* Toolbar Overlay (v2 placeholder) */}
-                    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                        {/* <button className="p-2 bg-slate-800 rounded text-slate-400 hover:text-white opacity-50 hover:opacity-100"><Ruler size={16}/></button> */}
-                    </div>
+                {/* Center Area (Preview) */}
+                <div className={clsx("flex-1 overflow-hidden relative", isCompareMode && doorPhoto ? "grid grid-cols-2" : "flex items-center justify-center")}>
 
+                    {/* Canvas Container */}
+                    <div className={clsx("relative w-full h-full bg-[#1a1a1a] flex items-center justify-center", isCompareMode && "border-r border-slate-700")}>
+                        {/* Grid Background */}
+                        <div
+                            className="absolute inset-0 opacity-20 pointer-events-none"
+                            style={{
+                                backgroundImage: `linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)`,
+                                backgroundSize: '20px 20px'
+                            }}
+                        ></div>
 
-
-                    <div className="flex-1">
                         <PreviewCanvas
-                            ref={previewRef}
                             dimensions={door.dimensions}
-                            textureSpecs={textureSpecs} // [NEW]
+                            ref={previewRef}
+                            textureSpecs={textureSpecs}
                             onDimensionsChange={updateDimensions}
                         />
                     </div>
+
+                    {/* Compare Photo View */}
+                    {isCompareMode && doorPhoto && (
+                        <div className="w-full h-full bg-black flex items-center justify-center relative overflow-hidden">
+                            <img
+                                src={URL.createObjectURL(doorPhoto.blob)}
+                                className="max-w-full max-h-full object-contain"
+                                alt="Comparison"
+                            />
+                            <div className="absolute top-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-xs font-mono">
+                                Client Photo
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Panel (Pro & Design Mode) */}
@@ -316,17 +401,26 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                     )}
                 >
                     <div className="flex-1 overflow-hidden h-full overflow-y-auto">
-                        {viewMode === 'pro' ? (
+                        {activeTab === 'estimation' && (
                             <EstimationPanel
                                 dimensions={door.dimensions}
                                 settings={settings}
                                 onSettingsChange={handleSettingsChange}
                                 onDimensionChange={updateDimension}
                             />
-                        ) : (
+                        )}
+                        {activeTab === 'visual' && (
                             <TextureSettingsPanel
                                 specs={textureSpecs}
                                 onChange={setTextureSpecs}
+                            />
+                        )}
+                        {activeTab === 'photo' && (
+                            <PhotoPanel
+                                photo={doorPhoto}
+                                onUpload={handlePhotoUpload}
+                                onDelete={handlePhotoDelete}
+                                onMemoChange={handlePhotoMemoChange}
                             />
                         )}
                     </div>
