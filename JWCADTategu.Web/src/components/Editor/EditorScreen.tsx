@@ -12,8 +12,10 @@ import { TextureSettingsPanel } from './TextureSettingsPanel';
 import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../../domain/DoorSpecs';
 import { CatalogService } from '../../domain/CatalogService';
 import { PhotoPanel } from './PhotoPanel';
+import { CatalogPicker } from './CatalogPicker';
+import { SchedulePanel } from './SchedulePanel'; // [NEW]
 import clsx from 'clsx';
-import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal } from 'lucide-react';
+import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal, Download, Calendar } from 'lucide-react'; // [NEW] Calendar
 
 export const EditorScreen: React.FC<{ doorId: number; onBack: () => void }> = ({ doorId, onBack }) => {
     const [initialDoor, setInitialDoor] = useState<Door | null>(null);
@@ -46,14 +48,14 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
     const previewRef = React.useRef<{ toDataURL: () => string | null }>(null);
 
     // Expose replaceDoor
-    const { door, updateDimension, updateDimensions, updateName, replaceDoor } = useDoorViewModel(initialDoor);
+    const { door, updateDimension, updateDimensions, updateName, updateFields, replaceDoor } = useDoorViewModel(initialDoor);
     const [project, setProject] = useState<Project>(initialProject);
     const [copyStatus, setCopyStatus] = useState<string>('');
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState(door.name);
 
     // UI State
-    const [activeTab, setActiveTab] = useState<'dimensions' | 'visual' | 'estimation' | 'photo'>('dimensions');
+    const [activeTab, setActiveTab] = useState<'dimensions' | 'visual' | 'estimation' | 'photo' | 'schedule'>('dimensions');
     const [textureSpecs, setTextureSpecs] = useState<DoorTextureSpecs>(
         initialDoor.specs?.texture || defaultTextureSpecs
     );
@@ -63,6 +65,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
     // Catalog Modal State
     const [showCatalogModal, setShowCatalogModal] = useState(false);
+    const [showCatalogPicker, setShowCatalogPicker] = useState(false); // [NEW]
     const [catalogForm, setCatalogForm] = useState({ category: 'General', tags: '' });
 
     // Calculated Cost for Header
@@ -214,12 +217,37 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         }
     };
 
+    const handleLoadFromCatalog = (item: CatalogItem) => {
+        if (!item.doorData) return;
+
+        // No blocking confirm for now to allow testing/smooth UX
+
+        // Apply Template Data
+        // Keep ID, keep ProjectID. Overwrite Dimensions, Specs.
+        // What about Name? Maybe ask user? For now keep current name or append?
+        // Let's keep current name to avoid confusion in Project context.
+
+        if (item.doorData.dimensions) {
+            updateDimensions(item.doorData.dimensions);
+        }
+        if (item.doorData.specs?.texture) {
+            setTextureSpecs(item.doorData.specs.texture);
+        }
+        // TODO: Load other specs if any
+
+        setShowCatalogPicker(false);
+    };
+
     const handleSettingsChange = (newSettings: any) => {
         const updated = { ...project, settings: newSettings };
         setProject(updated);
         if (project.id) {
             db.projects.update(project.id, { settings: newSettings });
         }
+    };
+
+    const handleDoorUpdate = async (updates: Partial<Door>) => {
+        updateFields(updates);
     };
 
     const handleNameSave = () => {
@@ -321,6 +349,13 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                             <Camera size={16} />
                             写真
                         </button>
+                        <button
+                            onClick={() => setActiveTab('schedule')}
+                            className={clsx("px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2", activeTab === 'schedule' ? "bg-slate-800 text-white shadow" : "text-slate-400 hover:text-white hover:bg-slate-800/50")}
+                        >
+                            <Calendar size={16} />
+                            日程
+                        </button>
                     </div>
                 </div>
 
@@ -353,7 +388,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                 <Sidebar
                     dimensions={door.dimensions}
                     onChange={updateDimension}
-                    viewMode={activeTab === 'dimensions' ? 'design' : 'pro'} // Sidebar still uses viewMode, map activeTab to it
+                    viewMode={activeTab === 'dimensions' ? 'design' : 'pro'}
                 />
 
                 {/* Center Area (Preview) */}
@@ -423,6 +458,12 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                                 onMemoChange={handlePhotoMemoChange}
                             />
                         )}
+                        {activeTab === 'schedule' && (
+                            <SchedulePanel
+                                door={door}
+                                onChange={handleDoorUpdate}
+                            />
+                        )}
                     </div>
 
                     {/* Copy Action in Footer of Right Panel */}
@@ -441,66 +482,86 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                             <BookTemplate size={14} />
                             Save as Template (Catalog)
                         </button>
+
+                        <button
+                            onClick={() => setShowCatalogPicker(true)} // [NEW]
+                            className="mt-2 w-full py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 rounded transition-colors text-xs flex items-center justify-center gap-2"
+                        >
+                            <Download size={14} />
+                            Load from Catalog
+                        </button>
                     </div>
                 </div>
-            </div>
+            </div >
+
+            {/* Catalog Picker Modal [NEW] */}
+            {
+                showCatalogPicker && (
+                    <CatalogPicker
+                        onSelect={handleLoadFromCatalog}
+                        onCancel={() => setShowCatalogPicker(false)}
+                    />
+                )
+            }
 
             {/* Catalog Save Modal */}
-            {showCatalogModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-96 shadow-2xl">
-                        <h3 className="text-lg font-bold text-white mb-4">Register to Catalog</h3>
+            {
+                showCatalogModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-96 shadow-2xl">
+                            <h3 className="text-lg font-bold text-white mb-4">Register to Catalog</h3>
 
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <label className="text-xs text-slate-500 block mb-1">Name</label>
-                                <div className="text-slate-300 font-bold">{door.name}</div>
-                                <p className="text-[10px] text-slate-600">Door name is used. Change it in the header if needed.</p>
-                            </div>
+                            <div className="flex flex-col gap-4">
+                                <div>
+                                    <label className="text-xs text-slate-500 block mb-1">Name</label>
+                                    <div className="text-slate-300 font-bold">{door.name}</div>
+                                    <p className="text-[10px] text-slate-600">Door name is used. Change it in the header if needed.</p>
+                                </div>
 
-                            <div>
-                                <label className="text-xs text-slate-500 block mb-1">Category</label>
-                                <select
-                                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
-                                    value={catalogForm.category}
-                                    onChange={e => setCatalogForm({ ...catalogForm, category: e.target.value })}
-                                >
-                                    <option value="General">General</option>
-                                    <option value="Shoji">Shoji (障子)</option>
-                                    <option value="Door">Door (フラッシュ/框)</option>
-                                    <option value="Window">Window (窓)</option>
-                                    <option value="Furniture">Furniture (家具建具)</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="text-xs text-slate-500 block mb-1">Category</label>
+                                    <select
+                                        className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
+                                        value={catalogForm.category}
+                                        onChange={e => setCatalogForm({ ...catalogForm, category: e.target.value })}
+                                    >
+                                        <option value="General">General</option>
+                                        <option value="Shoji">Shoji (障子)</option>
+                                        <option value="Door">Door (フラッシュ/框)</option>
+                                        <option value="Window">Window (窓)</option>
+                                        <option value="Furniture">Furniture (家具建具)</option>
+                                    </select>
+                                </div>
 
-                            <div>
-                                <label className="text-xs text-slate-500 block mb-1">Keywords (comma separated)</label>
-                                <input
-                                    className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
-                                    placeholder="e.g. Modern, Living, Cedar"
-                                    value={catalogForm.tags}
-                                    onChange={e => setCatalogForm({ ...catalogForm, tags: e.target.value })}
-                                />
-                            </div>
+                                <div>
+                                    <label className="text-xs text-slate-500 block mb-1">Keywords (comma separated)</label>
+                                    <input
+                                        className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-emerald-500"
+                                        placeholder="e.g. Modern, Living, Cedar"
+                                        value={catalogForm.tags}
+                                        onChange={e => setCatalogForm({ ...catalogForm, tags: e.target.value })}
+                                    />
+                                </div>
 
-                            <div className="flex gap-2 mt-2">
-                                <button
-                                    onClick={() => setShowCatalogModal(false)}
-                                    className="flex-1 py-2 text-slate-400 hover:text-white border border-slate-700 rounded hover:bg-slate-800 transition"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveToCatalog}
-                                    className="flex-1 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500 transition font-bold"
-                                >
-                                    Save
-                                </button>
+                                <div className="flex gap-2 mt-2">
+                                    <button
+                                        onClick={() => setShowCatalogModal(false)}
+                                        className="flex-1 py-2 text-slate-400 hover:text-white border border-slate-700 rounded hover:bg-slate-800 transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveToCatalog}
+                                        className="flex-1 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500 transition font-bold"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };

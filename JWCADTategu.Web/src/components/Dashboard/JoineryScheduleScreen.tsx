@@ -9,6 +9,7 @@ import { debugLog } from '../../config/debug';
 import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package } from 'lucide-react';
 import clsx from 'clsx';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
+import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
     <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
@@ -27,6 +28,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [doors, setDoors] = useState<Door[]>([]);
     const [editTableName, setEditTableName] = useState(project.name);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [activeTab, setActiveTab] = useState<'doors' | 'notes'>('doors'); // [NEW]
 
     // UI Options
     const [showCost, setShowCost] = useState(false);
@@ -297,88 +299,122 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                 </div>
             </div>
 
-            {/* Toolbar (Search) */}
-            <div className="mb-6 flex items-center justify-between shrink-0">
-                <div className="relative group">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
-                    <input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search doors..."
-                        className="bg-slate-900 border border-slate-700 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
-                    />
-                </div>
-            </div>
-
-            {/* Grid UI */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
-                {filteredDoors.map(door => {
-                    const { totalCost } = calculateCost(door.dimensions, project.settings!);
-
-                    return (
-                        <div
-                            key={door.id}
-                            onClick={() => onOpenDoor(door)}
-                            className="group bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl p-4 cursor-pointer transition-all hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 relative"
-                        >
-                            {/* Card Header */}
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="bg-slate-800 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-slate-700 font-mono">
-                                    {door.tag}
-                                </div>
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                    <button
-                                        onClick={(e) => handleDuplicate(e, door)}
-                                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
-                                        title="複製 (Duplicate)"
-                                    >
-                                        <Copy size={14} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleDelete(e, door.id!)}
-                                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded transition-colors"
-                                        title="削除 (Delete)"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Preview */}
-                            <DoorPreview door={door} />
-
-                            {/* Card Body */}
-                            <div>
-                                <h3 className="font-bold text-slate-200 mb-1 truncate group-hover:text-emerald-400 transition-colors">{door.name}</h3>
-                                <div className="flex justify-between items-end">
-                                    <div className="text-xs text-slate-500 font-mono">
-                                        W{door.dimensions.width} x H{door.dimensions.height}
-                                    </div>
-                                    {showCost && (
-                                        <div className="text-sm font-bold text-amber-500 font-mono">
-                                            ¥{totalCost.toLocaleString()}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Selection Effect Border (optional) */}
-                            <div className="absolute inset-0 border-2 border-transparent group-hover:border-emerald-500/20 rounded-xl pointer-events-none"></div>
-                        </div>
-                    );
-                })}
-
-                {/* Empty State / Add New Card */}
+            {/* Tab Navigation */}
+            <div className="flex gap-1 mb-4 border-b border-slate-800">
                 <button
-                    onClick={handleCreateDoor}
-                    className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900/50 rounded-xl flex flex-col items-center justify-center gap-4 text-slate-600 hover:text-emerald-500 transition-all min-h-[280px]"
+                    onClick={() => setActiveTab('doors')}
+                    className={clsx(
+                        "px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors",
+                        activeTab === 'doors' ? "border-emerald-500 text-emerald-400" : "border-transparent text-slate-500 hover:text-slate-300"
+                    )}
                 >
-                    <div className="p-4 bg-slate-900 rounded-full group-hover:scale-110 transition-transform">
-                        <Plus size={32} />
-                    </div>
-                    <span className="font-bold">新しい建具を作成</span>
+                    <Package size={16} />
+                    建具リスト ({doors.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('notes')}
+                    className={clsx(
+                        "px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors",
+                        activeTab === 'notes' ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"
+                    )}
+                >
+                    <FileDown size={16} className="rotate-180" />
+                    野帳・写真
                 </button>
             </div>
+
+            {
+                activeTab === 'doors' ? (
+                    <>
+                        {/* Toolbar (Search) */}
+                        <div className="mb-6 flex items-center justify-between shrink-0">
+                            <div className="relative group">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                                <input
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search doors..."
+                                    className="bg-slate-900 border border-slate-700 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Grid UI */}
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+                            {filteredDoors.map(door => {
+                                const { totalCost } = calculateCost(door.dimensions, project.settings!);
+
+                                return (
+                                    <div
+                                        key={door.id}
+                                        onClick={() => onOpenDoor(door)}
+                                        className="group bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl p-4 cursor-pointer transition-all hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 relative"
+                                    >
+                                        {/* Card Header */}
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="bg-slate-800 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-slate-700 font-mono">
+                                                {door.tag}
+                                            </div>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                <button
+                                                    onClick={(e) => handleDuplicate(e, door)}
+                                                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                                                    title="複製 (Duplicate)"
+                                                >
+                                                    <Copy size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleDelete(e, door.id!)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded transition-colors"
+                                                    title="削除 (Delete)"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Preview */}
+                                        <DoorPreview door={door} />
+
+                                        {/* Card Body */}
+                                        <div>
+                                            <h3 className="font-bold text-slate-200 mb-1 truncate group-hover:text-emerald-400 transition-colors">{door.name}</h3>
+                                            <div className="flex justify-between items-end">
+                                                <div className="text-xs text-slate-500 font-mono">
+                                                    W{door.dimensions.width} x H{door.dimensions.height}
+                                                </div>
+                                                {showCost && (
+                                                    <div className="text-sm font-bold text-amber-500 font-mono">
+                                                        ¥{totalCost.toLocaleString()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Selection Effect Border (optional) */}
+                                        <div className="absolute inset-0 border-2 border-transparent group-hover:border-emerald-500/20 rounded-xl pointer-events-none"></div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Empty State / Add New Card */}
+                            <button
+                                onClick={handleCreateDoor}
+                                className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900/50 rounded-xl flex flex-col items-center justify-center gap-4 text-slate-600 hover:text-emerald-500 transition-all min-h-[280px]"
+                            >
+                                <div className="p-4 bg-slate-900 rounded-full group-hover:scale-110 transition-transform">
+                                    <Plus size={32} />
+                                </div>
+                                <span className="font-bold">新しい建具を作成</span>
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 overflow-hidden pb-4">
+                        {project.id && <FieldNoteList projectId={project.id!} />}
+                    </div>
+                )
+            }
 
             {/* Settings Modal */}
             <ProjectSettingsModal
@@ -387,6 +423,6 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                 onClose={() => setIsSettingsOpen(false)}
                 onSave={handleSaveSettings}
             />
-        </div>
+        </div >
     );
 };

@@ -23,7 +23,36 @@ export interface Door {
     specs: Record<string, any>;
     count: number;
     thumbnail?: string; // Data URL for preview image
+
+    // Schedule & Management Fields [NEW]
+    manHours?: number; // Standard production hours
+    complexity?: number; // 0.5 - 2.0 coefficient
+    startDate?: Date;
+    dueDate?: Date;
+    status?: 'design' | 'production' | 'completed';
+
     updatedAt: Date;
+    createdAt: Date;
+}
+
+export interface Task {
+    id?: number;
+    projectId: number;
+    title: string;
+    note?: string;
+    startDate?: Date;
+    dueDate?: Date;
+    manHours?: number;
+    status: 'todo' | 'doing' | 'done';
+    createdAt: Date;
+}
+
+export interface FieldNote {
+    id?: number;
+    projectId: number;
+    content: string;
+    photoBlob?: Blob; // Optional photo
+    mimeType?: string;
     createdAt: Date;
 }
 
@@ -46,16 +75,29 @@ export class TateguDatabase extends Dexie {
     projects!: Table<Project>;
     doors!: Table<Door>;
     catalog!: Table<CatalogItemEntity>;
-    doorPhotos!: Table<DoorPhoto>; // [NEW]
+    doorPhotos!: Table<DoorPhoto>;
+    tasks!: Table<Task>; // [NEW]
+    fieldNotes!: Table<FieldNote>; // [NEW]
 
     constructor() {
         super('JWCADTateguDB');
 
-        this.version(3).stores({ // Bump version
+        this.version(5).stores({
+            projects: '++id, name, updatedAt',
+            doors: '++id, projectId, tag, status, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt'
+        });
+
+        this.version(4).stores({
             projects: '++id, name, updatedAt',
             doors: '++id, projectId, tag, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId' // [NEW]
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt'
         });
 
         this.version(2).stores({

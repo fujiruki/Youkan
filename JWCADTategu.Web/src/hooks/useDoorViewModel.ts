@@ -29,6 +29,11 @@ export const useDoorViewModel = (initialDoor: Door) => {
         setIsDirty(true);
     };
 
+    const updateFields = (updates: Partial<Door>) => {
+        setDoor(prev => ({ ...prev, ...updates, updatedAt: new Date() }));
+        setIsDirty(true);
+    };
+
     const replaceDoor = (newDoor: Door) => {
         setDoor(newDoor);
         setIsDirty(true);
@@ -41,6 +46,7 @@ export const useDoorViewModel = (initialDoor: Door) => {
         updateDimension,
         updateDimensions,
         updateName,
+        updateFields,
         replaceDoor
     };
 };
