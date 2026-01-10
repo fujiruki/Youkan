@@ -30,6 +30,7 @@ export interface EstimationResult {
 export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings): EstimationResult => {
     const items: EstimationItem[] = [];
     const priceM3 = settings.pricePerM3 || 200000;
+    const wasteMultiplier = 1 + (settings.wasteRate || 0);
 
     // Safety defaults
     const mW = settings.widthMargin || 5;
@@ -61,8 +62,9 @@ export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings)
         const takeT = effD + effMT;
         const takeL = effL + (effHozo * 2) + effML;
 
-        // Volume (m3)
-        const vol = (takeW * takeT * takeL * count) / 1_000_000_000;
+        // Volume (m3) with Waste Rate
+        const netVol = (takeW * takeT * takeL * count) / 1_000_000_000;
+        const vol = netVol * wasteMultiplier;
         const cost = Math.floor(vol * effPriceM3);
 
         items.push({
@@ -163,6 +165,51 @@ export const calculateCost = (dim: DoorDimensions, settings: EstimationSettings)
     if (khCount > 0) {
         addMember("組子 ヨコ", khWidth, dim.depth, railVisibleLen, khCount, railHozo);
     }
+
+    // 7. Panel / Glass (Simplified Area Calculation)
+    // Area = (Total W - 2*StileW) * (Total H - TopH - BottomH)
+    // Note: This ignores middle rails area subtraction for simplicity (Safety side)
+    // Or we can subtract middle rails area.
+    // Let's use Inner Area.
+    const innerW = Math.max(0, dim.width - (dim.stileWidth * 2));
+    const innerH = Math.max(0, dim.height - dim.topRailWidth - dim.bottomRailWidth);
+    const panelAreaM2 = (innerW * innerH) / 1_000_000;
+
+    // Determine Material Type from spec overrides or default?
+    // Currently we don't have explicit material type in `dim` for estimation.
+    // We can assume Panel if `Panel` geometry exists, but geometry is generated later.
+    // Let's add "Glass" and "Panel" items clearly.
+    // In Tategu, usually it's either Glass OR Panel (Wood) OR Shoji Paper.
+    // We'll calculate BOTH as 0 count, and let user override count to 1?
+    // Or better: defaulting to Glass if no middle rails?
+    // Let's add "Glass/Panel" item with count 1, and user can change price/type?
+    // For now, let's add "ガラス/鏡板" item.
+
+    // We'll split into two items with count 0 or 1 based on heuristics?
+    // Heuristic: If Kumiko > 0 -> Shoji Paper?
+    // If no Kumiko -> Glass or Panel?
+    // Let's just add "鏡板/ガラス" as a generic panel item.
+    // Defaulting to "Glass" price unless overridden?
+    // It's safer to add both as Count 0, and user sets Count 1 to the one they use.
+    // Actually, let's assume 1 Panel item.
+    // Name: "鏡板・ガラス"
+    // Cost: Area * GlassPrice (default)
+    const panelUnitP = settings.glassPricePerM2 || 5000;
+    const panelCost = Math.floor(panelAreaM2 * panelUnitP);
+
+    items.push({
+        name: "鏡板・ガラス",
+        width: innerW,
+        depth: 0, // Thickness not used for area pricing
+        length: innerH,
+        count: 1, // Default 1
+        hozo: 0,
+        margins: { w: 0, l: 0, t: 0 },
+        volumeM3: 0, // Not m3
+        cost: panelCost,
+        unitPrice: panelUnitP,
+        note: `${(panelAreaM2).toFixed(2)}m2 (Area)`
+    });
 
     const totalCost = items.reduce((sum, i) => sum + i.cost, 0);
     const unitPrice = Math.floor(totalCost * (1 + (settings.markup || 0)));

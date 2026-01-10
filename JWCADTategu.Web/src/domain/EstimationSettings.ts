@@ -8,6 +8,11 @@ export interface EstimationSettings {
     lengthMargin: number;
     thicknessMargin: number;
     hozoLength: number; // Tenon length per end
+
+    // Accuracy Improvements
+    wasteRate: number; // 0.1 = 10%
+    glassPricePerM2: number;
+    panelPricePerM2: number;
 }
 
 export const DefaultEstimationSettings: EstimationSettings = {
@@ -18,5 +23,8 @@ export const DefaultEstimationSettings: EstimationSettings = {
     widthMargin: 5,
     lengthMargin: 50,
     thicknessMargin: 3,
-    hozoLength: 30
+    hozoLength: 30,
+    wasteRate: 0.1,
+    glassPricePerM2: 5000,
+    panelPricePerM2: 3000
 };

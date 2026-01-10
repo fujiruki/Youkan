@@ -63,6 +63,36 @@ export const EstimationPanel: React.FC<EstimationPanelProps> = ({ dimensions, se
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-3 gap-4 mt-3">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-slate-500">ロス率 (Waste %)</label>
+                            <input
+                                type="number" step="0.05"
+                                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-right text-emerald-400 w-full"
+                                value={settings.wasteRate ?? 0.1}
+                                onChange={e => onSettingsChange({ ...settings, wasteRate: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-slate-500">ガラス単価 (/m2)</label>
+                            <input
+                                type="number" step="100"
+                                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-right text-emerald-400 w-full"
+                                value={settings.glassPricePerM2 ?? 5000}
+                                onChange={e => onSettingsChange({ ...settings, glassPricePerM2: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-slate-500">鏡板単価 (/m2)</label>
+                            <input
+                                type="number" step="100"
+                                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-right text-emerald-400 w-full"
+                                value={settings.panelPricePerM2 ?? 3000}
+                                onChange={e => onSettingsChange({ ...settings, panelPricePerM2: Number(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+
                     <div className="bg-slate-900 p-2 rounded border border-slate-700 mt-2">
                         <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Safety Margins (mm)</div>
                         <div className="grid grid-cols-4 gap-2">
