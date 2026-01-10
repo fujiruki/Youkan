@@ -3,7 +3,8 @@
 **Project Name**: Tategu Design Studio
 **Concept**: "Close the Deal with Design" - リノベーション時代の提案型・建具CAD
 **Catchphrase**: 見せる、決まる、作れる。建具のすべてをこれひとつで。
-**Last Updated**: 2026-01-10
+**Catchphrase**: 見せる、決まる、作れる。建具のすべてをこれひとつで。
+**Last Updated**: 2026-01-11
 
 ---
 
@@ -55,6 +56,7 @@
 *   **Photo Comparison**: リフォーム現場の写真に建具CGを重ねて表示 (AR的利用)。
 
 ### B. Production Mode (製作・実務) - The "Trust" Factor
+*   **Production List**: 建具だけでなく、枠・家具・金物も含めた一元管理 (Refined from Door List)。
 *   **Parametric Design**: 1mm単位の正確な寸法制御。
 *   **Documentation**:
     *   **製作図**: 寸法入り姿図 (A4/A3)。
@@ -76,7 +78,17 @@
         *   **発注書**: 金物・ガラスの発注リスト。
     *   CADデータエクスポート (DXF/JWW)。
 
-### C. Catalog & Gallery (カタログ機能)
+        *   **木取り表**: 必要な木材の寸法と数量リスト。
+        *   **発注書**: 金物・ガラスの発注リスト。
+    *   CADデータエクスポート (DXF/JWW)。
+
+### C. Field Mode (現場管理)
+*   **目的**: 現場調査、採寸、打ち合わせ記録の一元化。
+*   **機能**:
+    *   **Field Notes (野帳)**: テキストメモと写真による現場記録。
+    *   **Photo Link**: 記録した写真を建具データと紐付け。
+
+### D. Catalog & Gallery (カタログ機能)
 *   **目的**: 過去のデザイン資産の活用、「選ばせる」提案。
 *   **機能**:
     *   **My Catalog**: 作成した建具をテンプレートとして保存・分類。

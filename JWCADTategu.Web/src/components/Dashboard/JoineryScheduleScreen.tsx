@@ -6,10 +6,11 @@ import { projectRepository } from '../../repositories/ProjectRepository';
 import { generateDoorDxf } from '../../utils/DxfGenerator';
 import { exportProjectToJson, generateExportFilename } from '../../utils/ProjectExport';
 import { debugLog } from '../../config/debug';
-import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package } from 'lucide-react';
+import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package, ShoppingBag, Box, Hexagon, Wrench, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
-import { FieldNoteList } from './FieldNoteList'; // [NEW]
+import { FieldNoteList } from './FieldNoteList';
+import { GenericItemModal } from './GenericItemModal'; // [NEW]
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
     <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
@@ -24,11 +25,34 @@ const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
     </div>
 );
 
+// [NEW] Simplified card for Generic Items
+const GenericItemPreview: React.FC<{ door: Door }> = ({ door }) => {
+    const getIcon = () => {
+        switch (door.category) {
+            case 'frame': return <Box size={40} className="text-amber-500/50" />;
+            case 'furniture': return <ShoppingBag size={40} className="text-indigo-500/50" />;
+            case 'hardware': return <Hexagon size={40} className="text-slate-500/50" />;
+            default: return <Wrench size={40} className="text-emerald-500/50" />;
+        }
+    };
+
+    return (
+        <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
+            {getIcon()}
+            {door.category !== 'door' && (
+                <div className="absolute bottom-2 right-2 text-[10px] text-slate-600 font-mono uppercase">
+                    {door.category}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => void; onOpenDoor: (door: Door) => void; onDeleteProject: (id: number) => void; onUpdateProject: (p: Project) => void }> = ({ project, onBack, onOpenDoor, onDeleteProject, onUpdateProject }) => {
     const [doors, setDoors] = useState<Door[]>([]);
     const [editTableName, setEditTableName] = useState(project.name);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const [activeTab, setActiveTab] = useState<'doors' | 'notes'>('doors'); // [NEW]
+    const [activeTab, setActiveTab] = useState<'products' | 'notes'>('products'); // [CHANGED] 'doors' -> 'products'
 
     // UI Options
     const [showCost, setShowCost] = useState(false);
@@ -36,6 +60,11 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [includeHumanScale, setIncludeHumanScale] = useState(true);
     const [useA3Layout, setUseA3Layout] = useState(true);
+
+    // [NEW] Generic Item Modal State
+    const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
+    const [editingGenericItem, setEditingGenericItem] = useState<Door | null>(null);
+    const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
 
     const loadDoors = async () => {
         if (project.id) {
@@ -60,6 +89,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             projectId: project.id!,
             tag: `D-${doors.length + 1}`,
             name: '新規建具',
+            category: 'door', // [NEW]
             count: 1,
             dimensions: {
                 width: 800, height: 2000, depth: 30,
@@ -76,9 +106,35 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         try {
             const id = await projectRepository.saveDoor(newDoor);
             onOpenDoor({ ...newDoor, id });
+            setIsCreateMenuOpen(false);
         } catch (e) {
             console.error('[Schedule] Failed to save door', e);
         }
+    };
+
+    const handleCreateGeneric = () => {
+        setEditingGenericItem(null);
+        setIsGenericModalOpen(true);
+        setIsCreateMenuOpen(false);
+    };
+
+    const handleSaveGeneric = async (item: Partial<Door>) => {
+        if (item.id) {
+            await db.doors.update(item.id, item);
+        } else {
+            // Generate Tag for Generic Item
+            const nonDoors = doors.filter(d => d.category && d.category !== 'door');
+            // Simple tagging: O-{Index} for "Other/Generic"
+            // Or better, just continue numeric sequence but maybe prefix? 
+            // Let's use simple logic: "M-{index}" for Miscellaneous/Material
+            const nextIndex = nonDoors.length + 1;
+            const itemWithTag = {
+                ...item,
+                tag: item.tag === 'GEN-?' ? `M-${nextIndex}` : item.tag
+            } as Door;
+            await db.doors.add(itemWithTag);
+        }
+        loadDoors();
     };
 
     const handleDuplicate = async (e: React.MouseEvent, door: Door) => {
@@ -108,20 +164,30 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         d.name.includes(searchQuery) || d.tag.includes(searchQuery)
     );
 
-    const totalEstimate = doors.reduce((acc, d) => acc + calculateCost(d.dimensions, project.settings!).totalCost * d.count, 0);
+    const totalEstimate = doors.reduce((acc, d) => {
+        if (d.category === 'door' || !d.category) { // Default or Explicit Door
+            return acc + calculateCost(d.dimensions, project.settings!).totalCost * d.count;
+        } else {
+            // Generic Item Price (stored in specs.unitPrice temporarily)
+            const price = d.specs?.unitPrice || 0;
+            return acc + (price * d.count);
+        }
+    }, 0);
 
     const handleExportDxf = () => {
-        if (filteredDoors.length === 0) {
-            alert('出力する建具がありません。\n(No doors to export)');
+        // Only export actual doors for now
+        const exportableDoors = filteredDoors.filter(d => d.category === 'door' || !d.category);
+
+        if (exportableDoors.length === 0) {
+            alert('DXF出力可能な建具がありません。\n(No doors to export)');
             return;
         }
 
-        // Use project's DXF layer config and export options
         const dxfContent = generateDoorDxf(
-            filteredDoors,
+            exportableDoors,
             project.dxfLayerConfig,
-            undefined, // Use default color config
-            { includeHumanScale, useA3Layout } // Export options
+            undefined,
+            { includeHumanScale, useA3Layout }
         );
 
         const blob = new Blob([dxfContent], { type: 'application/dxf' });
@@ -144,11 +210,6 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
 
         const jsonContent = exportProjectToJson(project, doors);
 
-        debugLog('PROJECT_EXPORT', 'JSON generated', {
-            dataSize: jsonContent.length,
-            preview: jsonContent.substring(0, 200) + '...'
-        });
-
         const blob = new Blob([jsonContent], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -158,13 +219,20 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
-        console.log('✅ Project exported to JSON:', generateExportFilename(project.name));
     };
 
     const handleSaveSettings = async (updatedProject: Project) => {
         await projectRepository.saveProject(updatedProject);
         onUpdateProject(updatedProject);
+    };
+
+    const handleItemClick = (door: Door) => {
+        if (door.category === 'door' || !door.category) {
+            onOpenDoor(door);
+        } else {
+            setEditingGenericItem(door);
+            setIsGenericModalOpen(true);
+        }
     };
 
     return (
@@ -198,7 +266,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             </h1>
                         )}
                         <span className="bg-slate-800 text-slate-400 px-2 py-1 rounded text-xs">
-                            {doors.length} sheets
+                            {doors.length} items
                         </span>
                     </div>
                 </div>
@@ -281,14 +349,39 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             JSON出力
                         </button>
 
-                        {/* Create New */}
-                        <button
-                            onClick={handleCreateDoor}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all ml-2"
-                        >
-                            <Plus size={18} />
-                            新規建具
-                        </button>
+                        {/* Create New Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all ml-2"
+                            >
+                                <Plus size={18} />
+                                製作物を追加
+                                <ChevronDown size={16} />
+                            </button>
+
+                            {isCreateMenuOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-20">
+                                    <button
+                                        onClick={handleCreateDoor}
+                                        className="w-full text-left px-4 py-3 hover:bg-slate-800 flex items-center gap-3 text-sm text-slate-200"
+                                    >
+                                        <div className="bg-emerald-500/20 p-1 rounded text-emerald-400"><Package size={16} /></div>
+                                        建具 (Door)
+                                    </button>
+                                    <button
+                                        onClick={handleCreateGeneric}
+                                        className="w-full text-left px-4 py-3 hover:bg-slate-800 flex items-center gap-3 text-sm text-slate-200"
+                                    >
+                                        <div className="bg-amber-500/20 p-1 rounded text-amber-400"><Box size={16} /></div>
+                                        建具枠・その他
+                                    </button>
+                                </div>
+                            )}
+                            {isCreateMenuOpen && (
+                                <div className="fixed inset-0 z-10" onClick={() => setIsCreateMenuOpen(false)}></div>
+                            )}
+                        </div>
                     </div>
 
                     {showCost && (
@@ -302,14 +395,14 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             {/* Tab Navigation */}
             <div className="flex gap-1 mb-4 border-b border-slate-800">
                 <button
-                    onClick={() => setActiveTab('doors')}
+                    onClick={() => setActiveTab('products')}
                     className={clsx(
                         "px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors",
-                        activeTab === 'doors' ? "border-emerald-500 text-emerald-400" : "border-transparent text-slate-500 hover:text-slate-300"
+                        activeTab === 'products' ? "border-emerald-500 text-emerald-400" : "border-transparent text-slate-500 hover:text-slate-300"
                     )}
                 >
                     <Package size={16} />
-                    建具リスト ({doors.length})
+                    製作物リスト ({doors.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('notes')}
@@ -324,7 +417,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
             </div>
 
             {
-                activeTab === 'doors' ? (
+                activeTab === 'products' ? (
                     <>
                         {/* Toolbar (Search) */}
                         <div className="mb-6 flex items-center justify-between shrink-0">
@@ -333,7 +426,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                                 <input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search doors..."
+                                    placeholder="Search items..."
                                     className="bg-slate-900 border border-slate-700 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-slate-600"
                                 />
                             </div>
@@ -342,12 +435,15 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         {/* Grid UI */}
                         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
                             {filteredDoors.map(door => {
-                                const { totalCost } = calculateCost(door.dimensions, project.settings!);
+                                const isDoor = door.category === 'door' || !door.category;
+                                const cost = isDoor
+                                    ? calculateCost(door.dimensions, project.settings!).totalCost * door.count
+                                    : (door.specs?.unitPrice || 0) * door.count;
 
                                 return (
                                     <div
                                         key={door.id}
-                                        onClick={() => onOpenDoor(door)}
+                                        onClick={() => handleItemClick(door)}
                                         className="group bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl p-4 cursor-pointer transition-all hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1 relative"
                                     >
                                         {/* Card Header */}
@@ -374,7 +470,11 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                                         </div>
 
                                         {/* Preview */}
-                                        <DoorPreview door={door} />
+                                        {isDoor ? (
+                                            <DoorPreview door={door} />
+                                        ) : (
+                                            <GenericItemPreview door={door} />
+                                        )}
 
                                         {/* Card Body */}
                                         <div>
@@ -385,7 +485,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                                                 </div>
                                                 {showCost && (
                                                     <div className="text-sm font-bold text-amber-500 font-mono">
-                                                        ¥{totalCost.toLocaleString()}
+                                                        ¥{cost.toLocaleString()}
                                                     </div>
                                                 )}
                                             </div>
@@ -396,17 +496,6 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                                     </div>
                                 );
                             })}
-
-                            {/* Empty State / Add New Card */}
-                            <button
-                                onClick={handleCreateDoor}
-                                className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900/50 rounded-xl flex flex-col items-center justify-center gap-4 text-slate-600 hover:text-emerald-500 transition-all min-h-[280px]"
-                            >
-                                <div className="p-4 bg-slate-900 rounded-full group-hover:scale-110 transition-transform">
-                                    <Plus size={32} />
-                                </div>
-                                <span className="font-bold">新しい建具を作成</span>
-                            </button>
                         </div>
                     </>
                 ) : (
@@ -422,6 +511,15 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 onSave={handleSaveSettings}
+            />
+
+            {/* [NEW] Generic Item Modal */}
+            <GenericItemModal
+                isOpen={isGenericModalOpen}
+                onClose={() => setIsGenericModalOpen(false)}
+                onSave={handleSaveGeneric}
+                initialItem={editingGenericItem}
+                projectId={project.id!}
             />
         </div >
     );

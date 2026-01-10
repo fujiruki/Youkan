@@ -31,6 +31,13 @@ export interface Door {
     dueDate?: Date;
     status?: 'design' | 'production' | 'completed';
 
+    // Generic/Production Item Fields [NEW]
+    category?: 'door' | 'frame' | 'furniture' | 'hardware' | 'other'; // Default 'door'
+    genericSpecs?: {
+        unit: string;
+        note: string;
+    };
+
     updatedAt: Date;
     createdAt: Date;
 }
@@ -81,6 +88,15 @@ export class TateguDatabase extends Dexie {
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(6).stores({
+            projects: '++id, name, updatedAt',
+            doors: '++id, projectId, tag, status, category, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt'
+        });
 
         this.version(5).stores({
             projects: '++id, name, updatedAt',

@@ -58,8 +58,10 @@
 ### 5.2 データ永続化 (Persistence)
 *   **Dexie.js** を使用し、以下のスキーマで保存。
 *   **Projects**: 案件データ。複数のDoorを持つ。
+*   **Doors**: 建具および製作物アイテム（Category: Door, Frame, Furniture, Hardware）。
 *   **Templates**: ユーザー定義のテンプレート。
 *   **Settings**: アプリ設定。
+*   **FieldNotes**: 現場野帳データ。
 
 ### 5.3 JWCAD連携 (Integration)
 *   **Clipboard Copy**: JWCADの「文字貼付」コマンド等で利用可能なフォーマットのテキストをクリップボードに書き込む。
@@ -85,10 +87,14 @@ interface DoorDimensions {
   // ...他詳細パラメータ
 }
 
-// 建具エンティティ
+// 建具エンティティ (Extended for Production List)
 interface Door extends DoorDimensions {
   id: string;
+  projectId: number;
   name: string;      // 符号
+  tag: string;       // 管理タグ (D-1, M-1...)
+  category?: 'door' | 'frame' | 'furniture' | 'hardware' | 'other'; // [NEW]
+  genericSpecs?: { unit: string; note: string }; // [NEW]
   templateId?: string; // 元になったテンプレートID
   createdAt: number;
   updatedAt: number;
