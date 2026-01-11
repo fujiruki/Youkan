@@ -1,124 +1,72 @@
-# 憲法に基づくUI仕様書: Decision Board
+# Constitution-Based UI Specification: Global JBWOS (v2)
 
-    **このUIは、ユーザーを「時間管理」から解放し、「状態管理」へ移行させるためのものである。**
+## 0. Introduction
+This specification supersedes all previous UI specs.
+**Core Paradigm Shift**:
+- **OLD**: Project > Tasks (Vertical)
+- **NEW**: **Ready (Today) > Tasks (Horizontal/Global)**
 
-    ---
+## 1. Application Architecture
 
-    ## 1. 画面構成の分離 (Separation Strategy)
+### 1.1 Entry Point: The Global Decision Board (Internal View)
+- **Role**: The Application Home Screen.
+- **Scope**: Aggregates items from **ALL** projects.
+- **Purpose**: Judgment Management (not Project Management).
 
-    ### A. Internal View:「判断管理ボード」 (Main)
-    *   **対象**: 自分のため。
-    *   **目的**: 今日の迷いを消す。
-    *   **アクセス**: アプリ起動時のデフォルト画面。
-    *   **機能**: 製作物（Door/Item）の状態管理。日付は見せない。
+### 1.2 View Separation
+1.  **Internal View (Home)**:
+    - Global Decision Board.
+    - Focus: "My sanity today".
+    - **No dates**. Max 2 items in Ready.
+2.  **External View (Sub-screen)**:
+    - Project List & Details.
+    - Focus: "Explaining to others".
+    - Adding items, Dxf export, Gantt charts.
 
-    ### B. External View:「進行表・ガントチャート」 (Sub)
-    *   **対象**: 顧客・元請けのため。
-    *   **目的**: 説明責任を果たす。
-    *   **アクセス**: ヘッダーの「対外説明モード」ボタンから遷移（別画面へ隔離）。
-    *   **機能**: 既存のガントチャート・カンバン・カレンダー。
+## 2. Global Decision Board UI
 
-    ---
+### 2.1 The 4 Buckets (Global Scope & Constraints)
+| Bucket | Query Logic | Meaning | UI Rule (Checklist) |
+|---|---|---|---|
+| **Inbox** | `status='inbox'` | Capture zone. | **Overwhelm Protection**: If items > 7, show banner: **"Select just 1 item from Inbox today."** |
+| **Waiting** | `status='waiting'` | Blocked. | Explicit reasons required. |
+| **Ready** | `status='ready'` | **The Sacred Zone.** | **Global Limit**: Max 2 items. **Focus Mode**: If Ready > 0, opacity of Inbox/Waiting reduces (50%). |
+| **Pending** | `status='pending'` | Someday. | Folded by default. |
 
-    ## 2. Internal View: 判断管理ボード (Decision Board) 仕様
+### 2.2 Card Design ('Global' Context)
+- **Primary Text**: Item Name
+- **Context Tag**: **Project Name** (Small badge)
+- **Visuals**: Weight/Prox (Small dots/text) - *No sorting allowed.*
 
-    時間軸（横軸）を持たず、**「判断状態（バケツ）」** への振り分けを行うUI。
-    ただし、脳内で時間管理をさせないための「緩衝材（Buffer）」として、**規模感**と**ざっくりした時期**は可視化する。
+### 2.3 The "Done" Experience (Stopping)
+- **Add to Ready**: Toast "Time to focus. This is enough for today."
+- **Ready -> Done**: Toast "Good job."
+- **Ready Empty**: **Large Centered Message: "You have finished for today."** (No "Next" button).
 
-    ### 2.1 4つのバケツ (The 4 Buckets)
-画面を4つのエリア（またはカラム）に分割する。
+## 3. Workflow & Transitions
 
-| バケツ名 | 意味 (States) | UI表現・アイコン | 心理的安全性・制約 |
-| :--- | :--- | :--- | :--- |
-| **① Inbox (未判断)** | まだ何も決めていない。<br>新規案件はまずここに入る。 | 📥 **「とりあえず置き場」**<br>Newバッジ表示 | **【制約】溜めすぎ防止**<br>10件を超えたら「今日は1件だけ出せばOK」と表示誘導。<br>「全部やれ」とは言わない。 |
-| **② Waiting (待ち)** | 自分では進められない。<br>寸法の連絡待ち、承認待ち、材料待ち。 | ✋ **「人のせいにして良い」**<br>黄色・手のアイコン | 止まっているのは自分のせいではない。<br>安心して放置する場所。 |
-| **③ Ready (着手可)** | **今日向き合う覚悟を決めたもの**。<br>これ以外は見てはいけない。 | 🔥 **「やるならコレ」**<br>緑色・炎のアイコン | **【制約】最大2件まで**。<br>3件以上はブロック。<br>1件入れば「今日はこれで十分」と肯定する。 |
-| **④ Pending (塩漬け)** | 納期がまだ先。<br>意図的に後回しにしている。 | 🧊 **「今は忘れて良い」**<br>青色・氷のアイコン | 視界から消すための場所。<br>普段は折りたたまれている。 |
+### 3.1 App Launch
+- Opens **Global Decision Board**.
+- User sees items from Project A, Project B, Project C mixed in Inbox/Ready.
 
-### 2.2 完了と停止の肯定 (The "Done" Experience)
-**目的**: 「もう判断しなくていい」と脳に許可を出すこと。
+### 3.2 "I need to add a new project/item"
+1.  Click **"Projects / External Mode"** button.
+2.   Transition to **Project List Screen**.
+3.   Create Project / Open Project.
+4.   Add Items (new items get `status='inbox'`).
+5.  Return to Home (Global Board) -> New items appear in Global Inbox.
 
-*   **Ready から Done への移動時**:
-    *   **メッセージ**: **「今日は、ここまでで十分です。」** (デフォルト)
-    *   (オプション: 「必要な判断と作業は、いま完了しています。」)
-    *   *※「お疲れ様でした」「次へ」などの煽りは一切出さない。*
-*   **Ready が空になった時**:
-    *   Readyカラムが縮小し、中央に **「今日はもう、やるものはありません」** と表示。
-    *   Inboxへの誘導もしない。完全な停止を肯定する。
-*   **Done カラム**:
-    *   単なる「出口」。ログ機能、履歴表示、振り返りは**実装しない**。
+## 4. Technical Migration Overview
 
-    ### 2.3 緩衝材 (The Buffers)
-    **「いつ・どれくらい」を脳内で計算させないための視覚補助。**
-    これらは**比較や並び替えには使用しない**（カードの隅に小さく表示するのみ）。
+### 4.1 Component Shifts
+- **`DashboardScreen`**:
+    - **Current**: List of Projects.
+    - **New**: **GlobalDecisionBoard** (The 4 buckets).
+- **`ProjectListScreen`** (New Component):
+    - **Role**: The old DashboardScreen functionality.
+    - **Access**: Via header button "Projects".
 
-    *   **規模感 (Weight)**: アイコン (📦) のみ。
-    *   **時期感 (Proximity)**: ラベル (今月/来月) のみ。
-
-    ---
-
-    ## 3. External View: 説明補助装置 (Explanation Assistant)
-
-    **「管理」する場所ではなく、「状況説明」や「進捗共有」を組み立てるための場所。**
-    見るのが怖くないよう、**「誠意ある適当さ」** を支援する。
-
-### 3.1 状況説明テンプレ (Situation Report Templates)
-「言い訳」ではなく「事実」を淡々と述べるためのテンプレート。謝罪や正確な日付は含まない。
-
-| 状態 | テンプレ内容 (例) |
-| :--- | :--- |
-| **Waiting** | 「現在、必要な情報／材料の確認待ちの段階です。確認が取れ次第、次工程に進める予定です。」 |
-| **Ready** | 「現在、加工工程に入っています。大きな問題なく進行しています。」 |
-| **Ready (納期問合)** | 「現状の進み具合を見ると、来週〜再来週あたりでの対応になる見込みです。」 |
-| **Pending** | 「全体工程の関係で、本件は少し後半の対応予定としています。」 |
-| **Inbox** | 「内容を確認している段階です。全体状況を見て、対応順を判断します。」 |
-
-### 3.2 Vague Gantt (ぼかしガント)
-*   1日単位の線ではなく、**「週単位」「旬（上旬・中旬・下旬）」** のブロックで表示。
-        *   「だいたいこの辺」を示すことで、約束の精度をあえて下げる。
-
-    ---
-
-    ## 4. データモデルの変更 (Schema Updates)
-
-    `Door` (または `Task`) テーブル拡張。
-
-    ```typescript
-    type JudgmentStatus = 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
-
-    interface Door {
-    // Existing fields...
-    judgmentStatus: JudgmentStatus;
-    waitingReason?: string;
-    
-    // [NEW] Buffers
-    weight: 1 | 2 | 3; // 1:小(Light), 2:中(Medium), 3:大(Heavy)
-    roughTiming: 'early_month' | 'mid_month' | 'late_month' | 'future'; // 自動算出 or 手動
-    }
-    ```
-
-    ---
-
-    ## 4. 既存機能との接続
-
-    *   **製作物リスト**: `All Items` として検索可能だが、日常作業は `Decision Board` で行う。
-    *   **External View**: `judgmentStatus` を無視し、従来通り `startDate` / `dueDate` に基づいてガントチャートを描画する（日付が未定の場合は「未定」レーンに表示）。
-
-    ---
-
-    ## 5. UIモックアップ (Layout Idea)
-
-    ```
-    [Icon] Tategu Studio  |  [Toggle: Internal / External]
-
-    -------------------------------------------------------
-    |  📥 Inbox (3)   |  ✋ Waiting (2)  |  🔥 Ready (5)  |
-    |                 |                  |                |
-    | [ Card: A邸 D1] | [ Card: B邸 枠 ] | [ Card: C邸 ] |
-    | [ Card: A邸 D2] |  Reason: 寸法    | [ Card: C邸 ] |
-    |                 |                  |                |
-    -------------------------------------------------------
-    |  🧊 Pending (12) - Click to Expand                  |
-    -------------------------------------------------------
-    ```
-    *   **Pending**は件数が多いので、普段は畳んでおく（視界ノイズを減らす憲法遵守）。
+### 4.2 Data Fetching
+- **Global Board**:
+    - Query: `db.doors.toArray()` (or filtered by status).
+    - Join: Must fetch Project Name for each door to display the Context Tag.

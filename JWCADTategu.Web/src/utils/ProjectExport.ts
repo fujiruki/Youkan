@@ -75,13 +75,13 @@ export function exportProjectToJson(project: Project, doors: Door[]): string {
             dimensions: {
                 width: door.dimensions.width,
                 height: door.dimensions.height,
-                frameThickness: door.dimensions.frameThickness,
+                frameThickness: door.dimensions.depth, // depth mapped to frameThickness for export compat? Or rename? Let's use depth.
                 topRailWidth: door.dimensions.topRailWidth,
                 bottomRailWidth: door.dimensions.bottomRailWidth,
-                leftStileWidth: door.dimensions.leftStileWidth,
-                rightStileWidth: door.dimensions.rightStileWidth
+                leftStileWidth: door.dimensions.stileWidth, // stileWidth mapped to left/right
+                rightStileWidth: door.dimensions.stileWidth
             },
-            estimatedCost: door.estimatedCost
+            // estimatedCost: door.estimatedCost // Removed as it doesn't exist
         })),
         settings: {
             dxfLayerConfig: project.dxfLayerConfig || {

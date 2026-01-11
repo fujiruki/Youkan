@@ -248,8 +248,7 @@ export const generateDoorDxf = (
 
 
     debugDxf('[CRITICAL] Starting door forEach loop', {
-        doorCount: doors.length,
-        currentLinesInDxf: dxf.lines ? dxf.lines.length : 'N/A - lines not accessible'
+        doorCount: doors.length
     });
 
     doors.forEach((door, doorIndex) => {
@@ -436,8 +435,7 @@ export const generateDoorDxf = (
     });
 
     debugDxf('[CRITICAL] forEach loop completed', {
-        totalDoorsProcessed: doors.length,
-        finalLinesInDxf: dxf.lines ? dxf.lines.length : 'N/A'
+        totalDoorsProcessed: doors.length
     });
 
     const finalDxf = dxf.generate();

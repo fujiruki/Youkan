@@ -23,6 +23,7 @@ export interface Door {
     specs: Record<string, any>;
     count: number;
     thumbnail?: string; // Data URL for preview image
+    type?: string; // [RESTORED] For backward compatibility
 
     // Schedule & Management Fields [NEW]
     manHours?: number; // Standard production hours
@@ -37,6 +38,12 @@ export interface Door {
         unit: string;
         note: string;
     };
+
+    // Constitution Scheduler Fields
+    judgmentStatus?: 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
+    waitingReason?: string;
+    weight?: 1 | 2 | 3;
+    roughTiming?: 'early_month' | 'mid_month' | 'late_month' | 'future';
 
     updatedAt: Date;
     createdAt: Date;
@@ -88,6 +95,21 @@ export class TateguDatabase extends Dexie {
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(7).stores({
+            projects: '++id, name, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt', // Added judgmentStatus to index
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt'
+        }).upgrade(async tx => {
+            // For existing doors, set judgmentStatus to 'inbox'
+            await tx.table('doors').toCollection().modify(door => {
+                door.judgmentStatus = 'inbox';
+                // buffer field will be undefined for existing doors, which is fine.
+            });
+        });
 
         this.version(6).stores({
             projects: '++id, name, updatedAt',
