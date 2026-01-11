@@ -13,7 +13,7 @@ interface BucketColumnProps {
     description?: string; // e.g. "Max 2"
     emptyMessage?: React.ReactNode;
     footer?: React.ReactNode;
-    onEditItem?: (item: Item) => void;
+    onRenameItem?: (id: string, newTitle: string) => void;
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -24,7 +24,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     description,
     emptyMessage,
     footer,
-    onEditItem
+    onRenameItem
 }) => {
     // Drop target configuration
     const { setNodeRef, isOver } = useDroppable({
@@ -32,26 +32,33 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     });
 
     return (
-        <div className={cn("flex flex-col h-full", className)}>
+        <div className={cn("flex flex-col h-full text-[1em]", className)}>
             {/* Header */}
-            <div className="flex items-baseline justify-between mb-4 px-1">
+            <div className="flex items-baseline justify-between mb-2 px-1 shrink-0">
                 <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h2>
-                    <span className="text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    <h2 className="font-bold text-slate-800 dark:text-slate-100 text-[1.25em]">{title}</h2>
+                    <span className="font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[0.75em]">
                         {items.length}
                     </span>
                 </div>
                 {description && (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{description}</span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[0.75em]">{description}</span>
                 )}
             </div>
+
+            {/* Fixed Action Area (e.g. Throw In input) - Moved outside scroll area */}
+            {footer && (
+                <div className="mb-3 shrink-0">
+                    {footer}
+                </div>
+            )}
 
             {/* Drop Area */}
             <div
                 ref={setNodeRef}
                 className={cn(
                     "flex-1 rounded-xl p-2 transition-colors overflow-y-auto min-h-[150px]",
-                    "bg-slate-50/50 dark:bg-slate-900/20 box-border",
+                    "bg-slate-50/50 dark:bg-slate-900/20 box-border scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700",
                     "border-2 border-transparent",
                     isOver && "border-amber-400/50 bg-amber-50/30 dark:border-amber-500/30"
                 )}
@@ -70,16 +77,10 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                             <ItemCard
                                 key={item.id}
                                 item={item}
-                                onDoubleClick={onEditItem}
+                                onRename={onRenameItem}
                             />
                         ))}
                     </SortableContext>
-                )}
-                {/* Footer Action (e.g. Throw In button for Inbox) */}
-                {footer && (
-                    <div className="mt-2 text-center">
-                        {footer}
-                    </div>
                 )}
             </div>
         </div>

@@ -104,7 +104,16 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const activeItem = activeId ? findItem(activeId) : null;
 
     // --- Actions ---
+    // --- Actions ---
+    // Inline rename handler replacing the prompt-based one
+    const handleRenameItem = async (id: string, newTitle: string) => {
+        if (!newTitle.trim()) return;
+        await vm.updateItemTitle(id, newTitle);
+    };
+
+    // Keep for fallback or other edit types if needed, but mainly we use inline now
     const handleEditItem = async (item: Item) => {
+        // Legacy prompt - keeping just in case until inline is fully verified
         const newTitle = window.prompt(t.jbwos.common.editPrompt, item.title);
         if (newTitle && newTitle !== item.title) {
             await vm.updateItemTitle(item.id, newTitle);
@@ -134,12 +143,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div
-                className="h-full w-full bg-slate-100 dark:bg-slate-950 p-6 relative flex flex-col"
-                style={{ fontSize: `${zoomLevel}px` }}
-            >
-                {/* Header / Navigation Controls */}
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-4">
+            <div className="h-full w-full bg-slate-100 dark:bg-slate-950 p-6 relative flex flex-col">
+                {/* Header / Navigation Controls - Fixed text size to avoid resizing the UI itself */}
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-4 text-sm">
                     {/* Zoom Slider */}
                     <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-sm">
                         <span className="text-[10px] text-slate-500">A</span>
@@ -163,7 +169,11 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     </button>
                 </div>
 
-                <div className="flex-1 flex gap-4 items-stretch pb-4 overflow-hidden">
+                {/* Main Content - Zoom Applied Here using base font size */}
+                <div
+                    className="flex-1 flex gap-4 items-stretch pb-4 overflow-hidden"
+                    style={{ fontSize: `${zoomLevel}px` }}
+                >
 
                     {/* 1. Inbox */}
                     <BucketColumn
@@ -173,7 +183,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         description={t.jbwos.inbox.description}
                         className="flex-1 min-w-0" // Flexible
                         emptyMessage={<GentleMessage variant="inbox_clean" />}
-                        onEditItem={handleEditItem}
+                        onRenameItem={handleRenameItem} // Pass new handler
                         footer={
                             <form onSubmit={handleThrowIn} className="mt-2 relative">
                                 <input
@@ -181,7 +191,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     placeholder={t.jbwos.inbox.placeholder}
-                                    className="w-full px-4 py-3 rounded-full border-none shadow-sm focus:ring-2 focus:ring-amber-400 text-sm bg-white dark:bg-slate-800"
+                                    className="w-full px-4 py-3 rounded-full border-none shadow-sm focus:ring-2 focus:ring-amber-400 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-[1em]"
                                 />
                             </form>
                         }
@@ -194,8 +204,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         items={vm.waitingItems}
                         description={t.jbwos.waiting.description}
                         className="flex-1 min-w-0"
-                        emptyMessage={<div className="text-slate-300 text-sm mt-10 text-center">{t.jbwos.waiting.empty}</div>}
-                        onEditItem={handleEditItem}
+                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.waiting.empty}</div>}
+                        onRenameItem={handleRenameItem}
                     />
 
                     {/* 3. Ready (The Sacred Zone) - Slightly wider/more important */}
@@ -205,12 +215,12 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         items={vm.readyItems}
                         description={t.jbwos.ready.description}
                         className="flex-[1.2] min-w-0 border-x-2 border-amber-100 dark:border-slate-800 px-4 h-full"
-                        onEditItem={handleEditItem}
+                        onRenameItem={handleRenameItem}
                         emptyMessage={
                             // If no items done yet today, show generic empty. If done items exist, show "Done for day"
                             vm.doneItems.length > 0 && vm.readyItems.length === 0
                                 ? <GentleMessage variant="done_for_day" />
-                                : <div className="text-slate-300 text-sm mt-10 text-center whitespace-pre-wrap">{t.jbwos.ready.emptyGeneric}</div>
+                                : <div className="text-slate-300 text-[0.9em] mt-10 text-center whitespace-pre-wrap">{t.jbwos.ready.emptyGeneric}</div>
                         }
                     />
 
@@ -221,7 +231,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         items={vm.pendingItems}
                         description={t.jbwos.pending.description}
                         className="flex-1 min-w-0 opacity-70 hover:opacity-100 transition-opacity"
-                        onEditItem={handleEditItem}
+                        onRenameItem={handleRenameItem}
                     />
 
                     {/* 5. Done (The Log of Achievement) */}
@@ -231,8 +241,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         items={vm.doneItems}
                         description={t.jbwos.done.description}
                         className="flex-1 min-w-0 bg-slate-50/50 dark:bg-slate-900/10 grayscale opacity-80"
-                        emptyMessage={<div className="text-slate-300 text-sm mt-10 text-center">{t.jbwos.done.empty}</div>}
-                        onEditItem={handleEditItem}
+                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.done.empty}</div>}
+                        onRenameItem={handleRenameItem}
                     />
                 </div>
 

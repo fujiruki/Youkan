@@ -9,10 +9,10 @@ import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 interface ItemCardProps {
     item: Item;
     onClick?: (item: Item) => void;
-    onDoubleClick?: (item: Item) => void;
+    onRename?: (id: string, newTitle: string) => void;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename }) => {
     const {
         attributes,
         listeners,
@@ -23,6 +23,9 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
     } = useSortable({ id: item.id, data: item });
 
     const { openCalendarForInbox, openCalendarForReady } = useGoogleCalendar();
+
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [editValue, setEditValue] = React.useState(item.title);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -40,6 +43,32 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
         }
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onRename) {
+            setIsEditing(true);
+            setEditValue(item.title);
+        }
+    };
+
+    const handleBlur = () => {
+        setIsEditing(false);
+        if (editValue.trim() && editValue !== item.title) {
+            onRename?.(item.id, editValue);
+        } else {
+            setEditValue(item.title); // Revert if empty
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleBlur();
+        } else if (e.key === 'Escape') {
+            setIsEditing(false);
+            setEditValue(item.title);
+        }
+    };
+
     return (
         <div
             ref={setNodeRef}
@@ -49,10 +78,10 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
                 "bg-white/40 border-white/20 hover:bg-white/60 hover:border-white/40 shadow-sm",
                 "dark:bg-slate-800/40 dark:border-white/10 dark:hover:bg-slate-800/60",
                 item.interrupt && "border-amber-400/50 bg-amber-50/50 dark:border-amber-600/50 dark:bg-amber-900/10",
-                "cursor-pointer select-none"
+                "cursor-pointer select-none text-[1em]"
             )}
             onClick={() => onClick?.(item)}
-            onDoubleClick={() => onDoubleClick?.(item)}
+            onDoubleClick={handleDoubleClick}
         >
             {/* Drag Handle */}
             <div
@@ -60,19 +89,31 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
                 {...listeners}
                 className="text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing p-1 -ml-1"
             >
-                <GripVertical size={16} />
+                <GripVertical size="1.2em" />
             </div>
 
-            {/* Content */}
+            {/* Content (Inline Edit or Text) */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-700 dark:text-slate-200 truncate text-sm">
-                        {item.title}
-                    </span>
+                    {isEditing ? (
+                        <input
+                            autoFocus
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyDown}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full bg-white dark:bg-slate-900 border border-indigo-500 rounded px-1 py-0 text-[1em] focus:outline-none"
+                        />
+                    ) : (
+                        <span className="font-medium text-slate-700 dark:text-slate-200 truncate text-[1em]">
+                            {item.title}
+                        </span>
+                    )}
                 </div>
                 {/* Meta / Tags could go here */}
                 {(item.waitingReason || item.projectId) && (
-                    <div className="flex gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex gap-2 mt-1 text-[0.8em] text-slate-500 dark:text-slate-400">
                         {item.waitingReason && (
                             <span className="text-amber-600 dark:text-amber-500 flex items-center gap-1">
                                 ⏳ {item.waitingReason}
@@ -80,7 +121,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
                         )}
                         {/* Project Badge placeholder */}
                         {item.projectId && (
-                            <span className="bg-blue-100/50 dark:bg-blue-900/30 px-1.5 rounded text-[10px]">
+                            <span className="bg-blue-100/50 dark:bg-blue-900/30 px-1.5 rounded text-[0.9em]">
                                 Project A
                             </span>
                         )}
@@ -90,7 +131,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
 
             {/* Side Memo Indicator (MVP: Just an icon or subtle text) */}
             {item.memo && (
-                <div className="text-[10px] text-slate-400 max-w-[80px] truncate border-l pl-2 border-slate-200 dark:border-slate-700">
+                <div className="text-[0.7em] text-slate-400 max-w-[80px] truncate border-l pl-2 border-slate-200 dark:border-slate-700">
                     {item.memo}
                 </div>
             )}
@@ -102,7 +143,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
                     className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
                     title={item.status === 'ready' ? "作業予定をカレンダー登録" : "判断再開をカレンダー登録"}
                 >
-                    <Calendar size={14} />
+                    <Calendar size="1.2em" />
                 </button>
             </div>
         </div>
