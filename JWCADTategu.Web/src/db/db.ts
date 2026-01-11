@@ -2,7 +2,8 @@ import Dexie, { Table } from 'dexie';
 import { DoorDimensions } from '../domain/DoorDimensions';
 import { EstimationSettings } from '../domain/EstimationSettings';
 import { DxfLayerConfig } from '../domain/DxfConfig';
-import { CatalogItem } from '../domain/DoorSpecs'; // [NEW]
+import { CatalogItem } from '../domain/DoorSpecs';
+import { Item } from '../features/jbwos/types'; // [NEW]
 
 export interface Project {
     id?: number;
@@ -90,15 +91,26 @@ export class TateguDatabase extends Dexie {
     doors!: Table<Door>;
     catalog!: Table<CatalogItemEntity>;
     doorPhotos!: Table<DoorPhoto>;
-    tasks!: Table<Task>; // [NEW]
-    fieldNotes!: Table<FieldNote>; // [NEW]
+    tasks!: Table<Task>;
+    fieldNotes!: Table<FieldNote>;
+    items!: Table<Item>; // [NEW] JBWOS Items
 
     constructor() {
         super('JWCADTateguDB');
 
+        this.version(8).stores({
+            projects: '++id, name, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, createdAt' // [NEW] JBWOS Items
+        });
+
         this.version(7).stores({
             projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt', // Added judgmentStatus to index
+            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
             doorPhotos: '++id, doorId',
             tasks: '++id, projectId, status, startDate, dueDate',
@@ -107,7 +119,6 @@ export class TateguDatabase extends Dexie {
             // For existing doors, set judgmentStatus to 'inbox'
             await tx.table('doors').toCollection().modify(door => {
                 door.judgmentStatus = 'inbox';
-                // buffer field will be undefined for existing doors, which is fine.
             });
         });
 

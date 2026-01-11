@@ -26,5 +26,41 @@ export const t = {
         height: "全高 (H)",
         depth: "見込み (D)",
         calc: "原価積算",
+    },
+    jbwos: {
+        inbox: {
+            title: "インボックス",
+            description: "放り込む",
+            placeholder: "+ 放り込む（考えてはいけない）",
+            empty: "頭の中は空っぽです"
+        },
+        waiting: {
+            title: "誰か待ち",
+            description: "返信待ち・依頼中",
+            empty: "止まっているものはありません"
+        },
+        ready: {
+            title: "今日やる",
+            description: "Max 2件まで",
+            emptyGeneric: "今日やることを\n1つだけ選びましょう",
+            doneForDay: "今日はもう、十分です"
+        },
+        pending: {
+            title: "いつか",
+            description: "今は考えない"
+        },
+        done: {
+            title: "今日の成果",
+            description: "完了済み",
+            empty: "まだ何もありません"
+        },
+        common: {
+            close: "閉じる",
+            editPrompt: "タスク名を編集:",
+            alerts: {
+                readyLimit: "今日の判断リソースは限界です（2件まで）",
+                moveFailed: "移動できませんでした"
+            }
+        }
     }
 };

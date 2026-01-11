@@ -8,11 +8,13 @@ import { Project, Door, db } from './db/db';
 import { DebugBanner, DebugBannerSpacer } from './components/Debug/DebugBanner';
 import { CatalogScreen } from './components/Catalog/CatalogScreen';
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog';
+import { JbwosBoard } from './features/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
+
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos';
 
 function App() {
-    // Default is now Global Decision Board (dashboard)
-    const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+    // Default is now JBWOS MVP Board for verification
+    const [currentView, setCurrentView] = useState<ViewState>('jbwos');
     const [activeProject, setActiveProject] = useState<Project | null>(null);
     const [activeDoor, setActiveDoor] = useState<Door | null>(null);
 
@@ -76,10 +78,23 @@ function App() {
 
     return (
         <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
+
             <DebugBanner />
+            <div className="bg-slate-800 text-white text-xs px-2 py-1 flex gap-4">
+                {/* Temporary Nav for Dev */}
+                <button onClick={handleNavigateToProjects}>Projects</button>
+                <button onClick={() => setCurrentView('jbwos')}>JBWOS (MVP)</button>
+            </div>
             <DebugBannerSpacer />
 
             <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
+
+                {/* 0. JBWOS (MVP) */}
+                {currentView === 'jbwos' && (
+                    <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
+                        <JbwosBoard onClose={handleNavigateToProjects} />
+                    </div>
+                )}
 
                 {/* 1. Global Decision Board */}
                 {currentView === 'dashboard' && (
