@@ -2,8 +2,9 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../../types';
-import { GripVertical } from 'lucide-react';
-import { cn } from '../../../../lib/utils'; // Assuming cn utility exists, if not will use standard class manipulation
+import { GripVertical, Calendar } from 'lucide-react';
+import { cn } from '../../../../lib/utils';
+import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 
 interface ItemCardProps {
     item: Item;
@@ -21,10 +22,22 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
         isDragging,
     } = useSortable({ id: item.id, data: item });
 
+    const { openCalendarForInbox, openCalendarForReady } = useGoogleCalendar();
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+    };
+
+    const handleCalendarClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent card select
+        if (item.status === 'ready') {
+            openCalendarForReady(item);
+        } else {
+            // Default to Inbox behavior (Judgment Resume Hook) for all other states
+            openCalendarForInbox(item);
+        }
     };
 
     return (
@@ -81,6 +94,17 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onDoubleClick
                     {item.memo}
                 </div>
             )}
+
+            {/* Calendar Link (Hover only) - Logic based on status */}
+            <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={(e) => handleCalendarClick(e)}
+                    className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
+                    title={item.status === 'ready' ? "作業予定をカレンダー登録" : "判断再開をカレンダー登録"}
+                >
+                    <Calendar size={14} />
+                </button>
+            </div>
         </div>
     );
 };
