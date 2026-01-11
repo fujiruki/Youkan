@@ -4,6 +4,7 @@ import {
     closestCorners,
     KeyboardSensor,
     PointerSensor,
+    pointerWithin,
     useSensor,
     useSensors,
     DragOverlay,
@@ -33,7 +34,11 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
 
     // --- Dnd Kit Logic ---
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Prevent accidental drags
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -58,13 +63,14 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         else if (vm.readyItems.find(i => i.id === activeItemId)) currentStatus = 'ready';
         else if (vm.waitingItems.find(i => i.id === activeItemId)) currentStatus = 'waiting';
         else if (vm.pendingItems.find(i => i.id === activeItemId)) currentStatus = 'pending';
+        else if (vm.doneItems.find(i => i.id === activeItemId)) currentStatus = 'done';
 
         if (currentStatus === overContainerId) return; // No change
 
         try {
             switch (overContainerId) {
                 case 'inbox':
-                    // Move back to inbox logic if updated VM supports it
+                    await vm.moveToInbox(activeItemId);
                     break;
                 case 'ready':
                     await vm.moveToReady(activeItemId);
@@ -121,7 +127,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >

@@ -64,6 +64,11 @@ export const useJBWOSViewModel = () => {
         await refresh();
     };
 
+    const moveToInbox = async (id: string) => {
+        await repository.updateStatus(id, 'inbox');
+        await refresh();
+    };
+
     const markAsDone = async (id: string) => {
         await repository.updateStatus(id, 'done');
         // Check for stopping event logic here if needed, or in UI
@@ -94,6 +99,7 @@ export const useJBWOSViewModel = () => {
         moveToReady,
         moveToWaiting,
         moveToPending,
+        moveToInbox,
         markAsDone,
         updateItemTitle,
         triggerInterrupt,
