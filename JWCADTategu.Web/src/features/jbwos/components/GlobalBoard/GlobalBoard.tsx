@@ -124,6 +124,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         }
     };
 
+    // --- Zoom Logic ---
+    const [zoomLevel, setZoomLevel] = useState(14); // Default 14px
+
     return (
         <DndContext
             sensors={sensors}
@@ -131,9 +134,26 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="h-full w-full bg-slate-100 dark:bg-slate-950 p-6 relative flex flex-col">
+            <div
+                className="h-full w-full bg-slate-100 dark:bg-slate-950 p-6 relative flex flex-col"
+                style={{ fontSize: `${zoomLevel}px` }}
+            >
                 {/* Header / Navigation Controls */}
-                <div className="absolute top-4 right-4 z-10">
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-4">
+                    {/* Zoom Slider */}
+                    <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-sm">
+                        <span className="text-[10px] text-slate-500">A</span>
+                        <input
+                            type="range"
+                            min="10"
+                            max="24"
+                            value={zoomLevel}
+                            onChange={(e) => setZoomLevel(Number(e.target.value))}
+                            className="w-24 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700"
+                        />
+                        <span className="text-sm text-slate-500 font-bold">A</span>
+                    </div>
+
                     <button
                         onClick={onClose}
                         className="p-2 rounded-full bg-white/50 hover:bg-white dark:bg-slate-800/50 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 transition-colors shadow-sm"
@@ -143,15 +163,15 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     </button>
                 </div>
 
-                <div className="flex-1 flex gap-6 overflow-x-auto items-stretch pb-4">
+                <div className="flex-1 flex gap-4 items-stretch pb-4 overflow-hidden">
 
                     {/* 1. Inbox */}
                     <BucketColumn
                         id="inbox"
                         title={t.jbwos.inbox.title}
-                        items={vm.inboxItems} // Need folding logic here in future
+                        items={vm.inboxItems}
                         description={t.jbwos.inbox.description}
-                        className="w-80 shrink-0"
+                        className="flex-1 min-w-0" // Flexible
                         emptyMessage={<GentleMessage variant="inbox_clean" />}
                         onEditItem={handleEditItem}
                         footer={
@@ -173,18 +193,18 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         title={t.jbwos.waiting.title}
                         items={vm.waitingItems}
                         description={t.jbwos.waiting.description}
-                        className="w-80 shrink-0"
+                        className="flex-1 min-w-0"
                         emptyMessage={<div className="text-slate-300 text-sm mt-10 text-center">{t.jbwos.waiting.empty}</div>}
                         onEditItem={handleEditItem}
                     />
 
-                    {/* 3. Ready (The Sacred Zone) */}
+                    {/* 3. Ready (The Sacred Zone) - Slightly wider/more important */}
                     <BucketColumn
                         id="ready"
                         title={t.jbwos.ready.title}
                         items={vm.readyItems}
                         description={t.jbwos.ready.description}
-                        className="w-96 shrink-0 border-x-2 border-amber-100 dark:border-slate-800 px-6 !h-auto !flex-none h-[280px]"
+                        className="flex-[1.2] min-w-0 border-x-2 border-amber-100 dark:border-slate-800 px-4 h-full"
                         onEditItem={handleEditItem}
                         emptyMessage={
                             // If no items done yet today, show generic empty. If done items exist, show "Done for day"
@@ -200,7 +220,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         title={t.jbwos.pending.title}
                         items={vm.pendingItems}
                         description={t.jbwos.pending.description}
-                        className="w-64 shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+                        className="flex-1 min-w-0 opacity-70 hover:opacity-100 transition-opacity"
                         onEditItem={handleEditItem}
                     />
 
@@ -210,9 +230,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         title={t.jbwos.done.title}
                         items={vm.doneItems}
                         description={t.jbwos.done.description}
-                        className="w-80 shrink-0 bg-slate-50/50 dark:bg-slate-900/10 grayscale opacity-80"
+                        className="flex-1 min-w-0 bg-slate-50/50 dark:bg-slate-900/10 grayscale opacity-80"
                         emptyMessage={<div className="text-slate-300 text-sm mt-10 text-center">{t.jbwos.done.empty}</div>}
-                        onEditItem={handleEditItem} // Allow editing logs too? Why not.
+                        onEditItem={handleEditItem}
                     />
                 </div>
 
