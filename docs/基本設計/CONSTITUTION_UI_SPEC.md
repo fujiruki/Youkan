@@ -28,7 +28,7 @@ This specification supersedes all previous UI specs.
 ### 2.1 The 4 Buckets (Global Scope & Constraints)
 | Bucket | Query Logic | Meaning | UI Rule (Checklist) |
 |---|---|---|---|
-| **Inbox** | `status='inbox'` | Capture zone. | **Microcopy**: Button MUST NOT say "Add" or "Create". Use **"Throw in" (+ 放り込む)** or **"Dump"**. **No form fields**: Title only. |
+| **Inbox** | `status='inbox'` | Capture zone. | **Durability Rule**: Max **7 items visible**. 8+ items are folded ("Others 23 items"). **Message**: <5 "Needed", >10 "Don't think now", >20 "Touch nothing today". **NO Red Badges.** |
 | **Waiting** | `status='waiting'` | Blocked. | Explicit reasons required. |
 | **Ready** | `status='ready'` | **The Sacred Zone.** | **Global Limit**: Max 2 items. **Gamification**: "Anti-score". Do not praise "more". Praise "stopping". **Message**: "You have done enough." |
 | **Pending** | `status='pending'` | Someday. | Folded by default. |
@@ -37,17 +37,30 @@ This specification supersedes all previous UI specs.
 - **Primary Text**: Item Name
 - **Context Tag**: **Project Name** (Small badge)
 - **Unified Layer**: Work, Life, and Dream tasks MUST look identical. No "optional" tabs.
+- **Side Memo**: "Thinking Log" attached to the item. Not a structured field. Used for "Why is this stuck?" or "Fragments of thought".
 
 ### 2.3 The "Done" Experience (Stopping)
 - **Add to Ready**: Toast "Time to focus. This is enough for today."
 - **Ready -> Done**: Toast "Good job."
 - **Ready Empty**: **Large Centered Message: "You have finished for today."** (No "Next" button).
+- **"Nothing Day" Mode**: Button "Do nothing today". Clears Ready, locks Inbox/Pending visibility. Message: "Today is for rest."
+
+### 2.4 Interrupt Handling (Juggling)
+- **Trigger**: "Touch Interrupt" button on Inbox.
+- **Behavior**: Item gets `interrupt: true`, floats to Top of Inbox.
+- **Concept**: Acknowledge the interruption, but don't force immediate action.
+
+### 2.5 Deadline Hooks (Not Deadlines)
+- **Granularity**: Today, Tomorrow, This Week, Next Week, Someday.
+- **Behavior**: Items float to top of Inbox when hook triggers.
+- **Missed Hook**: Auto-snooze to next granularity. NO RED ALERTS.
 
 ## 3. Workflow & Transitions
 
 ### 3.1 App Launch
 - Opens **Global Decision Board**.
 - User sees items from Project A, Project B, Project C mixed in Inbox/Ready.
+- **Warning**: If tomorrow-hook items exist, they appear at top of Inbox.
 
 ### 3.2 "I need to add a new project/item"
 1.  Click **"Projects / External Mode"** button.

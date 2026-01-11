@@ -1,4 +1,10 @@
-# JWCAD建具表作成Web (JWCADTategu.Web) システム詳細設計書
+# Editor Module Specification (External View)
+
+> [!NOTE]
+> 本書は **External View (Editor/Project Management)** レイヤーの詳細仕様である。
+> システム全体のアーキテクチャおよび Internal View (JBWOS) については `BASIC_DESIGN_JBWOS.md` および `CONSTITUTION_UI_SPEC.md` を参照のこと。
+
+# JWCAD建具表作成Web (Software Definition)
 
 ## 1. プロジェクト概要 (Concept)
 **「Visual First, Detail on Demand」**

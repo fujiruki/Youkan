@@ -1,11 +1,14 @@
-# 画面遷移・情報構成仕様書 (Screen Flow & Architecture Spec)
+# 画面遷移・情報構成仕様書 (External View Screen Flow)
+
+> [!NOTE]
+> 本書は **External View** 内部の画面遷移定義である。
+> アプリケーションのエントリーポイントは **Internal View (Global Decision Board)** であり、そこから各プロジェクト（External View）へ遷移する構造となる。
 
 ## 1. 概要 (Overview)
-本アプリケーションは、単なる「建具エディタ」ではなく、案件ごとの建具管理・見積もり・作図を一元管理する「建具工事統合管理システム」として機能する。
-そのために、画面構成を以下の**3階層モデル**に再構築する。
+External View（説明レイヤー）は、以下の3階層モデルで構成される。
 
 **階層構造:**
-1.  **案件管理 (Projects Dashboard)**
+1.  **案件管理 (Projects Dashboard)** - *Accessed from Global Board*
 2.  **建具表 (Joinery Schedule)**
 3.  **建具編集 (Door Editor)**
 

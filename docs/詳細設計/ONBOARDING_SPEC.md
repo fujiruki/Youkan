@@ -13,34 +13,46 @@ It is an **"Experience of Relief" (判断が終わる感覚の体験)**.
 
 ## 2. The 3-Minute Flow (Script)
 
-### Step 0: The First Question (0:00-0:20)
-**Screen**: Clean, centered input. No header, no footer.
+### Step 0: The Empty State (0:00-0:10)
+**Screen**: Global Decision Board (Inbox/Waiting/Ready/Pending).
+**State**: Completely empty. No tutorial overlays yet.
+**Concept**: "It is okay to have nothing."
+
+### Step 1: The Philosophy Declaration (0:10-0:30)
+*Action: Auto-trigger LP Modal (Full screen).*
+
 **Text**:
-> 今、頭に浮かんでいる
-> やるべきこと・気になることを
-> 1つ、放り込んでください
+> このツールは
+> あなたを「時間管理」から解放し、
+> 「判断を終わらせる」ための道具です。
+>
+> 予定を完璧に立てなくていい。
+> 今、考えられないことは、考えなくていい。
 
-**UI Elements**:
-- Input Field (Focus active)
-- Button: **[今は考えない]** (Primary Action)
+**Button**: **[よく分からないけど、はじめる]**
 
-**Rules**:
-- DO NOT use the words "Task", "TODO", "Register".
-- No limit on character count, but keep it simple.
+### Step 2: The Inbox Revelation (0:30-1:00)
+**Screen**: Focus on Inbox.
+**Text (Modal/Tooltip)**:
+> Inboxとは
+> **「今は考えられないものを放り込む場所」**です。
+>
+> 思いついた瞬間に、判断しなくていい。
+> 迷ったら、ここに入れてください。
 
-### Step 1: The Inbox Revelation (0:20-0:50)
-*Action: User submits text.*
+**Interaction**: Highlight the **[+ 放り込む]** button.
 
-**Screen**: The item appears alone in a vast, empty space.
-**Text (Fade in)**:
-> いま決めなくていいものは
-> ここに置いて大丈夫です
+### Step 3: The First Input (Optional) (1:00-1:30)
+**Screen**: Input field active.
+**Text**:
+> 今、頭に浮かんでいることはありますか？
+> (なければ、何もなくて大丈夫です)
 
-**Concept**: First introduction of "Inbox" context, but without defining it.
-**Interaction**: Pause for 3 seconds, then proceed automatically.
+*Action A: User submits text.* -> Proceed to Step 4.
+*Action B: User closes/cancels.* -> Proceed to Step 5 (End).
 
-### Step 2: The Judgment Event (0:50-1:30)
-**Screen**: Darken background (Spotlight effect).
+### Step 4: The Judgment Event (1:30-2:00)
+**Screen**: Darken background (Spotlight effect on the item).
 **Text**:
 > 今日は、これをやりますか？
 
@@ -48,17 +60,20 @@ It is an **"Experience of Relief" (判断が終わる感覚の体験)**.
 1. **[今日はやらない]** (Secondary) -> Stays in Inbox.
 2. **[向き合う]** (Primary) -> Moves to Ready.
 
-**Rules**:
-- No "Pending", no "Delete". Just Yes/No for *Today*.
+### Step 5: The "Ready" Constraint & End (2:00-2:30)
+*Action: From Step 4 or Step 3 (Skip).*
 
-### Step 3: The "Ready" Constraint (1:30-2:00)
-*Action: User selects [向き合う].*
+**Text (If Ready has item)**:
+> 今日やることは、1つで十分です。
 
-**Screen**: Item moves to a "Ready" area.
-**Text**:
-> 今日やることは、1つで十分です
+**Text (If Inbox only)**:
+> 今は、これ以上決めなくていい。
 
-**Concept**: Implicitly teaching the "Max limits" without explaining the rule.
+**Text (If Empty)**:
+> 今日は、もう十分です。
+
+**Exit**:
+- User lands on the **Global Decision Board** (Home).
 
 ### Step 4: The Overwhelm (2:00-2:30)
 **Screen**: Return to input prompts.

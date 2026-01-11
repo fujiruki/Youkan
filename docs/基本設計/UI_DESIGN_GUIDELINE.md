@@ -1,4 +1,9 @@
-# UI Design Guideline
+# UI Design Guideline (External View / Editor)
+
+> [!NOTE]
+> 本ガイドラインは **External View (Editor, Project Screens)** に適用されるデザインルールである。
+> Internal View (Global Decision Board) のUI仕様については `CONSTITUTION_UI_SPEC.md` を正とする。
+
 
 **Project**: Tategu Design Studio
 **Version**: 1.0
