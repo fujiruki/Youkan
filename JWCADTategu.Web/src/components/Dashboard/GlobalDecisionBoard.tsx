@@ -331,7 +331,7 @@ const DraggableTaskCard = ({ item, variant = 'default', onClick }: { item: Judga
             exit={{ opacity: 0, scale: 0.9 }}
             {...listeners}
             {...attributes}
-            onClick={onClick}
+            onDoubleClick={onClick}
             className={`
             group relative p-4 rounded-xl cursor-grab active:cursor-grabbing transition-shadow hover:-translate-y-1 select-none touch-none
             ${variant === 'highlight' ? 'bg-white border border-indigo-100 shadow-lg' : 'bg-white border border-slate-200 shadow-sm hover:shadow-md'}

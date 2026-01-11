@@ -28,15 +28,15 @@ This specification supersedes all previous UI specs.
 ### 2.1 The 4 Buckets (Global Scope & Constraints)
 | Bucket | Query Logic | Meaning | UI Rule (Checklist) |
 |---|---|---|---|
-| **Inbox** | `status='inbox'` | Capture zone. | **Overwhelm Protection**: If items > 7, show banner: **"Select just 1 item from Inbox today."** |
+| **Inbox** | `status='inbox'` | Capture zone. | **Microcopy**: Button MUST NOT say "Add" or "Create". Use **"Throw in" (+ 放り込む)** or **"Dump"**. **No form fields**: Title only. |
 | **Waiting** | `status='waiting'` | Blocked. | Explicit reasons required. |
-| **Ready** | `status='ready'` | **The Sacred Zone.** | **Global Limit**: Max 2 items. **Focus Mode**: If Ready > 0, opacity of Inbox/Waiting reduces (50%). |
+| **Ready** | `status='ready'` | **The Sacred Zone.** | **Global Limit**: Max 2 items. **Gamification**: "Anti-score". Do not praise "more". Praise "stopping". **Message**: "You have done enough." |
 | **Pending** | `status='pending'` | Someday. | Folded by default. |
 
 ### 2.2 Card Design ('Global' Context)
 - **Primary Text**: Item Name
 - **Context Tag**: **Project Name** (Small badge)
-- **Visuals**: Weight/Prox (Small dots/text) - *No sorting allowed.*
+- **Unified Layer**: Work, Life, and Dream tasks MUST look identical. No "optional" tabs.
 
 ### 2.3 The "Done" Experience (Stopping)
 - **Add to Ready**: Toast "Time to focus. This is enough for today."
@@ -70,3 +70,16 @@ This specification supersedes all previous UI specs.
 - **Global Board**:
     - Query: `db.doors.toArray()` (or filtered by status).
     - Join: Must fetch Project Name for each door to display the Context Tag.
+
+## 5. Integration Boundaries (New)
+
+### 5.1 Google Calendar
+- **Direction**: One-way (JBWOS -> Calendar).
+- **Trigger**: "Moved to Ready" or "Action Date set in Waiting".
+- **Concept**: Calendar is a "Graveyard of Decisions" (Result), not a workspace.
+- **Prohibited**: Editing JBWOS status from Calendar.
+
+### 5.2 LP / Philosophy Page
+- **Requirement**: A visual, single-page "Recall" screen.
+- **Content**: visualizes "Why Inbox exists" and "Why Ready is limited".
+- **Access**: Always accessible from Global Board.
