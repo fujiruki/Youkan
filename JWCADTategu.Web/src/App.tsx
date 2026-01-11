@@ -52,10 +52,10 @@ function App() {
         setCurrentView('editor');
     };
 
-    // 4. Back Home (Global Decision Board)
+    // 4. Back Home (Global Decision Board -> JBWOS)
     const handleBackToDashboard = () => {
-        console.log('[App] Back to Global Board');
-        setCurrentView('dashboard');
+        console.log('[App] Back to Global Board (JBWOS)');
+        setCurrentView('jbwos');
         setActiveProject(null);
     };
 
@@ -89,19 +89,17 @@ function App() {
 
             <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
 
-                {/* 0. JBWOS (MVP) */}
-                {currentView === 'jbwos' && (
+                {/* 1. Global Decision Board (Replaced by JBWOS) */}
+                {/* 
+                  Old 'dashboard' view is deprecated. 
+                  We use 'jbwos' as the main dashboard now.
+                */}
+
+                {/* 0. JBWOS (MVP) - MAIN DASHBOARD */}
+                {(currentView === 'jbwos' || currentView === 'dashboard') && (
                     <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
                         <JbwosBoard onClose={handleNavigateToProjects} />
                     </div>
-                )}
-
-                {/* 1. Global Decision Board */}
-                {currentView === 'dashboard' && (
-                    <GlobalDecisionBoard
-                        onNavigateToProjects={handleNavigateToProjects}
-                        onEditItem={handleOpenDoor}
-                    />
                 )}
 
                 {/* 2. Project List (External View) */}
