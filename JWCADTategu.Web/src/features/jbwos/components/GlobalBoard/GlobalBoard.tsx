@@ -11,13 +11,15 @@ import {
     DragEndEvent
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { ApiClient } from '../../../../api/client';
 import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { BookOpen, AlertCircle } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
-import { DecisionDetailModal } from '../Modal/DecisionDetailModal'; // [NEW]
+import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
+import { ContextMenu } from './ContextMenu'; // [NEW]
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 
@@ -79,28 +81,105 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
 
     // --- Quick Input (ThrowIn) ---
     const [inputValue, setInputValue] = useState('');
-    const [detailItem, setDetailItem] = useState<Item | null>(null); // [NEW]
+    const [detailItem, setDetailItem] = useState<Item | null>(null);
+    const [lastThrowInId, setLastThrowInId] = useState<string | null>(null); // [NEW] Track last added item
+    const inputRef = React.useRef<HTMLInputElement>(null); // [NEW] Ref for keeping focus
+
     const handleThrowIn = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
-        await vm.throwIn(inputValue);
+
+        const newId = await vm.throwIn(inputValue);
+        if (newId) {
+            setLastThrowInId(newId);
+            // setDetailItem(optimItem); // Removed: Don't open modal automatically
+        }
         setInputValue('');
+        // Ensure focus remains on input (it should by default, but to be safe)
+        inputRef.current?.focus();
+    };
+
+    // [NEW] Shortcut Handler (Alt+D)
+    // We listen globally or on the input? The requirement says "focusing the throw-in text box".
+    // So let's add onKeyDown to the input.
+    const handleInputKeyDown = (e: React.KeyboardEvent) => {
+        // Alt + D or Ctrl + Up? User suggested "Shortcut to open Detail of Last Added Item".
+        // Let's implement Alt + D as requested in previous turn context.
+        if (e.altKey && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            if (lastThrowInId) {
+                const item = findItem(lastThrowInId);
+                if (item) {
+                    setDetailItem(item);
+                    // We need to pass a signal to focus date? 
+                    // We'll handle this by passing a separate prop or strict item state?
+                    // DecisionDetailModal detects Alt+D too, but here we just want to OPEN it.
+                    // The Modal's own useEffect for Alt+D will trigger focus if we ensure it opens.
+                }
+            }
+        }
+    };
+
+    // --- Context Menu Logic ---
+    const [initialFocus, setInitialFocus] = useState<'date' | undefined>(undefined); // [NEW] moved to top
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+
+    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
     };
 
     return (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <HelpGuideModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
+            {/* Context Menu Overlay */}
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    itemId={contextMenu.itemId}
+                    onClose={() => setContextMenu(null)}
+                    onDelete={async (id) => {
+                        await vm.deleteItem(id);
+                        setContextMenu(null);
+                    }}
+                    onEdit={(id) => {
+                        const item = findItem(id);
+                        if (item) {
+                            setDetailItem(item);
+                            setInitialFocus('date');
+                        }
+                        setContextMenu(null);
+                    }}
+                />
+            )}
+
             <DecisionDetailModal
                 item={detailItem}
-                onClose={() => setDetailItem(null)}
+                initialFocus={initialFocus}
+                onClose={() => {
+                    setDetailItem(null);
+                    setInitialFocus(undefined);
+                }}
                 onDecision={async (id, decision, note) => {
                     await vm.resolveDecision(id, decision, note);
                     setDetailItem(null);
+                    setInitialFocus(undefined);
                 }}
                 onDelete={async (id) => {
                     await vm.deleteItem(id);
                     setDetailItem(null);
+                }}
+                onUpdate={async (id, updates) => {
+                    // 1. Optimistic Update Local Modal State
+                    setDetailItem(prev => prev ? { ...prev, ...updates } : null);
+
+                    // 2. Persist
+                    await ApiClient.updateItem(id, updates);
+
+                    // 3. Refresh Shelf
+                    vm.refresh();
                 }}
             />
 
@@ -139,13 +218,16 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 className="w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"
                                 emptyMessage={<GentleMessage variant="inbox_clean" />}
                                 onClickItem={(item) => setDetailItem(item)}
+                                onContextMenu={handleContextMenu}
                                 footer={
                                     <form onSubmit={handleThrowIn} className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                                         <input
+                                            ref={inputRef}
                                             type="text"
                                             value={inputValue}
                                             onChange={(e) => setInputValue(e.target.value)}
-                                            placeholder="ここに吐き出す..."
+                                            onKeyDown={handleInputKeyDown}
+                                            placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
                                             className="w-full px-4 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
                                         />
                                     </form>
@@ -163,6 +245,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"
                                 emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
                                 onClickItem={(item) => setDetailItem(item)}
+                                onContextMenu={handleContextMenu}
                             />
                         </section>
 
@@ -175,6 +258,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 description="最近の処理履歴。"
                                 className="w-full border-t border-slate-200 dark:border-slate-800 pt-4"
                                 emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
+                                onContextMenu={handleContextMenu}
                             />
                         </section>
 

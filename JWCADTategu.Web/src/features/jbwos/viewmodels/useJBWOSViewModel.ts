@@ -161,9 +161,10 @@ export const useJBWOSViewModel = () => {
 
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
     const throwIn = async (title: string) => {
-        if (!title.trim()) return;
-        await JBWOSRepository.addItemToInbox(title);
+        if (!title.trim()) return null;
+        const id = await JBWOSRepository.addItemToInbox(title);
         refreshGdb();
+        return id;
     };
 
     return {

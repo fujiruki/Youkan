@@ -2,7 +2,7 @@ import React from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { ApiClient } from '../../../../api/client';
 import { cn } from '../../../../lib/utils';
-import { CheckCircle2, Play, AlertCircle, ArrowDownCircle } from 'lucide-react';
+import { CheckCircle2, Play, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 
 export const TodayScreen: React.FC = () => {
@@ -69,9 +69,85 @@ export const TodayScreen: React.FC = () => {
                 )}
             </div>
 
+            {/* ZONE 1: Execution (The Reality) - TOP PRIORITY */}
+            <div className="w-full max-w-2xl px-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
+                        Execution (Work)
+                    </span>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">
+                        今日進める責任ある作業
+                    </h2>
+                </div>
+
+                {activeItem ? (
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none border-2 border-blue-500 overflow-hidden relative">
+                        {/* Active Item Content */}
+                        <div className="p-8">
+                            <div className="flex items-start justify-between mb-6">
+                                <span className="inline-block px-3 py-1 rounded bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider">
+                                    CURRENT FOCUS
+                                </span>
+                                {isPaused && (
+                                    <span className="flex items-center gap-1 text-amber-500 font-bold animate-pulse">
+                                        <PauseCircle size={16} /> PAUSED
+                                    </span>
+                                )}
+                            </div>
+
+                            <h3 className="text-3xl font-bold text-slate-800 dark:text-slate-100 leading-tight mb-4">
+                                {activeItem.title}
+                            </h3>
+
+                            <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8">
+                                <span className="flex items-center gap-1">
+                                    <Clock size={16} />
+                                    Started: Today
+                                </span>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-4">
+                                {!isPaused ? (
+                                    <button
+                                        onClick={() => handlePause(activeItem)}
+                                        className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-xl font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <PauseCircle size={20} />
+                                        ちょっと中断
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleResume(activeItem)}
+                                        className="flex-1 bg-amber-100 text-amber-700 py-4 rounded-xl font-bold hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <PlayCircle size={20} />
+                                        再開する
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        if (confirm('完了にしますか？')) completeItem(activeItem.id);
+                                    }}
+                                    className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle2 size={20} />
+                                    完了 (Done)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-slate-100 dark:bg-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 p-8 text-center">
+                        <p className="text-slate-400 font-medium">現在実行中のタスクはありません</p>
+                        <p className="text-xs text-slate-400 mt-2">下の候補から選択して「Confirm」してください</p>
+                    </div>
+                )}
+            </div>
+
             {/* CANDIDATES AREA (Before Commitment) */}
             {canCommitMore && todayCandidates.length > 0 && (
-                <div className="w-full max-w-2xl px-6 mb-8 animate-in fade-in slide-in-from-top-4">
+                <div className="w-full max-w-2xl px-6 mb-12 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Candidates (From GDB)</span>
                     </div>
@@ -94,79 +170,6 @@ export const TodayScreen: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* ZONE 1: Execution (The Reality) - MOVED TO TOP */}
-            <div className="w-full max-w-2xl px-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="flex items-center gap-2 mb-4">
-                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                        Zone 1
-                    </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の実行 (Execution)</h2>
-                </div>
-
-                {activeItem ? (
-                    <div className={cn(
-                        "p-8 rounded-3xl shadow-xl text-white relative overflow-hidden group transition-all",
-                        isPaused
-                            ? "bg-slate-700" // Paused style
-                            : "bg-gradient-to-br from-blue-600 to-indigo-700" // Running style
-                    )}>
-                        {!isPaused && (
-                            <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                        )}
-
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-4 opacity-80">
-                                {isPaused ? (
-                                    <div className="flex items-center gap-2 text-amber-400">
-                                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                                        <span className="text-sm font-bold uppercase tracking-widest">Paused</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <Play size={20} className="fill-current animate-pulse" />
-                                        <span className="text-sm font-bold uppercase tracking-widest">Execution Context</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <h3 className="text-3xl font-bold mb-8 leading-tight">{activeItem.title}</h3>
-
-                            <div className="flex items-center gap-4">
-                                <button
-                                    onClick={() => completeItem(activeItem.id)}
-                                    className="flex-1 bg-white text-blue-700 px-6 py-4 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 shadow-lg"
-                                >
-                                    <CheckCircle2 size={20} />
-                                    完了 (Complete)
-                                </button>
-
-                                {isPaused ? (
-                                    <button
-                                        onClick={() => handleResume(activeItem)}
-                                        className="px-6 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors flex items-center gap-2"
-                                    >
-                                        <Play size={20} fill="currentColor" />
-                                        再開
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => handlePause(activeItem)}
-                                        className="px-4 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
-                                    >
-                                        中断
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="p-8 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 text-center">
-                        現在、実行中の仕事はありません。<br />
-                        <span className="text-sm opacity-70">Commitリストの一番上がここに表示されます。</span>
-                    </div>
-                )}
-            </div>
 
             {/* ZONE 2: Commit List (Remaining Tasks) */}
             <div className="w-full max-w-2xl px-6 mb-10 opacity-90 hover:opacity-100 transition-opacity">

@@ -39,6 +39,10 @@ export interface Item {
     rdd?: number;            // Recommended Decision Date
     isOverdue?: boolean;
 
+    // --- Intent Boost (Today Only) [NEW] ---
+    is_boosted?: boolean;    // "今日だけ前に出す"
+    boosted_date?: number;   // Boosted Date (for auto-reset check)
+
     // Legacy / Door Props
     category?: string;
     thumbnail?: string; // Base64 or URL

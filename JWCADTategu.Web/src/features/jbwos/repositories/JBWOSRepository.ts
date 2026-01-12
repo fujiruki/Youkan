@@ -38,14 +38,16 @@ export const JBWOSRepository = {
     },
 
     // 2. Add Item (To API)
-    addItemToInbox: async (title: string): Promise<void> => {
+    addItemToInbox: async (title: string): Promise<string> => {
         // ID generation handles by Server or Client? Client UUID is safer for offline-first future.
+        const id = uuidv4();
         const newItem: Partial<JudgableItem> = {
-            id: uuidv4(),
+            id,
             title,
             status: 'inbox'
         };
         await ApiClient.createItem(newItem);
+        return id;
     },
 
     // 3. Update Status
