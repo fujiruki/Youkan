@@ -7,23 +7,21 @@ export const useJBWOSViewModel = () => {
     const [repository] = useState(() => new JBWOSRepository());
 
     const [inboxItems, setInboxItems] = useState<Item[]>([]);
+    const [scheduledItems, setScheduledItems] = useState<Item[]>([]);
     const [readyItems, setReadyItems] = useState<Item[]>([]);
     const [waitingItems, setWaitingItems] = useState<Item[]>([]);
+    const [executionItems, setExecutionItems] = useState<Item[]>([]);
     const [pendingItems, setPendingItems] = useState<Item[]>([]);
     const [doneItems, setDoneItems] = useState<Item[]>([]);
 
     const refresh = useCallback(async () => {
-        const inbox = await repository.getItemsByStatus('inbox');
-        const ready = await repository.getItemsByStatus('ready');
-        const waiting = await repository.getItemsByStatus('waiting');
-        const pending = await repository.getItemsByStatus('pending');
-        const done = await repository.getItemsByStatus('done');
-
-        setInboxItems(inbox);
-        setReadyItems(ready);
-        setWaitingItems(waiting);
-        setPendingItems(pending);
-        setDoneItems(done);
+        setInboxItems(await repository.getItemsByStatus('inbox'));
+        setScheduledItems(await repository.getItemsByStatus('scheduled'));
+        setWaitingItems(await repository.getItemsByStatus('waiting'));
+        setReadyItems(await repository.getItemsByStatus('ready'));
+        setExecutionItems(await repository.getItemsByStatus('execution'));
+        setPendingItems(await repository.getItemsByStatus('pending'));
+        setDoneItems(await repository.getItemsByStatus('done'));
     }, [repository]);
 
     // Initial Load
@@ -38,11 +36,23 @@ export const useJBWOSViewModel = () => {
     };
 
     const moveToReady = async (id: string) => {
-        // Constraint: Ready Max 2
-        if (readyItems.length >= 2) {
-            throw new Error('Ready bucket is full. You can only focus on 2 items per day.');
+        const currentReadyItems = await repository.getItemsByStatus('ready');
+        console.log('[ViewModel] moveToReady check:', currentReadyItems.length);
+        if (currentReadyItems.length >= 2) {
+            console.warn('[ViewModel] Ready limit reached. Throwing error.');
+            throw new Error("今日はもう手一杯です（最大2件まで）");
         }
         await repository.updateStatus(id, 'ready');
+        await refresh();
+    };
+
+    const moveToScheduled = async (id: string) => {
+        await repository.updateStatus(id, 'scheduled');
+        await refresh();
+    };
+
+    const moveToExecution = async (id: string) => {
+        await repository.updateStatus(id, 'execution');
         await refresh();
     };
 
@@ -75,6 +85,11 @@ export const useJBWOSViewModel = () => {
         await refresh();
     };
 
+    const deleteItem = async (id: string) => {
+        await repository.deleteItem(id);
+        await refresh();
+    };
+
     const triggerInterrupt = async (title: string) => {
         await repository.addItemToInbox(title);
         // We need 'markAsInterrupt' but addItemToInbox adds new item.
@@ -90,19 +105,24 @@ export const useJBWOSViewModel = () => {
 
     return {
         inboxItems,
-        readyItems,
+        scheduledItems,
         waitingItems,
+        readyItems,
+        executionItems,
         pendingItems,
         doneItems,
         refresh,
         throwIn,
-        moveToReady,
-        moveToWaiting,
-        moveToPending,
         moveToInbox,
+        moveToWaiting,
+        moveToReady,
+        moveToScheduled,
+        moveToExecution,
+        moveToPending,
         markAsDone,
         updateItemTitle,
         triggerInterrupt,
+        deleteItem,
         isReadyFull: readyItems.length >= 2
     };
 };

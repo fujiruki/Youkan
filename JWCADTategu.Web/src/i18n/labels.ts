@@ -29,29 +29,39 @@ export const t = {
     },
     jbwos: {
         inbox: {
-            title: "インボックス",
-            description: "放り込む",
+            title: "放り込み箱",
+            description: "未分別",
             placeholder: "+ 放り込む（考えてはいけない）",
             empty: "頭の中は空っぽです"
         },
+        scheduled: {
+            title: "予定",
+            description: "RDD未到達",
+            empty: "先の予定はありません"
+        },
         waiting: {
-            title: "誰か待ち",
-            description: "返信待ち・依頼中",
+            title: "判断ボード", // GDB
+            description: "今、決めないと詰まる判断",
             empty: "止まっているものはありません"
         },
         ready: {
-            title: "今日やる",
-            description: "Max 2件まで",
+            title: "今日", // Today
+            description: "今日やること（最低限）",
             emptyGeneric: "今日やることを\n1つだけ選びましょう",
             doneForDay: "今日はもう、十分です"
         },
+        execution: {
+            title: "実行",
+            description: "実行中",
+            empty: "実行中のものはありません"
+        },
         pending: {
-            title: "いつか",
+            title: "いつか", // Deprecated or kept for legacy
             description: "今は考えない"
         },
         done: {
-            title: "今日の成果",
-            description: "完了済み",
+            title: "記録", // History
+            description: "完了履歴",
             empty: "まだ何もありません"
         },
         common: {

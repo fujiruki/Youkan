@@ -14,7 +14,8 @@ interface BucketColumnProps {
     emptyMessage?: React.ReactNode;
     footer?: React.ReactNode;
     onRenameItem?: (id: string, newTitle: string) => void;
-    inputRef?: React.RefObject<HTMLInputElement>; // [NEW] For shortcut focus
+    onContextMenu?: (e: React.MouseEvent, itemId: string) => void; // [NEW]
+    inputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -25,7 +26,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     description,
     emptyMessage,
     footer,
-    onRenameItem
+    onRenameItem,
+    onContextMenu
 }) => {
     // Drop target configuration
     const { setNodeRef, isOver } = useDroppable({
@@ -79,6 +81,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                 key={item.id}
                                 item={item}
                                 onRename={onRenameItem}
+                                onContextMenu={onContextMenu}
                             />
                         ))}
                     </SortableContext>

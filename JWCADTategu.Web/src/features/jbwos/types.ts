@@ -1,4 +1,4 @@
-export type JudgmentStatus = 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
+export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 
@@ -25,4 +25,25 @@ export interface Item {
 
     createdAt: number;
     updatedAt: number;
+
+    // --- Decision Layer Integration [NEW] ---
+    type?: 'start' | 'material' | 'order' | 'estimate' | 'exception' | 'generic'; // Decision Type
+    relatedId?: number;      // ID of the related entity (Door ID, etc.)
+    resolved?: boolean;      // If strictly used for Decision log
+
+    // Virtual Props (Computed)
+    rdd?: number;            // Recommended Decision Date
+    isOverdue?: boolean;
+}
+
+// Decision Table Schema Interface (Clean Architecture)
+export interface Decision {
+    id?: number;
+    projectId: number;
+    type: 'start' | 'material' | 'order' | 'estimate' | 'exception';
+    relatedId?: number; // DoorID or ProductionID
+    resolved: boolean;
+    resolvedAt?: Date;
+    note?: string;      // Exception reason etc.
+    createdAt: Date;
 }

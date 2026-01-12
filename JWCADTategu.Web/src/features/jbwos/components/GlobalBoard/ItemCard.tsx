@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../../types';
-import { GripVertical, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 
@@ -10,9 +10,10 @@ interface ItemCardProps {
     item: Item;
     onClick?: (item: Item) => void;
     onRename?: (id: string, newTitle: string) => void;
+    onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onContextMenu }) => {
     const {
         attributes,
         listeners,
@@ -73,24 +74,21 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename }) =
         <div
             ref={setNodeRef}
             style={style}
+            {...attributes}
+            {...listeners}
             className={cn(
-                "group relative flex items-center gap-2 px-2 py-1 mb-1 rounded-lg border backdrop-blur-sm transition-all",
+                "group relative flex items-center gap-2 px-2 py-[1px] mb-1 rounded-lg border backdrop-blur-sm transition-all",
                 "bg-white/40 border-white/20 hover:bg-white/60 hover:border-white/40 shadow-sm",
                 "dark:bg-slate-800/40 dark:border-white/10 dark:hover:bg-slate-800/60",
                 item.interrupt && "border-amber-400/50 bg-amber-50/50 dark:border-amber-600/50 dark:bg-amber-900/10",
-                "cursor-pointer select-none text-[1em]"
+                "cursor-grab active:cursor-grabbing select-none text-[1em]", // Added cursor classes here
+                isDragging && "opacity-50 z-50 ring-2 ring-indigo-400"
             )}
             onClick={() => onClick?.(item)}
             onDoubleClick={handleDoubleClick}
+            onContextMenu={(e) => onContextMenu?.(e, item.id)}
         >
-            {/* Drag Handle */}
-            <div
-                {...attributes}
-                {...listeners}
-                className="text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing p-1 -ml-1"
-            >
-                <GripVertical size="1.2em" />
-            </div>
+            {/* Drag Handle (Visual Only now) */}
 
             {/* Content (Inline Edit or Text) */}
             <div className="flex-1 min-w-0">
