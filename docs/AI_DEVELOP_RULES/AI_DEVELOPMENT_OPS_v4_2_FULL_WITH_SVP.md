@@ -33,8 +33,26 @@
 - クライアント検証前には、
   必要に応じて状態初期化（localStorage 等）を行う
 
+
 ### 10.4 注意事項
 - SVP は **効率化のための道具**であり、
   フェーズ判断・仕様判断・リリース判断を上書きしてはならない
 - SVP の内容が本 OPS / PLAYBOOK / CONSTITUTION と矛盾した場合、
   **上位文書を必ず優先**する
+
+---
+
+## 11. 実行環境制約 (Windows Environment Specifics)
+
+### 11.1 npm コマンドの実行
+Windows PowerShell 環境におけるスクリプト実行ポリシー（Execution Policy）の制限回避のため、以下のルールを厳守すること。
+
+- **禁止事項**: `npm run ...` や `npm install` を直接実行すること。
+- **義務事項**: 必ず **`npm.cmd`** を使用すること。
+  - 例: `npm.cmd run dev`
+  - 例: `npm.cmd install`
+  - 例: `npm.cmd start`
+
+### 11.2 仮想環境・プロキシ設定
+- Vite Proxy (`/api` rewrite) が Windows 環境下で不安定な場合、`ApiClient` 等でバックエンドの Direct URL (`http://localhost:8000`) を使用する回避策を許容する。
+- 詳細は `AI_HANDOVER_CONTEXT.md` を参照のこと。

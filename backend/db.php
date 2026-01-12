@@ -1,26 +1,24 @@
 <?php
 // backend/db.php
 
-require_once 'JsonDB.php';
-
 function getDB() {
-    // 1. Try SQLite (PDO)
-    if (extension_loaded('pdo_sqlite')) {
-        $dbPath = __DIR__ . '/jbwos.sqlite';
-        $isNew = !file_exists($dbPath);
-        try {
-            $pdo = new PDO('sqlite:' . $dbPath);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            if ($isNew) initDB($pdo);
-            return $pdo;
-        } catch (PDOException $e) {
-            // Fallback to JSON if connection fails
-            error_log("SQLite connection failed: " . $e->getMessage() . ". Falling back to JSON.");
+    $dbPath = __DIR__ . '/jbwos.sqlite';
+    $isNew = !file_exists($dbPath);
+    
+    try {
+        $pdo = new PDO('sqlite:' . $dbPath);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        if ($isNew) {
+            initDB($pdo);
         }
+        
+        return $pdo;
+    } catch (PDOException $e) {
+        // Log connection error
+        error_log("DB Connection Error: " . $e->getMessage());
+        throw $e;
     }
-
-    // 2. Fallback: JsonDB
-    return new JsonDB(__DIR__ . '/data/jbwos.json');
 }
 
 function initDB($pdo) {

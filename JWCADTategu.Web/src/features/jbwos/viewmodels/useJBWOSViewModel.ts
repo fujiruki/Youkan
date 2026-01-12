@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
-import { Item, JudgmentStatus } from '../types';
+import { Item } from '../types';
 
 export const useJBWOSViewModel = () => {
-    // Repository instance (In a real app, use DI or Context)
-    const [repository] = useState(() => new JBWOSRepository());
+    // Repository is a singleton object imported directly
 
     const [inboxItems, setInboxItems] = useState<Item[]>([]);
     const [scheduledItems, setScheduledItems] = useState<Item[]>([]);
@@ -15,14 +14,16 @@ export const useJBWOSViewModel = () => {
     const [doneItems, setDoneItems] = useState<Item[]>([]);
 
     const refresh = useCallback(async () => {
-        setInboxItems(await repository.getItemsByStatus('inbox'));
-        setScheduledItems(await repository.getItemsByStatus('scheduled'));
-        setWaitingItems(await repository.getItemsByStatus('waiting'));
-        setReadyItems(await repository.getItemsByStatus('ready'));
-        setExecutionItems(await repository.getItemsByStatus('execution'));
-        setPendingItems(await repository.getItemsByStatus('pending'));
-        setDoneItems(await repository.getItemsByStatus('done'));
-    }, [repository]);
+        // Cast results to Item[] as Repository might return slightly different interface
+        // but runtime data is compatible.
+        setInboxItems((await JBWOSRepository.getItemsByStatus('inbox')) as Item[]);
+        setScheduledItems((await JBWOSRepository.getItemsByStatus('scheduled')) as Item[]);
+        setWaitingItems((await JBWOSRepository.getItemsByStatus('waiting')) as Item[]);
+        setReadyItems((await JBWOSRepository.getItemsByStatus('ready')) as Item[]);
+        setExecutionItems((await JBWOSRepository.getItemsByStatus('execution')) as Item[]);
+        setPendingItems((await JBWOSRepository.getItemsByStatus('pending')) as Item[]);
+        setDoneItems((await JBWOSRepository.getItemsByStatus('done')) as Item[]);
+    }, []);
 
     // Initial Load
     useEffect(() => {
@@ -31,74 +32,70 @@ export const useJBWOSViewModel = () => {
 
     const throwIn = async (title: string) => {
         if (!title.trim()) return;
-        await repository.addItemToInbox(title);
+        await JBWOSRepository.addItemToInbox(title);
         await refresh();
     };
 
     const moveToReady = async (id: string) => {
-        const currentReadyItems = await repository.getItemsByStatus('ready');
+        const currentReadyItems = await JBWOSRepository.getItemsByStatus('ready');
         console.log('[ViewModel] moveToReady check:', currentReadyItems.length);
         if (currentReadyItems.length >= 2) {
             console.warn('[ViewModel] Ready limit reached. Throwing error.');
             throw new Error("今日はもう手一杯です（最大2件まで）");
         }
-        await repository.updateStatus(id, 'ready');
+        await JBWOSRepository.updateStatus(id, 'ready');
         await refresh();
     };
 
     const moveToScheduled = async (id: string) => {
-        await repository.updateStatus(id, 'scheduled');
+        await JBWOSRepository.updateStatus(id, 'scheduled');
         await refresh();
     };
 
     const moveToExecution = async (id: string) => {
-        await repository.updateStatus(id, 'execution');
+        await JBWOSRepository.updateStatus(id, 'execution');
         await refresh();
     };
 
-    const moveToWaiting = async (id: string, reason: string) => {
-        // Ideally update reason field too, but repository needs update
-        // For MVP, just status change.
-        await repository.updateStatus(id, 'waiting');
+    const moveToWaiting = async (id: string, _reason: string) => {
+        // Reason ignored for MVP status update
+        await JBWOSRepository.updateStatus(id, 'waiting');
         await refresh();
     };
 
     const moveToPending = async (id: string) => {
-        await repository.updateStatus(id, 'pending');
+        await JBWOSRepository.updateStatus(id, 'pending');
         await refresh();
     };
 
     const updateItemTitle = async (id: string, title: string) => {
         if (!title.trim()) return;
-        await repository.updateTitle(id, title);
+        await JBWOSRepository.updateTitle(id, title);
         await refresh();
     };
 
     const moveToInbox = async (id: string) => {
-        await repository.updateStatus(id, 'inbox');
+        await JBWOSRepository.updateStatus(id, 'inbox');
         await refresh();
     };
 
     const markAsDone = async (id: string) => {
-        await repository.updateStatus(id, 'done');
-        // Check for stopping event logic here if needed, or in UI
+        await JBWOSRepository.updateStatus(id, 'done');
         await refresh();
     };
 
     const deleteItem = async (id: string) => {
-        await repository.deleteItem(id);
+        await JBWOSRepository.deleteItem(id);
         await refresh();
     };
 
     const triggerInterrupt = async (title: string) => {
-        await repository.addItemToInbox(title);
-        // We need 'markAsInterrupt' but addItemToInbox adds new item.
-        // If converting existing item to interrupt, use markAsInterrupt logic.
-        // For "Trigger Interrupt Button" (New Task):
-        const items = await repository.getItemsByStatus('inbox');
-        const newItem = items.find(i => i.title === title); // Naive find
+        await JBWOSRepository.addItemToInbox(title);
+        // Find and mark as interrupt
+        const items = await JBWOSRepository.getItemsByStatus('inbox');
+        const newItem = items.find(i => i.title === title);
         if (newItem) {
-            await repository.markAsInterrupt(newItem.id);
+            await JBWOSRepository.markAsInterrupt(newItem.id as string);
         }
         await refresh();
     };

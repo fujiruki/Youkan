@@ -22,6 +22,7 @@ import { Item } from '../../types';
 import { cn } from '../../../../lib/utils';
 import { Inbox, PlayCircle, Clock, Archive, Trash2 } from 'lucide-react';
 import { FirstExperienceModal } from '../Modal/FirstExperienceModal';
+import { ConfirmDeleteDialog } from '../Modal/ConfirmDeleteDialog';
 // Example icons
 import { t } from '../../../../i18n/labels';
 
@@ -196,21 +197,22 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         setContextMenu({ ...contextMenu, visible: false });
     };
 
-    const handleDeleteItem = async () => {
-        console.log('[GlobalBoard] handleDeleteItem called', contextMenu.itemId);
-        const itemId = contextMenu.itemId; // Capture ID
-        handleCloseContextMenu(); // Close menu first to avoid UI blocking
+    // --- Delete Confirmation Logic ---
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+    const handleDeleteItem = () => {
+        const itemId = contextMenu.itemId;
+        handleCloseContextMenu();
         if (itemId) {
-            // Slight delay to allow menu to close and UI to settle
-            setTimeout(async () => {
-                if (window.confirm(t.jbwos.common.alerts?.deleteConfirm || "このアイテムを削除しますか？")) {
-                    console.log('[GlobalBoard] Deleting item:', itemId);
-                    await vm.deleteItem(itemId);
-                } else {
-                    console.log('[GlobalBoard] Delete cancelled by user');
-                }
-            }, 10);
+            setDeleteTargetId(itemId);
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (deleteTargetId) {
+            console.log('[GlobalBoard] Deleting item:', deleteTargetId);
+            await vm.deleteItem(deleteTargetId);
+            setDeleteTargetId(null);
         }
     };
 
@@ -406,6 +408,12 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 {activeItem ? <ItemCard item={activeItem} onContextMenu={() => { }} /> : null}
             </DragOverlay>
 
+            <ConfirmDeleteDialog
+                isOpen={!!deleteTargetId}
+                onClose={() => setDeleteTargetId(null)}
+                onConfirm={confirmDelete}
+                itemName={deleteTargetId ? findItem(deleteTargetId)?.title : undefined}
+            />
         </DndContext>
     );
 };

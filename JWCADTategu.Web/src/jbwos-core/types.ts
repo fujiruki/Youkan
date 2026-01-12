@@ -5,7 +5,7 @@
  * This layer knows NOTHING about "Doors", "Windows", or "Projects".
  */
 
-export type JudgmentStatus = 'inbox' | 'ready' | 'waiting' | 'pending' | 'done';
+export type JudgmentStatus = 'inbox' | 'scheduled' | 'ready' | 'waiting' | 'execution' | 'pending' | 'done';
 
 export interface JudgableItem {
     id: string | number;
