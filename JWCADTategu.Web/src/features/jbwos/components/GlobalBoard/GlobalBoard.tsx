@@ -17,7 +17,9 @@ import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { BookOpen, AlertCircle } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
+import { DecisionDetailModal } from '../Modal/DecisionDetailModal'; // [NEW]
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
+import { Item } from '../../types';
 
 interface GlobalBoardProps {
     onClose?: () => void;
@@ -77,6 +79,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
 
     // --- Quick Input (ThrowIn) ---
     const [inputValue, setInputValue] = useState('');
+    const [detailItem, setDetailItem] = useState<Item | null>(null); // [NEW]
     const handleThrowIn = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
@@ -87,6 +90,19 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     return (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <HelpGuideModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+            <DecisionDetailModal
+                item={detailItem}
+                onClose={() => setDetailItem(null)}
+                onDecision={async (id, decision, note) => {
+                    await vm.resolveDecision(id, decision, note);
+                    setDetailItem(null);
+                }}
+                onDelete={async (id) => {
+                    await vm.deleteItem(id);
+                    setDetailItem(null);
+                }}
+            />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
                 {/* Header */}
@@ -122,6 +138,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 description="未判断のアイテム。タップして詳細を開く。"
                                 className="w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"
                                 emptyMessage={<GentleMessage variant="inbox_clean" />}
+                                onClickItem={(item) => setDetailItem(item)}
                                 footer={
                                     <form onSubmit={handleThrowIn} className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                                         <input
@@ -129,7 +146,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                             value={inputValue}
                                             onChange={(e) => setInputValue(e.target.value)}
                                             placeholder="ここに吐き出す..."
-                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm"
+                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
                                         />
                                     </form>
                                 }
@@ -145,6 +162,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 description="条件待ち・塩漬け。Todayには出ない。"
                                 className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"
                                 emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
+                                onClickItem={(item) => setDetailItem(item)}
                             />
                         </section>
 

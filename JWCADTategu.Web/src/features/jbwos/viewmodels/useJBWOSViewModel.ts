@@ -146,6 +146,19 @@ export const useJBWOSViewModel = () => {
         refreshGdb(); // Will appear in Inbox
     };
 
+    const deleteItem = async (id: string) => {
+        // Optimistic UI
+        setGdbActive(prev => prev.filter(i => i.id !== id));
+        setGdbHold(prev => prev.filter(i => i.id !== id));
+
+        try {
+            await JBWOSRepository.deleteItem(id);
+        } catch (e) {
+            console.error('Delete item failed', e);
+            refreshGdb();
+        }
+    };
+
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
     const throwIn = async (title: string) => {
         if (!title.trim()) return;
@@ -174,6 +187,7 @@ export const useJBWOSViewModel = () => {
         addSideMemo,
         deleteSideMemo,
         memoToInbox,
+        deleteItem, // [NEW]
 
         // Helpers
         throwIn,

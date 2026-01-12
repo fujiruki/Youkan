@@ -120,7 +120,6 @@ function App() {
                 <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
                 <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? "text-purple-400 font-bold" : ""}>History</button>
             </div>
-            <DebugBannerSpacer />
 
             <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
 

@@ -36,7 +36,7 @@ export const SideMemoPanel: React.FC<SideMemoPanelProps> = ({ memos, onAdd, onDe
                 )}
                 {memos.map(memo => (
                     <div key={memo.id} className="group relative bg-white border border-gray-100 p-2 rounded hover:shadow-sm text-sm">
-                        <div className="pr-6 break-words">{memo.content}</div>
+                        <div className="pr-6 break-words"><span className="text-sm text-slate-900 dark:text-slate-200 leading-relaxed">{memo.content}</span></div>
 
                         {/* Actions (Hover) */}
                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
@@ -66,7 +66,7 @@ export const SideMemoPanel: React.FC<SideMemoPanelProps> = ({ memos, onAdd, onDe
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="ここに吐き出す..."
-                    className="w-full text-xs p-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-400 bg-white"
+                    className="w-full pl-9 pr-3 py-2 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 bg-white"
                 />
             </form>
         </div>

@@ -12,6 +12,14 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
         'line' => $errline
     ]);
     exit;
+    header('Content-Type: application/json', true, 500);
+    echo json_encode([
+        'error' => true,
+        'message' => $errstr,
+        'file' => basename($errfile),
+        'line' => $errline
+    ]);
+    exit;
 });
 
 // 2. CORS & Headers
@@ -92,6 +100,12 @@ if (preg_match('#^(/api)?/today/commit$#', $pathOnly) && $method === 'POST') {
     $controller = new TodayController($db);
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->commit($data['id']));
+    exit;
+}
+if (preg_match('#^(/api)?/today/complete$#', $pathOnly) && $method === 'POST') {
+    $controller = new TodayController($db);
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($controller->complete($data['id']));
     exit;
 }
 

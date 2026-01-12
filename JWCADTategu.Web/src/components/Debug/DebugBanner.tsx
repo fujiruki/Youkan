@@ -9,21 +9,17 @@ export const DebugBanner: React.FC = () => {
 
     return (
         <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
             backgroundColor: '#1e293b',
             borderBottom: '2px solid #3b82f6',
             color: '#60a5fa',
             padding: '4px 12px',
             fontSize: '12px',
             fontFamily: 'monospace',
-            zIndex: 9999,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            flexShrink: 0
         }}>
             <div>
                 <strong>🔧 DEBUG MODE</strong>

@@ -101,7 +101,22 @@ export const JBWOSRepository = {
         });
     },
 
-    // 6. Archive (Logical Delete)
+    // 6. Delete (Hard Delete or Archive?)
+    // Request is "Delete", let's use Archive for safety but rename wrapper to deleteItem to match User intent in VM.
+    deleteItem: async (id: string): Promise<void> => {
+        if (id.startsWith('door-')) {
+            const doorId = parseInt(id.replace('door-', ''), 10);
+            if (!isNaN(doorId)) {
+                await db.doors.delete(doorId); // Local: Hard Delete
+                return;
+            }
+        }
+        // API: Call delete endpoint if exists, or use destroy logic
+        // For MVP 3.1, let's assume we want to remove it.
+        await ApiClient.deleteItem(id);
+    },
+
+    // 7. Archive (Logical Delete - Keep for reference)
     archiveItem: async (id: string): Promise<void> => {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);

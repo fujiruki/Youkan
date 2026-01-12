@@ -2,7 +2,7 @@ import { JudgableItem } from '../features/jbwos/types';
 
 // src/api/client.ts
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '/api';
 
 export class ApiClient {
     private static async request<T>(method: string, path: string, body?: any): Promise<T> {
@@ -69,6 +69,27 @@ export class ApiClient {
 
     public static async completeItem(id: string): Promise<{ success: boolean }> {
         return this.request('POST', '/today/complete', { id });
+    }
+
+    public static async completeItem(id: string): Promise<{ success: boolean }> {
+        return this.request('POST', '/today/complete', { id });
+    }
+
+    // --- Phase 3: Life & Execution API ---
+    public static async checkLife(id: string): Promise<{ success: boolean; id: string }> {
+        return this.request('POST', `/life/${id}/check`);
+    }
+
+    public static async startExecution(id: string): Promise<{ success: boolean; action: string }> {
+        return this.request('POST', `/execution/${id}/start`);
+    }
+
+    public static async pauseExecution(id: string): Promise<{ success: boolean; action: string }> {
+        return this.request('POST', `/execution/${id}/pause`);
+    }
+
+    public static async getHistory(): Promise<any[]> {
+        return this.request('GET', '/history');
     }
 
     // --- Phase 2: GDB API ---

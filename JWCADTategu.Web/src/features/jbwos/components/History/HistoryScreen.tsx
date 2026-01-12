@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, Activity, Coffee, PlayCircle } from 'lucide-react';
+import { ApiClient } from '../../../../api/client';
 
 // Define Log Interface corresponding to backend
 interface DailyLog {
@@ -21,15 +22,8 @@ export const HistoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const loadHistory = async () => {
         setLoading(true);
         try {
-            // Assume ApiClient has a generic getter or we fetch directly
-            // Since repo doesn't have getHistory yet, we might need to add it or fetch raw.
-            // Let's use fetch for now or expand ApiClient later.
-            // Using a relative path that proxy handles or direct backend URL logic.
-            const res = await fetch('/api/history');
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                setLogs(data);
-            }
+            const data = await ApiClient.getHistory();
+            setLogs(data);
         } catch (e) {
             console.error('Failed to load history', e);
         } finally {
@@ -79,18 +73,22 @@ export const HistoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                         {formatTime(log.created_at)}
                                     </div>
 
-                                    {/* Content Bubble */}
+                                    {/* Content Bubble - Monochrome Spec */}
                                     <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex gap-3 items-start group-hover:border-slate-300 dark:group-hover:border-slate-600 transition-colors">
-                                        <div className="mt-1">
-                                            {getIcon(log.category, log.content)}
+                                        <div className="mt-0.5 text-slate-400 dark:text-slate-500">
+                                            {/* Unified Icon Style: All logs are just "facts" */}
+                                            {log.category === 'execution' ? <PlayCircle size={16} /> : <Activity size={16} />}
                                         </div>
                                         <div>
-                                            <div className="text-sm font-medium">
+                                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
                                                 {log.content}
                                             </div>
-                                            <div className="text-[10px] uppercase tracking-wider text-slate-400 mt-1">
-                                                {log.category.toUpperCase()}
-                                            </div>
+                                            {/* Minimal category label */}
+                                            {log.category !== 'life' && (
+                                                <div className="text-[10px] uppercase tracking-wider text-slate-300 dark:text-slate-600 mt-1">
+                                                    {log.category}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

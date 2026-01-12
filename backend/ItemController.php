@@ -49,6 +49,14 @@ class ItemController {
             $fields[] = "memo = :memo";
             $params[':memo'] = $data['memo'];
         }
+        if (array_key_exists('due_date', $data)) {
+            $fields[] = "due_date = :due_date";
+            $params[':due_date'] = $data['due_date'];
+        }
+        if (array_key_exists('due_status', $data)) {
+            $fields[] = "due_status = :due_status";
+            $params[':due_status'] = $data['due_status'];
+        }
         
         $fields[] = "updated_at = " . time();
         

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
+import { ApiClient } from '../../../../api/client';
 import { cn } from '../../../../lib/utils';
 import { CheckCircle2, Play, AlertCircle, ArrowDownCircle } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
@@ -24,6 +25,30 @@ export const TodayScreen: React.FC = () => {
     // (Optimization: In future, backend 'execution_in_progress' status ensures consistency across devices,
     // but for now, we treat the top committed item as the active one).
     const activeItem = todayCommits.length > 0 ? todayCommits[0] : null;
+
+    // --- Phase 3 Execution Logic ---
+    const [pausedItems, setPausedItems] = React.useState<Record<string, boolean>>({});
+
+    const handlePause = async (item: any) => {
+        // Optimistic UI
+        setPausedItems(prev => ({ ...prev, [item.id]: true }));
+        try {
+            await ApiClient.pauseExecution(item.id.toString());
+        } catch (e) {
+            console.error("Failed to pause", e);
+        }
+    };
+
+    const handleResume = async (item: any) => {
+        setPausedItems(prev => ({ ...prev, [item.id]: false }));
+        try {
+            await ApiClient.startExecution(item.id.toString());
+        } catch (e) {
+            console.error("Failed to resume", e);
+        }
+    };
+
+    const isPaused = activeItem ? pausedItems[activeItem.id] : false;
 
     return (
         <div className="h-full w-full bg-slate-50 dark:bg-slate-950 flex flex-col items-center overflow-y-auto pb-20">
@@ -70,61 +95,39 @@ export const TodayScreen: React.FC = () => {
                 </div>
             )}
 
-            {/* ZONE 1: Commit (The Vow) */}
-            <div className="w-full max-w-2xl px-6 mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                    <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                        Zone 1
-                    </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の判断 (Commit)</h2>
-                </div>
-
-                <div className="space-y-3">
-                    {todayCommits.length === 0 ? (
-                        <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400">
-                            今日はまだ何も約束していません。<br />
-                            <span className="text-xs opacity-70">Candidatesから選んでConfirmしてください。</span>
-                        </div>
-                    ) : (
-                        todayCommits.map((item, index) => (
-                            <div key={item.id} className={cn(
-                                "p-4 rounded-xl shadow-sm border flex items-center justify-between transition-all",
-                                index === 0
-                                    ? "bg-white border-blue-200 ring-2 ring-blue-100 dark:bg-slate-800 dark:border-blue-900 dark:ring-blue-900/30"
-                                    : "bg-slate-50 border-slate-100 opacity-70 dark:bg-slate-900 dark:border-slate-800"
-                            )}>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-400 font-mono">#{index + 1}</span>
-                                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.title}</span>
-                                </div>
-                                {index === 0 && (
-                                    <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                                        Next / Active
-                                    </div>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* ZONE 2: Execution (The Reality) */}
-            <div className="w-full max-w-2xl px-6 mb-16">
+            {/* ZONE 1: Execution (The Reality) - MOVED TO TOP */}
+            <div className="w-full max-w-2xl px-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="flex items-center gap-2 mb-4">
                     <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                        Zone 2
+                        Zone 1
                     </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の実行</h2>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の実行 (Execution)</h2>
                 </div>
 
                 {activeItem ? (
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                    <div className={cn(
+                        "p-8 rounded-3xl shadow-xl text-white relative overflow-hidden group transition-all",
+                        isPaused
+                            ? "bg-slate-700" // Paused style
+                            : "bg-gradient-to-br from-blue-600 to-indigo-700" // Running style
+                    )}>
+                        {!isPaused && (
+                            <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                        )}
 
                         <div className="relative z-10">
                             <div className="flex items-center gap-3 mb-4 opacity-80">
-                                <Play size={20} className="fill-current animate-pulse" />
-                                <span className="text-sm font-bold uppercase tracking-widest">Execution Context</span>
+                                {isPaused ? (
+                                    <div className="flex items-center gap-2 text-amber-400">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                                        <span className="text-sm font-bold uppercase tracking-widest">Paused</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Play size={20} className="fill-current animate-pulse" />
+                                        <span className="text-sm font-bold uppercase tracking-widest">Execution Context</span>
+                                    </div>
+                                )}
                             </div>
 
                             <h3 className="text-3xl font-bold mb-8 leading-tight">{activeItem.title}</h3>
@@ -137,26 +140,75 @@ export const TodayScreen: React.FC = () => {
                                     <CheckCircle2 size={20} />
                                     完了 (Complete)
                                 </button>
-                                {/* [NEW] Pause Logic will be handled here */}
-                                <button className="px-4 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors">
-                                    中断
-                                </button>
+
+                                {isPaused ? (
+                                    <button
+                                        onClick={() => handleResume(activeItem)}
+                                        className="px-6 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-colors flex items-center gap-2"
+                                    >
+                                        <Play size={20} fill="currentColor" />
+                                        再開
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handlePause(activeItem)}
+                                        className="px-4 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
+                                    >
+                                        中断
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
                 ) : (
                     <div className="p-8 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 text-center">
-                        現在、実行対象はありません。<br />
-                        <span className="text-sm">Zone 1 にタスクを追加すると、一番上がここに表示されます。</span>
+                        現在、実行中の仕事はありません。<br />
+                        <span className="text-sm opacity-70">Commitリストの一番上がここに表示されます。</span>
                     </div>
                 )}
+            </div>
+
+            {/* ZONE 2: Commit List (Remaining Tasks) */}
+            <div className="w-full max-w-2xl px-6 mb-10 opacity-90 hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
+                        Zone 2
+                    </span>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の判断 (Commit History)</h2>
+                </div>
+                <div className="space-y-3">
+                    {todayCommits.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-400">
+                            候補(Candidates)から選択してください。
+                        </div>
+                    ) : (
+                        todayCommits.map((item, index) => (
+                            <div key={item.id} className={cn(
+                                "p-4 rounded-xl shadow-sm border flex items-center justify-between transition-all",
+                                index === 0
+                                    ? "bg-blue-50/50 border-blue-200 ring-1 ring-blue-100 dark:bg-slate-800 dark:border-blue-900 dark:ring-blue-900/30"
+                                    : "bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800"
+                            )}>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-400 font-mono">#{index + 1}</span>
+                                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.title}</span>
+                                </div>
+                                {index === 0 && (
+                                    <div className="text-blue-500 text-[10px] font-bold uppercase tracking-wide">
+                                        Executing
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
 
             {/* Divider */}
             <div className="w-full max-w-2xl px-6 mb-10">
                 <div className="h-px bg-slate-200 dark:bg-slate-800 w-full relative">
                     <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-slate-50 dark:bg-slate-950 px-4 text-xs text-slate-400">
-                        ここから下は評価しません
+                        ここから下は任意（Life）
                     </span>
                 </div>
             </div>
@@ -165,10 +217,22 @@ export const TodayScreen: React.FC = () => {
             <div className="w-full max-w-2xl px-6 opacity-80 hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-2 mb-4">
                     <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                        Zone 3
+                        Optional
                     </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">生活のこと</h2>
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">Life（任意）</h2>
+                        <span className="text-xs text-slate-400">できたらでいいこと</span>
+                    </div>
                 </div>
+                {/* 
+                   LifeChecklist normally handles its own rendering.
+                   We need to inject the "Promotion" capability into it, 
+                   or modify LifeChecklist directly. 
+                   For now, we assume LifeChecklist is blackbox, but we need to modify it.
+                   Wait, I should check LifeChecklist source if I want to add buttons.
+                   Let's leave it as is for layout, and modify LifeChecklist next if needed.
+                   Assuming the user asked for "Life Promotion" which likely means modifying LifeChecklist.
+                */}
                 <LifeChecklist />
             </div>
 

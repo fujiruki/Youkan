@@ -14,6 +14,8 @@ export interface Item {
 
     // --- Filters & Sorters ---
     dueHook?: DeadlineHook;
+    due_date?: string | null;  // [NEW] "YYYY-MM-DD"
+    due_status?: 'confirmed' | 'waiting_external'; // [NEW]
     interrupt: boolean;      // 割り込みフラグ
     weight: 1 | 2 | 3;       // 1:Light, 2:Medium, 3:Heavy
 

@@ -77,22 +77,20 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
             {...attributes}
             {...listeners}
             className={cn(
-                "group relative flex items-center gap-2 px-2 py-[1px] mb-1 rounded-lg border backdrop-blur-sm transition-all",
-                "bg-white/40 border-white/20 hover:bg-white/60 hover:border-white/40 shadow-sm",
-                "dark:bg-slate-800/40 dark:border-white/10 dark:hover:bg-slate-800/60",
-                item.interrupt && "border-amber-400/50 bg-amber-50/50 dark:border-amber-600/50 dark:bg-amber-900/10",
-                "cursor-grab active:cursor-grabbing select-none text-[1em]", // Added cursor classes here
-                isDragging && "opacity-50 z-50 ring-2 ring-indigo-400"
+                "group relative flex items-start gap-2 px-3 py-2 mb-1 rounded-lg transition-all", // Clean layout
+                "bg-white/60 dark:bg-slate-800/60 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
+                "border border-transparent hover:border-slate-100 dark:hover:border-slate-700", // Soft interactive border
+                item.interrupt && "bg-amber-50/80 dark:bg-amber-900/20",
+                "cursor-grab active:cursor-grabbing select-none text-[0.95em]",
+                isDragging && "opacity-50 z-50 ring-2 ring-indigo-400 bg-white shadow-lg"
             )}
             onClick={() => onClick?.(item)}
             onDoubleClick={handleDoubleClick}
             onContextMenu={(e) => onContextMenu?.(e, item.id)}
         >
-            {/* Drag Handle (Visual Only now) */}
-
             {/* Content (Inline Edit or Text) */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-0.5">
                     {isEditing ? (
                         <input
                             autoFocus
@@ -101,17 +99,20 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                             onBlur={handleBlur}
                             onKeyDown={handleKeyDown}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full bg-white dark:bg-slate-900 border border-indigo-500 rounded px-1 py-0 text-[1em] focus:outline-none"
+                            className="w-full bg-transparent border-b border-indigo-500 text-[1em] focus:outline-none p-0"
                         />
                     ) : (
-                        <span className="font-medium text-slate-700 dark:text-slate-200 truncate text-[1em]">
+                        <span className="text-slate-700 dark:text-slate-200 font-medium line-clamp-2 leading-snug">
                             {item.title}
                         </span>
                     )}
                 </div>
-                {/* Meta / Tags could go here */}
-                {(item.waitingReason || item.projectId) && (
-                    <div className="flex gap-2 mt-1 text-[0.8em] text-slate-500 dark:text-slate-400">
+                {/* Meta / Tags */}
+                {(item.waitingReason || item.projectId || item.due_status === 'waiting_external') && (
+                    <div className="flex flex-wrap gap-2 mt-1.5 text-[0.75em] text-slate-400">
+                        {item.due_status === 'waiting_external' && (
+                            <span className="text-slate-500 font-normal">取付日未確定</span>
+                        )}
                         {item.waitingReason && (
                             <span className="text-amber-600 dark:text-amber-500 flex items-center gap-1">
                                 ⏳ {item.waitingReason}
