@@ -10,7 +10,7 @@
         - [ ] `POST /api/decision/{id}/resolve` (イベント記録・RDD更新) <!-- id: 1041 -->
         - [ ] `POST /api/today/commit` (Today候補確定・最大2件チェック) <!-- id: 105 -->
         - [ ] `GET /api/today` (計算済みTodayビュー取得) <!-- id: 106 -->
-        - [ ] `GET /api/gdb` (GDB用アイテム取得・純化) <!-- id: 1061 -->
+        - [x] `GET /api/gdb` (GDB用アイテム取得・純化) <!-- id: 1061 -->
         - [ ] **横メモAPI** (`GET`, `POST`, `DELETE`, `MoveToInbox`) <!-- id: 113 -->
 
 - [ ] **Phase 2: Frontend Dumb-ification (ビューア化)** <!-- id: 107 -->

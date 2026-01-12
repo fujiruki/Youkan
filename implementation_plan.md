@@ -44,8 +44,8 @@
         - `DELETE /api/memo/{id}`: 即時削除。
         - `POST /api/memo/{id}/move-to-inbox`: Inboxへの移動。
 
-### Phase 2: Frontend Dumb-ification (ビューア化)
-**目標**: UIはサーバーが指示したものだけを表示する。
+### Phase 2: Frontend Dumb-ification (ビューア化 & 楽観的UI)
+**目標**: UIはサーバーを正解としつつ、**楽観的更新 (Optimistic UI)** により体感速度を維持する。
 
 1.  **Repository更新**:
     - ステータス変更のための直接DB更新を停止。

@@ -40,6 +40,24 @@ function initDB($pdo) {
             message TEXT,
             stack_trace TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )",
+        "CREATE TABLE IF NOT EXISTS events (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            payload TEXT,
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS daily_logs (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS side_memos (
+            id TEXT PRIMARY KEY,
+            content TEXT NOT NULL,
+            created_at INTEGER
         )"
     ];
 

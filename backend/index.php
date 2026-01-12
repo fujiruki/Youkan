@@ -38,6 +38,10 @@ $path = preg_replace('#^/api#', '', $uri);
 require_once 'db.php';
 require_once 'ItemController.php';
 require_once 'DebugController.php';
+require_once 'DecisionController.php';
+require_once 'TodayController.php';
+require_once 'SideMemoController.php';
+require_once 'GdbController.php';
 
 $db = getDB();
 
@@ -59,7 +63,61 @@ if (preg_match('#^(/api)?/debug/logs#', $pathOnly)) {
     exit;
 }
 
-// Item Routes
+// GDB Routes
+if (preg_match('#^(/api)?/gdb$#', $pathOnly)) {
+    $controller = new GdbController($db);
+    if ($method === 'GET') {
+        echo json_encode($controller->getShelf());
+    }
+    exit;
+}
+
+// Decision Routes
+if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $pathOnly, $matches) && $method === 'POST') {
+    $controller = new DecisionController($db);
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($controller->resolve($matches[2], $data));
+    exit;
+}
+
+// Today Routes
+if (preg_match('#^(/api)?/today$#', $pathOnly)) {
+    $controller = new TodayController($db);
+    if ($method === 'GET') {
+        echo json_encode($controller->getToday());
+    }
+    exit;
+}
+if (preg_match('#^(/api)?/today/commit$#', $pathOnly) && $method === 'POST') {
+    $controller = new TodayController($db);
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($controller->commit($data['id']));
+    exit;
+}
+
+// Side Memo Routes
+if (preg_match('#^(/api)?/memos$#', $pathOnly)) {
+    $controller = new SideMemoController($db);
+    if ($method === 'GET') {
+        echo json_encode($controller->getAll());
+    } elseif ($method === 'POST') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        echo json_encode($controller->create($data));
+    }
+    exit;
+}
+if (preg_match('#^(/api)?/memo/([^/]+)$#', $pathOnly, $matches) && $method === 'DELETE') {
+    $controller = new SideMemoController($db);
+    echo json_encode($controller->delete($matches[2]));
+    exit;
+}
+if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $pathOnly, $matches) && $method === 'POST') {
+    $controller = new SideMemoController($db);
+    echo json_encode($controller->moveToInbox($matches[2]));
+    exit;
+}
+
+// Item Routes (Legacy & General CRUD)
 try {
     if (preg_match('#^(/api)?/items$#', $pathOnly)) {
         if ($method === 'GET') {
@@ -75,13 +133,6 @@ try {
     }
     elseif (preg_match('#^(/api)?/items/(.+)$#', $path, $matches) && $method === 'DELETE') {
         echo json_encode(ItemController::delete($db, $matches[2]));
-    }
-    elseif ($path === '/debug/logs' || $path === '/api/debug/logs') {
-        // AI Debug Eye
-        if ($method === 'GET') {
-            $logs = $db->query("SELECT * FROM system_logs ORDER BY id DESC LIMIT 50")->fetchAll(PDO::FETCH_ASSOC);
-            echo json_encode($logs);
-        }
     }
     else {
         http_response_code(404);
