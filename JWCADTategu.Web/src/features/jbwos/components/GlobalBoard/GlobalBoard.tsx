@@ -20,9 +20,10 @@ import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { Item } from '../../types';
 import { cn } from '../../../../lib/utils';
-import { Inbox, PlayCircle, Clock, Archive, Trash2 } from 'lucide-react';
+import { Inbox, PlayCircle, Clock, Archive, Trash2, BookOpen } from 'lucide-react';
 import { FirstExperienceModal } from '../Modal/FirstExperienceModal';
 import { ConfirmDeleteDialog } from '../Modal/ConfirmDeleteDialog';
+import { HelpGuideModal } from '../Modal/HelpGuideModal';
 // Example icons
 import { t } from '../../../../i18n/labels';
 
@@ -43,6 +44,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, itemId: null });
     const menuRef = useRef<HTMLDivElement>(null); // [NEW] Ref for context menu
+
+    // --- Help Modal State ---
+    const [showHelp, setShowHelp] = useState(false);
 
     // --- Onboarding Logic ---
     const [showOnboarding, setShowOnboarding] = useState(false);
@@ -197,22 +201,29 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         setContextMenu({ ...contextMenu, visible: false });
     };
 
-    // --- Delete Confirmation Logic ---
-    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    // [NEW] Undo Shortcut (Ctrl+Z)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                if (vm.canUndo) {
+                    console.log('[GlobalBoard] Undo triggered via shortcut');
+                    vm.undo();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [vm.canUndo, vm.undo]); // Re-bind when canUndo changes
 
-    const handleDeleteItem = () => {
+    // --- Delete (Archive) Logic ---
+    // [UX Update] Removed confirmation dialog as Undo is available.
+    const handleDeleteItem = async () => {
         const itemId = contextMenu.itemId;
         handleCloseContextMenu();
         if (itemId) {
-            setDeleteTargetId(itemId);
-        }
-    };
-
-    const confirmDelete = async () => {
-        if (deleteTargetId) {
-            console.log('[GlobalBoard] Deleting item:', deleteTargetId);
-            await vm.deleteItem(deleteTargetId);
-            setDeleteTargetId(null);
+            console.log('[GlobalBoard] Archiving item directly:', itemId);
+            await vm.archiveItem(itemId);
         }
     };
 
@@ -252,6 +263,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             onDragEnd={handleDragEnd}
         >
             {showOnboarding && <FirstExperienceModal onComplete={handleOnboardingComplete} />}
+            <HelpGuideModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
                 {/* Header / Navigation Controls - Separate Row */}
                 <div className="flex-none flex items-center justify-between px-6 py-3 bg-slate-100/50 dark:bg-slate-950/50 border-b border-white/10 shrink-0 z-10">
@@ -260,6 +272,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                             <span className="text-2xl">⚡</span>
                             <span className="hidden sm:inline">Global Decision Board</span>
+                            <button
+                                onClick={() => setShowHelp(true)}
+                                className="ml-2 p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-full transition-colors"
+                                title="ガイドを開く"
+                            >
+                                <BookOpen size={18} />
+                            </button>
                         </div>
                     </div>
 
@@ -408,12 +427,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 {activeItem ? <ItemCard item={activeItem} onContextMenu={() => { }} /> : null}
             </DragOverlay>
 
-            <ConfirmDeleteDialog
-                isOpen={!!deleteTargetId}
-                onClose={() => setDeleteTargetId(null)}
-                onConfirm={confirmDelete}
-                itemName={deleteTargetId ? findItem(deleteTargetId)?.title : undefined}
-            />
         </DndContext>
     );
 };

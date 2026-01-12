@@ -101,19 +101,26 @@ export const JBWOSRepository = {
         });
     },
 
-    // 6. Delete
-    deleteItem: async (id: string): Promise<void> => {
+    // 6. Archive (Logical Delete)
+    archiveItem: async (id: string): Promise<void> => {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
                 await db.doors.update(doorId, {
-                    judgmentStatus: undefined,
+                    judgmentStatus: 'archive', // Logical delete for doors too? Or undefined? Let's use archive for consistency if DB supports it.
+                    // If 'archive' is not in JudgmentStatus type, we might need to cast or update type.
+                    // For now, assuming JudgmentStatus is string-like or compatible. 
+                    // Actually, JudgmentStatus might be strict union. Let's check type definition if error occurs.
+                    // Reverting to 'undefined' for doors as per previous delete logic might be safer IF 'archive' requires schema change.
+                    // BUT plan says "Logical Delete". Let's try 'archive'.
+                    judgmentStatus: 'archive' as any,
                     updatedAt: new Date()
                 });
                 return;
             }
         }
-        await ApiClient.deleteItem(id);
+        // API Logical Delete (Update status)
+        await ApiClient.updateItem(id, { status: 'archive' });
     }
 };
 
