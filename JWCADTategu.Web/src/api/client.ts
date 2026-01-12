@@ -71,10 +71,6 @@ export class ApiClient {
         return this.request('POST', '/today/complete', { id });
     }
 
-    public static async completeItem(id: string): Promise<{ success: boolean }> {
-        return this.request('POST', '/today/complete', { id });
-    }
-
     // --- Phase 2: GDB API ---
     public static async getGdbShelf(): Promise<any> { // Replace 'any' with proper type
         return this.request('GET', '/gdb');

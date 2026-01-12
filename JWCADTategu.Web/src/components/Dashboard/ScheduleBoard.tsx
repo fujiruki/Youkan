@@ -25,11 +25,9 @@ const COLUMNS = [
 
 export const ScheduleBoard: React.FC = () => {
     const [items, setItems] = useState<ScheduleItem[]>([]);
-    const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
     const loadData = async () => {
-        setLoading(true);
         const projects = await db.projects.toArray();
         const doors = await db.doors.toArray();
         const tasks = await db.tasks.toArray();
@@ -72,7 +70,6 @@ export const ScheduleBoard: React.FC = () => {
         });
 
         setItems(mappedItems);
-        setLoading(false);
     };
 
     useEffect(() => { loadData(); }, []);
