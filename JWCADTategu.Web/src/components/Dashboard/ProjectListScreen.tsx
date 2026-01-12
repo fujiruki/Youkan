@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, Project } from '../../db/db';
-import { Plus, ArrowRight, Table, FileText, Trash2, Edit2 } from 'lucide-react';
+import { Plus, ArrowRight, FileText, Edit2 } from 'lucide-react';
 
 interface ProjectListScreenProps {
     onSelectProject: (projectId: number) => void;

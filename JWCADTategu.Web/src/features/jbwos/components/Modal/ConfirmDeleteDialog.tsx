@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
-import { t } from '../../../../i18n/labels';
+import { Trash2 } from 'lucide-react';
+// import { cn } from '../../../../lib/utils';
+// import { t } from '../../../../i18n/labels';
 
 interface ConfirmDeleteDialogProps {
     isOpen: boolean;
@@ -49,7 +49,7 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                                        {title || t.jbwos.common.alerts?.deleteConfirm || "このアイテムを削除しますか？"}
+                                        {title || "このアイテムを削除しますか？"}
                                     </h3>
                                     <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-1">
                                         {message || "この操作は取り消せません。本当に削除してもよろしいですか？"}

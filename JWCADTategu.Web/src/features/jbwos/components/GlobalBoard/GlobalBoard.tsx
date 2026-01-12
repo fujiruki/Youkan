@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
     DndContext,
-    closestCorners,
     KeyboardSensor,
     PointerSensor,
     pointerWithin,
     useSensor,
     useSensors,
     DragOverlay,
-    defaultDropAnimationSideEffects,
     DragStartEvent,
-    DragOverEvent,
     DragEndEvent
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -18,60 +15,34 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { Item } from '../../types';
-import { cn } from '../../../../lib/utils';
-import { Inbox, PlayCircle, Clock, Archive, Trash2, BookOpen } from 'lucide-react';
-import { FirstExperienceModal } from '../Modal/FirstExperienceModal';
-import { ConfirmDeleteDialog } from '../Modal/ConfirmDeleteDialog';
+import { BookOpen, AlertCircle } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
-// Example icons
-import { t } from '../../../../i18n/labels';
-
+import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 
 interface GlobalBoardProps {
     onClose?: () => void;
 }
 
-interface ContextMenuState {
-    visible: boolean;
-    x: number;
-    y: number;
-    itemId: string | null;
-}
-
 export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const vm = useJBWOSViewModel();
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, itemId: null });
-    const menuRef = useRef<HTMLDivElement>(null); // [NEW] Ref for context menu
 
-    // --- Help Modal State ---
+    // --- Help Guid Modal ---
     const [showHelp, setShowHelp] = useState(false);
 
-    // --- Onboarding Logic ---
-    const [showOnboarding, setShowOnboarding] = useState(false);
-    useEffect(() => {
-        const hasVisited = localStorage.getItem('jbwos_visited_v1');
-        if (!hasVisited) {
-            setShowOnboarding(true);
-        }
-    }, []);
+    // --- Side Memo Logic in Global Board ---
+    // Ideally this could be lifted to App level, but GDB is the main workspace.
+    // For now, let's include it here.
 
-    const handleOnboardingComplete = () => {
-        localStorage.setItem('jbwos_visited_v1', 'true');
-        setShowOnboarding(false);
-    };
+    // --- Dnd Kit Logic (Restricted) ---
+    // GDB primarily supports moving between Active/Hold/Log (Conceptually)
+    // But in Phase 2, "Decision" is an explicit action buttons, not just Drag.
+    // However, Drag might still be useful for visually sorting or "Holding".
+    // Let's keep Dnd for now, but limit targets.
 
-    // --- Dnd Kit Logic ---
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8, // Prevent accidental drags
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -81,302 +52,130 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveId(null);
-
         if (!over) return;
 
         const activeItemId = active.id as string;
-        const overContainerId = over.id as string; // 'ready', 'waiting', etc.
+        const overContainerId = over.id as string;
 
-        // Find current status of item
-        let currentStatus = '';
-        if (vm.inboxItems.find(i => i.id === activeItemId)) currentStatus = 'inbox';
-        else if (vm.scheduledItems.find(i => i.id === activeItemId)) currentStatus = 'scheduled';
-        else if (vm.waitingItems.find(i => i.id === activeItemId)) currentStatus = 'waiting'; // GDB
-        else if (vm.readyItems.find(i => i.id === activeItemId)) currentStatus = 'ready'; // Today
-        else if (vm.executionItems.find(i => i.id === activeItemId)) currentStatus = 'execution';
-        else if (vm.pendingItems.find(i => i.id === activeItemId)) currentStatus = 'pending';
-        else if (vm.doneItems.find(i => i.id === activeItemId)) currentStatus = 'done'; // History
+        // Implementation of Drag Actions mapping to Decisions
+        // Drag to "Hold" column -> resolveDecision(id, 'hold')
+        // Drag to "Log" -> resolveDecision(id, 'no') or similar?
+        // Drag to "Active" -> maybe un-hold?
 
-        if (currentStatus === overContainerId) return; // No change
-
-        try {
-            switch (overContainerId) {
-                case 'inbox':
-                    await vm.moveToInbox(activeItemId);
-                    break;
-                case 'scheduled':
-                    await vm.moveToScheduled(activeItemId);
-                    break;
-                case 'waiting': // GDB
-                    await vm.moveToWaiting(activeItemId, "Moved via Drag");
-                    break;
-                // Ready, Execution, Done are REMOVED from GDB D&D per "Pure GDB" and "Event Driven" rules.
-                // Items cannot be dragged into Today directly.
-
-            }
-        } catch (e: any) {
-            console.error('[GlobalBoard] Drag End Error:', e);
-            // Translate explicit "Max 2" error or fallback to generic
-            if (e.message.includes('Ready bucket is full') || e.message.includes('Max 2') || e.message.includes('手一杯')) {
-                alert(t.jbwos.common.alerts?.readyLimit || "今日はもう手一杯です（最大2件まで）");
-            } else {
-                console.warn('[GlobalBoard] Move failed:', e); // Only warn for unexpected errors
-                alert(t.jbwos.common.alerts.moveFailed + `: ${e.message} `);
-            }
+        if (overContainerId === 'hold') {
+            await vm.resolveDecision(activeItemId, 'hold', 'Dragged to Hold');
         }
+        // Note: Moving back to Active from Hold implies "re-evaluating". 
+        // We might need an explicit "return to inbox" action or handle it here if 'active' column exists.
     };
 
-    // --- Active Item for Overlay ---
+    // --- Find Active Item Helper ---
     const findItem = (id: string) => {
-        const all = [
-            ...vm.inboxItems,
-            ...vm.scheduledItems,
-            ...vm.waitingItems,
-            ...vm.readyItems,
-            ...vm.executionItems,
-            ...vm.pendingItems,
-            ...vm.doneItems
-        ];
-        return all.find(i => i.id === id);
+        return [...vm.gdbActive, ...vm.gdbHold, ...vm.gdbLog].find(i => i.id === id);
     };
     const activeItem = activeId ? findItem(activeId) : null;
 
-    // --- Actions ---
-    // --- Actions ---
-    // Inline rename handler replacing the prompt-based one
-    const handleRenameItem = async (id: string, newTitle: string) => {
-        if (!newTitle.trim()) return;
-        await vm.updateItemTitle(id, newTitle);
-    };
-
-    // Keep for fallback or other edit types if needed, but mainly we use inline now
-    const handleEditItem = async (item: Item) => {
-        // Legacy prompt - keeping just in case until inline is fully verified
-        const newTitle = window.prompt(t.jbwos.common.editPrompt, item.title);
-        if (newTitle && newTitle !== item.title) {
-            await vm.updateItemTitle(item.id, newTitle);
-        }
-    };
-
-    // --- Actions ---
-
-    // [NEW] Inbox Focus Shortcut
-    const inboxInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Ctrl+I to focus Inbox
-            if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-                e.preventDefault();
-                inboxInputRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    // --- Context Menu Logic ---
-    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
-        e.preventDefault();
-        setContextMenu({
-            visible: true,
-            x: e.clientX,
-            y: e.clientY,
-            itemId: itemId
-        });
-    };
-
-    const handleCloseContextMenu = () => {
-        setContextMenu({ ...contextMenu, visible: false });
-    };
-
-    // [NEW] Undo Shortcut (Ctrl+Z)
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                e.preventDefault();
-                if (vm.canUndo) {
-                    console.log('[GlobalBoard] Undo triggered via shortcut');
-                    vm.undo();
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [vm.canUndo, vm.undo]); // Re-bind when canUndo changes
-
-    // --- Delete (Archive) Logic ---
-    // [UX Update] Removed confirmation dialog as Undo is available.
-    const handleDeleteItem = async () => {
-        const itemId = contextMenu.itemId;
-        handleCloseContextMenu();
-        if (itemId) {
-            console.log('[GlobalBoard] Archiving item directly:', itemId);
-            await vm.archiveItem(itemId);
-        }
-    };
-
-    // Close menu on click outside
-    useEffect(() => {
-        const handleClick = (e: MouseEvent) => {
-            if (contextMenu.visible && menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                handleCloseContextMenu();
-            }
-        };
-        // Use 'click' to avoid conflict with drag/select actions that start with mousedown
-        window.addEventListener('click', handleClick);
-        return () => window.removeEventListener('click', handleClick);
-    }, [contextMenu.visible]);
-
-    // --- Quick Input (Inbox) ---
+    // --- Quick Input (ThrowIn) ---
     const [inputValue, setInputValue] = useState('');
     const handleThrowIn = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
-        try {
-            await vm.throwIn(inputValue);
-            setInputValue('');
-        } catch (err) {
-            console.error('[GlobalBoard] throwIn failed', err);
-        }
+        await vm.throwIn(inputValue);
+        setInputValue('');
     };
 
-    // --- Zoom Logic ---
-    const [zoomLevel, setZoomLevel] = useState(14); // Default 14px
-
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={pointerWithin}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-        >
-            {showOnboarding && <FirstExperienceModal onComplete={handleOnboardingComplete} />}
+        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <HelpGuideModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
-                {/* Header / Navigation Controls - Separate Row */}
+                {/* Header */}
                 <div className="flex-none flex items-center justify-between px-6 py-3 bg-slate-100/50 dark:bg-slate-950/50 border-b border-white/10 shrink-0 z-10">
-                    <div className="flex items-center gap-2">
-                        {/* Left side content (Title or Logo if needed) */}
-                        <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                            <span className="text-2xl">⚡</span>
-                            <span className="hidden sm:inline">Global Decision Board</span>
-                            <button
-                                onClick={() => setShowHelp(true)}
-                                className="ml-2 p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-full transition-colors"
-                                title="ガイドを開く"
-                            >
-                                <BookOpen size={18} />
-                            </button>
-                        </div>
+                    <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <span>⚡ Global Decision Board</span>
+                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 rounded-full" title="Help">
+                            <BookOpen size={18} className="text-slate-400" />
+                        </button>
                     </div>
+                    {vm.error && (
+                        <div className="flex items-center gap-2 text-red-500 text-sm px-4 py-1 bg-red-50 rounded-full animate-pulse">
+                            <AlertCircle size={14} />
+                            {vm.error}
+                            <button onClick={vm.clearError} className="font-bold ml-2">×</button>
+                        </div>
+                    )}
+                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded text-xs font-bold">
+                        CLOSE
+                    </button>
+                </div>
 
-                    <div className="flex items-center gap-4 text-sm">
-                        {/* Zoom Slider */}
-                        <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-sm border border-slate-200 dark:border-slate-700">
-                            <span className="text-[10px] text-slate-500">A</span>
-                            <input
-                                type="range"
-                                min="10"
-                                max="24"
-                                value={zoomLevel}
-                                onChange={(e) => setZoomLevel(Number(e.target.value))}
-                                className="w-24 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-amber-500"
+                {/* Main Content (Vertical Stack as "Desk") */}
+                <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="max-w-4xl mx-auto w-full p-6 md:p-12 flex flex-col gap-12">
+
+                        {/* 1. Active Shelf (The "Now") */}
+                        <section>
+                            <BucketColumn
+                                id="active"
+                                title="【今ここにある判断】"
+                                items={vm.gdbActive}
+                                description="未判断のアイテム。タップして詳細を開く。"
+                                className="w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"
+                                emptyMessage={<GentleMessage variant="inbox_clean" />}
+                                footer={
+                                    <form onSubmit={handleThrowIn} className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+                                        <input
+                                            type="text"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            placeholder="ここに吐き出す..."
+                                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm"
+                                        />
+                                    </form>
+                                }
                             />
-                            <span className="text-sm text-slate-500 font-bold">A</span>
-                        </div>
+                        </section>
 
-                        <button
-                            onClick={onClose}
-                            className="flex items-center gap-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full transition-colors font-medium text-xs shadow-sm"
-                            title="元の画面に戻る"
-                        >
-                            ✖ {t.jbwos.common.close}
-                        </button>
+                        {/* 2. Hold Shelf (The "Pending") */}
+                        <section className="opacity-90">
+                            <BucketColumn
+                                id="hold"
+                                title="【保留中の判断 (Hold)】"
+                                items={vm.gdbHold}
+                                description="条件待ち・塩漬け。Todayには出ない。"
+                                className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"
+                                emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
+                            />
+                        </section>
+
+                        {/* 3. Log (The "History") */}
+                        <section className="opacity-60 hover:opacity-100 transition-opacity pb-20">
+                            <BucketColumn
+                                id="log"
+                                title="【過去に判断したもの (参照)】"
+                                items={vm.gdbLog}
+                                description="最近の処理履歴。"
+                                className="w-full border-t border-slate-200 dark:border-slate-800 pt-4"
+                                emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
+                            />
+                        </section>
+
                     </div>
                 </div>
 
-                {/* Context Menu Overlay */}
-                {contextMenu.visible && (
-                    <div
-                        ref={menuRef} // [NEW] Attach ref
-                        className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg py-1 w-40 animate-in fade-in zoom-in-95 duration-100"
-                        style={{ top: contextMenu.y, left: contextMenu.x }}
-                    // Removed onClick={stopPropagation} as we handle specific outside clicks now
-                    >
-                        <button
-                            onClick={handleDeleteItem}
-                            className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                        >
-                            <Trash2 size={14} />
-                            削除する
-                        </button>
-                    </div>
-                )}
-
-                {/* Main Content - Zoom Applied Here using base font size */}
-                <div
-                    className="flex-1 flex gap-4 items-stretch p-6 pt-2 pb-4 overflow-hidden"
-                    style={{ fontSize: `${zoomLevel}px` }}
-                >
-
-                    {/* 1. Inbox (放り込み箱) */}
-                    <BucketColumn
-                        id="inbox"
-                        title={t.jbwos.inbox.title}
-                        items={vm.inboxItems}
-                        description={t.jbwos.inbox.description}
-                        className="flex-1 min-w-0" // Flexible
-                        emptyMessage={<GentleMessage variant="inbox_clean" />}
-                        onRenameItem={handleRenameItem} // Pass new handler
-                        onContextMenu={handleContextMenu}
-                        footer={
-                            <form onSubmit={handleThrowIn} className="mt-2 relative">
-                                <input
-                                    ref={inboxInputRef} // [NEW]
-                                    type="text"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder={t.jbwos.inbox.placeholder}
-                                    className="w-full px-4 py-3 rounded-full border-none shadow-sm focus:ring-2 focus:ring-amber-400 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-[1em]"
-                                />
-                            </form>
-                        }
-                    />
-
-                    {/* 2. Scheduled (予定) - NEW */}
-                    <BucketColumn
-                        id="scheduled"
-                        title={t.jbwos.scheduled.title}
-                        items={vm.scheduledItems}
-                        description={t.jbwos.scheduled.description}
-                        className="flex-1 min-w-0"
-                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.scheduled.empty}</div>}
-                        onRenameItem={handleRenameItem}
-                        onContextMenu={handleContextMenu}
-                    />
-
-                    {/* 3. Waiting (連絡待ち) */}
-                    <BucketColumn
-                        id="waiting"
-                        title={t.jbwos.waiting.title}
-                        items={vm.waitingItems}
-                        description={t.jbwos.waiting.description}
-                        className="flex-1 min-w-0" // Flexible
-                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.waiting.empty}</div>}
-                        onRenameItem={handleRenameItem}
-                        onContextMenu={handleContextMenu}
-                    />
-                </div>
+                {/* Side Memo Panel (Always Visible in GDB) */}
+                <SideMemoPanel
+                    memos={vm.memos}
+                    onAdd={vm.addSideMemo}
+                    onDelete={vm.deleteSideMemo}
+                    onMoveToInbox={vm.memoToInbox}
+                />
 
             </div>
 
             <DragOverlay>
-                {activeItem ? <ItemCard item={activeItem} onContextMenu={() => { }} /> : null}
+                {activeItem ? <ItemCard item={activeItem} /> : null}
             </DragOverlay>
-
         </DndContext>
     );
 };

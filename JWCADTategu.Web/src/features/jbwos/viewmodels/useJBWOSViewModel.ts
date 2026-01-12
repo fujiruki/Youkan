@@ -1,234 +1,182 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
-import { Item } from '../types';
+import { Item, SideMemo } from '../types';
 
 export const useJBWOSViewModel = () => {
-    // Repository is a singleton object imported directly
+    // Phase 2: Dumb UI ViewModel (Server is the Brain)
 
-    const [inboxItems, setInboxItems] = useState<Item[]>([]);
-    const [scheduledItems, setScheduledItems] = useState<Item[]>([]);
-    const [readyItems, setReadyItems] = useState<Item[]>([]);
-    const [waitingItems, setWaitingItems] = useState<Item[]>([]);
-    const [executionItems, setExecutionItems] = useState<Item[]>([]);
-    const [pendingItems, setPendingItems] = useState<Item[]>([]);
-    const [doneItems, setDoneItems] = useState<Item[]>([]);
+    // --- State (Aligned with v3.1 Zones) ---
+    // GDB Shelf
+    const [gdbActive, setGdbActive] = useState<Item[]>([]); // Inbox + Decision
+    const [gdbHold, setGdbHold] = useState<Item[]>([]);
+    const [gdbLog, setGdbLog] = useState<Item[]>([]);
 
-    const refresh = useCallback(async () => {
-        // Cast results to Item[] as Repository might return slightly different interface
-        // but runtime data is compatible.
-        setInboxItems((await JBWOSRepository.getItemsByStatus('inbox')) as Item[]);
-        setScheduledItems((await JBWOSRepository.getItemsByStatus('scheduled')) as Item[]);
-        setWaitingItems((await JBWOSRepository.getItemsByStatus('waiting')) as Item[]);
-        setReadyItems((await JBWOSRepository.getItemsByStatus('ready')) as Item[]);
-        setExecutionItems((await JBWOSRepository.getItemsByStatus('execution')) as Item[]);
-        setPendingItems((await JBWOSRepository.getItemsByStatus('pending')) as Item[]);
-        setDoneItems((await JBWOSRepository.getItemsByStatus('done')) as Item[]);
+    // Today Screen
+    const [todayCandidates, setTodayCandidates] = useState<Item[]>([]);
+    const [todayCommits, setTodayCommits] = useState<Item[]>([]); // Max 2
+    const [executionItem, setExecutionItem] = useState<Item | null>(null); // Only 1 active
+
+    // Side Memos
+    const [memos, setMemos] = useState<SideMemo[]>([]);
+
+    // Loading & Error
+    const [error, setError] = useState<string | null>(null);
+
+    // --- Data Fetching ---
+    const refreshGdb = useCallback(async () => {
+        try {
+            const shelf = await JBWOSRepository.getGdbShelf();
+            setGdbActive(shelf.active || []);
+            setGdbHold(shelf.hold || []);
+            setGdbLog(shelf.log || []);
+        } catch (e) {
+            console.error('Failed to fetch GDB:', e);
+        }
     }, []);
+
+    const refreshToday = useCallback(async () => {
+        try {
+            const today = await JBWOSRepository.getTodayView();
+            setTodayCommits(today.commits || []);
+            setExecutionItem(today.execution || null);
+            setTodayCandidates(today.candidates || []);
+        } catch (e) {
+            console.error('Failed to fetch Today:', e);
+        }
+    }, []);
+
+    const refreshMemos = useCallback(async () => {
+        try {
+            const data = await JBWOSRepository.getMemos();
+            setMemos(data);
+        } catch (e) {
+            console.error('Failed to fetch Memos:', e);
+        }
+    }, []);
+
+    const refreshAll = useCallback(() => {
+        refreshGdb();
+        refreshToday();
+        refreshMemos();
+    }, [refreshGdb, refreshToday, refreshMemos]);
 
     // Initial Load
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        refreshAll();
+    }, [refreshAll]);
 
-    // --- Action History (Undo) ---
-    interface ActionRecord {
-        type: 'move' | 'archive' | 'rename';
-        itemId: string;
-        undo: () => Promise<void>;
-        description: string;
-    }
-    const [history, setHistory] = useState<ActionRecord[]>([]);
+    // --- Optimistic Actions ---
 
-    const pushHistory = (action: ActionRecord) => {
-        setHistory(prev => [...prev.slice(-19), action]); // Keep last 20 actions
-    };
+    // 1. Decision (Yes/No/Hold)
+    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => {
+        // Optimistic Update: Remove from Active immediate
+        setGdbActive(prev => prev.filter(i => i.id !== id));
 
-    const undo = async () => {
-        if (history.length === 0) return;
-        const lastAction = history[history.length - 1];
-        setHistory(prev => prev.slice(0, -1));
-
-        console.log('[ViewModel] Undoing:', lastAction.description);
         try {
-            await lastAction.undo();
-            await refresh(); // Refresh UI after undo
+            await JBWOSRepository.resolveDecision(id, decision, note);
+            // On success, background refresh to sync (e.g. move to Today Candidate)
+            refreshAll();
         } catch (e) {
-            console.error('[ViewModel] Undo failed', e);
+            console.error('Decision failed:', e);
+            setError('判断の保存に失敗しました。リロードしてください。');
+            refreshAll(); // Rollback by fetch
         }
     };
 
-    // --- Actions with History ---
+    // 2. Commit to Today
+    const commitToToday = async (id: string) => {
+        // Guard: Client-side check for UI feedback only (Server has final say)
+        if (todayCommits.length >= 2) {
+            setError('今日はもう手一杯です（最大2件）');
+            return;
+        }
 
+        // Optimistic: Move from Candidate to Commit
+        const target = todayCandidates.find(i => i.id === id);
+        if (target) {
+            setTodayCandidates(prev => prev.filter(i => i.id !== id));
+            setTodayCommits(prev => [...prev, { ...target, status: 'today_commit' } as any]);
+        }
+
+        try {
+            const res = await JBWOSRepository.commitToToday(id);
+            // If server rejects (e.g. race condition), it throws or returns error
+            if ((res as any).error) {
+                throw new Error((res as any).error);
+            }
+            refreshToday();
+        } catch (e) {
+            console.error('Commit failed:', e);
+            setError('コミットに失敗しました。上限を超えている可能性があります。');
+            refreshToday(); // Rollback
+        }
+    };
+
+    const completeItem = async (id: string) => {
+        // Optimistic: Remove from Today Commits immediately
+        setTodayCommits(prev => prev.filter(i => i.id !== id));
+        // Also remove from Execution (if it was top)
+        if (executionItem?.id === id) setExecutionItem(null);
+
+        try {
+            await JBWOSRepository.completeItem(id);
+            refreshToday();
+        } catch (e) {
+            console.error('Complete failed:', e);
+            setError('完了への移動に失敗しました。');
+            refreshToday();
+        }
+    };
+
+    // 3. Side Actions (Throw In / Memo)
+    const addSideMemo = async (content: string) => {
+        // Optimistic add? - Skip for now, fast enough usually.
+        await JBWOSRepository.createMemo(content);
+        refreshMemos();
+    };
+
+    const deleteSideMemo = async (id: string) => {
+        setMemos(prev => prev.filter(m => m.id !== id));
+        await JBWOSRepository.deleteMemo(id);
+    };
+
+    const memoToInbox = async (id: string) => {
+        setMemos(prev => prev.filter(m => m.id !== id));
+        await JBWOSRepository.moveMemoToInbox(id);
+        refreshGdb(); // Will appear in Inbox
+    };
+
+    // Legacy / Shared Actions (ThrowIn to GDB Inbox)
     const throwIn = async (title: string) => {
         if (!title.trim()) return;
         await JBWOSRepository.addItemToInbox(title);
-        await refresh();
-        // ThrowIn undo is technically "Delete", but we might skip tracking creation for now or add later.
-    };
-
-    const moveToReady = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox'; // Fallback
-
-        const currentReadyItems = await JBWOSRepository.getItemsByStatus('ready');
-        if (currentReadyItems.length >= 2) throw new Error("今日はもう手一杯です（最大2件まで）");
-
-        await JBWOSRepository.updateStatus(id, 'ready');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Ready`
-        });
-        await refresh();
-    };
-
-    const moveToScheduled = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'scheduled');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Scheduled`
-        });
-        await refresh();
-    };
-
-    const moveToExecution = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'execution');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Execution`
-        });
-        await refresh();
-    };
-
-    const moveToWaiting = async (id: string, _reason: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'waiting');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Waiting`
-        });
-        await refresh();
-    };
-
-    const moveToPending = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'pending');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Pending`
-        });
-        await refresh();
-    };
-
-    const updateItemTitle = async (id: string, title: string) => {
-        if (!title.trim()) return;
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalTitle = item?.title || '';
-
-        await JBWOSRepository.updateTitle(id, title);
-        pushHistory({
-            type: 'rename',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateTitle(id, originalTitle),
-            description: `Rename ${id}`
-        });
-        await refresh();
-    };
-
-    const moveToInbox = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'inbox');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Move ${id} to Inbox`
-        });
-        await refresh();
-    };
-
-    const markAsDone = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.updateStatus(id, 'done');
-        pushHistory({
-            type: 'move',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Mark ${id} as Done`
-        });
-        await refresh();
-    };
-
-    const archiveItem = async (id: string) => {
-        const item = [...inboxItems, ...scheduledItems, ...waitingItems, ...readyItems, ...executionItems, ...pendingItems, ...doneItems].find(i => i.id === id);
-        const originalStatus = item?.status || 'inbox';
-
-        await JBWOSRepository.archiveItem(id);
-        pushHistory({
-            type: 'archive',
-            itemId: id,
-            undo: async () => JBWOSRepository.updateStatus(id, originalStatus),
-            description: `Archive ${id}`
-        });
-        await refresh();
-    };
-
-    const triggerInterrupt = async (title: string) => {
-        await JBWOSRepository.addItemToInbox(title);
-        // Find and mark as interrupt
-        const items = await JBWOSRepository.getItemsByStatus('inbox');
-        const newItem = items.find(i => i.title === title);
-        if (newItem) {
-            await JBWOSRepository.markAsInterrupt(newItem.id as string);
-        }
-        await refresh();
+        refreshGdb();
     };
 
     return {
-        inboxItems,
-        scheduledItems,
-        waitingItems,
-        readyItems,
-        executionItems,
-        pendingItems,
-        doneItems,
-        refresh,
+        // State
+        gdbActive,
+        gdbHold,
+        gdbLog,
+        todayCandidates,
+        todayCommits,
+        executionItem,
+        memos,
+        error,
+
+        // Actions
+        refresh: refreshAll,
+        resolveDecision, // The main GDB action
+        commitToToday,   // The main Today action
+        completeItem,    // [FIX] Exported
+
+        // Memo Actions
+        addSideMemo,
+        deleteSideMemo,
+        memoToInbox,
+
+        // Helpers
         throwIn,
-        moveToInbox,
-        moveToWaiting,
-        moveToReady,
-        moveToScheduled,
-        moveToExecution,
-        moveToPending,
-        markAsDone,
-        updateItemTitle,
-        triggerInterrupt,
-        archiveItem, // Renamed from deleteItem
-        undo, // [NEW]
-        canUndo: history.length > 0, // [NEW]
-        isReadyFull: readyItems.length >= 2
+        clearError: () => setError(null)
     };
 };

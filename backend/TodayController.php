@@ -49,6 +49,7 @@ class TodayController {
      * Commit a candidate to Today (Max 2 Check).
      */
     public function commit($id) {
+        // ... existing commit logic ...
         // 1. Check current commits count
         $stmt = $this->pdo->query("SELECT COUNT(*) FROM items WHERE status = 'today_commit'");
         $count = $stmt->fetchColumn();
@@ -71,6 +72,26 @@ class TodayController {
             $this->pdo->commit();
             return ['success' => true, 'id' => $id, 'new_status' => 'today_commit'];
 
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Complete an item (Done).
+     */
+    public function complete($id) {
+        $this->pdo->beginTransaction();
+        try {
+            $this->eventService->logIn('TodayCompleted', ['item_id' => $id]);
+
+            $stmt = $this->pdo->prepare("UPDATE items SET status = 'done', status_updated_at = ?, updated_at = ? WHERE id = ?");
+            $now = time();
+            $stmt->execute([$now, $now, $id]);
+
+            $this->pdo->commit();
+            return ['success' => true, 'id' => $id, 'new_status' => 'done'];
         } catch (Exception $e) {
             $this->pdo->rollBack();
             throw $e;

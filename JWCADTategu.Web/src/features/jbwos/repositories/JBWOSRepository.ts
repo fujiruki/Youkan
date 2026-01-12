@@ -1,5 +1,5 @@
 import { db, Door, Project } from '../../../db/db';
-import { JudgableItem, JudgmentStatus, Item } from '../../../jbwos-core/types';
+import { JudgableItem, JudgmentStatus, Item } from '../types';
 import { ApiClient } from '../../../api/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -55,7 +55,7 @@ export const JBWOSRepository = {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
                 await db.doors.update(doorId, {
-                    judgmentStatus: status,
+                    judgmentStatus: status as any,
                     updatedAt: new Date()
                 });
                 return;
@@ -107,12 +107,6 @@ export const JBWOSRepository = {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
                 await db.doors.update(doorId, {
-                    judgmentStatus: 'archive', // Logical delete for doors too? Or undefined? Let's use archive for consistency if DB supports it.
-                    // If 'archive' is not in JudgmentStatus type, we might need to cast or update type.
-                    // For now, assuming JudgmentStatus is string-like or compatible. 
-                    // Actually, JudgmentStatus might be strict union. Let's check type definition if error occurs.
-                    // Reverting to 'undefined' for doors as per previous delete logic might be safer IF 'archive' requires schema change.
-                    // BUT plan says "Logical Delete". Let's try 'archive'.
                     judgmentStatus: 'archive' as any,
                     updatedAt: new Date()
                 });
@@ -121,7 +115,38 @@ export const JBWOSRepository = {
         }
         // API Logical Delete (Update status)
         await ApiClient.updateItem(id, { status: 'archive' });
-    }
+    },
+
+    // --- Phase 2: Backend Intelligence Methods ---
+
+    // GDB Shelf View
+    getGdbShelf: async () => {
+        return ApiClient.getGdbShelf();
+    },
+
+    // Today View
+    getTodayView: async () => {
+        return ApiClient.getTodayView();
+    },
+
+    // Decision Logic
+    resolveDecision: async (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => {
+        return ApiClient.resolveDecision(id, decision, note);
+    },
+
+    // Today Logic
+    commitToToday: async (id: string) => {
+        return ApiClient.commitToToday(id);
+    },
+    completeItem: async (id: string) => {
+        return ApiClient.completeItem(id);
+    },
+
+    // Side Memo Logic
+    getMemos: async () => ApiClient.getMemos(),
+    createMemo: async (content: string) => ApiClient.createMemo(content),
+    deleteMemo: async (id: string) => ApiClient.deleteMemo(id),
+    moveMemoToInbox: async (id: string) => ApiClient.moveMemoToInbox(id),
 };
 
 // Helper function (Simulated private)

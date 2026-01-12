@@ -5,7 +5,7 @@ import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
 import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate, LayoutList, KanbanSquare } from 'lucide-react'; // [NEW] Icons
 import { ScheduleBoard } from './ScheduleBoard';
-import { FieldNoteList } from './FieldNoteList'; // [NEW]
+// import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
 export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -13,8 +13,8 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; on
     const [activeTab, setActiveTab] = useState<'projects' | 'schedule'>('projects');
 
     // Project Detail View State
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [activeProjectTab, setActiveProjectTab] = useState<'doors' | 'notes'>('doors'); // [NEW]
+    // const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    // const [activeProjectTab, setActiveProjectTab] = useState<'doors' | 'notes'>('doors'); // [NEW]
 
     // Override onOpenProject to just set local state for Detail View if strict separation isn't needed
     // However, the prop onOpenProject suggests the parent handles navigation?

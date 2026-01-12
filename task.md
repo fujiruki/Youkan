@@ -1,25 +1,25 @@
 # タスク管理 (JBWOS Refinement)
 
-- [/] **Phase 1: Backend Intelligence (脳の構築)** <!-- id: 101 -->
-    - [ ] **DBスキーマ定義 (SQLite)** <!-- id: 103 -->
-        - [ ] `events` テーブル作成 <!-- id: 1031 -->
-        - [ ] `daily_logs` テーブル作成 <!-- id: 1032 -->
-        - [ ] `side_memos` テーブル作成 <!-- id: 1033 -->
-        - [ ] ItemsテーブルへのRDDカラム追加 <!-- id: 1034 -->
-    - [ ] **API実装 (PHP)** <!-- id: 104 -->
-        - [ ] `POST /api/decision/{id}/resolve` (イベント記録・RDD更新) <!-- id: 1041 -->
-        - [ ] `POST /api/today/commit` (Today候補確定・最大2件チェック) <!-- id: 105 -->
-        - [ ] `GET /api/today` (計算済みTodayビュー取得) <!-- id: 106 -->
+- [x] **Phase 1: Backend Intelligence (脳の構築)** <!-- id: 101 -->
+    - [x] **DBスキーマ定義 (SQLite)** <!-- id: 103 -->
+        - [x] `events` テーブル作成 <!-- id: 1031 -->
+        - [x] `daily_logs` テーブル作成 <!-- id: 1032 -->
+        - [x] `side_memos` テーブル作成 <!-- id: 1033 -->
+        - [x] ItemsテーブルへのRDDカラム追加 <!-- id: 1034 -->
+    - [x] **API実装 (PHP)** <!-- id: 104 -->
+        - [x] `POST /api/decision/{id}/resolve` (イベント記録・RDD更新) <!-- id: 1041 -->
+        - [x] `POST /api/today/commit` (Today候補確定・最大2件チェック) <!-- id: 105 -->
+        - [x] `GET /api/today` (計算済みTodayビュー取得) <!-- id: 106 -->
         - [x] `GET /api/gdb` (GDB用アイテム取得・純化) <!-- id: 1061 -->
-        - [ ] **横メモAPI** (`GET`, `POST`, `DELETE`, `MoveToInbox`) <!-- id: 113 -->
+        - [x] **横メモAPI** (`GET`, `POST`, `DELETE`, `MoveToInbox`) <!-- id: 113 -->
 
-- [ ] **Phase 2: Frontend Dumb-ification (ビューア化)** <!-- id: 107 -->
-    - [ ] **Repository更新**: 新APIへの移行・直接DB更新の廃止 <!-- id: 108 -->
-    - [ ] **Store/ViewModel更新**: クライアント側ロジックの削除 <!-- id: 109 -->
-    - [ ] **横メモUI実装**: 控えめなパネル・ソートなし <!-- id: 114 -->
-    - [ ] **新UI仕様適用 (v3.1)**: <!-- id: 118 -->
-        - [ ] Today: 確認ボタン・開始ボタン削除・3ゾーン厳格化 <!-- id: 1181 -->
-        - [ ] GDB: 棚レイアウト・縦積み・詳細ビュー分離・納期隠蔽 <!-- id: 1182 -->
+- [x] **Phase 2: Frontend Dumb-ification (ビューア化)** <!-- id: 107 -->
+    - [x] **Repository更新**: 新APIへの移行・直接DB更新の廃止 <!-- id: 108 -->
+    - [x] **Store/ViewModel更新**: クライアント側ロジックの削除 <!-- id: 109 -->
+    - [x] **横メモUI実装**: 控えめなパネル・ソートなし <!-- id: 114 -->
+    - [x] **新UI仕様適用 (v3.1)**: <!-- id: 118 -->
+        - [x] Today: 確認ボタン・開始ボタン削除・3ゾーン厳格化 <!-- id: 1181 -->
+        - [x] GDB: 棚レイアウト・縦積み・詳細ビュー分離・納期隠蔽 <!-- id: 1182 -->
 
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
     - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->

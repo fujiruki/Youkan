@@ -1,6 +1,8 @@
-export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending';
+export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending' | 'archive' | 'today_commit' | 'confirmed' | 'decision_required' | 'decision_hold' | 'decision_rejected' | 'execution_in_progress' | 'execution_paused';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
+
+export type JudgableItem = Item; // Alias for compatibility
 
 export interface Item {
     id: string;              // UUID
@@ -34,6 +36,10 @@ export interface Item {
     // Virtual Props (Computed)
     rdd?: number;            // Recommended Decision Date
     isOverdue?: boolean;
+
+    // Legacy / Door Props
+    category?: string;
+    thumbnail?: string; // Base64 or URL
 }
 
 // Decision Table Schema Interface (Clean Architecture)
@@ -46,4 +52,10 @@ export interface Decision {
     resolvedAt?: Date;
     note?: string;      // Exception reason etc.
     createdAt: Date;
+}
+// Side Memo Schema
+export interface SideMemo {
+    id: string;
+    content: string;
+    createdAt: number;
 }

@@ -1,6 +1,6 @@
 import { Door } from '../db/db';
-import { DoorGeometryGenerator, GeometryResult, GeometryPart } from '../logic/GeometryGenerator';
-import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG, selectLayerGroupForDoor, FRAME_LAYER_GROUP } from '../domain/DxfConfig';
+import { DoorGeometryGenerator, GeometryResult } from '../logic/GeometryGenerator';
+import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG, selectLayerGroupForDoor } from '../domain/DxfConfig';
 import { DxfExportOptions, DEFAULT_DXF_EXPORT_OPTIONS } from '../domain/DxfExportOptions';
 import { debugDxf } from '../config/debug';
 import { BUILD_TIME_DISPLAY } from '../config/debug';
@@ -11,12 +11,12 @@ import { BUILD_TIME_DISPLAY } from '../config/debug';
  */
 export class DxfGenerator {
     private lines: string[] = [];
-    private layerConfig: DxfLayerConfig;
-    private colorConfig: DxfColorConfig;
+    // private layerConfig: DxfLayerConfig; // Unused
+    // private colorConfig: DxfColorConfig; // Unused
 
-    constructor(layerConfig?: DxfLayerConfig, colorConfig?: DxfColorConfig) {
-        this.layerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;
-        this.colorConfig = colorConfig || DEFAULT_DXF_COLOR_CONFIG;
+    constructor(_layerConfig?: DxfLayerConfig, _colorConfig?: DxfColorConfig) {
+        // this.layerConfig = layerConfig || DEFAULT_DXF_LAYER_CONFIG;
+        // this.colorConfig = colorConfig || DEFAULT_DXF_COLOR_CONFIG;
         this.header();
     }
 

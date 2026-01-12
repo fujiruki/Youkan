@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Door, db } from '../../db/db';
-import { Inbox, Hand, Flame, Snowflake, Box, AlertCircle, CheckCircle2, Plus, ChevronDown, Package, ShoppingBag, Hexagon, Wrench } from 'lucide-react';
+import { Inbox, Hand, Flame, Snowflake, Box, CheckCircle2, Plus, ChevronDown, Package } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GenericItemModal } from './GenericItemModal';
 
@@ -76,7 +76,7 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
 
     // --- Creation Logic (Duplicated from JoineryScheduleScreen for MVP) ---
     const handleCreateDoor = async () => {
-        const id = await db.doors.add({
+        await db.doors.add({
             projectId: projectId,
             name: '新規建具',
             count: 1,

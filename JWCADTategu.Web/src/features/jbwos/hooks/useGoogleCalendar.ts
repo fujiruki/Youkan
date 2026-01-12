@@ -39,18 +39,8 @@ export const useGoogleCalendar = () => {
             params.append('dates', `${formatDate(start)}/${formatDate(end)}`);
         } else {
             // Phase 1: Judgment Hook (All Day / Reminder-like)
-            // If no dates provided, GCal defaults to today/current time.
-            // For All Day, we typically pass YYYYMMDD/YYYYMMDD+1
-            const today = new Date();
-            const yyyymmdd = today.toISOString().split('T')[0].replace(/-/g, '');
-            // For a single day event, start and end date can be same YYYYMMDD or start/start+1
-            // Let's rely on user adjusting it, or default to current day all day.
-            // Actually, omitting dates makes it default to current 1 hour slot in some views, 
-            // but explicitly passing dates is safer. Let's stick to simple "action=TEMPLATE" for now
-            // to let user decide, or create specific logic if requested.
-            // 
-            // For Phase 1 (Inbox), we want prompt.
-            // Let's just set title/details for now as requested "Simple Link".
+            // If no dates are provided, Google Calendar defaults to the current date/time.
+            // This allows the user to manually set the date and time.
         }
 
         return `${baseUrl}?${params.toString()}`;
@@ -59,7 +49,7 @@ export const useGoogleCalendar = () => {
     const openCalendarForInbox = useCallback((item: Item) => {
         const url = generateCalendarUrl({
             title: `[判断再開] ${item.title}`,
-            description: `JBWOS Item ID: ${item.id}\n${item.description || ''}`,
+            description: `JBWOS Item ID: ${item.id}\n${item.memo || ''}`,
             // No time specified -> User picks time/date
         });
         window.open(url, '_blank');
@@ -70,7 +60,7 @@ export const useGoogleCalendar = () => {
         // Default to 1 hour block starting now
         const url = generateCalendarUrl({
             title: `[作業] ${item.title}`,
-            description: `JBWOS Item ID: ${item.id}\n${item.description || ''}`,
+            description: `JBWOS Item ID: ${item.id}\n${item.memo || ''}`,
             startTime: now,
             durationHours: 1
         });

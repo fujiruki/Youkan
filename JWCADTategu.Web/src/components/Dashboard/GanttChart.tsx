@@ -9,7 +9,7 @@ interface GanttChartProps {
 
 export const GanttChart: React.FC<GanttChartProps> = ({ items, onItemClick }) => {
     // 1. Calculate Timeline Range
-    const { startDate, endDate, totalDays, dates } = useMemo(() => {
+    const { startDate, totalDays, dates } = useMemo(() => {
         if (items.length === 0) {
             const today = new Date();
             return { startDate: today, endDate: today, totalDays: 1, dates: [today] };
@@ -57,24 +57,6 @@ export const GanttChart: React.FC<GanttChartProps> = ({ items, onItemClick }) =>
         return groups;
     }, [items]);
 
-    // Helper: Position calculation
-    const getBarStyles = (item: ScheduleItem) => {
-        if (!item.startDate || !item.dueDate) return null;
-
-        const startDiff = item.startDate.getTime() - startDate.getTime();
-        const duration = item.dueDate.getTime() - item.startDate.getTime();
-
-        // Convert to days
-        const startDayIndex = Math.floor(startDiff / (24 * 60 * 60 * 1000));
-        let spanDays = Math.ceil(duration / (24 * 60 * 60 * 1000));
-        if (spanDays < 1) spanDays = 1; // Minimum width
-
-        // Handle out of bounds (though range covers all)
-        return {
-            gridColumnStart: startDayIndex + 2, // +1 for name col, +1 for 1-based index
-            gridColumnEnd: `span ${spanDays}`,
-        };
-    };
 
     const getStatusColor = (status?: string) => {
         switch (status) {
@@ -127,7 +109,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ items, onItemClick }) =>
 
                             {/* Item Rows */}
                             {projectItems.map(item => {
-                                const barStyle = getBarStyles(item);
+                                // const barStyle = getBarStyles(item);
                                 return (
                                     <div key={item.id} className="flex hover:bg-slate-800/30 transition-colors border-b border-slate-800/50 group h-10 items-center">
                                         {/* Name Column */}
@@ -144,7 +126,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ items, onItemClick }) =>
                                             <div
                                                 className="absolute inset-0 flex pointer-events-none"
                                             >
-                                                {dates.map((d, i) => (
+                                                {dates.map((_, i) => (
                                                     <div key={i} className="border-r border-slate-800/30 grow shrink-0 h-full" style={{ width: colWidth }} />
                                                 ))}
                                             </div>

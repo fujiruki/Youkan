@@ -2,11 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import { DoorDimensions } from '../../domain/DoorDimensions';
 import { DoorGeometryGenerator } from '../../logic/GeometryGenerator';
 
-import { InteractionOverlay } from './InteractionOverlay';
-import { PresetBar } from './PresetBar';
 import { MiniEditor } from './MiniEditor';
 import { GeometryPart } from '../../logic/GeometryGenerator';
-import { MaterialTexture } from '../../domain/DoorSpecs';
+import { InteractionOverlay } from './InteractionOverlay';
+import { PresetBar } from './PresetBar';
 
 // Helper: Adjust color brightness (hex)
 function adjustColor(hex: string, percent: number): string {

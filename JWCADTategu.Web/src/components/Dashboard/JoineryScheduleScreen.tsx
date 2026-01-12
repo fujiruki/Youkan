@@ -3,7 +3,7 @@ import { Door, db } from '../../db/db';
 import { Project } from '../../db/db';
 import { calculateCost } from '../../domain/EstimationService';
 import { generateDoorDxf } from '../../utils/DxfGenerator';
-import { exportProjectToJson } from '../../utils/ProjectExport';
+// import { exportProjectToJson } from '../../utils/ProjectExport';
 import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package, ShoppingBag, Box, Hexagon, Wrench, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
@@ -64,7 +64,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     const [showCost, setShowCost] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [includeHumanScale, setIncludeHumanScale] = useState(true);
+    // const [includeHumanScale, setIncludeHumanScale] = useState(true);
     const [useA3Layout, setUseA3Layout] = useState(true);
 
     const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
@@ -221,15 +221,12 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         for (const door of doorsToExport) {
             // Pass array as expected by generateDoorDxf
             // [FIX] Use project.dxfLayerConfig instead of project.settings
-            const dxf = generateDoorDxf([door], project.dxfLayerConfig);
+            generateDoorDxf([door], project.dxfLayerConfig);
             // ... trigger download logic stub ...
         }
         alert('DXFの一括出力ロジックは実装中です。個別の建具画面から出力してください。');
     };
 
-    const handleExportJson = () => {
-        exportProjectToJson(project, doors);
-    };
 
     // Computations
     const filteredDoors = doors.filter(d =>
@@ -345,7 +342,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                                 onClick={() => handleSwitchViewMode('internal')}
                                 className={clsx(
                                     "px-3 py-1.5 rounded text-sm font-bold transition-all flex items-center gap-2",
-                                    viewMode === 'internal'
+                                    (viewMode as string) === 'internal'
                                         ? "bg-emerald-600 text-white shadow"
                                         : "text-slate-400 hover:text-white"
                                 )}

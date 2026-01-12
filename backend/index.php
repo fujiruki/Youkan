@@ -117,6 +117,30 @@ if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $pathOnly, $matches) &&
     exit;
 }
 
+// Life & Execution Routes (Phase 3)
+require_once 'LifeController.php';
+
+if (preg_match('#^(/api)?/life/([^/]+)/check$#', $pathOnly, $matches) && $method === 'POST') {
+    $controller = new LifeController($db);
+    echo json_encode($controller->checkLife($matches[2]));
+    exit;
+}
+if (preg_match('#^(/api)?/execution/([^/]+)/start$#', $pathOnly, $matches) && $method === 'POST') {
+    $controller = new LifeController($db);
+    echo json_encode($controller->startExecution($matches[2]));
+    exit;
+}
+if (preg_match('#^(/api)?/execution/([^/]+)/pause$#', $pathOnly, $matches) && $method === 'POST') {
+    $controller = new LifeController($db);
+    echo json_encode($controller->pauseExecution($matches[2]));
+    exit;
+}
+if (preg_match('#^(/api)?/history$#', $pathOnly) && $method === 'GET') {
+    $controller = new LifeController($db);
+    echo json_encode($controller->getHistory());
+    exit;
+}
+
 // Item Routes (Legacy & General CRUD)
 try {
     if (preg_match('#^(/api)?/items$#', $pathOnly)) {

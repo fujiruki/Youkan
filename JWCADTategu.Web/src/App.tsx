@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 // import { DashboardScreen } from './components/Dashboard/DashboardScreen'; // Deprecated
-import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
+// import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
 import { ProjectListScreen } from './components/Dashboard/ProjectListScreen';
 import { JoineryScheduleScreen } from './components/Dashboard/JoineryScheduleScreen';
 import { EditorScreen } from './components/Editor/EditorScreen';
@@ -10,8 +10,9 @@ import { CatalogScreen } from './components/Catalog/CatalogScreen';
 
 import { JbwosBoard } from './features/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
 import { TodayScreen } from './features/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
+import { HistoryScreen } from './features/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today';
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -72,10 +73,6 @@ function App() {
         setActiveDoor(null);
     };
 
-    const handleOpenCatalog = () => {
-        console.log('[App] Opening Catalog');
-        setCurrentView('catalog');
-    };
 
     // [NEW] Delete Project Handler
     const handleDeleteProject = async (projectId: number) => {
@@ -121,6 +118,7 @@ function App() {
                 <div className="h-4 w-px bg-slate-600 self-center"></div>
                 <button onClick={() => setCurrentView('jbwos')} className={currentView === 'jbwos' ? "text-amber-400 font-bold" : ""}>GDB (Judgment)</button>
                 <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
+                <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? "text-purple-400 font-bold" : ""}>History</button>
             </div>
             <DebugBannerSpacer />
 
@@ -181,6 +179,11 @@ function App() {
                 {/* 6. Today Screen (Execution) */}
                 {currentView === 'today' && (
                     <TodayScreen />
+                )}
+
+                {/* 7. History Screen */}
+                {currentView === 'history' && (
+                    <HistoryScreen onBack={() => setCurrentView('jbwos')} />
                 )}
             </div>
         </div>

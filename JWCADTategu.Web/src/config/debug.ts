@@ -15,14 +15,14 @@ export const BUILD_TIME_DISPLAY = new Date().toLocaleString('ja-JP', {
 });
 
 // デバッグモードフラグ（開発環境では常にON）
-export const DEBUG_MODE = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
+export const DEBUG_MODE = (import.meta as any).env.DEV || (import.meta as any).env.VITE_DEBUG === 'true';
 
 // デバッグ情報
 export const DEBUG_INFO = {
     buildTime: BUILD_TIME_DISPLAY,
     buildTimestamp: BUILD_TIMESTAMP,
-    isDev: import.meta.env.DEV,
-    mode: import.meta.env.MODE,
+    isDev: (import.meta as any).env.DEV,
+    mode: (import.meta as any).env.MODE,
 } as const;
 
 /**

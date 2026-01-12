@@ -1,4 +1,4 @@
-import { JudgableItem } from '../jbwos-core/types';
+import { JudgableItem } from '../features/jbwos/types';
 
 // src/api/client.ts
 
@@ -51,5 +51,49 @@ export class ApiClient {
 
     public static async deleteItem(id: string): Promise<{ success: boolean }> {
         return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
+    }
+
+    // --- Phase 2: Decision API ---
+    public static async resolveDecision(id: string, decision: 'yes' | 'hold' | 'no', note?: string, rdd?: any): Promise<{ success: boolean; new_status: string }> {
+        return this.request('POST', `/decision/${id}/resolve`, { decision, note, rdd });
+    }
+
+    // --- Phase 2: Today API ---
+    public static async getTodayView(): Promise<any> { // Replace 'any' with proper type later
+        return this.request('GET', '/today');
+    }
+
+    public static async commitToToday(id: string): Promise<{ success: boolean }> {
+        return this.request('POST', '/today/commit', { id });
+    }
+
+    public static async completeItem(id: string): Promise<{ success: boolean }> {
+        return this.request('POST', '/today/complete', { id });
+    }
+
+    public static async completeItem(id: string): Promise<{ success: boolean }> {
+        return this.request('POST', '/today/complete', { id });
+    }
+
+    // --- Phase 2: GDB API ---
+    public static async getGdbShelf(): Promise<any> { // Replace 'any' with proper type
+        return this.request('GET', '/gdb');
+    }
+
+    // --- Phase 2: Side Memo API ---
+    public static async getMemos(): Promise<any[]> {
+        return this.request('GET', '/memos');
+    }
+
+    public static async createMemo(content: string): Promise<{ id: string; content: string }> {
+        return this.request('POST', '/memos', { content });
+    }
+
+    public static async deleteMemo(id: string): Promise<{ success: boolean }> {
+        return this.request('DELETE', `/memo/${id}`);
+    }
+
+    public static async moveMemoToInbox(id: string): Promise<{ success: boolean }> {
+        return this.request('POST', `/memo/${id}/move-to-inbox`);
     }
 }

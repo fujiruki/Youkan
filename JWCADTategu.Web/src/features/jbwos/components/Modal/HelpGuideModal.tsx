@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, CheckCircle2, Clock, Inbox, PlayCircle, Loader2, PauseCircle } from 'lucide-react';
-import { t } from '../../../../i18n/labels';
+// import { t } from '../../../../i18n/labels';
 
 interface HelpGuideModalProps {
     isOpen: boolean;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../../../../lib/utils';
+// import { cn } from '../../../../lib/utils';
 import { t } from '../../../../i18n/labels';
 
 interface GentleMessageProps {
