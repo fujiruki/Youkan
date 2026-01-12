@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db, Door, Project, Task } from '../../db/db';
+import { db } from '../../db/db';
 import { KanbanSquare, CheckCircle2, Clock, Hammer, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 

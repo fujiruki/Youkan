@@ -29,13 +29,25 @@ export const LifeChecklist: React.FC = () => {
     }, [storageKey]);
 
     // Save on change
-    const toggleItem = (id: string) => {
+    const toggleItem = async (id: string) => {
         const createNewState = (prev: Record<string, boolean>) => {
             const next = { ...prev, [id]: !prev[id] };
             localStorage.setItem(storageKey, JSON.stringify(next));
             return next;
         };
+
+        // Optimistic update
         setCheckedItems(createNewState);
+
+        // API Call (Fact Persistence)
+        // Only log when checked (completed)
+        if (!checkedItems[id]) {
+            try {
+                await fetch(`/api/life/${id}/check`, { method: 'POST' });
+            } catch (e) {
+                console.error("Failed to log life event", e);
+            }
+        }
     };
 
     return (
