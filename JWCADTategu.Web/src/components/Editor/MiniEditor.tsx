@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { DoorDimensions } from '../../domain/DoorDimensions';
 import { GeometryPart } from '../../logic/GeometryGenerator';
 import { X, Minus, Plus } from 'lucide-react';
@@ -15,8 +15,8 @@ interface MiniEditorProps {
 // Custom hook for long press
 const useLongPress = (callback: () => void, delay: number = 300, interval: number = 100) => {
     const savedCallback = useRef(callback);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         savedCallback.current = callback;
@@ -35,6 +35,7 @@ const useLongPress = (callback: () => void, delay: number = 300, interval: numbe
             }, interval);
         }, delay);
     };
+    // ...
 
     // Cleanup on unmount
     useEffect(() => clear, []);
@@ -92,7 +93,7 @@ const Stepper = ({ label, value, onChange, min = 0, step = 1 }: { label: string,
     );
 };
 
-export const MiniEditor: React.FC<MiniEditorProps> = ({ part, dimensions, onChange, onClose, canvasSize }) => {
+export const MiniEditor: React.FC<MiniEditorProps> = ({ part, dimensions, onChange, onClose }) => {
 
     // Helper to update specific field
     const update = (key: keyof DoorDimensions, val: number) => {
