@@ -37,11 +37,31 @@ $path = preg_replace('#^/api#', '', $uri);
 
 require_once 'db.php';
 require_once 'ItemController.php';
+require_once 'DebugController.php';
 
 $db = getDB();
 
+// 2. Routing
+$method = $_SERVER['REQUEST_METHOD'];
+$path = $_SERVER['REQUEST_URI'];
+$pathParts = explode('?', $path);
+$pathOnly = $pathParts[0];
+
+// Debug Routes
+if (preg_match('#^(/api)?/debug/logs#', $pathOnly)) {
+    $controller = new DebugController($db);
+    if ($method === 'GET') {
+        $controller->getLogs();
+    } else {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+    }
+    exit;
+}
+
+// Item Routes
 try {
-    if ($path === '/items' || $path === '/api/items') {
+    if (preg_match('#^(/api)?/items$#', $pathOnly)) {
         if ($method === 'GET') {
             echo json_encode(ItemController::getAll($db));
         } elseif ($method === 'POST') {

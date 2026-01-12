@@ -110,18 +110,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 case 'waiting': // GDB
                     await vm.moveToWaiting(activeItemId, "Moved via Drag");
                     break;
-                case 'ready': // Today
-                    await vm.moveToReady(activeItemId);
-                    break;
-                case 'execution':
-                    await vm.moveToExecution(activeItemId);
-                    break;
-                case 'pending': // Probably not used much in new flow, but keep
-                    await vm.moveToPending(activeItemId);
-                    break;
-                case 'done': // History
-                    await vm.markAsDone(activeItemId);
-                    break;
+                // Ready, Execution, Done are REMOVED from GDB D&D per "Pure GDB" and "Event Driven" rules.
+                // Items cannot be dragged into Today directly.
+
             }
         } catch (e: any) {
             console.error('[GlobalBoard] Drag End Error:', e);
@@ -367,55 +358,14 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         onContextMenu={handleContextMenu}
                     />
 
-                    {/* 3. GDB (判断ボード) - was Waiting */}
+                    {/* 3. Waiting (連絡待ち) */}
                     <BucketColumn
                         id="waiting"
                         title={t.jbwos.waiting.title}
                         items={vm.waitingItems}
                         description={t.jbwos.waiting.description}
-                        className="flex-1 min-w-0"
+                        className="flex-1 min-w-0" // Flexible
                         emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.waiting.empty}</div>}
-                        onRenameItem={handleRenameItem}
-                        onContextMenu={handleContextMenu}
-                    />
-
-                    {/* 4. Today (今日) - was Ready */}
-                    <BucketColumn
-                        id="ready"
-                        title={t.jbwos.ready.title}
-                        items={vm.readyItems}
-                        description={t.jbwos.ready.description}
-                        className="flex-[1.2] min-w-0 border-x-2 border-amber-100 dark:border-slate-800 px-4 h-full"
-                        onRenameItem={handleRenameItem}
-                        onContextMenu={handleContextMenu}
-                        emptyMessage={
-                            // If no items done yet today, show generic empty. If done items exist, show "Done for day"
-                            vm.doneItems.length > 0 && vm.readyItems.length === 0
-                                ? <GentleMessage variant="done_for_day" />
-                                : <div className="text-slate-300 text-[0.9em] mt-10 text-center whitespace-pre-wrap">{t.jbwos.ready.emptyGeneric}</div>
-                        }
-                    />
-
-                    {/* 5. Execution (実行) - NEW */}
-                    <BucketColumn
-                        id="execution"
-                        title={t.jbwos.execution.title}
-                        items={vm.executionItems}
-                        description={t.jbwos.execution.description}
-                        className="flex-1 min-w-0"
-                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.execution.empty}</div>}
-                        onRenameItem={handleRenameItem}
-                        onContextMenu={handleContextMenu}
-                    />
-
-                    {/* 6. Done (記録) - was Done */}
-                    <BucketColumn
-                        id="done"
-                        title={t.jbwos.done.title}
-                        items={vm.doneItems}
-                        description={t.jbwos.done.description}
-                        className="flex-1 min-w-0 bg-slate-50/50 dark:bg-slate-900/10 grayscale opacity-80"
-                        emptyMessage={<div className="text-slate-300 text-[0.9em] mt-10 text-center">{t.jbwos.done.empty}</div>}
                         onRenameItem={handleRenameItem}
                         onContextMenu={handleContextMenu}
                     />

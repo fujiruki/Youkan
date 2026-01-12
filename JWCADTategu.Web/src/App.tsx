@@ -9,8 +9,9 @@ import { DebugBanner, DebugBannerSpacer } from './components/Debug/DebugBanner';
 import { CatalogScreen } from './components/Catalog/CatalogScreen';
 
 import { JbwosBoard } from './features/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
+import { TodayScreen } from './features/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos';
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -117,7 +118,9 @@ function App() {
             <div className="bg-slate-800 text-white text-xs px-2 py-1 flex gap-4">
                 {/* Temporary Nav for Dev */}
                 <button onClick={handleNavigateToProjects}>Projects</button>
-                <button onClick={() => setCurrentView('jbwos')}>JBWOS (MVP)</button>
+                <div className="h-4 w-px bg-slate-600 self-center"></div>
+                <button onClick={() => setCurrentView('jbwos')} className={currentView === 'jbwos' ? "text-amber-400 font-bold" : ""}>GDB (Judgment)</button>
+                <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
             </div>
             <DebugBannerSpacer />
 
@@ -173,6 +176,11 @@ function App() {
                     <CatalogScreen
                         onBack={handleBackToDashboard}
                     />
+                )}
+
+                {/* 6. Today Screen (Execution) */}
+                {currentView === 'today' && (
+                    <TodayScreen />
                 )}
             </div>
         </div>
