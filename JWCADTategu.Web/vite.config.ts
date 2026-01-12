@@ -11,7 +11,13 @@ export default defineConfig({
     },
     server: {
         port: 5173,
-        open: true
+        open: true,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+            },
+        },
     },
     base: './', // GitHub Pages等でのデプロイを考慮し相対パス化
 })
