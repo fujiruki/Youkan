@@ -172,6 +172,36 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
         refreshDoors();
     };
 
+    // [NEW] Project Actions
+    const handleArchiveProject = async () => {
+        if (confirm('このプロジェクトをアーカイブしますか？\n（プロジェクト一覧で非表示になりますが、検索は可能です - 機能未実装）')) {
+            onUpdateProject({ ...project, isArchived: true });
+            // Ideally navigate back, but let parent handle update
+            alert('アーカイブしました');
+            onBack();
+        }
+    };
+
+    const handleDeleteProjectAction = () => {
+        if (confirm('【危険】プロジェクトを削除しますか？\nこの操作は取り消せません。\n含まれる全ての建具データも削除されます。')) {
+            onDeleteProject(project.id!);
+        }
+    };
+
+    // [NEW] View Mode Persistence
+    useEffect(() => {
+        if (project.viewMode) {
+            setViewMode(project.viewMode);
+        }
+    }, []); // Run once on mount
+
+    const handleSwitchViewMode = (mode: 'internal' | 'external') => {
+        setViewMode(mode);
+        // Persist
+        onUpdateProject({ ...project, viewMode: mode });
+        db.projects.update(project.id!, { viewMode: mode });
+    };
+
     const handleItemClick = (door: Door) => {
         if (door.category === 'door' || !door.category) {
             onOpenDoor(door);
@@ -236,7 +266,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                 <div className="flex-1 overflow-hidden">
                     <DecisionBoard
                         projectId={project.id!}
-                        onSwitchToExternal={() => setViewMode('external')}
+                        onSwitchToExternal={() => handleSwitchViewMode('external')} // [FIX] Use new handler
                     />
                 </div>
             </div>
@@ -310,13 +340,32 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             状況報告
                         </button>
 
-                        <button
-                            onClick={() => setViewMode('internal')}
-                            className="bg-emerald-900/40 text-emerald-400 border border-emerald-500/50 px-3 py-1.5 rounded text-sm font-bold hover:bg-emerald-900/60 transition-colors flex items-center gap-2"
-                        >
-                            <ArrowLeft size={16} />
-                            内部モード
-                        </button>
+                        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
+                            <button
+                                onClick={() => handleSwitchViewMode('internal')}
+                                className={clsx(
+                                    "px-3 py-1.5 rounded text-sm font-bold transition-all flex items-center gap-2",
+                                    viewMode === 'internal'
+                                        ? "bg-emerald-600 text-white shadow"
+                                        : "text-slate-400 hover:text-white"
+                                )}
+                            >
+                                <ArrowLeft size={16} />
+                                内部モード
+                            </button>
+                            <button
+                                onClick={() => handleSwitchViewMode('external')}
+                                className={clsx(
+                                    "px-3 py-1.5 rounded text-sm font-bold transition-all flex items-center gap-2",
+                                    viewMode === 'external'
+                                        ? "bg-indigo-600 text-white shadow"
+                                        : "text-slate-400 hover:text-white"
+                                )}
+                            >
+                                対外説明
+                                <ArrowLeft size={16} className="rotate-180" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -349,12 +398,29 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                         </button>
 
                         {/* Settings Button */}
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="p-2 border border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 rounded-md transition-all"
-                        >
-                            <Settings size={18} />
-                        </button>
+                        <div className="relative group">
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="p-2 border border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 rounded-md transition-all"
+                            >
+                                <Settings size={18} />
+                            </button>
+                            {/* Dropdown for Project Actions */}
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-30 hidden group-hover:block">
+                                <button
+                                    onClick={handleArchiveProject}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-800 text-sm text-slate-300 flex items-center gap-2"
+                                >
+                                    <FileDown size={14} /> アーカイブ
+                                </button>
+                                <button
+                                    onClick={handleDeleteProjectAction}
+                                    className="w-full text-left px-4 py-2 hover:bg-red-900/30 text-sm text-red-400 flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} /> プロジェクト削除
+                                </button>
+                            </div>
+                        </div>
 
                         {/* JWCAD Export */}
                         <button

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // import { DashboardScreen } from './components/Dashboard/DashboardScreen'; // Deprecated
 import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
 import { ProjectListScreen } from './components/Dashboard/ProjectListScreen';
@@ -76,6 +76,40 @@ function App() {
         setCurrentView('catalog');
     };
 
+    // [NEW] Delete Project Handler
+    const handleDeleteProject = async (projectId: number) => {
+        try {
+            await db.projects.delete(projectId);
+            // Also delete related doors? Ideally yes, but Dexie doesn't cascade automatically.
+            // For MVP, leave orphans or clean up manually.
+            // Let's do a simple cleanup.
+            const doors = await db.doors.where('projectId').equals(projectId).toArray();
+            const doorIds = doors.map(d => d.id!);
+            await db.doors.bulkDelete(doorIds);
+
+            console.log(`[App] Project ${projectId} deleted.`);
+            setActiveProject(null);
+            setCurrentView('projectList');
+        } catch (error) {
+            console.error('[App] Failed to delete project:', error);
+            alert('削除に失敗しました。');
+        }
+    };
+
+    // [NEW] Global Shortcuts
+    // Ctrl+J -> Jump to JBWOS (Dashboard)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+                e.preventDefault();
+                console.log('[Shortcut] Ctrl+J: Switching to JBWOS');
+                handleBackToDashboard();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     return (
         <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
 
@@ -118,7 +152,7 @@ function App() {
                         // But historically it meant dashboard. Let's point to ProjectList now.
                         onBack={handleBackToProjectList}
                         onOpenDoor={handleOpenDoor}
-                        onDeleteProject={() => {/* separate handler or pass reload trigger */ }}
+                        onDeleteProject={() => handleDeleteProject(activeProject.id!)} // [FIX] Connect handler
                         onUpdateProject={setActiveProject}
                     />
                 )}

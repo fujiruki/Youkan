@@ -14,6 +14,7 @@ interface BucketColumnProps {
     emptyMessage?: React.ReactNode;
     footer?: React.ReactNode;
     onRenameItem?: (id: string, newTitle: string) => void;
+    inputRef?: React.RefObject<HTMLInputElement>; // [NEW] For shortcut focus
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({

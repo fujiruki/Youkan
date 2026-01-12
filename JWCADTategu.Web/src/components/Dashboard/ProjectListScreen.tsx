@@ -106,9 +106,10 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                             </div>
 
                             <div className="text-sm text-slate-500 space-y-2">
+                                {/* Date hidden by user request */}
                                 <div className="flex items-center gap-2">
                                     <FileText size={14} />
-                                    <span>Updated: {project.updatedAt?.toLocaleDateString()}</span>
+                                    <span>Project</span>
                                 </div>
                             </div>
 

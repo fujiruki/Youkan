@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     DndContext,
     closestCorners,
@@ -91,7 +91,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 alert(t.jbwos.common.alerts.readyLimit);
             } else {
                 console.warn('[GlobalBoard] Move failed:', e); // Only warn for unexpected errors
-                alert(t.jbwos.common.alerts.moveFailed + `: ${e.message}`);
+                alert(t.jbwos.common.alerts.moveFailed + `: ${e.message} `);
             }
         }
     };
@@ -119,6 +119,23 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             await vm.updateItemTitle(item.id, newTitle);
         }
     };
+
+    // --- Actions ---
+
+    // [NEW] Inbox Focus Shortcut
+    const inboxInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+I to focus Inbox
+            if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                e.preventDefault();
+                inboxInputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     // --- Quick Input (Inbox) ---
     const [inputValue, setInputValue] = useState('');
@@ -172,7 +189,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 {/* Main Content - Zoom Applied Here using base font size */}
                 <div
                     className="flex-1 flex gap-4 items-stretch pb-4 overflow-hidden"
-                    style={{ fontSize: `${zoomLevel}px` }}
+                    style={{ fontSize: `${zoomLevel} px` }}
                 >
 
                     {/* 1. Inbox */}
@@ -187,6 +204,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                         footer={
                             <form onSubmit={handleThrowIn} className="mt-2 relative">
                                 <input
+                                    ref={inboxInputRef} // [NEW]
                                     type="text"
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}

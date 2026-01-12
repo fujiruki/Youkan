@@ -11,6 +11,8 @@ export interface Project {
     client?: string;
     settings?: EstimationSettings;
     dxfLayerConfig?: DxfLayerConfig;
+    isArchived?: boolean; // [NEW]
+    viewMode?: 'internal' | 'external'; // [NEW]
     updatedAt: Date;
     createdAt: Date;
 }
@@ -97,6 +99,16 @@ export class TateguDatabase extends Dexie {
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(9).stores({
+            projects: '++id, name, isArchived, updatedAt', // Added isArchived to index
+            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, createdAt'
+        });
 
         this.version(8).stores({
             projects: '++id, name, updatedAt',
