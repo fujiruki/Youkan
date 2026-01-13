@@ -1,94 +1,75 @@
-# システム改良実装計画 (JBWOS Refinement Plan)
+# JBWOS Frozen v2 実装計画
 
-## 概要
-現在のMVP実装を「憲法」および「システム定義書 (v3.1)」に適合させるための改修計画。
-現在は見た目が分離されている（GDB/Today）だけで、論理的にはバックエンドの知能が欠如しており、フロントエンドが過剰に賢い状態である。これを是正する。
+## 目的
+JBWOS Frozen v2 設計を厳格に実装する。
+GDB（Global Decision Board）のレーン構成を `Judgment / Preparation / History` に再構築し、曖昧な計画を扱う「量感カレンダー」を実装する。また、UI用語や「やさしさ」の機能（今は無理・断る）を正しく実装する。
 
-## 現状のギャップと違反
+## ユーザーレビュー事項
+> [!IMPORTANT]
+> **厳格な遵守**: 指示通り、独自の「改善」や「最適化」は行いません。Frozen v2 に明記された機能のみを実装します。
+> **レーン構造の変更**: 現在の GDB の `Hold` レーンは、v2 設計の `Judgment -> Preparation -> History` に合わせ、`Preparation`（備え）レーンへと移行・再構築されます。
 
-### 1. [違反] バックエンドの「判断」ロジック欠如
-- **現状**: バックエンドは単純なCRUD（Itemsテーブルのみ）。
-- **あるべき姿**: バックエンドがRDD計算、Today候補選出、イベント永続化を行う（`API境界設計`準拠）。
-- **リスク**: フロントエンドへのロジック流出により、「判断疲れ」ロジックがUIに混入する。
+## 変更内容
 
-### 2. [欠落] イベント駆動アーキテクチャ
-- **現状**: 直接的な状態変更（UI -> DB更新）。
-- **あるべき姿**: UI -> イベント発火 (`DecisionConfirmed`) -> ハンドラ -> 状態更新。
-- **仕様**: `イベント駆動設計_最終固定.md`
+### 安全宣言 (Safety Declaration)
+> [!IMPORTANT]
+> **NOTE**:
+> No server-side logic shall automatically promote items into Judgment or Today.
+> All RDD, dates, and calendar data are advisory only and must not enforce decisions.
+> (サーバーサイドロジックは、アイテムを自動的にJudgmentやTodayに昇格させてはならない。すべてのRDD、日付、カレンダーデータは助言情報に過ぎず、決定を強制してはならない。)
 
-### 3. [不完全] 実行と生活の永続化
-- **現状**: LifeはLocalStorageで揮発。Executionはステータスフラグのみ。
-- **あるべき姿**: Life/Executionは `history`（または専用ログテーブル）に記録され、「静かな歴史」として残る必要がある。
+### フロントエンド (`JWCADTategu.Web`)
 
----
+#### [MODIFY] [GlobalBoard.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/jbwos/components/GlobalBoard/GlobalBoard.tsx)
+- **レーン再構築**:
+    - `Hold` セクションを `Preparation`（備え）に名称変更およびリファクタリング。
+    - 論理フローを `Judgment (Active)` -> `Preparation (Blurry)` -> `History (Log)` に統一。
+- **UI文言の更新**:
+    - ヘッダー等を v2 設計に完全一致させる（例：「今日の約束にするか」「備え（ぼやけ）」）。
+- **操作**:
+    - コンテキストメニューやアイテムカードに「今は無理」「断る」アクションを追加。
 
-## 段階的実装計画
+#### [NEW] [QuantityCalendar.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/jbwos/components/Calendar/QuantityCalendar.tsx)
+- `量感カレンダー_UI_操作_ワイヤ_v2.md` に基づき「量感カレンダー」を実装。
+- **機能**:
+    - シームレスな縦スクロール。
+    - 納期（確定）と備え完了目安（ぼやけ）の視覚的区別。
+    - 「量感」（密度）の視覚化（モックまたは計算による密度表現）。
+    - 備え完了目安のドラッグ＆ドロップ（ぼやけた日付の再設定）。
 
-### Phase 1: Backend Intelligence (脳の構築)
-**目標**: ロジックをフロントエンドからバックエンドへ移動し、専用APIを提供する。
+#### [MODIFY] [TodayScreen.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/jbwos/components/Today/TodayScreen.tsx)
+- 「昨日の約束」確認（やさしい再開）ロジックが存在するか確認・修正（`例外_やさしい救済_v2.md` に準拠）。
+- Zone 1/2/3 の用語が v2 設計と一致しているか確認。
 
-1.  **DBスキーマ更新 (SQLite)**
-    - `events` テーブル追加 (id, type, payload, created_at)。
-    - Itemsテーブルに `rdd_calculation` カラム/テーブル追加。
-    - `daily_logs` テーブル追加 (History用)。
-    - **[NEW] `side_memos` テーブル追加** (id, content, created_at)。
+### バックエンド (`backend`)
 
-2.  **API実装 (PHP)**
-    - `POST /api/decision/{id}/resolve`: イベントを記録し、RDD更新をトリガー。
-    - `POST /api/today/commit`: Today候補を確定（サーバー側で最大2件チェック）。
-    - `GET /api/today`: Todayの*計算済み*ビューを返す (Commit + Execution + Life)。
-    - `GET /api/gdb`: GDBに必要なアイテム*だけ*を返す。
-    - **[NEW] 横メモ API**:
-        - `POST /api/memo`: 作成。
-        - `GET /api/memos`: リスト取得（作成順、検索・フィルタなし）。
-        - `DELETE /api/memo/{id}`: 即時削除。
-        - `POST /api/memo/{id}/move-to-inbox`: Inboxへの移動。
+#### [MODIFY] [GdbController.php](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/backend/GdbController.php)
+- **取得ロジックの更新**:
+    - `getShelf()` は、`active`（判断対象）とは別に、`preparation`（備え・ぼやけ）アイテムを返却するように変更。
+    - `active` の判定ロジックを修正：「判断が必要かもしれないアイテムを提示する（expose）」に留め、選択を強制しない（not enforce selection）。
+    - ユーザーが自発的に判断プロセスを開始するための材料提供であり、自動的にJudgmentリストへ「送り込む」挙動ではないことを保証する。
 
-### Phase 2: Frontend Dumb-ification (ビューア化 & 楽観的UI)
-**目標**: UIはサーバーを正解としつつ、**楽観的更新 (Optimistic UI)** により体感速度を維持する。
+#### [MODIFY] [ItemController.php](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/backend/ItemController.php)
+- 「ぼやけた日付」（備え完了目安）のサポート追加。
+    - **重要**: `prep_date`（備え目安日）を追加する場合、これは意味的に「弱い」型として扱う。
+        - Nullable とする。
+        - Index は作成しない（検索・ソートの強制力を弱める）。
+        - バックエンドでの Validation（期限切れチェック等）は一切行わない。
+    - `due_date`（納期・確定）とは明確に分離し、ロジック判断（アラート等）には決して使用しない。
 
-1.  **Repository更新**:
-    - ステータス変更のための直接DB更新を停止。
-    - 新しい意思表示API (`resolve`, `commit`) を使用。
-2.  **Store/ViewModel更新**:
-    - クライアント側での「最大2件」チェックを削除（サーバーが拒否すべき）。
-    - ステータスフィルタリングロジックを削除（APIがフィルタ済）。
-3.  **イベントストリーム接続**:
-    - (MVPではポーリング等で対応) 状態更新を反映。
-4.  **[NEW] 横メモUI実装**:
-    - **入口**: ヘッダーまたはToday隅の控えめなボタン。
-    - **表示**: 単純なテキストリスト。日時なし、ソートなし。
-    - **操作**: 「Inboxへ移動」または「削除」。編集なし。
+## 検証計画
 
-#### [NEW] UI仕様の適用 (v3.1準拠)
-- **TodayScreen**:
-    - レイアウト: 縦3ゾーン構成。
-    - Zone 1 (Commit): 最大2件。アクションは**「確認 (OK)」のみ**（承認ではない）。
-    - Zone 2 (Execution): 実行中ブロック。**「開始」ボタンなし**（表示＝実行中）。アクションは「中断」「完了」のみ。
-    - Zone 3 (Life): 独立したchecklist。
-- **GDB (GlobalBoard)**:
-    - レイアウト: **「棚」スタイル**（横カンバンではない）。
-    - セクション: 今ここ(Active)、保留(Hold)、ログ(Log)。
-    - レスポンシブ: PCは多段カラム（棚）、SPは縦一列（集中）。
-    - **判断詳細ビュー**:
-        - 一覧から分離したモーダル/画面。
-        - **納期・RDDはここでのみ表示する**。
-        - アクション: Yes / Hold / No。
+### 自動テスト
+- **E2E戦略**: ブラウザツールを使用し、`E2Eテスト_確定シナリオ_v2.md` のシナリオをウォークスルー実行する。
+    1. **シナリオ1（新規案件）**: 案件追加 -> Inbox/GDB表示確認 -> 備えへ移動 -> 量感カレンダーでの表示確認。
+    2. **シナリオ5（断る）**: 案件作成 -> 「断る」選択 -> Historyへ移動確認（失敗ログなし）。
+    3. **量感カレンダー**: 「確定」と「ぼやけ」の視覚的差異の確認。
+    4. **観るだけ（Safety）**: 量感カレンダーを開き、Todayに何も入れずに閉じる -> 何も起きない（判断を求められない）。
 
-### Phase 3: Execution & Life Refinement (事実の蓄積)
-**目標**: 「生きた事実」を永続化する。
-
-1.  **Life API**:
-    - `POST /api/life/{id}/check`: 生活活動を `daily_logs` に記録。
-2.  **Execution Block Logic**:
-    - `POST /api/execution/{id}/start`: `daily_logs` に開始をマーク。
-    - `POST /api/execution/{id}/pause`: 中断をマーク。
-3.  **History UI**:
-    - `daily_logs` から取得して表示する `HistoryScreen.tsx` の実装。
-
----
-
-## 次のアクション
-**Phase 1: Backend Intelligence** を開始する。
-1.  スキーマ定義 (SQL)。
-2.  `Resolve` および `Today` APIの実装。
+### 手動検証
+- **視覚確認**:
+    - GDBの見た目が `GDB_全体ワイヤ_v2.md` と一致しているか。
+    - 文言が「やさしい」か（「失敗」等の言葉がないか）。
+- **ユーザーフロー**:
+    - アイテムを「備え」に移動した際、ぼやけて表示されるか。
+    - 「今は無理」を選択した際、罪悪感なく判断対象から消えるか。
