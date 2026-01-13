@@ -16,6 +16,9 @@ class TodayController {
      * Get Today's View (Commit + Execution + Life).
      */
     public function getToday() {
+        // [New] Auto-reset "Intent Boost" items from previous days
+        $this->resetExpiredBoosts();
+
         // Zone 1: Commit (Status: today_commit)
         $commits = $this->pdo->query("SELECT * FROM items WHERE status = 'today_commit' ORDER BY sort_order ASC")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -35,7 +38,16 @@ class TodayController {
         // But getToday should probably return structure.
 
         // Candidates for Today (Status: confirmed)
-        $candidates = $this->pdo->query("SELECT * FROM items WHERE status = 'confirmed' ORDER BY rdd_date ASC")->fetchAll(PDO::FETCH_ASSOC);
+        // Candidates for Today (Status: confirmed OR Intent Boosted)
+        // Intent Boosted items appear here regardless of status (unless already committed/active/done)
+        $candidates = $this->pdo->query("
+            SELECT * FROM items 
+            WHERE 
+                (status = 'confirmed') 
+                OR 
+                (is_boosted = 1 AND status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused'))
+            ORDER BY is_boosted DESC, rdd_date ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
 
         return [
             'commits' => $commits,
@@ -43,6 +55,14 @@ class TodayController {
             'others_hidden' => array_slice($executions, 1), // Keep track of hidden ones
             'candidates' => $candidates
         ];
+    }
+
+    private function resetExpiredBoosts() {
+        // Reset boosted status if the boosted date is before today (midnight)
+        // JS sends timestamp in milliseconds, PHP time() is seconds.
+        $todayStartMs = strtotime('today midnight') * 1000;
+        
+        $this->pdo->exec("UPDATE items SET is_boosted = 0, boosted_date = NULL WHERE is_boosted = 1 AND boosted_date < $todayStartMs");
     }
 
     /**

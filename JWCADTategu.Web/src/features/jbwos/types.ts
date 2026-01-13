@@ -1,4 +1,4 @@
-export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending' | 'archive' | 'today_commit' | 'confirmed' | 'decision_required' | 'decision_hold' | 'decision_rejected' | 'execution_in_progress' | 'execution_paused';
+export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending' | 'archive' | 'today_commit' | 'confirmed' | 'decision_required' | 'decision_hold' | 'decision_rejected' | 'execution_in_progress' | 'execution_paused' | 'intent' | 'life';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 
@@ -14,8 +14,9 @@ export interface Item {
 
     // --- Filters & Sorters ---
     dueHook?: DeadlineHook;
-    due_date?: string | null;  // [NEW] "YYYY-MM-DD"
-    due_status?: 'confirmed' | 'waiting_external'; // [NEW]
+    due_date?: string | null;  // "YYYY-MM-DD"
+    due_status?: 'confirmed' | 'waiting_external';
+    prep_date?: number | null; // [NEW] Preparation Target (Blurry Date, Timestamp)
     interrupt: boolean;      // 割り込みフラグ
     weight: 1 | 2 | 3;       // 1:Light, 2:Medium, 3:Heavy
 
@@ -60,6 +61,12 @@ export interface Decision {
     createdAt: Date;
 }
 // Side Memo Schema
+export interface GdbShelf {
+    active: Item[];
+    preparation: Item[];
+    intent: Item[]; // [NEW]
+    log: Item[];
+}
 export interface SideMemo {
     id: string;
     content: string;

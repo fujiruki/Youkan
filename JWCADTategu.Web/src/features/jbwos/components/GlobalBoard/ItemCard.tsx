@@ -77,7 +77,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
             {...attributes}
             {...listeners}
             className={cn(
-                "group relative flex items-start gap-2 px-3 py-2 mb-1 rounded-lg transition-all", // Clean layout
+                "group relative flex items-start gap-2 px-3 py-1 mb-0.5 rounded-lg transition-all", // Clean layout
                 "bg-white/60 dark:bg-slate-800/60 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
                 "border border-transparent hover:border-slate-100 dark:hover:border-slate-700", // Soft interactive border
                 item.interrupt && "bg-amber-50/80 dark:bg-amber-900/20",

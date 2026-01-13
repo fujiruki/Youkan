@@ -10,6 +10,7 @@ class ItemController {
         // SQLite stores booleans as 0/1, convert back if needed
         foreach ($items as &$item) {
             $item['interrupt'] = (bool)$item['interrupt'];
+            $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
         }
         return $items;
     }
@@ -56,6 +57,20 @@ class ItemController {
         if (array_key_exists('due_status', $data)) {
             $fields[] = "due_status = :due_status";
             $params[':due_status'] = $data['due_status'];
+        }
+        if (array_key_exists('is_boosted', $data)) {
+            $fields[] = "is_boosted = :is_boosted";
+            $params[':is_boosted'] = $data['is_boosted'] ? 1 : 0;
+        }
+        if (array_key_exists('boosted_date', $data)) {
+            $fields[] = "boosted_date = :boosted_date";
+            $params[':boosted_date'] = $data['boosted_date'];
+        }
+        // [v2] Preparation Date (Blurry Target)
+        // Advisory only. No validation.
+        if (array_key_exists('prep_date', $data)) {
+            $fields[] = "prep_date = :prep_date";
+            $params[':prep_date'] = $data['prep_date'];
         }
         
         $fields[] = "updated_at = " . time();

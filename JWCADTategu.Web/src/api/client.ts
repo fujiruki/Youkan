@@ -71,9 +71,7 @@ export class ApiClient {
         return this.request('POST', '/today/complete', { id });
     }
 
-    public static async completeItem(id: string): Promise<{ success: boolean }> {
-        return this.request('POST', '/today/complete', { id });
-    }
+
 
     // --- Phase 3: Life & Execution API ---
     public static async checkLife(id: string): Promise<{ success: boolean; id: string }> {

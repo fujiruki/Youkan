@@ -164,6 +164,13 @@ export const JBWOSRepository = {
     createMemo: async (content: string) => ApiClient.createMemo(content),
     deleteMemo: async (id: string) => ApiClient.deleteMemo(id),
     moveMemoToInbox: async (id: string) => ApiClient.moveMemoToInbox(id),
+
+    // Generic Update (For flexibility)
+    updateItem: async (id: string, data: Partial<Item>) => {
+        // Todo: Handle Door ID conversion if needed for local doors.
+        // For now, we assume Today items are server-synced.
+        return ApiClient.updateItem(id, data);
+    },
 };
 
 // Helper function (Simulated private)

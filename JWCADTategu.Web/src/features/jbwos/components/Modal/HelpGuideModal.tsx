@@ -179,6 +179,31 @@ export const HelpGuideModal: React.FC<HelpGuideModalProps> = ({ isOpen, onClose 
 
                             </div>
 
+                            {/* Shortcuts Section */}
+                            <div className="w-full mt-12 mb-8">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                                    <span className="text-2xl">⌨️</span>
+                                    キーボードショートカット
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <ShortcutCard
+                                        keys={["Alt", "D"]}
+                                        action="直前の詳細を開く"
+                                        description="Throw Inした直後に、納期やメモを入力したいときに使います。"
+                                    />
+                                    <ShortcutCard
+                                        keys={["Ctrl", "Enter"]}
+                                        action="今日やる (Commit)"
+                                        description="詳細画面で、そのタスクを「今日やる」と決めて閉じます。"
+                                    />
+                                    <ShortcutCard
+                                        keys={["Esc"]}
+                                        action="閉じる"
+                                        description="入力を保存して、詳細画面を閉じます（判断は保留）。"
+                                    />
+                                </div>
+                            </div>
+
                             {/* Bottom Message */}
                             <div className="text-center pt-8 pb-4">
                                 <p className="text-slate-500 dark:text-slate-400 text-sm">
@@ -204,6 +229,28 @@ export const HelpGuideModal: React.FC<HelpGuideModalProps> = ({ isOpen, onClose 
         </AnimatePresence>
     );
 };
+
+const ShortcutCard: React.FC<{
+    keys: string[];
+    action: string;
+    description: string;
+}> = ({ keys, action, description }) => (
+    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+                {keys.map((k, i) => (
+                    <kbd key={i} className="px-2 py-1 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-xs font-bold font-mono text-slate-700 dark:text-slate-200 shadow-sm">
+                        {k}
+                    </kbd>
+                ))}
+            </div>
+            <span className="font-bold text-sm text-slate-800 dark:text-slate-100">{action}</span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+            {description}
+        </p>
+    </div>
+);
 
 // Helper Component for Cards
 const GuideCard: React.FC<{

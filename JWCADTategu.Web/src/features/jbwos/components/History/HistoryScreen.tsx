@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock, Activity, Coffee, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Clock, Activity, PlayCircle } from 'lucide-react';
 import { ApiClient } from '../../../../api/client';
 
 // Define Log Interface corresponding to backend
@@ -33,12 +33,6 @@ export const HistoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     const formatTime = (ts: number) => {
         return new Date(ts * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const getIcon = (category: string, content: string) => {
-        if (category === 'execution') return <PlayCircle size={16} className="text-emerald-500" />;
-        if (content.includes('routine')) return <Activity size={16} className="text-blue-400" />;
-        return <Coffee size={16} className="text-amber-500" />;
     };
 
     return (

@@ -45,19 +45,19 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     return (
         <div className={cn("flex flex-col h-full text-[1em]", className)}>
             {/* Header */}
-            <div className="flex items-baseline justify-between mb-2 px-1 shrink-0">
+            <div className="flex items-baseline justify-between mb-1 px-1 shrink-0">
                 <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-slate-800 dark:text-slate-100 text-[1.25em]">{title}</h2>
+                    <h2 className="font-bold text-slate-800 dark:text-slate-100 text-[1.1em]">{title}</h2>
                     {/* Count Badge REMOVED per spec to reduce pressure */}
                 </div>
                 {description && (
-                    <span className="text-slate-500 dark:text-slate-400 text-[0.75em]">{description}</span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[0.7em]">{description}</span>
                 )}
             </div>
 
             {/* Fixed Action Area (e.g. Throw In input) */}
             {footer && (
-                <div className="mb-3 shrink-0">
+                <div className="mb-2 shrink-0">
                     {footer}
                 </div>
             )}
@@ -66,7 +66,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
             <div
                 ref={setNodeRef}
                 className={cn(
-                    "flex-1 rounded-xl p-2 transition-colors min-h-[100px]",
+                    "flex-1 rounded-xl p-1 transition-colors min-h-[100px]",
                     // "overflow-y-auto" REMOVED per spec. Let it grow.
                     "bg-slate-50/50 dark:bg-slate-900/20 box-border",
                     "border-2 border-transparent",

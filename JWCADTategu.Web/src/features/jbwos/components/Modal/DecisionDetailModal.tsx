@@ -177,6 +177,42 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 </div>
                             </div>
 
+
+                            {/* [Preparation] Prep Date Section */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                    【目安】備え完了目安 <span className="text-[10px] text-slate-300 ml-2">(Blurry)</span>
+                                </label>
+                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex-1">
+                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                                            備え完了目安
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                // Convert to timestamp (seconds)
+                                                const dateObj = new Date(val);
+                                                const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
+
+                                                if (onUpdate) {
+                                                    await onUpdate(item.id, { prep_date: timestamp });
+                                                } else {
+                                                    await ApiClient.updateItem(item.id, { prep_date: timestamp });
+                                                }
+                                            }}
+                                            className="bg-transparent text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:border-b border-indigo-500 w-full"
+                                        />
+                                    </div>
+                                    <div className="text-xs text-slate-400 text-right">
+                                        <p>約束ではありません</p>
+                                        <p>緩やかな目標です</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* [Intent Boost] Today Only Forward */}
                             <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-lg border border-amber-100 dark:border-amber-800/20 flex items-center justify-between">
                                 <div>
@@ -232,6 +268,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 <textarea
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
+                                    onBlur={async () => {
+                                        if (onUpdate) {
+                                            await onUpdate(item.id, { memo: note });
+                                        } else {
+                                            await ApiClient.updateItem(item.id, { memo: note });
+                                        }
+                                    }}
                                     placeholder="条件、理由、その他のメモ..."
                                     className="w-full text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 min-h-[80px] focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
                                 />
@@ -241,16 +284,51 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         {/* Actions Footer */}
                         <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
 
-                            {/* NO / DELETE */}
-                            <button
-                                onClick={() => {
-                                    if (confirm('本当に削除しますか？')) onDelete(item.id);
-                                }}
-                                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
-                            >
-                                <Trash2 size={20} className="text-slate-400 group-hover:text-red-500 mb-1" />
-                                <span className="text-xs font-bold text-slate-500 group-hover:text-red-600">削除 (No)</span>
-                            </button>
+                            {/* NOT NOW (Menu) */}
+                            <div className="relative group/notnow">
+                                <button
+                                    className="w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                >
+                                    <Trash2 size={20} className="mb-1" />
+                                    <span className="text-xs font-bold">今回見送り...</span>
+                                </button>
+
+                                {/* Popup Menu */}
+                                <div className="absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 hidden group-hover/notnow:block z-50">
+                                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1">行き先を選択</div>
+                                    <button
+                                        onClick={() => onDecision(item.id, 'no', 'intent')}
+                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                        Intent (やれたらいい)
+                                    </button>
+                                    <button
+                                        onClick={() => onDecision(item.id, 'no', 'life')}
+                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex items-center gap-2"
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-green-400" />
+                                        Life (習慣・生活)
+                                    </button>
+                                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+                                    <button
+                                        onClick={() => onDecision(item.id, 'no', 'history')}
+                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded flex items-center gap-2"
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-slate-400" />
+                                        History (却下・ログ)
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (confirm('この操作は取り消せません。完全に削除しますか？')) onDelete(item.id);
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded flex items-center gap-2"
+                                    >
+                                        <Trash2 size={12} />
+                                        完全削除
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* HOLD */}
                             <button
@@ -283,8 +361,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                         </div>
                     </motion.div>
-                </div>
+                </div >
             )}
-        </AnimatePresence>
+        </AnimatePresence >
     );
 };
