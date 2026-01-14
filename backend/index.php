@@ -63,6 +63,12 @@ if (preg_match('#^(/api)?/debug/logs#', $pathOnly)) {
     exit;
 }
 
+// Health Check Route
+if (preg_match('#^(/api)?/health$#', $pathOnly)) {
+    require_once 'health.php';
+    exit;
+}
+
 // GDB Routes
 if (preg_match('#^(/api)?/gdb$#', $pathOnly)) {
     $controller = new GdbController($db);
