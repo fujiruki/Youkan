@@ -249,7 +249,7 @@ const AppContent: React.FC<{
 
                             {/* 6. Today Screen (Execution) */}
                             {currentView === 'today' && (
-                                <TodayScreen />
+                                <TodayScreen onBack={() => setCurrentView('jbwos')} />
                             )}
 
                             {/* 7. History Screen */}

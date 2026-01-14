@@ -12,6 +12,36 @@ function getDB() {
         if ($isNew) {
             initDB($pdo);
         }
+
+        // --- Auto-Migration Logic (Schema Evolution) ---
+        // Ensure all required columns exist even regarding existing tables.
+        
+        // 1. Check 'items' table columns
+        $columns = [];
+        $stmt = $pdo->query("PRAGMA table_info(items)");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $columns[] = $row['name'];
+        }
+
+        // Define required columns and types (for evolution)
+        $requiredColumns = [
+            'is_boosted' => 'INTEGER DEFAULT 0',
+            'boosted_date' => 'INTEGER DEFAULT NULL',
+            'rdd_date' => 'TEXT DEFAULT NULL', // For Decision RDD
+            'work_days' => 'REAL DEFAULT 1.0',
+            'due_date' => 'TEXT', 
+            'prep_date' => 'TEXT' // Ensure this exists too if used
+        ];
+
+        foreach ($requiredColumns as $col => $def) {
+            if (!in_array($col, $columns)) {
+                try {
+                    $pdo->exec("ALTER TABLE items ADD COLUMN $col $def");
+                } catch (Exception $e) {
+                    error_log("Migration Warning: Failed to add column $col: " . $e->getMessage());
+                }
+            }
+        }
         
         return $pdo;
     } catch (PDOException $e) {
@@ -32,7 +62,11 @@ function initDB($pdo) {
             status_updated_at INTEGER,
             created_at INTEGER,
             updated_at INTEGER,
-            sort_order INTEGER DEFAULT 0
+            sort_order INTEGER DEFAULT 0,
+            is_boosted INTEGER DEFAULT 0,
+            boosted_date INTEGER DEFAULT NULL,
+            rdd_date TEXT DEFAULT NULL,
+            work_days REAL DEFAULT 1.0
         )",
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

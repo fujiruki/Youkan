@@ -2,13 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { ApiClient } from '../../../../api/client';
 import { cn } from '../../../../lib/utils';
-import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
 import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal'; // [NEW]
 import { Item } from '../../types';
 
-export const TodayScreen: React.FC = () => {
+// import { useNavigate } from 'react-router-dom'; // Removed
+
+interface Props {
+    onBack: () => void;
+}
+
+export const TodayScreen: React.FC<Props> = ({ onBack }) => {
+    // const navigate = useNavigate(); // Removed
     // [NEW] Selected Candidate for Detail Modal
     const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
     const {
@@ -132,6 +139,15 @@ export const TodayScreen: React.FC = () => {
 
             {/* Header */}
             <div className="w-full max-w-2xl px-6 py-8">
+                {/* [NEW] Navigation Back */}
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 mb-4 text-sm font-bold transition-colors"
+                >
+                    <ArrowLeft size={18} />
+                    GDB (Inbox) へ戻る
+                </button>
+
                 <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
                     <span>Today (今日)</span>
                     {todayCommits.length >= 2 && <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">満杯 (2件)</span>}

@@ -1,0 +1,22 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /contents/TateguDesignStudio/
+    
+    # Allow access to existent files/directories
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Route everything else to index.php
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+</IfModule>
+
+# Explicitly allow methods (Some servers block DELETE by default)
+<Limit GET POST PUT DELETE OPTIONS>
+    Require all granted
+</Limit>

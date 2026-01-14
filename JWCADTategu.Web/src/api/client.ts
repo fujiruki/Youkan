@@ -2,7 +2,30 @@ import { JudgableItem } from '../features/jbwos/types';
 
 // src/api/client.ts
 
-const API_BASE = '/api';
+// Development uses Vite proxy (/api -> localhost:8000)
+// Production uses index.php with PATH_INFO.
+// FIX: Use absolute path calculation to prevent 404 when app is at sub-path (e.g. /today)
+const getApiBase = () => {
+    if (import.meta.env.DEV) return '/api';
+
+    // Production: Calculate path to index.php valid from anywhere
+    // If loc is .../index.php/today, we want .../index.php
+    // If loc is .../TateguDesignStudio/, we want .../TateguDesignStudio/index.php
+
+    const pathname = window.location.pathname;
+
+    // Case 1: Already inside index.php
+    if (pathname.includes('/index.php')) {
+        return pathname.split('/index.php')[0] + '/index.php';
+    }
+
+    // Case 2: At Root (index.html), so index.php is sibling
+    // Remove trailing slash if exists
+    const root = pathname.replace(/\/$/, '');
+    return `${root}/index.php`;
+};
+
+const API_BASE = getApiBase();
 
 export class ApiClient {
     private static errorHandler: ((error: Error, method: string, path: string) => void) | null = null;
@@ -17,8 +40,16 @@ export class ApiClient {
             'Content-Type': 'application/json',
         };
 
+        // Server compatibility: Use X-HTTP-Method-Override for PUT/DELETE
+        // Some shared hosts block DELETE/PUT methods.
+        let actualMethod = method;
+        if (method === 'PUT' || method === 'DELETE') {
+            headers['X-HTTP-Method-Override'] = method;
+            actualMethod = 'POST';
+        }
+
         const config: RequestInit = {
-            method,
+            method: actualMethod,
             headers,
             body: body ? JSON.stringify(body) : undefined,
         };
@@ -103,6 +134,33 @@ export class ApiClient {
         return this.request('GET', '/history');
     }
 
+    // --- Backup & Restore ---
+    public static async restoreDatabase(file: File): Promise<void> {
+        const formData = new FormData();
+        formData.append('backup_file', file);
+
+        // Use raw fetch for FormData since wrapper expects JSON body usually
+        // But let's see current request implementation.
+        // It sets Content-Type: application/json automatically.
+        // We need to bypass that for FormData.
+
+        // Custom request for multipart (Fetch API directly)
+        const response = await fetch(`${API_BASE}/restore`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `API Error: ${response.status}`);
+        }
+    }
+
+    // Helper for download
+    public static getBackupUrl(): string {
+        return `${API_BASE}/backup`;
+    }
+
     // --- Phase 2: GDB API ---
     public static async getGdbShelf(): Promise<any> { // Replace 'any' with proper type
         return this.request('GET', '/gdb');
@@ -123,5 +181,10 @@ export class ApiClient {
 
     public static async moveMemoToInbox(id: string): Promise<{ success: boolean }> {
         return this.request('POST', `/memo/${id}/move-to-inbox`);
+    }
+
+    // --- System API ---
+    public static async getHealth(): Promise<any> {
+        return this.request('GET', '/health');
     }
 }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, HelpCircle, History, Settings } from 'lucide-react';
+import { BackupSettings } from '../../features/jbwos/components/Settings/BackupSettings';
+import { HealthCheck } from '../../features/jbwos/components/Layout/HealthCheck';
 
 interface JBWOSHeaderProps {
     currentView: 'jbwos' | 'today' | 'history';
@@ -15,6 +17,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToProjects
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     return (
         <div className="bg-slate-800 text-white px-4 py-2 flex items-center justify-between shadow-md">
@@ -76,8 +79,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
                                 <button
                                     onClick={() => {
-                                        // TODO: Settings画面
-                                        alert('設定画面は未実装');
+                                        setSettingsOpen(true);
                                         setMenuOpen(false);
                                     }}
                                     className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
@@ -89,6 +91,9 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         </>
                     )}
                 </div>
+
+                {/* Health Check */}
+                <HealthCheck />
 
                 {/* Help Button */}
                 <button
@@ -102,6 +107,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     <HelpCircle size={20} className="text-slate-400" />
                 </button>
             </div>
+
+            {/* Settings Modal */}
+            {settingsOpen && (
+                <BackupSettings onClose={() => setSettingsOpen(false)} />
+            )}
         </div>
     );
 };

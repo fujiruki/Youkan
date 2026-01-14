@@ -2,7 +2,9 @@
 // backend/index.php
 
 // 1. Error Handling for AI Autonomy
-ini_set('display_errors', 0);
+// 1. Error Handling for AI Autonomy
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     header('Content-Type: application/json', true, 500);
     echo json_encode([
@@ -10,6 +12,18 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
         'message' => $errstr,
         'file' => basename($errfile),
         'line' => $errline
+    ]);
+    exit;
+});
+
+set_exception_handler(function($e) {
+    header('Content-Type: application/json', true, 500);
+    echo json_encode([
+        'error' => true,
+        'message' => $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
     ]);
     exit;
 });
@@ -24,12 +38,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// 3. Routing (Simple Switch for MVP)
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$method = $_SERVER['REQUEST_METHOD'];
+// Support X-HTTP-Method-Override (for servers blocking DELETE/PUT)
+if (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
+    $_SERVER['REQUEST_METHOD'] = strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
+}
 
-// Remove /api prefix if exists (depends on server config, safely handle both)
-$path = preg_replace('#^/api#', '', $uri);
+// 3. Routing (Robust Path Extraction)
+$path = null;
+
+// Try PATH_INFO first (Standard CGI/FastCGI)
+if (isset($_SERVER['PATH_INFO'])) {
+    $path = $_SERVER['PATH_INFO'];
+} else {
+    // Fallback: Manually parse REQUEST_URI
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $scriptName = $_SERVER['SCRIPT_NAME']; // e.g. /contents/TateguDesignStudio/index.php
+    $scriptDir = dirname($scriptName);
+
+    // If URI starts with script name (e.g. /.../index.php/foo), strip it
+    if (strpos($uri, $scriptName) === 0) {
+        $path = substr($uri, strlen($scriptName));
+    } 
+    // If URI starts with script dir (e.g. /.../foo), strip it
+    elseif ($scriptDir !== '/' && strpos($uri, $scriptDir) === 0) {
+        $path = substr($uri, strlen($scriptDir));
+    } 
+    else {
+        $path = $uri;
+    }
+}
+
+// Remove /api prefix if exists
+$path = preg_replace('#^/api#', '', $path);
+
+// Ensure path starts with /
+if (empty($path) || $path[0] !== '/') {
+    $path = '/' . $path;
+}
+
+// Debug logs can be enabled here if needed
+// error_log("Routing Path: " . $path);
 
 // Fix for built-in server where /api is not stripped because root is backend/
 // When accessing localhost:8000/api/items, path is /api/items.
@@ -45,14 +93,16 @@ require_once 'GdbController.php';
 
 $db = getDB();
 
-// 2. Routing
+// 2. Routing Logic (Using normalized $path)
 $method = $_SERVER['REQUEST_METHOD'];
-$path = $_SERVER['REQUEST_URI'];
-$pathParts = explode('?', $path);
-$pathOnly = $pathParts[0];
+// Note: $path is already normalized above. Handle query params if needed, but routing is usually on path.
+// If $path contains query string (e.g. from Fallback), strip it.
+if (($pos = strpos($path, '?')) !== false) {
+    $path = substr($path, 0, $pos);
+}
 
 // Debug Routes
-if (preg_match('#^(/api)?/debug/logs#', $pathOnly)) {
+if (preg_match('#^(/api)?/debug/logs#', $path)) {
     $controller = new DebugController($db);
     if ($method === 'GET') {
         $controller->getLogs();
@@ -64,13 +114,13 @@ if (preg_match('#^(/api)?/debug/logs#', $pathOnly)) {
 }
 
 // Health Check Route
-if (preg_match('#^(/api)?/health$#', $pathOnly)) {
+if (preg_match('#^(/api)?/health$#', $path)) {
     require_once 'health.php';
     exit;
 }
 
 // GDB Routes
-if (preg_match('#^(/api)?/gdb$#', $pathOnly)) {
+if (preg_match('#^(/api)?/gdb$#', $path)) {
     $controller = new GdbController($db);
     if ($method === 'GET') {
         echo json_encode($controller->getShelf());
@@ -79,7 +129,7 @@ if (preg_match('#^(/api)?/gdb$#', $pathOnly)) {
 }
 
 // Decision Routes
-if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $pathOnly, $matches) && $method === 'POST') {
+if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $path, $matches) && $method === 'POST') {
     $controller = new DecisionController($db);
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->resolve($matches[2], $data));
@@ -87,20 +137,20 @@ if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $pathOnly, $matches) && $
 }
 
 // Today Routes
-if (preg_match('#^(/api)?/today$#', $pathOnly)) {
+if (preg_match('#^(/api)?/today$#', $path)) {
     $controller = new TodayController($db);
     if ($method === 'GET') {
         echo json_encode($controller->getToday());
     }
     exit;
 }
-if (preg_match('#^(/api)?/today/commit$#', $pathOnly) && $method === 'POST') {
+if (preg_match('#^(/api)?/today/commit$#', $path) && $method === 'POST') {
     $controller = new TodayController($db);
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->commit($data['id']));
     exit;
 }
-if (preg_match('#^(/api)?/today/complete$#', $pathOnly) && $method === 'POST') {
+if (preg_match('#^(/api)?/today/complete$#', $path) && $method === 'POST') {
     $controller = new TodayController($db);
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->complete($data['id']));
@@ -108,7 +158,7 @@ if (preg_match('#^(/api)?/today/complete$#', $pathOnly) && $method === 'POST') {
 }
 
 // Side Memo Routes
-if (preg_match('#^(/api)?/memos$#', $pathOnly)) {
+if (preg_match('#^(/api)?/memos$#', $path)) {
     $controller = new SideMemoController($db);
     if ($method === 'GET') {
         echo json_encode($controller->getAll());
@@ -118,12 +168,12 @@ if (preg_match('#^(/api)?/memos$#', $pathOnly)) {
     }
     exit;
 }
-if (preg_match('#^(/api)?/memo/([^/]+)$#', $pathOnly, $matches) && $method === 'DELETE') {
+if (preg_match('#^(/api)?/memo/([^/]+)$#', $path, $matches) && $method === 'DELETE') {
     $controller = new SideMemoController($db);
     echo json_encode($controller->delete($matches[2]));
     exit;
 }
-if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $pathOnly, $matches) && $method === 'POST') {
+if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $path, $matches) && $method === 'POST') {
     $controller = new SideMemoController($db);
     echo json_encode($controller->moveToInbox($matches[2]));
     exit;
@@ -132,30 +182,44 @@ if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $pathOnly, $matches) &&
 // Life & Execution Routes (Phase 3)
 require_once 'LifeController.php';
 
-if (preg_match('#^(/api)?/life/([^/]+)/check$#', $pathOnly, $matches) && $method === 'POST') {
+if (preg_match('#^(/api)?/life/([^/]+)/check$#', $path, $matches) && $method === 'POST') {
     $controller = new LifeController($db);
     echo json_encode($controller->checkLife($matches[2]));
     exit;
 }
-if (preg_match('#^(/api)?/execution/([^/]+)/start$#', $pathOnly, $matches) && $method === 'POST') {
+if (preg_match('#^(/api)?/execution/([^/]+)/start$#', $path, $matches) && $method === 'POST') {
     $controller = new LifeController($db);
     echo json_encode($controller->startExecution($matches[2]));
     exit;
 }
-if (preg_match('#^(/api)?/execution/([^/]+)/pause$#', $pathOnly, $matches) && $method === 'POST') {
+if (preg_match('#^(/api)?/execution/([^/]+)/pause$#', $path, $matches) && $method === 'POST') {
     $controller = new LifeController($db);
     echo json_encode($controller->pauseExecution($matches[2]));
     exit;
 }
-if (preg_match('#^(/api)?/history$#', $pathOnly) && $method === 'GET') {
+if (preg_match('#^(/api)?/history$#', $path) && $method === 'GET') {
     $controller = new LifeController($db);
     echo json_encode($controller->getHistory());
     exit;
 }
 
+// Backup & Restore Routes
+require_once 'BackupController.php';
+
+if (preg_match('#^(/api)?/backup$#', $path) && $method === 'GET') {
+    $controller = new BackupController();
+    $controller->download();
+    exit;
+}
+if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
+    $controller = new BackupController();
+    $controller->restore();
+    exit;
+}
+
 // Item Routes (Legacy & General CRUD)
 try {
-    if (preg_match('#^(/api)?/items$#', $pathOnly)) {
+    if (preg_match('#^(/api)?/items$#', $path)) {
         if ($method === 'GET') {
             echo json_encode(ItemController::getAll($db));
         } elseif ($method === 'POST') {
@@ -172,7 +236,15 @@ try {
     }
     else {
         http_response_code(404);
-        echo json_encode(['error' => 'Not Found', 'path' => $path]);
+        echo json_encode([
+            'error' => 'Not Found', 
+            'path' => $path,
+            '_debug' => [
+                'uri' => $uri ?? 'null',
+                'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'null',
+                'path_info' => $_SERVER['PATH_INFO'] ?? 'null'
+            ]
+        ]);
     }
 } catch (Exception $e) {
     http_response_code(500);

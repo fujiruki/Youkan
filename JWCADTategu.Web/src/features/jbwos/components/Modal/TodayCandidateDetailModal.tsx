@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Item } from '../../types';
 import { ApiClient } from '../../../../api/client';
 import { ArrowDownCircle, X, Calendar, Clock, Edit2 } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
-import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
+// import { format } from 'date-fns'; // Removed dependency
+// import { ja } from 'date-fns/locale'; // Removed dependency
 
 interface Props {
     item: Item;
@@ -17,7 +16,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
     // --- Local State for Immediate Editing ---
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(item.title);
-    const [note, setNote] = useState(item.note || '');
+    const [memo, setMemo] = useState(item.memo || ''); // note -> memo
     const [workDays, setWorkDays] = useState(item.work_days || 1);
 
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -29,13 +28,25 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
     }, [isEditingTitle]);
 
     // Save changes when unmounting or confirming? 
-    // Ideally we save on blur for title/note.
+    // Ideally we save on blur for title/memo.
     const handleSaveUpdate = async (updates: Partial<Item>) => {
         if (onUpdate) {
             await onUpdate(item.id, updates);
         } else {
             await ApiClient.updateItem(item.id, updates);
         }
+    };
+
+    const formatDate = (dateStr?: string | null) => {
+        if (!dateStr) return '未設定';
+        // Date format: YYYY-MM-DD
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'short'
+        });
     };
 
     return (
@@ -97,7 +108,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                                 <Calendar size={12} /> 取付日 (納期)
                             </label>
                             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                {item.due_date ? format(new Date(item.due_date), 'yyyy/MM/dd (EEE)', { locale: ja }) : '未設定'}
+                                {formatDate(item.due_date)}
                             </div>
                         </div>
 
@@ -134,11 +145,11 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                             MEMO / 備考
                         </label>
                         <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
+                            value={memo}
+                            onChange={(e) => setMemo(e.target.value)}
                             onBlur={() => {
-                                if (note !== item.note) {
-                                    handleSaveUpdate({ note });
+                                if (memo !== item.memo) {
+                                    handleSaveUpdate({ memo });
                                 }
                             }}
                             placeholder="補足事項があれば..."
@@ -151,7 +162,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                         <button
                             onClick={() => {
                                 // Save any pending changes first just in case
-                                handleSaveUpdate({ title: editedTitle, note, work_days: workDays });
+                                handleSaveUpdate({ title: editedTitle, memo, work_days: workDays });
                                 onConfirm(item.id);
                                 onClose();
                             }}

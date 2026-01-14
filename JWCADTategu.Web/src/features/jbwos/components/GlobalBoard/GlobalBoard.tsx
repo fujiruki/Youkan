@@ -23,6 +23,7 @@ import { ContextMenu } from './ContextMenu'; // [NEW]
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 import { QuantityCalendar } from '../Calendar/QuantityCalendar'; // [NEW]
+import { useToast } from '../../../../contexts/ToastContext'; // [NEW]
 
 interface GlobalBoardProps {
     onClose?: () => void;
@@ -104,6 +105,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const [detailItem, setDetailItem] = useState<Item | null>(null);
     const [lastThrowInId, setLastThrowInId] = useState<string | null>(null); // [NEW] Track last added item
     const inputRef = React.useRef<HTMLInputElement>(null); // [NEW] Ref for keeping focus
+    const { showToast } = useToast(); // [NEW] Toast
 
     const handleThrowIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -112,6 +114,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         const newId = await vm.throwIn(inputValue);
         if (newId) {
             setLastThrowInId(newId);
+            showToast({ type: 'success', title: 'Inboxに保存しました', message: inputValue }); // [NEW] Feedback
             // setDetailItem(optimItem); // Removed: Don't open modal automatically
         }
         setInputValue('');

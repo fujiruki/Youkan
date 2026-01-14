@@ -83,9 +83,12 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     }, [project.id]);
 
     // [RESTORED] Handlers
-    const handleProjectNameSave = () => {
+    const handleProjectNameSave = async () => {
         if (editTableName !== project.name) {
             onUpdateProject({ ...project, name: editTableName });
+            if (project.id) {
+                await db.projects.update(project.id, { name: editTableName });
+            }
         }
         setIsEditingTitle(false);
     };
