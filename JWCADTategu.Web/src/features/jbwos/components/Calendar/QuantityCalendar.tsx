@@ -167,37 +167,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         }
     }, []);
 
-    // Group by Month Key (YYYY-MM)
-    const months = useMemo(() => {
-        const groups: { key: string, label: string, days: Date[] }[] = [];
-        let currentMonthKey = '';
-        let currentGroup: Date[] = [];
 
-        allDays.forEach(day => {
-            const key = `${day.getFullYear()}-${day.getMonth()}`;
-            if (key !== currentMonthKey) {
-                if (currentGroup.length > 0) {
-                    groups.push({
-                        key: currentMonthKey,
-                        label: currentGroup[0].toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' }),
-                        days: currentGroup
-                    });
-                }
-                currentMonthKey = key;
-                currentGroup = [];
-            }
-            currentGroup.push(day);
-        });
-        // Push last
-        if (currentGroup.length > 0) {
-            groups.push({
-                key: currentMonthKey,
-                label: currentGroup[0].toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' }),
-                days: currentGroup
-            });
-        }
-        return groups;
-    }, [allDays]);
 
 
     // --- Interaction Handlers ---
@@ -246,11 +216,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
             setPressureConnections(newConnections);
             setFlashingItemIds(newFlashingIds);
 
-            // Auto-clear after animation (2000ms)
-            setTimeout(() => {
-                setPressureConnections([]);
-                setFlashingItemIds(new Set());
-            }, 2000);
+            // [MODIFIED] Persistent Effect: Removed auto-clear timeout
+            // The effect remains until the next click clears/updates it.
         }
     };
 
@@ -276,53 +243,58 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto relative z-10">
+            <div className="flex-1 overflow-y-auto relative z-10"
+                onClick={() => {
+                    // Background click clears selection if needed
+                    // But user said "until clicked somewhere else in calendar".
+                    // If we want background click to clear:
+                    // setPressureConnections([]);
+                    // setFlashingItemIds(new Set());
+                }}
+            >
                 <div className="flex flex-col pb-32">
-                    {months.map(month => (
-                        <React.Fragment key={month.key}>
-                            {/* Days Grid - Continuous, no month header */}
-                            <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 leading-none">
-                                {/* Padding cells for first month only */}
-                                {month === months[0] && Array.from({ length: (month.days[0].getDay() + 6) % 7 }).map((_, i) => (
-                                    <div key={`pad-start-${month.key}-${i}`} className="bg-slate-50/50 dark:bg-slate-900/50 border-r border-b border-slate-100 dark:border-slate-800" />
-                                ))}
+                    {/* [MODIFIED] Layout Fix: Single Continuous Grid */}
+                    <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 leading-none">
 
-                                {month.days.map(date => {
-                                    const dateKey = date.toDateString();
-                                    const dayItems = itemsByDate.get(dateKey) || []; // ONLY Due items
-                                    const allSigns = signsMap.get(dateKey) || []; // ALL items (Due + Prep)
-                                    const isToday = isSameDate(date, today);
-                                    const isFirstOfMonth = date.getDate() === 1;
-                                    const isSunday = date.getDay() === 0;
+                        {/* Padding cells for the very first day only */}
+                        {Array.from({ length: (allDays[0].getDay() + 6) % 7 }).map((_, i) => (
+                            <div key={`pad-start-${i}`} className="bg-slate-50/50 dark:bg-slate-900/50 border-r border-b border-slate-100 dark:border-slate-800" />
+                        ))}
 
-                                    // Volume Heatmap from heatMap
-                                    const volume = heatMap.get(dateKey) || 0;
-                                    const bgIntensity = Math.min(volume * 15, 60);
+                        {allDays.map(date => {
+                            const dateKey = date.toDateString();
+                            const dayItems = itemsByDate.get(dateKey) || []; // ONLY Due items
+                            const allSigns = signsMap.get(dateKey) || []; // ALL items (Due + Prep)
+                            const isToday = isSameDate(date, today);
+                            const isFirstOfMonth = date.getDate() === 1;
+                            const isSunday = date.getDay() === 0;
 
-                                    return (
-                                        <div
-                                            key={dateKey}
-                                            ref={isToday ? todayRef : null}
-                                            className="min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group"
-                                        >
-                                            <CalendarCell
-                                                date={date}
-                                                items={dayItems}
-                                                allSigns={allSigns}
-                                                isToday={isToday}
-                                                isFirstOfMonth={isFirstOfMonth}
-                                                isSunday={isSunday}
-                                                bgIntensity={bgIntensity}
-                                                flashingItemIds={flashingItemIds}
-                                                onItemClick={onItemClick}
-                                                onCellAction={handleCellAction}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </React.Fragment>
-                    ))}
+                            // Volume Heatmap from heatMap
+                            const volume = heatMap.get(dateKey) || 0;
+                            const bgIntensity = Math.min(volume * 15, 60);
+
+                            return (
+                                <div
+                                    key={dateKey}
+                                    ref={isToday ? todayRef : null}
+                                    className="min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group"
+                                >
+                                    <CalendarCell
+                                        date={date}
+                                        items={dayItems}
+                                        allSigns={allSigns}
+                                        isToday={isToday}
+                                        isFirstOfMonth={isFirstOfMonth}
+                                        isSunday={isSunday}
+                                        bgIntensity={bgIntensity}
+                                        flashingItemIds={flashingItemIds}
+                                        onItemClick={onItemClick}
+                                        onCellAction={handleCellAction}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
@@ -401,21 +373,32 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
 
 // --- Pressure Line Component ---
 const PressureLine: React.FC<{ conn: PressureConnection }> = ({ conn }) => {
-    // Control Point for Bezier (Curved upward slightly)
-    const midX = (conn.source.x + conn.target.x) / 2;
-    const midY = (conn.source.y + conn.target.y) / 2 - 50; // Curve up
+    // [MODIFIED] Right-Curve Logic
+    // We want the line to bulge out to the right to avoid crossing items directly.
+    // Logic: 
+    // Control Point X = max(source.x, target.x) + offset
+    // Control Point Y = typically midpoint, maybe slightly offset.
+
+    // Dynamic offset based on vertical distance magnitude?
+    const dy = Math.abs(conn.target.y - conn.source.y);
+    const bulge = 60 + (dy * 0.1); // Base bulge + slight increase for longer lines
+
+    // Control Point
+    // Force curve to the Right side
+    const cpX = Math.max(conn.source.x, conn.target.x) + bulge;
+    const cpY = (conn.source.y + conn.target.y) / 2;
 
     return (
         <motion.path
-            d={`M ${conn.source.x} ${conn.source.y} Q ${midX} ${midY} ${conn.target.x} ${conn.target.y}`}
+            d={`M ${conn.source.x} ${conn.source.y} Q ${cpX} ${cpY} ${conn.target.x} ${conn.target.y}`}
             fill="none"
             stroke={conn.color}
-            strokeWidth="2"
+            strokeWidth="3" // Thicker for visibility
             strokeLinecap="round"
             initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 0.8 }}
+            animate={{ pathLength: 1, opacity: 0.6 }} // Slightly more transparent
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
         />
     );
 };
