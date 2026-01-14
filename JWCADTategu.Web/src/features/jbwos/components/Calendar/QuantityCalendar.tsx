@@ -207,28 +207,11 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
             <div className="flex-1 overflow-y-auto">
                 <div className="flex flex-col pb-32">
                     {months.map(month => (
-                        <div key={month.key} className="mb-4">
-                            {/* Month Header */}
-                            <div className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
-                                {month.label}
-                            </div>
-
-                            {/* Days Grid */}
+                        <React.Fragment key={month.key}>
+                            {/* Days Grid - Continuous, no month header */}
                             <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 leading-none">
-                                {/* Empty cells for start padding if needed? 
-                                    getStartOfWeek aligns to Monday, but if a Month starts mid-week, the *Month* group starts at 1st.
-                                    Actually my allDays generation is continuous from a Monday. 
-                                    But grouping by month breaks that continuity visually if we use grid-cols-7 for each month block independently.
-                                    
-                                    FIX: Logic "allDays" starts on Monday. 
-                                    If we render ONE BIG GRID, we don't need month groups for layout, only for headers.
-                                    But Sticky Month Headers are nice.
-                                    
-                                    Let's try: Render month groups. 
-                                    First day of month might NOT be Monday. 
-                                    We need padding cells.
-                                */}
-                                {Array.from({ length: (month.days[0].getDay() + 6) % 7 }).map((_, i) => (
+                                {/* Padding cells for first month only */}
+                                {month === months[0] && Array.from({ length: (month.days[0].getDay() + 6) % 7 }).map((_, i) => (
                                     <div key={`pad-start-${month.key}-${i}`} className="bg-slate-50/50 dark:bg-slate-900/50 border-r border-b border-slate-100 dark:border-slate-800" />
                                 ))}
 
@@ -237,6 +220,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                     const dayItems = itemsByDate.get(dateKey) || []; // ONLY Due items
                                     const allSigns = signsMap.get(dateKey) || []; // ALL items (Due + Prep)
                                     const isToday = isSameDate(date, today);
+                                    const isFirstOfMonth = date.getDate() === 1;
+                                    const isSunday = date.getDay() === 0;
 
                                     // Volume Heatmap from heatMap
                                     const volume = heatMap.get(dateKey) || 0;
@@ -253,6 +238,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                                 items={dayItems}
                                                 allSigns={allSigns}
                                                 isToday={isToday}
+                                                isFirstOfMonth={isFirstOfMonth}
+                                                isSunday={isSunday}
                                                 bgIntensity={bgIntensity}
                                                 onItemClick={onItemClick}
                                                 onCellClick={(signs) => {
@@ -264,7 +251,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                     );
                                 })}
                             </div>
-                        </div>
+                        </React.Fragment>
                     ))}
                 </div>
             </div>
@@ -347,11 +334,13 @@ const CalendarCell: React.FC<{
     date: Date;
     items: Item[];
     allSigns: Item[]; // [NEW] All items for this day (Due + Prep)
-    isToday: boolean,
+    isToday: boolean;
+    isFirstOfMonth: boolean; // [NEW]
+    isSunday: boolean; // [NEW]
     bgIntensity: number;
     onItemClick: (item: Item) => void;
     onCellClick: (signs: Item[]) => void; // [NEW] Click handler for cell
-}> = ({ date, items, allSigns, isToday, bgIntensity, onItemClick, onCellClick }) => {
+}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, onItemClick, onCellClick }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: `cal-day-${date.getTime()}`,
         data: { date: date.getTime() }
@@ -374,9 +363,19 @@ const CalendarCell: React.FC<{
                 style={{ opacity: isOver ? 0.2 : bgIntensity / 100 }}
             />
 
-            {/* Date Number */}
-            <div className={`text-xs font-mono mb-1 z-10 relative flex justify-between ${isToday ? 'font-bold text-blue-600' : 'text-slate-400'}`}>
-                <span className={isToday ? 'bg-blue-100 dark:bg-blue-900/50 px-1.5 rounded-full' : ''}>{date.getDate()}</span>
+            {/* Date Number with Month Label (1st only) */}
+            <div className={`text-xs font-mono mb-1 z-10 relative flex items-start justify-between ${isToday ? 'font-bold text-blue-600' :
+                    isSunday ? 'text-rose-400/70 font-medium' :
+                        'text-slate-400'
+                }`}>
+                <div className="flex flex-col items-start">
+                    {isFirstOfMonth && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-bold">
+                            {date.getMonth() + 1}月
+                        </span>
+                    )}
+                    <span className={isToday ? 'bg-blue-100 dark:bg-blue-900/50 px-1.5 rounded-full' : ''}>{date.getDate()}</span>
+                </div>
                 {items.length > 0 && <span className="text-[10px] text-slate-300 transform scale-75">{items.length}</span>}
             </div>
 
