@@ -1,14 +1,22 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-// https://vitejs.dev/config/
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 export default defineConfig({
+    resolve: {
+        alias: {
+            '@': resolve(__dirname, 'src'),
+        },
+    },
     plugins: [react()],
-    // test: {
-    //     environment: 'jsdom',
-    //     globals: true,
-    // },
+    test: {
+        environment: 'jsdom',
+        globals: true,
+    },
     server: {
         port: 5173,
         open: true,
@@ -21,4 +29,4 @@ export default defineConfig({
         },
     },
     base: './', // GitHub Pages等でのデプロイを考慮し相対パス化
-})
+});
