@@ -35,13 +35,30 @@ export class ApiClient {
         this.errorHandler = handler;
     }
 
+    // Debug Mode Check
+    private static isDebug(): boolean {
+        return import.meta.env.DEV || !!localStorage.getItem('JBWOS_DEBUG');
+    }
+
+    private static log(groupName: string, data: any, isError = false) {
+        if (!this.isDebug()) return;
+
+        const style = isError
+            ? 'background: #fee; color: #c00; font-weight: bold; padding: 2px 4px; border-radius: 2px;'
+            : 'background: #eef; color: #00c; font-weight: bold; padding: 2px 4px; border-radius: 2px;';
+
+        console.groupCollapsed(`%cAPI ${groupName}`, style);
+        console.log('Timestamp:', new Date().toISOString());
+        console.table(data); // Clearer data visualization
+        console.groupEnd();
+    }
+
     private static async request<T>(method: string, path: string, body?: any): Promise<T> {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
 
         // Server compatibility: Use X-HTTP-Method-Override for PUT/DELETE
-        // Some shared hosts block DELETE/PUT methods.
         let actualMethod = method;
         if (method === 'PUT' || method === 'DELETE') {
             headers['X-HTTP-Method-Override'] = method;
@@ -54,23 +71,52 @@ export class ApiClient {
             body: body ? JSON.stringify(body) : undefined,
         };
 
+        const startTime = performance.now();
         try {
             const response = await fetch(`${API_BASE}${path}`, config);
+            const duration = Math.round(performance.now() - startTime);
 
             if (!response.ok) {
-                // Handle HTTP errors
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `API Error: ${response.status}`);
+                const errorMessage = errorData.message || `API Error: ${response.status}`;
+
+                this.log(`ERROR ${method} ${path} (${duration}ms)`, {
+                    status: response.status,
+                    url: `${API_BASE}${path}`,
+                    requestBody: body,
+                    error: errorData
+                }, true);
+
+                throw new Error(errorMessage);
             }
 
             // Handle 204 No Content
             if (response.status === 204) {
+                this.log(`SUCCESS ${method} ${path} (${duration}ms)`, {
+                    status: 204,
+                    url: `${API_BASE}${path}`,
+                    requestBody: body,
+                    response: '(No Content)'
+                });
                 return {} as T;
             }
 
-            return await response.json();
+            const data = await response.json();
+            this.log(`SUCCESS ${method} ${path} (${duration}ms)`, {
+                status: response.status,
+                url: `${API_BASE}${path}`,
+                requestBody: body,
+                response: data
+            });
+            return data;
+
         } catch (error) {
-            console.error(`API Request Failed: ${method} ${path}`, error);
+            const duration = Math.round(performance.now() - startTime);
+            this.log(`FAIL ${method} ${path} (${duration}ms)`, {
+                url: `${API_BASE}${path}`,
+                requestBody: body,
+                error: error
+            }, true);
 
             // Call global error handler if registered
             if (this.errorHandler && error instanceof Error) {
