@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Item } from '../../types';
 import { ApiClient } from '../../../../api/client';
 import { ArrowDownCircle, X, Calendar, Clock, Edit2 } from 'lucide-react';
-// import { format } from 'date-fns'; // Removed dependency
-// import { ja } from 'date-fns/locale'; // Removed dependency
 
 interface Props {
     item: Item;
@@ -16,8 +14,9 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
     // --- Local State for Immediate Editing ---
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(item.title);
-    const [memo, setMemo] = useState(item.memo || ''); // note -> memo
+    const [memo, setMemo] = useState(item.memo || '');
     const [workDays, setWorkDays] = useState(item.work_days || 1);
+    const [isWorkDaysDirty, setIsWorkDaysDirty] = useState(false); // [NEW]
 
     const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,9 +26,23 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
         }
     }, [isEditingTitle]);
 
+    // [NEW] Sync props unless dirty
+    useEffect(() => {
+        if (!isWorkDaysDirty) {
+            setWorkDays(item.work_days || 1);
+        }
+        setMemo(item.memo || '');
+        setEditedTitle(item.title);
+    }, [item.work_days, item.memo, item.title, isWorkDaysDirty]);
+
     // Save changes when unmounting or confirming? 
     // Ideally we save on blur for title/memo.
     const handleSaveUpdate = async (updates: Partial<Item>) => {
+        // Mark as dirty if work_days is updated
+        if ('work_days' in updates) {
+            setIsWorkDaysDirty(true);
+        }
+
         if (onUpdate) {
             await onUpdate(item.id, updates);
         } else {
@@ -39,7 +52,6 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
 
     const formatDate = (dateStr?: string | null) => {
         if (!dateStr) return '未設定';
-        // Date format: YYYY-MM-DD
         const date = new Date(dateStr);
         return date.toLocaleDateString('ja-JP', {
             year: 'numeric',
@@ -51,8 +63,8 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
 
     // [NEW] Save work_days and close
     const handleClose = async () => {
-        // Ensure work_days is saved before closing
-        if (workDays !== item.work_days) {
+        // Ensure work_days is saved before closing if dirty
+        if (isWorkDaysDirty || workDays !== item.work_days) {
             await handleSaveUpdate({ work_days: workDays });
         }
         onClose();

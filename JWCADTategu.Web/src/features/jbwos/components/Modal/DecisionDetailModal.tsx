@@ -20,7 +20,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [note, setNote] = React.useState(item.memo || '');
     const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
     const [dueDate, setDueDate] = React.useState(item.due_date || '');
-    const [workDays, setWorkDays] = React.useState(item.work_days || 1); // [NEW] Local state
+    const [workDays, setWorkDays] = React.useState(item.work_days || 1);
+    const [isWorkDaysDirty, setIsWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
     const dateInputRef = React.useRef<HTMLInputElement>(null);
@@ -46,9 +47,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     React.useEffect(() => {
         setDueStatus(item.due_status || 'waiting_external');
         setDueDate(item.due_date || '');
-        setWorkDays(item.work_days || 1);
+        if (!isWorkDaysDirty) {
+            setWorkDays(item.work_days || 1);
+        }
         setEditedTitle(item.title);
-    }, [item.due_status, item.due_date, item.work_days, item.title]);
+    }, [item.due_status, item.due_date, item.work_days, item.title, isWorkDaysDirty]);
 
     // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
@@ -85,12 +88,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate]);
+    }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
     // [NEW] Save work_days and close
     const handleClose = async () => {
-        // Ensure work_days is saved before closing
-        if (workDays !== item.work_days) {
+        // Ensure work_days is saved before closing if dirty
+        if (isWorkDaysDirty || workDays !== item.work_days) {
             if (onUpdate) {
                 await onUpdate(item.id, { work_days: workDays });
             } else {
@@ -334,6 +337,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 const val = parseInt(e.target.value, 10);
                                                 if (!isNaN(val) && val > 0) {
                                                     setWorkDays(val); // Update local state immediately
+                                                    setIsWorkDaysDirty(true); // [NEW] Mark as dirty
                                                     if (onUpdate) {
                                                         await onUpdate(item.id, { work_days: val });
                                                     } else {
