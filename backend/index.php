@@ -12,14 +12,6 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
         'line' => $errline
     ]);
     exit;
-    header('Content-Type: application/json', true, 500);
-    echo json_encode([
-        'error' => true,
-        'message' => $errstr,
-        'file' => basename($errfile),
-        'line' => $errline
-    ]);
-    exit;
 });
 
 // 2. CORS & Headers
