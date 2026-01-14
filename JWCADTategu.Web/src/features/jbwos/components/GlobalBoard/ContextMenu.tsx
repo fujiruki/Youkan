@@ -14,14 +14,28 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, itemId, onClose,
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Delete') {
+                e.preventDefault();
+                onDelete(itemId);
+                onClose();
+            }
+        };
+
         const handleClickOutside = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) {
                 onClose();
             }
         };
+
+        document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [onClose]);
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [onClose, onDelete, itemId]);
 
     return (
         <div
