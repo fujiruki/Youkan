@@ -168,7 +168,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     }, []);
 
 
-
+    // [NEW] Ghost Items State
+    const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
     // --- Interaction Handlers ---
     const handleCellAction = (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
@@ -221,6 +222,17 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         }
     };
 
+    // [NEW] Clear selection on background click
+    const handleBackgroundClick = (e: React.MouseEvent) => {
+        // Only clear if directly clicking the container or empty space
+        // (Event propagation from cell stops this if handled there, but we want empty CELLS to clear too?)
+        // User said: "Clicking empty cell deselects".
+        // If we click a cell with NO signs, handleCellAction returns early.
+        // So clicking an empty cell will bubble up to this handler.
+        setPressureConnections([]);
+        setFlashingItemIds(new Set());
+    };
+
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative" ref={containerRef}>
@@ -244,13 +256,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto relative z-10"
-                onClick={() => {
-                    // Background click clears selection if needed
-                    // But user said "until clicked somewhere else in calendar".
-                    // If we want background click to clear:
-                    // setPressureConnections([]);
-                    // setFlashingItemIds(new Set());
-                }}
+                onClick={handleBackgroundClick}
             >
                 <div className="flex flex-col pb-32">
                     {/* [MODIFIED] Layout Fix: Single Continuous Grid */}
@@ -288,6 +294,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                         isSunday={isSunday}
                                         bgIntensity={bgIntensity}
                                         flashingItemIds={flashingItemIds}
+                                        isHovered={hoveredDate ? isSameDate(hoveredDate, date) : false}
+                                        onHoverChange={(isHovering) => setHoveredDate(isHovering ? date : null)}
                                         onItemClick={onItemClick}
                                         onCellAction={handleCellAction}
                                     />
@@ -414,26 +422,52 @@ const CalendarCell: React.FC<{
     isSunday: boolean;
     bgIntensity: number;
     flashingItemIds: Set<string>;
+    isHovered: boolean; // [NEW]
+    onHoverChange: (isHovering: boolean) => void; // [NEW]
     onItemClick: (item: Item) => void;
     onCellAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
-}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, flashingItemIds, onItemClick, onCellAction }) => {
+}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, flashingItemIds, isHovered, onHoverChange, onItemClick, onCellAction }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: `cal-day-${date.getTime()}`,
         data: { date: date.getTime() }
     });
 
     const handleClick = (e: React.MouseEvent) => {
-        // Single Click: Always trigger Lines/Flash
+        // Stop propagation so background click doesn't clear immediately
+        // If empty (no signs), it effectively does nothing visual here, 
+        // but if we want it to Clear, we could call onCellAction with empty?
+        // Actually, if signs is empty, handleCellAction returns early. 
+        // So clicking an empty cell doesn't invoke "Clear" logic inside handleCellAction.
+        // We need explicit clear logic.
+        if (allSigns.length === 0) {
+            // Treat as background click (Clear)
+            // We can just NOT stop propagation? 
+            // If we don't stop prop, it hits container onClick which clears.
+            // BUT, we stopped prop above.
+            // Let's conditionally stop prop.
+            return; // Let it bubble to container
+        }
+        e.stopPropagation(); // Add this line here
         const rect = e.currentTarget.getBoundingClientRect();
         onCellAction(date, allSigns, 'click', rect);
     };
 
     const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (allSigns.length === 0) return;
+
         // Double Click: Open Modal
         // Note: onClick will have fired before this, which is fine (Flash then Modal)
         const rect = e.currentTarget.getBoundingClientRect();
         onCellAction(date, allSigns, 'doubleClick', rect);
     };
+
+    // Calculate Ghost Items (Items in allSigns but NOT visible in chips)
+    // Visible chips are items.slice(0, 4)
+    // Actually, chips are ONLY `due` items. `allSigns` includes `prep` items too.
+    // So "Ghost" is basically anything in `allSigns` that isn't currently displayed as a chip.
+    const visibleItemIds = new Set(items.slice(0, 4).map(i => i.id));
+    const ghostItems = allSigns.filter(s => !visibleItemIds.has(s.id));
 
     return (
         <div
@@ -441,12 +475,26 @@ const CalendarCell: React.FC<{
             className={`w-full h-full p-1 flex flex-col relative transition-colors ${isOver ? 'bg-amber-100 dark:bg-amber-900/50' : ''}`}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
         >
             {/* Heatmap Background */}
             <div
                 className="absolute inset-0 bg-amber-500 dark:bg-amber-400 pointer-events-none transition-opacity"
                 style={{ opacity: isOver ? 0.2 : bgIntensity / 100 }}
             />
+
+            {/* Ghost Items Overlay (On Hover) */}
+            {isHovered && ghostItems.length > 0 && (
+                <div className="absolute inset-0 z-0 p-6 pointer-events-none overflow-hidden flex flex-col justify-end opacity-40">
+                    {ghostItems.slice(0, 5).map(g => (
+                        <div key={g.id} className="text-[10px] text-slate-800 dark:text-slate-200 truncate font-medium">
+                            {g.title}
+                        </div>
+                    ))}
+                    {ghostItems.length > 5 && <div className="text-[9px] text-slate-600">...他{ghostItems.length - 5}件</div>}
+                </div>
+            )}
 
             {/* Date Number with Month Label (1st only) */}
             <div className={`text-xs font-mono mb-1 z-10 relative flex items-start justify-between ${isToday ? 'font-bold text-blue-600' :
