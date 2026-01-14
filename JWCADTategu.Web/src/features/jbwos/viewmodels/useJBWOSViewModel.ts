@@ -144,14 +144,16 @@ export const useJBWOSViewModel = () => {
     };
 
     const completeItem = async (id: string) => {
-        // Optimistic: Remove from Today Commits immediately
-        setTodayCommits(prev => prev.filter(i => i.id !== id));
-        // Also remove from Execution (if it was top)
-        if (executionItem?.id === id) setExecutionItem(null);
+        // Optimistic: Calculate next state based on current closure (safe in this hook)
+        const nextList = todayCommits.filter(i => i.id !== id);
+        setTodayCommits(nextList);
 
-        // [Undo] Register Action (Revert to today_commit or execution?)
-        // Assuming we revert to 'today_commit' which is the default for Today items.
-        // If it was 'execution', it will just be available to execute again.
+        // Auto-promote
+        if (executionItem?.id === id) {
+            setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+        }
+
+        // [Undo] Register Action 
         addUndoAction({
             type: 'complete',
             id,
@@ -161,11 +163,11 @@ export const useJBWOSViewModel = () => {
 
         try {
             await JBWOSRepository.completeItem(id);
-            refreshToday();
+            // refreshToday(); // Removed to prevent flicker/stale overwrite
         } catch (e) {
             console.error('Complete failed:', e);
             setError('完了への移動に失敗しました。');
-            refreshToday();
+            refreshToday(); // Rollback on error only
         }
     };
 
@@ -214,11 +216,15 @@ export const useJBWOSViewModel = () => {
     };
 
     const returnToInbox = async (id: string, currentStatus: string = 'today_commit') => {
-        // Optimistic: Remove from Today Commits / Candidates
-        setTodayCommits(prev => prev.filter(i => i.id !== id));
+        // Optimistic
+        const nextList = todayCommits.filter(i => i.id !== id);
+        setTodayCommits(nextList);
         setTodayCandidates(prev => prev.filter(i => i.id !== id));
 
-        if (executionItem?.id === id) setExecutionItem(null);
+        // Auto-promote
+        if (executionItem?.id === id) {
+            setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+        }
 
         // [Undo] Register Action
         addUndoAction({
@@ -230,7 +236,8 @@ export const useJBWOSViewModel = () => {
 
         try {
             await JBWOSRepository.updateItem(id, { status: 'inbox', is_boosted: false }); // Reset boost too
-            refreshGdb(); // It goes to Inbox
+            // refreshGdb(); // It goes to Inbox
+            // refreshToday(); // Removed to prevent flicker
         } catch (e) {
             console.error('Return to Inbox failed', e);
             refreshToday();
@@ -264,17 +271,22 @@ export const useJBWOSViewModel = () => {
     const uncommitFromToday = async (id: string) => {
         // Guard: Don't uncommit active if it's running? Optional.
         // Optimistic: Remove from Commits, Add to Candidates
-        setTodayCommits(prev => prev.filter(i => i.id !== id));
+        const nextList = todayCommits.filter(i => i.id !== id);
+        setTodayCommits(nextList);
+
+        // Auto-promote
+        if (executionItem?.id === id) {
+            setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+        }
+
         // Add to candidates (needs pseudo item or find from cache)
         // Ideally we fetch, but for optimistic UI let's try to preserve
         // We might lose some data if we just filter, but refreshToday will fix.
 
-        if (executionItem?.id === id) setExecutionItem(null);
-
         try {
             // Update status to 'ready' (Candidate)
             await JBWOSRepository.updateItem(id, { status: 'ready' });
-            refreshToday();
+            // refreshToday(); // Removed
         } catch (e) {
             console.error('Uncommit failed', e);
             refreshToday();
