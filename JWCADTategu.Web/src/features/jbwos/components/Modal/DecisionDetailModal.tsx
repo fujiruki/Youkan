@@ -408,7 +408,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                             {/* HOLD */}
                             <button
-                                onClick={() => onDecision(item.id, 'hold', note)}
+                                onClick={async () => {
+                                    // Save work_days before decision
+                                    if (onUpdate) {
+                                        await onUpdate(item.id, { work_days: workDays });
+                                    } else {
+                                        await ApiClient.updateItem(item.id, { work_days: workDays });
+                                    }
+                                    onDecision(item.id, 'hold', note);
+                                }}
                                 className={cn(
                                     "flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent transition-all group",
                                     item.status === 'decision_hold'
@@ -428,7 +436,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                             {/* YES / READY */}
                             <button
-                                onClick={() => onDecision(item.id, 'yes', note)}
+                                onClick={async () => {
+                                    // Save work_days before decision
+                                    if (onUpdate) {
+                                        await onUpdate(item.id, { work_days: workDays });
+                                    } else {
+                                        await ApiClient.updateItem(item.id, { work_days: workDays });
+                                    }
+                                    onDecision(item.id, 'yes', note);
+                                }}
                                 className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg bg-amber-400 hover:bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-none transition-all transform active:scale-95"
                             >
                                 <CheckCircle2 size={20} className="mb-1" />
