@@ -1,6 +1,7 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { Item } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // --- Date Helpers ---
 const getStartOfToday = () => {
@@ -34,12 +35,25 @@ interface Props {
     onItemClick: (item: Item) => void;
 }
 
+// [NEW] Pressure Line Type
+interface PressureConnection {
+    id: string;
+    source: { x: number, y: number };
+    target: { x: number, y: number };
+    color: string;
+}
+
 export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     const today = getStartOfToday();
 
-    // [NEW] Signs List Modal State
-    const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
-    const [selectedSigns, setSelectedSigns] = React.useState<Item[]>([]);
+    // [NEW] Signs List Modal State (Now Double Click)
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedSigns, setSelectedSigns] = useState<Item[]>([]);
+
+    // [NEW] Pressure Interaction State
+    const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
+    const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Range: -6 Months to +1 Year
     // Align start to Monday
@@ -153,12 +167,6 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         }
     }, []);
 
-    // Render Months Logic
-    // We group days into "Months" for visual separation headers? 
-    // Or just one big grid? User asked "Like a monthly calendar". 
-    // Usually means Header: MON TUE ... then grid.
-    // If we have multiple months, we might want Month Headers periodically.
-
     // Group by Month Key (YYYY-MM)
     const months = useMemo(() => {
         const groups: { key: string, label: string, days: Date[] }[] = [];
@@ -192,10 +200,74 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     }, [allDays]);
 
 
+    // --- Interaction Handlers ---
+    const handleCellAction = (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
+        if (signs.length === 0) return;
+
+        if (actionType === 'doubleClick') {
+            // Open Modal
+            setSelectedDate(date);
+            setSelectedSigns(signs);
+            // Clear connections if opening modal
+            setPressureConnections([]);
+            setFlashingItemIds(new Set());
+        } else {
+            // Single Click: Draw Pressure Lines & Flash
+            if (!rect || !containerRef.current) return;
+
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const sourceX = rect.left + rect.width / 2 - containerRect.left;
+            const sourceY = rect.top + rect.height / 2 - containerRect.top;
+
+            const newConnections: PressureConnection[] = [];
+            const newFlashingIds = new Set<string>();
+
+            // Find target chips in DOM
+            signs.forEach(item => {
+                const chipId = `cal-chip-${item.id}`;
+                const chipEl = document.getElementById(chipId);
+
+                // Only connect if chip is visible in calendar
+                if (chipEl) {
+                    const chipRect = chipEl.getBoundingClientRect();
+                    const targetX = chipRect.left + chipRect.width / 2 - containerRect.left;
+                    const targetY = chipRect.top + chipRect.height / 2 - containerRect.top;
+
+                    newConnections.push({
+                        id: `${date.getTime()}-${item.id}`,
+                        source: { x: sourceX, y: sourceY },
+                        target: { x: targetX, y: targetY },
+                        color: '#f59e0b' // Amber-500
+                    });
+                    newFlashingIds.add(item.id);
+                }
+            });
+
+            setPressureConnections(newConnections);
+            setFlashingItemIds(newFlashingIds);
+
+            // Auto-clear after animation (2000ms)
+            setTimeout(() => {
+                setPressureConnections([]);
+                setFlashingItemIds(new Set());
+            }, 2000);
+        }
+    };
+
+
     return (
-        <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900">
+        <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative" ref={containerRef}>
+            {/* SVG Overlay Layer */}
+            <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                <AnimatePresence>
+                    {pressureConnections.map(conn => (
+                        <PressureLine key={conn.id} conn={conn} />
+                    ))}
+                </AnimatePresence>
+            </svg>
+
             {/* Weekday Header (Sticky) */}
-            <div className="flex-none grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-center py-2 z-20 shadow-sm">
+            <div className="flex-none grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-center py-2 z-20 shadow-sm relative">
                 {['月', '火', '水', '木', '金', '土', '日'].map((day, i) => (
                     <div key={i} className={`text-xs font-bold ${i === 6 ? 'text-red-500' : i === 5 ? 'text-blue-500' : 'text-slate-500'}`}>
                         {day}
@@ -204,7 +276,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto relative z-10">
                 <div className="flex flex-col pb-32">
                     {months.map(month => (
                         <React.Fragment key={month.key}>
@@ -241,11 +313,9 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                                 isFirstOfMonth={isFirstOfMonth}
                                                 isSunday={isSunday}
                                                 bgIntensity={bgIntensity}
+                                                flashingItemIds={flashingItemIds}
                                                 onItemClick={onItemClick}
-                                                onCellClick={(signs) => {
-                                                    setSelectedDate(date);
-                                                    setSelectedSigns(signs);
-                                                }}
+                                                onCellAction={handleCellAction}
                                             />
                                         </div>
                                     );
@@ -329,33 +399,65 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     );
 };
 
+// --- Pressure Line Component ---
+const PressureLine: React.FC<{ conn: PressureConnection }> = ({ conn }) => {
+    // Control Point for Bezier (Curved upward slightly)
+    const midX = (conn.source.x + conn.target.x) / 2;
+    const midY = (conn.source.y + conn.target.y) / 2 - 50; // Curve up
+
+    return (
+        <motion.path
+            d={`M ${conn.source.x} ${conn.source.y} Q ${midX} ${midY} ${conn.target.x} ${conn.target.y}`}
+            fill="none"
+            stroke={conn.color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 0.8 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+        />
+    );
+};
+
+
 // Extracted Cell Component for Dnd Hook isolation
 const CalendarCell: React.FC<{
     date: Date;
     items: Item[];
-    allSigns: Item[]; // [NEW] All items for this day (Due + Prep)
+    allSigns: Item[];
     isToday: boolean;
-    isFirstOfMonth: boolean; // [NEW]
-    isSunday: boolean; // [NEW]
+    isFirstOfMonth: boolean;
+    isSunday: boolean;
     bgIntensity: number;
+    flashingItemIds: Set<string>;
     onItemClick: (item: Item) => void;
-    onCellClick: (signs: Item[]) => void; // [NEW] Click handler for cell
-}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, onItemClick, onCellClick }) => {
+    onCellAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
+}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, flashingItemIds, onItemClick, onCellAction }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: `cal-day-${date.getTime()}`,
         data: { date: date.getTime() }
     });
 
+    const handleClick = (e: React.MouseEvent) => {
+        // Single Click: Always trigger Lines/Flash
+        const rect = e.currentTarget.getBoundingClientRect();
+        onCellAction(date, allSigns, 'click', rect);
+    };
+
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        // Double Click: Open Modal
+        // Note: onClick will have fired before this, which is fine (Flash then Modal)
+        const rect = e.currentTarget.getBoundingClientRect();
+        onCellAction(date, allSigns, 'doubleClick', rect);
+    };
+
     return (
         <div
             ref={setNodeRef}
             className={`w-full h-full p-1 flex flex-col relative transition-colors ${isOver ? 'bg-amber-100 dark:bg-amber-900/50' : ''}`}
-            onClick={() => {
-                // Cell click: show "Signs List" if there are any prep items
-                if (allSigns.length > 0) {
-                    onCellClick(allSigns);
-                }
-            }}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
         >
             {/* Heatmap Background */}
             <div
@@ -365,8 +467,8 @@ const CalendarCell: React.FC<{
 
             {/* Date Number with Month Label (1st only) */}
             <div className={`text-xs font-mono mb-1 z-10 relative flex items-start justify-between ${isToday ? 'font-bold text-blue-600' :
-                    isSunday ? 'text-rose-400/70 font-medium' :
-                        'text-slate-400'
+                isSunday ? 'text-rose-400/70 font-medium' :
+                    'text-slate-400'
                 }`}>
                 <div className="flex flex-col items-start">
                     {isFirstOfMonth && (
@@ -382,7 +484,12 @@ const CalendarCell: React.FC<{
             {/* Chips */}
             <div className="flex-1 flex flex-col gap-1 z-10 overflow-hidden">
                 {items.slice(0, 4).map(item => (
-                    <CalendarItemChip key={item.id} item={item} onClick={() => onItemClick(item)} />
+                    <CalendarItemChip
+                        key={item.id}
+                        item={item}
+                        isFlashing={flashingItemIds.has(item.id)}
+                        onClick={() => onItemClick(item)}
+                    />
                 ))}
                 {items.length > 4 && (
                     <div className="text-[10px] text-slate-400 text-center leading-none">
@@ -394,20 +501,23 @@ const CalendarCell: React.FC<{
     );
 };
 
-const CalendarItemChip: React.FC<{ item: Item & { _virtualType?: string }; onClick: () => void }> = ({ item, onClick }) => {
+const CalendarItemChip: React.FC<{ item: Item & { _virtualType?: string }; isFlashing: boolean; onClick: () => void }> = ({ item, isFlashing, onClick }) => {
     const isDue = item._virtualType === 'due';
     const isPrep = item._virtualType === 'prep';
+    const chipId = `cal-chip-${item.id}`; // [NEW] ID for connection target
 
     return (
         <div
+            id={chipId}
             onClick={(e) => {
                 e.stopPropagation();
                 onClick();
             }}
             className={`
-                px-1.5 py-0.5 rounded-[2px] text-[10px] truncate shadow-sm cursor-pointer hover:opacity-80 transition-all
+                px-1.5 py-0.5 rounded-[2px] text-[10px] truncate shadow-sm cursor-pointer transition-all duration-300
                 ${isDue ? 'bg-red-100 text-red-800 border-l-2 border-red-500 font-bold' : ''}
                 ${isPrep ? 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 blur-[0.3px] hover:blur-0' : ''}
+                ${isFlashing ? 'ring-2 ring-amber-400 ring-offset-1 scale-105 z-20 brightness-110 !blur-0' : 'hover:opacity-80'}
             `}
             title={item.title}
         >
