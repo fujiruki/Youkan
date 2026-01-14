@@ -223,7 +223,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     };
 
     // [NEW] Clear selection on background click
-    const handleBackgroundClick = (e: React.MouseEvent) => {
+    const handleBackgroundClick = () => {
         // Only clear if directly clicking the container or empty space
         // (Event propagation from cell stops this if handled there, but we want empty CELLS to clear too?)
         // User said: "Clicking empty cell deselects".
