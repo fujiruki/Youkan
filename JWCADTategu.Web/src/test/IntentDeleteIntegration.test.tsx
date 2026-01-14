@@ -24,7 +24,7 @@ describe('Intent Item Delete Integration', () => {
     const mockIntentItem = createMockItem({
         id: 'test-intent-item',
         title: 'Intentテスト建具',
-        status: 'gdb_preparation', // status doesn't matter much as long as it renders
+        status: 'inbox', // status doesn't matter much as long as it renders
     });
 
     const mockDeleteItem = vi.fn();
