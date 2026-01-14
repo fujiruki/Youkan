@@ -17,6 +17,7 @@ import { UndoToast } from './features/jbwos/components/UI/UndoToast';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ApiClient } from './api/client';
+import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 
 type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history';
 
@@ -182,14 +183,16 @@ const AppContent: React.FC<{
                     <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
 
                         <DebugBanner />
-                        <div className="bg-slate-800 text-white text-xs px-2 py-1 flex gap-4">
-                            {/* Temporary Nav for Dev */}
-                            <button onClick={handleNavigateToProjects}>Projects</button>
-                            <div className="h-4 w-px bg-slate-600 self-center"></div>
-                            <button onClick={() => setCurrentView('jbwos')} className={currentView === 'jbwos' ? "text-amber-400 font-bold" : ""}>GDB (Judgment)</button>
-                            <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
-                            <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? "text-purple-400 font-bold" : ""}>History</button>
-                        </div>
+                        {/* New JBWOS Header */}
+                        {(currentView === 'jbwos' || currentView === 'today' || currentView === 'history') && (
+                            <JBWOSHeader
+                                currentView={currentView as 'jbwos' | 'today' | 'history'}
+                                onNavigateToToday={() => setCurrentView('today')}
+                                onNavigateToGDB={() => setCurrentView('jbwos')}
+                                onNavigateToHistory={() => setCurrentView('history')}
+                                onNavigateToProjects={handleNavigateToProjects}
+                            />
+                        )}
 
                         <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
 
