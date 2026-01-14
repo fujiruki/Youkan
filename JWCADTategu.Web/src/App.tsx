@@ -101,14 +101,26 @@ function App() {
         }
     };
 
-    // [NEW] Global Shortcuts
-    // Ctrl+J -> Jump to JBWOS (Dashboard)
+    // [NEW] Global Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+G: Navigate to GDB (JBWOS Board)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                e.preventDefault();
+                console.log('[Shortcut] Ctrl+G: Switching to JBWOS');
+                handleBackToDashboard();
+            }
+            // Ctrl+J: Also navigate to JBWOS (legacy support)
             if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
                 e.preventDefault();
                 console.log('[Shortcut] Ctrl+J: Switching to JBWOS');
                 handleBackToDashboard();
+            }
+            // Ctrl+T: Navigate to Today
+            if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                e.preventDefault();
+                console.log('[Shortcut] Ctrl+T: Switching to Today');
+                setCurrentView('today');
             }
         };
         window.addEventListener('keydown', handleKeyDown);

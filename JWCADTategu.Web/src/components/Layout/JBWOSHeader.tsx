@@ -30,7 +30,19 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     ← Projects
                 </button>
                 <div className="h-4 w-px bg-slate-600"></div>
-                <h1 className="text-sm font-bold text-slate-100">📊 JBWOS</h1>
+                <button
+                    onClick={() => {
+                        // Navigate back to GDB (JBWOS Board)
+                        window.dispatchEvent(new KeyboardEvent('keydown', {
+                            key: 'g',
+                            ctrlKey: true
+                        }));
+                    }}
+                    className="text-sm font-bold text-slate-100 hover:text-white transition-colors cursor-pointer"
+                    title="放り込み箱へ戻る (Ctrl+G)"
+                >
+                    📊 JBWOS
+                </button>
             </div>
 
             {/* Right: Actions */}

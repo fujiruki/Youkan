@@ -208,7 +208,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                         id: `${date.getTime()}-${item.id}`,
                         source: { x: sourceX, y: sourceY },
                         target: { x: targetX, y: targetY },
-                        color: '#f59e0b' // Amber-500
+                        color: '#fbbf24' // Amber-400 (improved visibility)
                     });
                     newFlashingIds.add(item.id);
                 }
@@ -238,6 +238,15 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative" ref={containerRef}>
             {/* SVG Overlay Layer */}
             <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                <defs>
+                    <filter id="pressure-glow">
+                        <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                        <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
                 <AnimatePresence>
                     {pressureConnections.map(conn => (
                         <PressureLine key={conn.id} conn={conn} />
@@ -283,7 +292,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                 <div
                                     key={dateKey}
                                     ref={isToday ? todayRef : null}
-                                    className="min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group"
+                                    className={`min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group ${isFirstOfMonth ? 'border-t-2 border-t-slate-400 dark:border-t-slate-600' : ''
+                                        }`}
                                 >
                                     <CalendarCell
                                         date={date}
@@ -401,10 +411,11 @@ const PressureLine: React.FC<{ conn: PressureConnection }> = ({ conn }) => {
             d={`M ${conn.source.x} ${conn.source.y} Q ${cpX} ${cpY} ${conn.target.x} ${conn.target.y}`}
             fill="none"
             stroke={conn.color}
-            strokeWidth="3" // Thicker for visibility
+            strokeWidth="2.5" // Slightly thinner, more elegant
             strokeLinecap="round"
+            filter="url(#pressure-glow)" // Glow effect
             initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 0.6 }} // Slightly more transparent
+            animate={{ pathLength: 1, opacity: 0.7 }} // Improved visibility
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
         />

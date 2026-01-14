@@ -227,9 +227,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         id="due-toggle-btn"
                                         onClick={async () => {
                                             const newStatus = dueStatus === 'waiting_external' ? 'confirmed' : 'waiting_external';
-                                            const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || null);
+                                            // Set today's date as default when entering date input mode
+                                            const todayStr = new Date().toISOString().split('T')[0];
+                                            const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || todayStr);
 
                                             setDueStatus(newStatus);
+                                            if (newStatus === 'confirmed' && !dueDate) {
+                                                setDueDate(todayStr); // Set default date in local state
+                                            }
 
                                             if (onUpdate) {
                                                 await onUpdate(item.id, { due_status: newStatus, due_date: newDateVal });

@@ -138,18 +138,18 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
             />
 
             {/* Header */}
-            <div className="w-full max-w-2xl px-6 py-8">
+            <div className="w-full max-w-2xl px-6 py-6">
                 {/* [NEW] Navigation Back */}
                 <button
                     onClick={onBack}
-                    className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 mb-4 text-sm font-bold transition-colors"
+                    className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 mb-3 text-sm font-bold transition-colors"
                 >
                     <ArrowLeft size={18} />
-                    GDB (Inbox) へ戻る
+                    放り込み箱へ戻る
                 </button>
 
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
-                    <span>Today (今日)</span>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
+                    <span>今日</span>
                     {todayCommits.length >= 2 && <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">満杯 (2件)</span>}
                 </h1>
 
@@ -163,20 +163,23 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
             </div>
 
             {/* ZONE 1: Focus (Concentration) - TOP PRIORITY */}
-            <div className="w-full max-w-2xl px-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="flex items-center gap-2 mb-4">
+            <div className="w-full max-w-2xl px-6 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="flex items-center gap-2 mb-3">
                     <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                        集中 (Focus)
+                        集中
                     </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">
+                    <h2 className="text-base font-bold text-slate-700 dark:text-slate-200">
                         今日進める責任ある作業
                     </h2>
                 </div>
 
                 {activeItem ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none border-2 border-blue-500 overflow-hidden relative group">
+                    <div
+                        onClick={() => setCandidateDetailItem(activeItem)}
+                        className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none border-2 border-blue-500 overflow-hidden relative group cursor-pointer hover:shadow-2xl transition-shadow"
+                    >
                         {/* Active Item Content */}
-                        <div className="p-8">
+                        <div className="p-6">
                             <div className="flex items-start justify-between mb-6">
                                 <span className="inline-block px-3 py-1 rounded bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider">
                                     現在のタスク
@@ -265,7 +268,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                     className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle2 size={20} />
-                                    完了 (Historyへ)
+                                    完了
                                 </button>
                             </div>
                         </div>
@@ -385,12 +388,15 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                         </div>
                     ) : (
                         todayCommits.map((item, index) => (
-                            <div key={item.id} className={cn(
-                                "p-4 rounded-xl shadow-sm border flex items-center justify-between transition-all",
-                                index === 0
-                                    ? "bg-blue-50/50 border-blue-200 ring-1 ring-blue-100 dark:bg-slate-800 dark:border-blue-900 dark:ring-blue-900/30"
-                                    : "bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800"
-                            )}>
+                            <div
+                                key={item.id}
+                                onClick={() => setCandidateDetailItem(item)}
+                                className={cn(
+                                    "p-3 rounded-xl shadow-sm border flex items-center justify-between transition-all cursor-pointer hover:shadow-md",
+                                    index === 0
+                                        ? "bg-blue-50/50 border-blue-200 ring-1 ring-blue-100 dark:bg-slate-800 dark:border-blue-900 dark:ring-blue-900/30"
+                                        : "bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800 hover:bg-slate-50"
+                                )}>
                                 <div className="flex items-center gap-3">
                                     <span className="text-xs text-slate-400 font-mono">#{index + 1}</span>
                                     <span className="font-medium text-slate-800 dark:text-slate-200">{item.title}</span>
