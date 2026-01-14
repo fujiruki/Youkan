@@ -20,7 +20,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [note, setNote] = React.useState(item.memo || '');
     const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
     const [dueDate, setDueDate] = React.useState(item.due_date || '');
+    const [workDays, setWorkDays] = React.useState(item.work_days || 1); // [NEW] Local state
+    const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+    const [editedTitle, setEditedTitle] = React.useState(item.title);
     const dateInputRef = React.useRef<HTMLInputElement>(null);
+    const titleInputRef = React.useRef<HTMLInputElement>(null);
 
     // Initial Focus Logic
     React.useEffect(() => {
@@ -42,7 +46,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     React.useEffect(() => {
         setDueStatus(item.due_status || 'waiting_external');
         setDueDate(item.due_date || '');
-    }, [item.due_status, item.due_date]);
+        setWorkDays(item.work_days || 1);
+        setEditedTitle(item.title);
+    }, [item.due_status, item.due_date, item.work_days, item.title]);
 
     // Shortcuts
     React.useEffect(() => {
@@ -105,13 +111,46 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                     >
                         {/* Header Area */}
                         <div className="p-6 pb-4 flex justify-between items-start">
-                            <div>
+                            <div className="flex-1">
                                 <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 mb-2">
                                     {item.category || 'ITEM'}
                                 </span>
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 leading-snug">
-                                    {item.title}
-                                </h2>
+                                {isEditingTitle ? (
+                                    <input
+                                        ref={titleInputRef}
+                                        type="text"
+                                        value={editedTitle}
+                                        onChange={(e) => setEditedTitle(e.target.value)}
+                                        onBlur={async () => {
+                                            setIsEditingTitle(false);
+                                            if (editedTitle !== item.title) {
+                                                if (onUpdate) {
+                                                    await onUpdate(item.id, { title: editedTitle });
+                                                } else {
+                                                    await ApiClient.updateItem(item.id, { title: editedTitle });
+                                                }
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.currentTarget.blur();
+                                            } else if (e.key === 'Escape') {
+                                                setEditedTitle(item.title);
+                                                setIsEditingTitle(false);
+                                            }
+                                        }}
+                                        className="w-full text-xl font-bold text-slate-800 dark:text-slate-100 leading-snug bg-transparent border-b-2 border-indigo-500 focus:outline-none"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <h2
+                                        className="text-xl font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors"
+                                        onClick={() => setIsEditingTitle(true)}
+                                        title="クリックして編集"
+                                    >
+                                        {item.title}
+                                    </h2>
+                                )}
                             </div>
                             <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
                                 <X size={20} className="text-slate-400" />
@@ -227,10 +266,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             type="number"
                                             min="1"
                                             max="30"
-                                            value={item.work_days || 1}
+                                            value={workDays}
                                             onChange={async (e) => {
                                                 const val = parseInt(e.target.value, 10);
                                                 if (!isNaN(val) && val > 0) {
+                                                    setWorkDays(val); // Update local state immediately
                                                     if (onUpdate) {
                                                         await onUpdate(item.id, { work_days: val });
                                                     } else {
