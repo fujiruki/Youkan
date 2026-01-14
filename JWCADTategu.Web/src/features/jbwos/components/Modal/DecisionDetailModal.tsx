@@ -213,6 +213,42 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 </div>
                             </div>
 
+                            {/* [Work Days] 制作目安日数 */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                    【量感】制作目安 (日) <span className="text-[10px] text-slate-300 ml-2">(Volume)</span>
+                                </label>
+                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex-1">
+                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                                            制作目安日数
+                                        </span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="30"
+                                            value={item.work_days || 1}
+                                            onChange={async (e) => {
+                                                const val = parseInt(e.target.value, 10);
+                                                if (!isNaN(val) && val > 0) {
+                                                    if (onUpdate) {
+                                                        await onUpdate(item.id, { work_days: val });
+                                                    } else {
+                                                        await ApiClient.updateItem(item.id, { work_days: val });
+                                                    }
+                                                }
+                                            }}
+                                            className="bg-transparent text-slate-800 dark:text-slate-200 font-mono font-bold focus:outline-none focus:border-b border-indigo-500 w-20 text-center"
+                                        />
+                                        <span className="text-slate-500 dark:text-slate-400 ml-2">日</span>
+                                    </div>
+                                    <div className="text-xs text-slate-400 text-right">
+                                        <p>カレンダーの量感に反映</p>
+                                        <p>予定ではありません</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* [Intent Boost] Today Only Forward */}
                             <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-lg border border-amber-100 dark:border-amber-800/20 flex items-center justify-between">
                                 <div>
