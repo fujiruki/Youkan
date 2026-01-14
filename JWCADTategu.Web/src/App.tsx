@@ -14,6 +14,9 @@ import { HistoryScreen } from './features/jbwos/components/History/HistoryScreen
 
 import { UndoProvider } from './features/jbwos/contexts/UndoContext';
 import { UndoToast } from './features/jbwos/components/UI/UndoToast';
+import { ToastProvider, useToast } from './contexts/ToastContext';
+import { ToastContainer } from './components/Toast/ToastContainer';
+import { ApiClient } from './api/client';
 
 type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history';
 
@@ -112,6 +115,53 @@ function App() {
     }, []);
 
     return (
+        <ToastProvider>
+            <AppContent
+                currentView={currentView}
+                setCurrentView={setCurrentView}
+                activeProject={activeProject}
+                activeDoor={activeDoor}
+                handleNavigateToProjects={handleNavigateToProjects}
+                handleOpenProject={handleOpenProject}
+                handleOpenDoor={handleOpenDoor}
+                handleBackToDashboard={handleBackToDashboard}
+                handleBackToProjectList={handleBackToProjectList}
+                handleBackToSchedule={handleBackToSchedule}
+                handleDeleteProject={handleDeleteProject}
+                setActiveProject={setActiveProject}
+            />
+        </ToastProvider>
+    );
+}
+
+// Separate component to access Toast context
+const AppContent: React.FC<{
+    currentView: ViewState;
+    setCurrentView: (view: ViewState) => void;
+    activeProject: Project | null;
+    activeDoor: Door | null;
+    handleNavigateToProjects: () => void;
+    handleOpenProject: (id: number) => Promise<void>;
+    handleOpenDoor: (door: Door) => void;
+    handleBackToDashboard: () => void;
+    handleBackToProjectList: () => void;
+    handleBackToSchedule: () => void;
+    handleDeleteProject: (id: number) => Promise<void>;
+    setActiveProject: (p: Project | null) => void;
+}> = (props) => {
+    const { showToast, toasts, dismissToast } = useToast();
+
+    // Setup API error handler
+    useEffect(() => {
+        ApiClient.setErrorHandler((error, method, path) => {
+            showToast({
+                type: 'error',
+                title: 'API通信エラー',
+                message: `${method} ${path}: ${error.message}`,
+                duration: 7000
+            });
+        });
+    }, [showToast]);
         <UndoProvider>
             <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
 
@@ -194,7 +244,8 @@ function App() {
                 <UndoToast />
             </div>
         </UndoProvider>
-    );
-}
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>;
+};
 
 export default App;

@@ -5,6 +5,13 @@ import { JudgableItem } from '../features/jbwos/types';
 const API_BASE = '/api';
 
 export class ApiClient {
+    private static errorHandler: ((error: Error, method: string, path: string) => void) | null = null;
+
+    // グローバルエラーハンドラの登録
+    public static setErrorHandler(handler: (error: Error, method: string, path: string) => void) {
+        this.errorHandler = handler;
+    }
+
     private static async request<T>(method: string, path: string, body?: any): Promise<T> {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
@@ -33,6 +40,12 @@ export class ApiClient {
             return await response.json();
         } catch (error) {
             console.error(`API Request Failed: ${method} ${path}`, error);
+
+            // Call global error handler if registered
+            if (this.errorHandler && error instanceof Error) {
+                this.errorHandler(error, method, path);
+            }
+
             throw error;
         }
     }
