@@ -24,6 +24,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [isWorkDaysDirty, setIsWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
+
+    // [NEW] Menu Latching State
+    const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
+
     const dateInputRef = React.useRef<HTMLInputElement>(null);
     const titleInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -42,6 +47,22 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             }, 100);
         }
     }, [initialFocus, item.id, dueStatus]); // trigger when ID changes (new item opened)
+
+    // Click Outside for Menu Latching
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+
+        if (isMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMenuOpen]);
 
     // Sync prop changes if item updates from outside (optional but good practice)
     React.useEffect(() => {
@@ -428,9 +449,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
 
                             {/* NOT NOW (Menu) */}
-                            <div className="relative group/notnow">
+                            <div className="relative group/notnow" ref={menuRef}>
                                 <button
-                                    className="w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
+                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                    className={cn(
+                                        "w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent transition-all",
+                                        isMenuOpen
+                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                            : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                    )}
                                 >
                                     <Trash2 size={20} className="mb-1" />
                                     <span className="text-xs font-bold">今回見送り...</span>
@@ -438,7 +465,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                                 {/* Popup Menu */}
                                 <div
-                                    className="absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 hidden group-hover/notnow:block z-50"
+                                    className={cn(
+                                        "absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
+                                        isMenuOpen ? "block" : "hidden group-hover/notnow:block"
+                                    )}
                                     tabIndex={0}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Delete') {
