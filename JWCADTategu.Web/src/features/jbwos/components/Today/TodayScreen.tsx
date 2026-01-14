@@ -2,20 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { ApiClient } from '../../../../api/client';
 import { cn } from '../../../../lib/utils';
-import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
-import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal'; // [NEW]
+import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal';
 import { Item } from '../../types';
-
-// import { useNavigate } from 'react-router-dom'; // Removed
 
 interface Props {
     onBack: () => void;
 }
 
 export const TodayScreen: React.FC<Props> = ({ onBack }) => {
-    // const navigate = useNavigate(); // Removed
     // [NEW] Selected Candidate for Detail Modal
     const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
     const {
@@ -23,28 +20,24 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
         todayCommits,
         commitToToday,
         completeItem,
-        returnToInbox,      // [NEW]
-        updateItemTitle,    // [NEW]
+        returnToInbox,
+        updateItemTitle,
+        prioritizeTask,       // [NEW]
+        uncommitFromToday,    // [NEW]
         error,
         clearError
     } = useJBWOSViewModel();
 
     // ZONE 1: Commit (Today's Vow)
-    // Max 2 items.
-    // If < 2, we show candidates to allow "Confirm".
     const canCommitMore = todayCommits.length < 2;
 
     // ZONE 2: Execution (The Reality)
-    // Implicit Rule: The TOP item of the Commit list is the Execution Context.
-    // (Optimization: In future, backend 'execution_in_progress' status ensures consistency across devices,
-    // but for now, we treat the top committed item as the active one).
     const activeItem = todayCommits.length > 0 ? todayCommits[0] : null;
 
     // --- Phase 3 Execution Logic ---
     const [pausedItems, setPausedItems] = React.useState<Record<string, boolean>>({});
 
     const handlePause = async (item: any) => {
-        // Optimistic UI
         setPausedItems(prev => ({ ...prev, [item.id]: true }));
         try {
             await ApiClient.pauseExecution(item.id.toString());
@@ -88,17 +81,11 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
     const [staleItems, setStaleItems] = useState<any[]>([]);
 
     useEffect(() => {
-        // Check if any "Today Commit" is actually from yesterday or older
-        // We use statusUpdatedAt timestamp (seconds)
         const checkStale = () => {
             const now = new Date();
             const startOfTodayVal = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000;
 
-            // Items that are committed BUT status updated BEFORE today
             const stale = todayCommits.filter(item => {
-                // Safety: If no statusUpdatedAt, fallback to updated_at? 
-                // If status is 'today_commit', it should have updated timestamp when it changed.
-                // Let's rely on statusUpdatedAt.
                 return item.statusUpdatedAt < startOfTodayVal;
             });
 
@@ -107,27 +94,20 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
             }
         };
 
-        // Run check when items load
         if (todayCommits.length > 0) {
             checkStale();
         }
     }, [todayCommits]);
 
     const handleRelief = async (itemIds: string[], action: 'completed_yesterday' | 'did_not_do') => {
-        // Close modal first (optimistic)
         setStaleItems([]);
 
         if (action === 'completed_yesterday') {
-            // Mark all as done
             await Promise.all(itemIds.map(id => completeItem(id)));
         } else {
-            // Return to Inbox/Decision (Did not do)
-            // V2: "Cancel" -> Return to decision target.
             await Promise.all(itemIds.map(id => returnToInbox(id, 'today_commit')));
         }
     };
-
-    // ---------------------------------
 
     return (
         <div className="h-full w-full bg-slate-50 dark:bg-slate-950 flex flex-col items-center overflow-y-auto pb-20">
@@ -139,7 +119,6 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
 
             {/* Header */}
             <div className="w-full max-w-2xl px-6 py-6">
-                {/* [NEW] Navigation Back */}
                 <button
                     onClick={onBack}
                     className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 mb-3 text-sm font-bold transition-colors"
@@ -190,6 +169,17 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                             <PauseCircle size={16} /> 中断中
                                         </span>
                                     )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            uncommitFromToday(activeItem.id);
+                                        }}
+                                        className="text-amber-500 hover:text-amber-700 flex items-center gap-1 text-xs font-bold transition-colors"
+                                        title="候補に戻す"
+                                    >
+                                        <ArrowDownCircle size={16} />
+                                        <span className="hidden sm:inline">候補に戻す</span>
+                                    </button>
                                     <button
                                         onClick={() => returnToInbox(activeItem.id, 'today_commit')}
                                         className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 flex items-center gap-1 text-xs font-bold transition-colors"
@@ -322,7 +312,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                         {todayCandidates.filter(i => !i.is_boosted).map(item => (
                             <div
                                 key={item.id}
-                                onClick={() => setCandidateDetailItem(item)} // [NEW] Open Modal
+                                onClick={() => setCandidateDetailItem(item)}
                                 className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-between group hover:bg-white hover:border-solid hover:border-amber-400 transition-all cursor-pointer"
                             >
                                 <div>
@@ -331,7 +321,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                 </div>
                                 <button
                                     onClick={(e) => {
-                                        e.stopPropagation(); // Prevent Modal Open
+                                        e.stopPropagation();
                                         commitToToday(item.id);
                                     }}
                                     className="bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-bold hover:bg-amber-500 hover:text-white transition-all transform hover:scale-105 flex items-center gap-2"
@@ -355,15 +345,6 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                         setCandidateDetailItem(null);
                     }}
                     onUpdate={async (id, updates) => {
-                        // Optimistic Update for UI?
-                        // For now just call API to update.
-                        // Since we don't have a direct 'updateItem' prop from ViewModel here easily exposed,
-                        // we can try to use updateItemTitle for title, or ApiClient for generic.
-                        // The Modal handles updates via callback or direct API if onUpdate not passed?
-                        // Let's passed a consolidated update function or rely on Modal's internal API call if needed.
-                        // But Modal expects onUpdate for better UX (no reload).
-                        // Let's just use ApiClient inside generic handler here.
-
                         if (updates.title) {
                             await updateItemTitle(id, updates.title);
                         } else {
@@ -401,11 +382,36 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                     <span className="text-xs text-slate-400 font-mono">#{index + 1}</span>
                                     <span className="font-medium text-slate-800 dark:text-slate-200">{item.title}</span>
                                 </div>
-                                {index === 0 && (
-                                    <div className="text-blue-500 text-[10px] font-bold uppercase tracking-wide">
-                                        実行中
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {index === 0 ? (
+                                        <div className="text-blue-500 text-[10px] font-bold uppercase tracking-wide">
+                                            実行中
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    prioritizeTask(item.id);
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                                title="先にやる"
+                                            >
+                                                <ArrowUp size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    uncommitFromToday(item.id);
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded"
+                                                title="候補に戻す"
+                                            >
+                                                <ArrowDown size={16} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}

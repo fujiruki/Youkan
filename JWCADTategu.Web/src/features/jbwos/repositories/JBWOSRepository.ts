@@ -155,6 +155,9 @@ export const JBWOSRepository = {
     commitToToday: async (id: string) => {
         return ApiClient.commitToToday(id);
     },
+    startExecution: async (id: string) => {
+        return ApiClient.startExecution(id);
+    },
     completeItem: async (id: string) => {
         return ApiClient.completeItem(id);
     },

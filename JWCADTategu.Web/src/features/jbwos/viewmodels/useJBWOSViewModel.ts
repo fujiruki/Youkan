@@ -237,6 +237,50 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    // [NEW] Flexibility: Prioritize (Wait -> Active)
+    const prioritizeTask = async (id: string) => {
+        // Optimistic: Move to top of todayCommits
+        setTodayCommits(prev => {
+            const target = prev.find(i => i.id === id);
+            if (!target) return prev;
+            const others = prev.filter(i => i.id !== id);
+            return [target, ...others];
+        });
+        // Optimistic: Update executionItem immediately
+        const target = todayCommits.find(i => i.id === id);
+        if (target) setExecutionItem(target);
+
+        try {
+            // Server-side: Start Execution (implicitly makes it active/top)
+            await JBWOSRepository.startExecution(id);
+            refreshToday();
+        } catch (e) {
+            console.error('Prioritize failed', e);
+            refreshToday();
+        }
+    };
+
+    // [NEW] Flexibility: Uncommit (Today Commit -> Candidate)
+    const uncommitFromToday = async (id: string) => {
+        // Guard: Don't uncommit active if it's running? Optional.
+        // Optimistic: Remove from Commits, Add to Candidates
+        setTodayCommits(prev => prev.filter(i => i.id !== id));
+        // Add to candidates (needs pseudo item or find from cache)
+        // Ideally we fetch, but for optimistic UI let's try to preserve
+        // We might lose some data if we just filter, but refreshToday will fix.
+
+        if (executionItem?.id === id) setExecutionItem(null);
+
+        try {
+            // Update status to 'ready' (Candidate)
+            await JBWOSRepository.updateItem(id, { status: 'ready' });
+            refreshToday();
+        } catch (e) {
+            console.error('Uncommit failed', e);
+            refreshToday();
+        }
+    };
+
     const updateItemTitle = async (id: string, newTitle: string) => {
         // Optimistic
         if (executionItem?.id === id) setExecutionItem({ ...executionItem, title: newTitle });
@@ -298,6 +342,8 @@ export const useJBWOSViewModel = () => {
         deleteItem, // [NEW]
         returnToInbox, // [NEW] Flexibility
         updateItemTitle, // [NEW] Flexibility
+        prioritizeTask, // [NEW] Flexibility
+        uncommitFromToday, // [NEW] Flexibility
         updatePreparationDate, // [NEW]
 
         // Helpers
