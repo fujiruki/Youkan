@@ -307,7 +307,7 @@ export const TodayScreen: React.FC = () => {
                                     className="bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-bold hover:bg-amber-500 hover:text-white transition-all transform hover:scale-105 flex items-center gap-2"
                                 >
                                     <ArrowDownCircle size={16} />
-                                    確定
+                                    今日やることを確定
                                 </button>
                             </div>
                         ))}
