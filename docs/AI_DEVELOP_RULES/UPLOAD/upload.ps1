@@ -5,7 +5,7 @@ $serverHost = "www1045.conoha.ne.jp"
 $serverUser = "c6924945"
 $serverPort = "8022"
 # Using relative path from home directory
-$remoteDir = "public_html/door-fujita.com/contents/VerticalWeeklyDiaryMaker"
+$remoteDir = "public_html/door-fujita.com/contents/TateguDesignStudio"
 $sshKeyPath = "key-2025-11-29-07-10.pem"
 $archiveName = "deploy.tar.gz"
 

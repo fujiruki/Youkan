@@ -188,7 +188,6 @@ const AppContent: React.FC<{
                             <JBWOSHeader
                                 currentView={currentView as 'jbwos' | 'today' | 'history'}
                                 onNavigateToToday={() => setCurrentView('today')}
-                                onNavigateToGDB={() => setCurrentView('jbwos')}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
                             />

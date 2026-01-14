@@ -4,7 +4,6 @@ import { Menu, HelpCircle, History, Settings } from 'lucide-react';
 interface JBWOSHeaderProps {
     currentView: 'jbwos' | 'today' | 'history';
     onNavigateToToday: () => void;
-    onNavigateToGDB: () => void;
     onNavigateToHistory: () => void;
     onNavigateToProjects: () => void;
 }
@@ -12,7 +11,6 @@ interface JBWOSHeaderProps {
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     currentView,
     onNavigateToToday,
-    onNavigateToGDB,
     onNavigateToHistory,
     onNavigateToProjects
 }) => {
@@ -38,8 +36,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 <button
                     onClick={onNavigateToToday}
                     className={`px-6 py-2 rounded-lg font-bold text-sm transition-all shadow-md ${currentView === 'today'
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-amber-400 text-white hover:bg-amber-500'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-amber-400 text-white hover:bg-amber-500'
                         }`}
                 >
                     Today
