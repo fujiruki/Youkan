@@ -79,6 +79,12 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         // Board Drop Logic
         if (overContainerId === 'preparation') {
             await vm.resolveDecision(activeItemId, 'hold', 'Dragged to Preparation');
+        } else if (overContainerId === 'intent') {
+            await vm.resolveDecision(activeItemId, 'no', 'intent');
+        } else if (overContainerId === 'life') {
+            await vm.resolveDecision(activeItemId, 'no', 'life');
+        } else if (overContainerId === 'history') {
+            await vm.resolveDecision(activeItemId, 'no', 'history');
         } else if (overContainerId === 'active') {
             // Maybe return to inbox/active?
             // Since active logic is "Inbox or RDD arrived", explicit move might mean setting RDD to now?

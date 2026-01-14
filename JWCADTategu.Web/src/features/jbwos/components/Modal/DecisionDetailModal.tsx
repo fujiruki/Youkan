@@ -110,9 +110,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col"
                     >
                         {/* Header Area */}
-                        <div className="p-6 pb-4 flex justify-between items-start">
+                        <div className="p-4 pb-3 flex justify-between items-start">
                             <div className="flex-1">
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 mb-2">
+                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 mb-1">
                                     {item.category || 'ITEM'}
                                 </span>
                                 {isEditingTitle ? (
@@ -139,12 +139,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 setIsEditingTitle(false);
                                             }
                                         }}
-                                        className="w-full text-xl font-bold text-slate-800 dark:text-slate-100 leading-snug bg-transparent border-b-2 border-indigo-500 focus:outline-none"
+                                        className="w-full text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug bg-transparent border-b-2 border-indigo-500 focus:outline-none"
                                         autoFocus
                                     />
                                 ) : (
                                     <h2
-                                        className="text-xl font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors"
+                                        className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors"
                                         onClick={() => setIsEditingTitle(true)}
                                         title="クリックして編集"
                                     >
@@ -152,13 +152,45 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     </h2>
                                 )}
                             </div>
-                            <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <X size={20} className="text-slate-400" />
-                            </button>
+
+                            {/* Right: Quick Actions + Close */}
+                            <div className="flex items-start gap-2 ml-4">
+                                <button
+                                    onClick={async () => {
+                                        if (onUpdate) {
+                                            await onUpdate(item.id, { work_days: workDays });
+                                        } else {
+                                            await ApiClient.updateItem(item.id, { work_days: workDays });
+                                        }
+                                        onDecision(item.id, 'hold', note);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-sm font-bold transition-all bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-200"
+                                    title="保留"
+                                >
+                                    保留
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (onUpdate) {
+                                            await onUpdate(item.id, { work_days: workDays });
+                                        } else {
+                                            await ApiClient.updateItem(item.id, { work_days: workDays });
+                                        }
+                                        onDecision(item.id, 'yes', note);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-400 hover:bg-amber-500 text-white shadow-md"
+                                    title="今日やる"
+                                >
+                                    今日やる
+                                </button>
+                                <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} className="text-slate-400" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Content Area - Meta & Note */}
-                        <div className="px-6 py-2 space-y-4">
+                        <div className="px-4 py-2 space-y-3">
 
                             {/* [Fact Check] Due Date Section */}
                             <div className="space-y-2">
