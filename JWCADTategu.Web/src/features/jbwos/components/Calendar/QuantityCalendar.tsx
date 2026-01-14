@@ -163,7 +163,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (todayRef.current) {
-            todayRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            todayRef.current.scrollIntoView({ block: 'center', behavior: 'auto' }); // Instant scroll, no animation
         }
     }, []);
 
