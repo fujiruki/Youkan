@@ -148,104 +148,121 @@ const AppContent: React.FC<{
     handleBackToSchedule: () => void;
     handleDeleteProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
-}> = (props) => {
-    const { showToast, toasts, dismissToast } = useToast();
+}> = ({
+    currentView,
+    setCurrentView,
+    activeProject,
+    activeDoor,
+    handleNavigateToProjects,
+    handleOpenProject,
+    handleOpenDoor,
+    handleBackToDashboard,
+    handleBackToProjectList,
+    handleBackToSchedule,
+    handleDeleteProject,
+    setActiveProject
+}) => {
+        const { showToast, toasts, dismissToast } = useToast();
 
-    // Setup API error handler
-    useEffect(() => {
-        ApiClient.setErrorHandler((error, method, path) => {
-            showToast({
-                type: 'error',
-                title: 'API通信エラー',
-                message: `${method} ${path}: ${error.message}`,
-                duration: 7000
+        // Setup API error handler
+        useEffect(() => {
+            ApiClient.setErrorHandler((error, method, path) => {
+                showToast({
+                    type: 'error',
+                    title: 'API通信エラー',
+                    message: `${method} ${path}: ${error.message}`,
+                    duration: 7000
+                });
             });
-        });
-    }, [showToast]);
-        <UndoProvider>
-            <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
+        }, [showToast]);
 
-                <DebugBanner />
-                <div className="bg-slate-800 text-white text-xs px-2 py-1 flex gap-4">
-                    {/* Temporary Nav for Dev */}
-                    <button onClick={handleNavigateToProjects}>Projects</button>
-                    <div className="h-4 w-px bg-slate-600 self-center"></div>
-                    <button onClick={() => setCurrentView('jbwos')} className={currentView === 'jbwos' ? "text-amber-400 font-bold" : ""}>GDB (Judgment)</button>
-                    <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
-                    <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? "text-purple-400 font-bold" : ""}>History</button>
-                </div>
+        return (
+            <>
+                <UndoProvider>
+                    <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
 
-                <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
+                        <DebugBanner />
+                        <div className="bg-slate-800 text-white text-xs px-2 py-1 flex gap-4">
+                            {/* Temporary Nav for Dev */}
+                            <button onClick={handleNavigateToProjects}>Projects</button>
+                            <div className="h-4 w-px bg-slate-600 self-center"></div>
+                            <button onClick={() => setCurrentView('jbwos')} className={currentView === 'jbwos' ? "text-amber-400 font-bold" : ""}>GDB (Judgment)</button>
+                            <button onClick={() => setCurrentView('today')} className={currentView === 'today' ? "text-blue-400 font-bold" : ""}>Today (Execution)</button>
+                            <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? "text-purple-400 font-bold" : ""}>History</button>
+                        </div>
 
-                    {/* 1. Global Decision Board (Replaced by JBWOS) */}
-                    {/* 
+                        <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
+
+                            {/* 1. Global Decision Board (Replaced by JBWOS) */}
+                            {/* 
                       Old 'dashboard' view is deprecated. 
                       We use 'jbwos' as the main dashboard now.
                     */}
 
-                    {/* 0. JBWOS (MVP) - MAIN DASHBOARD */}
-                    {(currentView === 'jbwos' || currentView === 'dashboard') && (
-                        <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
-                            <JbwosBoard onClose={handleNavigateToProjects} />
+                            {/* 0. JBWOS (MVP) - MAIN DASHBOARD */}
+                            {(currentView === 'jbwos' || currentView === 'dashboard') && (
+                                <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
+                                    <JbwosBoard onClose={handleNavigateToProjects} />
+                                </div>
+                            )}
+
+                            {/* 2. Project List (External View) */}
+                            {currentView === 'projectList' && (
+                                <ProjectListScreen
+                                    onSelectProject={handleOpenProject}
+                                    onNavigateHome={handleBackToDashboard}
+                                />
+                            )}
+
+                            {/* 3. Schedule (External Project Detail) */}
+                            {currentView === 'schedule' && activeProject && (
+                                <JoineryScheduleScreen
+                                    project={activeProject}
+                                    // If coming from ProjectList, "Back" usually means back to list.
+                                    // But historically it meant dashboard. Let's point to ProjectList now.
+                                    onBack={handleBackToProjectList}
+                                    onOpenDoor={handleOpenDoor}
+                                    onDeleteProject={() => handleDeleteProject(activeProject.id!)} // [FIX] Connect handler
+                                    onUpdateProject={setActiveProject}
+                                />
+                            )}
+
+                            {/* 4. Editor */}
+                            {currentView === 'editor' && activeDoor && (
+                                <EditorScreen
+                                    doorId={activeDoor.id!}
+                                    onBack={handleBackToSchedule} // Or Back to Global if that's where we came from?
+                                // Ideally we remember previous view. For now Schedule is safe, 
+                                // but if we came from Global, we might want to go back there.
+                                // Improvement: Add `returnView` state.
+                                />
+                            )}
+
+                            {/* 5. Catalog */}
+                            {currentView === 'catalog' && (
+                                <CatalogScreen
+                                    onBack={handleBackToDashboard}
+                                />
+                            )}
+
+                            {/* 6. Today Screen (Execution) */}
+                            {currentView === 'today' && (
+                                <TodayScreen />
+                            )}
+
+                            {/* 7. History Screen */}
+                            {currentView === 'history' && (
+                                <HistoryScreen onBack={() => setCurrentView('jbwos')} />
+                            )}
                         </div>
-                    )}
 
-                    {/* 2. Project List (External View) */}
-                    {currentView === 'projectList' && (
-                        <ProjectListScreen
-                            onSelectProject={handleOpenProject}
-                            onNavigateHome={handleBackToDashboard}
-                        />
-                    )}
-
-                    {/* 3. Schedule (External Project Detail) */}
-                    {currentView === 'schedule' && activeProject && (
-                        <JoineryScheduleScreen
-                            project={activeProject}
-                            // If coming from ProjectList, "Back" usually means back to list.
-                            // But historically it meant dashboard. Let's point to ProjectList now.
-                            onBack={handleBackToProjectList}
-                            onOpenDoor={handleOpenDoor}
-                            onDeleteProject={() => handleDeleteProject(activeProject.id!)} // [FIX] Connect handler
-                            onUpdateProject={setActiveProject}
-                        />
-                    )}
-
-                    {/* 4. Editor */}
-                    {currentView === 'editor' && activeDoor && (
-                        <EditorScreen
-                            doorId={activeDoor.id!}
-                            onBack={handleBackToSchedule} // Or Back to Global if that's where we came from?
-                        // Ideally we remember previous view. For now Schedule is safe, 
-                        // but if we came from Global, we might want to go back there.
-                        // Improvement: Add `returnView` state.
-                        />
-                    )}
-
-                    {/* 5. Catalog */}
-                    {currentView === 'catalog' && (
-                        <CatalogScreen
-                            onBack={handleBackToDashboard}
-                        />
-                    )}
-
-                    {/* 6. Today Screen (Execution) */}
-                    {currentView === 'today' && (
-                        <TodayScreen />
-                    )}
-
-                    {/* 7. History Screen */}
-                    {currentView === 'history' && (
-                        <HistoryScreen onBack={() => setCurrentView('jbwos')} />
-                    )}
-                </div>
-
-                {/* Global Undo Toast */}
-                <UndoToast />
-            </div>
-        </UndoProvider>
-        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-    </>;
-};
+                        {/* Global Undo Toast */}
+                        <UndoToast />
+                    </div>
+                </UndoProvider>
+                <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+            </>
+        );
+    };
 
 export default App;
