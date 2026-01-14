@@ -184,6 +184,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 onClose={() => {
                     setDetailItem(null);
                     setInitialFocus(undefined);
+                    // [FIX] Restore focus to input after modal closes
+                    setTimeout(() => inputRef.current?.focus(), 100);
                 }}
                 onDecision={async (id, decision, note) => {
                     // [NEW] Custom Routing for "Not This Time" (No)

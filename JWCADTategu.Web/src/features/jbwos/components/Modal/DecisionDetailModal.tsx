@@ -23,12 +23,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [workDays, setWorkDays] = React.useState(item.work_days || 1); // [NEW] Local state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
-    const [focusedAction, setFocusedAction] = React.useState<'no' | 'hold' | 'yes' | null>(null); // [NEW] Keyboard navigation
     const dateInputRef = React.useRef<HTMLInputElement>(null);
     const titleInputRef = React.useRef<HTMLInputElement>(null);
-    const yesButtonRef = React.useRef<HTMLButtonElement>(null);  // 今日やる (rightmost)
-    const holdButtonRef = React.useRef<HTMLButtonElement>(null); // 保留 (middle)
-    const noButtonRef = React.useRef<HTMLDivElement>(null);      // 今回見送り (leftmost, container div)
 
     // Initial Focus Logic
     React.useEffect(() => {
@@ -74,54 +70,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                 setTimeout(() => dateInputRef.current?.focus(), 50);
             }
 
-            // Ctrl + Enter: Focus on action buttons (starting with "Yes")
+            // Ctrl + Enter: Immediate decision "Yes" (Today) - Execute and close modal
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
-                setFocusedAction('yes');
-                setTimeout(() => yesButtonRef.current?.focus(), 50);
-            }
-
-            // Arrow keys: Navigate between action buttons (Left/Right order: no, hold, yes)
-            if (focusedAction && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                e.preventDefault();
-                if (e.key === 'ArrowRight') {
-                    // Right: yes -> hold -> no (reverse, left to right)
-                    if (focusedAction === 'yes') {
-                        setFocusedAction('hold');
-                        setTimeout(() => holdButtonRef.current?.focus(), 0);
-                    } else if (focusedAction === 'hold') {
-                        setFocusedAction('no');
-                        // No button is a div container, no focus
-                    } else if (focusedAction === 'no') {
-                        setFocusedAction('yes');
-                        setTimeout(() => yesButtonRef.current?.focus(), 0);
-                    }
-                } else if (e.key === 'ArrowLeft') {
-                    // Left: no -> hold -> yes (forward, right to left)
-                    if (focusedAction === 'yes') {
-                        setFocusedAction('hold');
-                        setTimeout(() => holdButtonRef.current?.focus(), 0);
-                    } else if (focusedAction === 'hold') {
-                        setFocusedAction('no');
-                        // No button is a div container, no focus
-                    } else if (focusedAction === 'no') {
-                        setFocusedAction('yes');
-                        setTimeout(() => yesButtonRef.current?.focus(), 0);
-                    }
-                }
-            }
-
-            // Enter: Execute focused action
-            if (focusedAction && e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                if (focusedAction === 'yes') {
-                    handleDecisionWithSave('yes');
-                } else if (focusedAction === 'hold') {
-                    handleDecisionWithSave('hold');
-                } else if (focusedAction === 'no') {
-                    // For 'no', do nothing (user needs to click to open submenu)
-                    // Arrow keys will navigate away from this
-                }
+                handleDecisionWithSave('yes');
+                return; // Exit early to prevent further processing
             }
 
             // Esc: Close (Keep in Inbox)
@@ -132,7 +85,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [item.id, dueStatus, note, focusedAction, workDays, onDecision, onClose, onUpdate]);
+    }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate]);
 
     // [NEW] Save work_days and close
     const handleClose = async () => {
@@ -471,21 +424,27 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
 
                             {/* NOT NOW (Menu) */}
-                            <div ref={noButtonRef} className="relative group/notnow">
+                            <div className="relative group/notnow">
                                 <button
-                                    className={cn(
-                                        "w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border transition-all",
-                                        focusedAction === 'no'
-                                            ? "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300"
-                                            : "border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                                    )}
+                                    className="w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
                                 >
                                     <Trash2 size={20} className="mb-1" />
                                     <span className="text-xs font-bold">今回見送り...</span>
                                 </button>
 
                                 {/* Popup Menu */}
-                                <div className="absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 hidden group-hover/notnow:block z-50">
+                                <div
+                                    className="absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 hidden group-hover/notnow:block z-50"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Delete') {
+                                            e.preventDefault();
+                                            if (confirm('この操作は取り消せません。完全に削除しますか？')) {
+                                                onDelete(item.id);
+                                            }
+                                        }
+                                    }}
+                                >
                                     <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1">行き先を選択</div>
                                     <button
                                         onClick={() => onDecision(item.id, 'no', 'intent')}
@@ -523,7 +482,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                             {/* HOLD */}
                             <button
-                                ref={holdButtonRef}
                                 onClick={async () => {
                                     // Save work_days before decision
                                     if (onUpdate) {
@@ -552,7 +510,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                             {/* YES / READY */}
                             <button
-                                ref={yesButtonRef}
                                 onClick={async () => {
                                     // Save work_days before decision
                                     if (onUpdate) {
@@ -562,12 +519,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     }
                                     onDecision(item.id, 'yes', note);
                                 }}
-                                className={cn(
-                                    "flex flex-col items-center justify-center gap-1 p-3 rounded-lg shadow-md shadow-amber-200 dark:shadow-none transition-all transform active:scale-95",
-                                    focusedAction === 'yes'
-                                        ? "bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-400 ring-offset-2"
-                                        : "bg-amber-400 hover:bg-amber-500 text-white"
-                                )}
+                                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg shadow-md shadow-amber-200 dark:shadow-none transition-all transform active:scale-95 bg-amber-400 hover:bg-amber-500 text-white"
                             >
                                 <CheckCircle2 size={20} className="mb-1" />
                                 <span className="text-xs font-bold">今日やる (Yes)</span>
