@@ -5,8 +5,12 @@ import { cn } from '../../../../lib/utils';
 import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
+import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal'; // [NEW]
+import { Item } from '../../types';
 
 export const TodayScreen: React.FC = () => {
+    // [NEW] Selected Candidate for Detail Modal
+    const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
     const {
         todayCandidates,
         todayCommits,
@@ -297,13 +301,20 @@ export const TodayScreen: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                         {todayCandidates.filter(i => !i.is_boosted).map(item => (
-                            <div key={item.id} className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-between group hover:bg-white hover:border-solid hover:border-amber-400 transition-all">
+                            <div
+                                key={item.id}
+                                onClick={() => setCandidateDetailItem(item)} // [NEW] Open Modal
+                                className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-between group hover:bg-white hover:border-solid hover:border-amber-400 transition-all cursor-pointer"
+                            >
                                 <div>
                                     <h3 className="font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-900">{item.title}</h3>
                                     <p className="text-xs text-slate-400">RDD: {item.rdd ? new Date(item.rdd * 1000).toLocaleDateString() : '未設定'}</p>
                                 </div>
                                 <button
-                                    onClick={() => commitToToday(item.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Prevent Modal Open
+                                        commitToToday(item.id);
+                                    }}
                                     className="bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-bold hover:bg-amber-500 hover:text-white transition-all transform hover:scale-105 flex items-center gap-2"
                                 >
                                     <ArrowDownCircle size={16} />
@@ -313,6 +324,34 @@ export const TodayScreen: React.FC = () => {
                         ))}
                     </div>
                 </div>
+            )}
+
+            {/* [NEW] Candidate Detail Modal */}
+            {candidateDetailItem && (
+                <TodayCandidateDetailModal
+                    item={candidateDetailItem}
+                    onClose={() => setCandidateDetailItem(null)}
+                    onConfirm={(id) => {
+                        commitToToday(id);
+                        setCandidateDetailItem(null);
+                    }}
+                    onUpdate={async (id, updates) => {
+                        // Optimistic Update for UI?
+                        // For now just call API to update.
+                        // Since we don't have a direct 'updateItem' prop from ViewModel here easily exposed,
+                        // we can try to use updateItemTitle for title, or ApiClient for generic.
+                        // The Modal handles updates via callback or direct API if onUpdate not passed?
+                        // Let's passed a consolidated update function or rely on Modal's internal API call if needed.
+                        // But Modal expects onUpdate for better UX (no reload).
+                        // Let's just use ApiClient inside generic handler here.
+
+                        if (updates.title) {
+                            await updateItemTitle(id, updates.title);
+                        } else {
+                            await ApiClient.updateItem(id, updates);
+                        }
+                    }}
+                />
             )}
 
             {/* ZONE 2: Light (Remaining Tasks) */}
