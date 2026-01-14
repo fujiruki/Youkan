@@ -23,8 +23,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [workDays, setWorkDays] = React.useState(item.work_days || 1); // [NEW] Local state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
+    const [focusedAction, setFocusedAction] = React.useState<'no' | 'hold' | 'yes' | null>(null); // [NEW] Keyboard navigation
     const dateInputRef = React.useRef<HTMLInputElement>(null);
     const titleInputRef = React.useRef<HTMLInputElement>(null);
+    const yesButtonRef = React.useRef<HTMLButtonElement>(null);
+    const holdButtonRef = React.useRef<HTMLButtonElement>(null);
+    const noButtonRef = React.useRef<HTMLButtonElement>(null);
 
     // Initial Focus Logic
     React.useEffect(() => {
@@ -50,7 +54,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         setEditedTitle(item.title);
     }, [item.due_status, item.due_date, item.work_days, item.title]);
 
-    // Shortcuts
+    // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Alt + D: Focus Date
@@ -67,24 +71,90 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                 setTimeout(() => dateInputRef.current?.focus(), 50);
             }
 
-            // Ctrl + Enter: Decision "Yes" (Today)
+            // Ctrl + Enter: Focus on action buttons (starting with "Yes")
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
-                onDecision(item.id, 'yes', note);
+                setFocusedAction('yes');
+                setTimeout(() => yesButtonRef.current?.focus(), 50);
+            }
+
+            // Arrow keys: Navigate between action buttons when one is focused
+            if (focusedAction && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                e.preventDefault();
+                if (e.key === 'ArrowLeft') {
+                    // Left: yes -> hold -> no -> (wrap to yes)
+                    if (focusedAction === 'yes') {
+                        setFocusedAction('no');
+                        setTimeout(() => noButtonRef.current?.focus(), 0);
+                    } else if (focusedAction === 'hold') {
+                        setFocusedAction('yes');
+                        setTimeout(() => yesButtonRef.current?.focus(), 0);
+                    } else if (focusedAction === 'no') {
+                        setFocusedAction('hold');
+                        setTimeout(() => holdButtonRef.current?.focus(), 0);
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    // Right: yes -> hold -> no -> (wrap to yes)
+                    if (focusedAction === 'yes') {
+                        setFocusedAction('hold');
+                        setTimeout(() => holdButtonRef.current?.focus(), 0);
+                    } else if (focusedAction === 'hold') {
+                        setFocusedAction('no');
+                        setTimeout(() => noButtonRef.current?.focus(), 0);
+                    } else if (focusedAction === 'no') {
+                        setFocusedAction('yes');
+                        setTimeout(() => yesButtonRef.current?.focus(), 0);
+                    }
+                }
+            }
+
+            // Enter: Execute focused action
+            if (focusedAction && e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                if (focusedAction === 'yes') {
+                    handleDecisionWithSave('yes');
+                } else if (focusedAction === 'hold') {
+                    handleDecisionWithSave('hold');
+                } else if (focusedAction === 'no') {
+                    // For 'no', we might want to show the submenu, but for now just close
+                    onClose();
+                }
             }
 
             // Esc: Close (Keep in Inbox)
             if (e.key === 'Escape') {
-                // If date picker is open, it might consume escape? 
-                // Usually browser handles date picker escape.
-                // We'll let it bubble or check specific conditions if needed.
                 e.preventDefault();
-                onClose();
+                handleClose();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [item.id, dueStatus, note, onDecision, onClose, onUpdate]);
+    }, [item.id, dueStatus, note, focusedAction, workDays, onDecision, onClose, onUpdate]);
+
+    // [NEW] Save work_days and close
+    const handleClose = async () => {
+        // Ensure work_days is saved before closing
+        if (workDays !== item.work_days) {
+            if (onUpdate) {
+                await onUpdate(item.id, { work_days: workDays });
+            } else {
+                await ApiClient.updateItem(item.id, { work_days: workDays });
+            }
+        }
+        onClose();
+    };
+
+    // [NEW] Helper to save work_days before decision
+    const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
+        if (workDays !== item.work_days) {
+            if (onUpdate) {
+                await onUpdate(item.id, { work_days: workDays });
+            } else {
+                await ApiClient.updateItem(item.id, { work_days: workDays });
+            }
+        }
+        onDecision(item.id, decision, note);
+    };
 
     // Save note on standard decision?
     // For now, note is passed when button is clicked.
@@ -98,7 +168,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px]"
                     />
 
@@ -183,7 +253,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 >
                                     今日やる
                                 </button>
-                                <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
+                                <button onClick={handleClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
                                     <X size={20} className="text-slate-400" />
                                 </button>
                             </div>

@@ -49,10 +49,19 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
         });
     };
 
+    // [NEW] Save work_days and close
+    const handleClose = async () => {
+        // Ensure work_days is saved before closing
+        if (workDays !== item.work_days) {
+            await handleSaveUpdate({ work_days: workDays });
+        }
+        onClose();
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             {/* Backdrop click to close */}
-            <div className="absolute inset-0" onClick={onClose} />
+            <div className="absolute inset-0" onClick={handleClose} />
 
             <div className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
 
@@ -92,7 +101,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                         )}
                     </div>
 
-                    <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                    <button onClick={handleClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
                         <X size={20} className="text-slate-400" />
                     </button>
                 </div>
