@@ -207,16 +207,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     await vm.deleteItem(id);
                     setDetailItem(null);
                 }}
-                onUpdate={async (id, updates) => {
-                    // 1. Optimistic Update Local Modal State
-                    setDetailItem(prev => prev ? { ...prev, ...updates } : null);
-
-                    // 2. Persist
-                    await ApiClient.updateItem(id, updates);
-
-                    // 3. Refresh Shelf
-                    vm.refresh();
-                }}
+                onUpdate={vm.updateItem}
             />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
