@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { ApiClient } from '../../../../api/client';
 import { cn } from '../../../../lib/utils';
-import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
 import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal';
@@ -188,6 +188,17 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                         <ArrowUpCircle size={16} />
                                         <span className="hidden sm:inline">今日はやめる</span>
                                     </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Expand
+                                            setCandidateDetailItem(activeItem);
+                                        }}
+                                        className="text-slate-400 hover:text-blue-500 transition-colors"
+                                        title="詳細を開く"
+                                    >
+                                        <Maximize2 size={18} />
+                                    </button>
                                 </div>
                             </div>
 
@@ -217,7 +228,10 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                         {activeItem.title}
                                     </h3>
                                     <button
-                                        onClick={() => startEditing(activeItem.id, activeItem.title)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEditing(activeItem.id, activeItem.title);
+                                        }}
                                         className="mt-1 opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-400 hover:text-blue-500"
                                     >
                                         <Edit2 size={20} />
@@ -236,7 +250,10 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                             <div className="flex gap-4">
                                 {!isPaused ? (
                                     <button
-                                        onClick={() => handlePause(activeItem)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePause(activeItem);
+                                        }}
                                         className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-xl font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
                                     >
                                         <PauseCircle size={20} />
@@ -244,7 +261,10 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={() => handleResume(activeItem)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleResume(activeItem);
+                                        }}
                                         className="flex-1 bg-amber-100 text-amber-700 py-4 rounded-xl font-bold hover:bg-amber-200 transition-colors flex items-center justify-center gap-2"
                                     >
                                         <PlayCircle size={20} />
@@ -252,7 +272,8 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         completeItem(activeItem.id);
                                     }}
                                     className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all flex items-center justify-center gap-2"
@@ -327,7 +348,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                                     className="bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-bold hover:bg-amber-500 hover:text-white transition-all transform hover:scale-105 flex items-center gap-2"
                                 >
                                     <ArrowDownCircle size={16} />
-                                    今日やることを確定
+                                    今日の予定に追加
                                 </button>
                             </div>
                         ))}
@@ -360,7 +381,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                     <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
                         軽 (Light)
                     </span>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">今日の判断履歴</h2>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200">これからの予定 (Queue)</h2>
                 </div>
                 <div className="space-y-3">
                     {todayCommits.length === 0 ? (
