@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, HelpCircle, History, Settings } from 'lucide-react';
-import { BackupSettings } from '../../features/jbwos/components/Settings/BackupSettings';
-import { HealthCheck } from '../../features/jbwos/components/Layout/HealthCheck';
+import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
+import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 interface JBWOSHeaderProps {
     currentView: 'jbwos' | 'today' | 'history' | 'settings';

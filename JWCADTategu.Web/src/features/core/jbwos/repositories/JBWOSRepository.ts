@@ -1,6 +1,6 @@
-import { db, Door, Project } from '../../../db/db';
+import { db, Door, Project } from '../../../../db/db';
 import { JudgableItem, JudgmentStatus, Item } from '../types';
-import { ApiClient } from '../../../api/client';
+import { ApiClient } from '../../../../api/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // src/features/jbwos/repositories/JBWOSRepository.ts

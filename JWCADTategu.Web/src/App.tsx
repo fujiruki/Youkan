@@ -8,12 +8,12 @@ import { Project, Door, db } from './db/db';
 import { DebugBanner } from './components/Debug/DebugBanner';
 import { CatalogScreen } from './components/Catalog/CatalogScreen';
 
-import { JbwosBoard } from './features/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
-import { TodayScreen } from './features/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
-import { HistoryScreen } from './features/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
+import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
+import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
+import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
 
-import { UndoProvider } from './features/jbwos/contexts/UndoContext';
-import { UndoToast } from './features/jbwos/components/UI/UndoToast';
+import { UndoProvider } from './features/core/jbwos/contexts/UndoContext';
+import { UndoToast } from './features/core/jbwos/components/UI/UndoToast';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ApiClient } from './api/client';

@@ -366,12 +366,35 @@ export const useJBWOSViewModel = () => {
 
     // [NEW] Update Preparation Date (Blurry Target)
     const updatePreparationDate = async (id: string, date: number | null) => {
-        // Optimistic: Update in Preparation Lane (if visible)
-        setGdbPreparation(prev => prev.map(i => i.id === id ? { ...i, prep_date: date } : i));
+        const newStatus = date ? 'scheduled' : 'inbox';
+
+        // Optimistic: Find and Move
+        const allItems = [...gdbActive, ...gdbPreparation];
+        const item = allItems.find(i => i.id === id);
+
+        if (item) {
+            const updatedItem = { ...item, prep_date: date, status: newStatus as any };
+
+            if (date) {
+                // Move to Preparation
+                setGdbActive(prev => prev.filter(i => i.id !== id));
+                setGdbPreparation(prev => {
+                    const exists = prev.find(i => i.id === id);
+                    return exists ? prev.map(i => i.id === id ? updatedItem : i) : [...prev, updatedItem];
+                });
+            } else {
+                // Move to Active
+                setGdbPreparation(prev => prev.filter(i => i.id !== id));
+                setGdbActive(prev => {
+                    const exists = prev.find(i => i.id === id);
+                    return exists ? prev.map(i => i.id === id ? updatedItem : i) : [updatedItem, ...prev];
+                });
+            }
+        }
 
         try {
-            await JBWOSRepository.updateItem(id, { prep_date: date });
-            refreshGdb();
+            await JBWOSRepository.updateItem(id, { prep_date: date, status: newStatus as any });
+            // refreshGdb(); // Keep optimistic
         } catch (e) {
             console.error('Update Prep Date failed', e);
             refreshGdb();

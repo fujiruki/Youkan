@@ -3,7 +3,7 @@ import { DoorDimensions } from '../domain/DoorDimensions';
 import { EstimationSettings } from '../domain/EstimationSettings';
 import { DxfLayerConfig } from '../domain/DxfConfig';
 import { CatalogItem } from '../domain/DoorSpecs';
-import { Item } from '../features/jbwos/types'; // [NEW]
+import { Item } from '../features/core/jbwos/types'; // [NEW]
 
 export interface Project {
     id?: number;

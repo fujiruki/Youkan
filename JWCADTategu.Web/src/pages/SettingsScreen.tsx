@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { useJBWOSViewModel } from '../features/jbwos/viewmodels/useJBWOSViewModel';
-import { HolidayConfigPanel } from '../features/settings/HolidayConfigPanel';
+import { useJBWOSViewModel } from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
+import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

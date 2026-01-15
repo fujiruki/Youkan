@@ -1,4 +1,4 @@
-import { JudgableItem } from '../features/jbwos/types';
+import { JudgableItem } from '../features/core/jbwos/types';
 
 // src/api/client.ts
 

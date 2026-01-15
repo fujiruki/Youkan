@@ -24,15 +24,26 @@
 - [ ] **Phase 4: Future Board (Tomorrow Planning) & Renaming** <!-- id: 120 -->
     - [ ] **Infrastructure** <!-- id: 121 -->
         - [ ] Rename `JWCADTategu.Web` -> `JBWOS.Web` <!-- id: 1211 -->
-        - [ ] Create `src/extensions/tategu` structure <!-- id: 1212 -->
-    - [ ] **Phase 1: Foundation & UI** <!-- id: 122 -->
+    - [x] **Phase 1: Foundation & UI** <!-- id: 122 -->
         - [ ] Holiday/Capacity Config (`Settings` module) <!-- id: 1221 -->
         - [x] UI Component: `FutureBoard.tsx` (Flip/Transition) <!-- id: 1222 -->
         - [x] Start Transition from Today Screen <!-- id: 1223 -->
-        - [/] Show Capacity Bar & Stock Pile (Mock Data for now) <!-- id: 1224 -->
+        - [x] Show Capacity Bar & Stock Pile (Real Data) <!-- id: 1224 -->
+        - [x] **Connect Real Data**: "Stock" and "Plan" integration with Store <!-- id: 1225 -->
+        - [x] **Drag & Drop**: Move items between Stock and Plan <!-- id: 1226 -->
         - [ ] Multi-day Swipe View <!-- id: 1232 -->
     - [ ] **Phase 2: Logic & Intelligence** <!-- id: 123 -->
         - [ ] Reverse Calculation Logic (Suggestion Engine) <!-- id: 1231 -->
+
+- [ ] **Phase 5: Architecture Separation (Core Separation)** <!-- id: 130 -->
+    - [x] **Folder Restructuring** <!-- id: 131 -->
+        - [x] Create `src/features/core` (JBWOS) <!-- id: 1311 -->
+        - [x] Create `src/features/plugins/tategu` <!-- id: 1312 -->
+    - [ ] **Module Migration** <!-- id: 132 -->
+        - [x] Move `jbwos` (Time/Tasks) to `core` <!-- id: 1321 -->
+        - [x] Move `planning` (FutureBoard) to `core` <!-- id: 1322 -->
+        - [x] Move `settings` to `core` <!-- id: 1324 -->
+        - [ ] Identify Tategu-specific components (e.g. Master Data) for plugin <!-- id: 1323 -->
 
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
     - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
