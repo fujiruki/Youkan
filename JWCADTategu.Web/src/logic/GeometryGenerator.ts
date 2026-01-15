@@ -1,5 +1,5 @@
-import { DoorDimensions } from '../domain/DoorDimensions';
-import { DoorTextureSpecs, defaultTextureSpecs, MaterialTexture } from '../domain/DoorSpecs';
+import { DoorDimensions } from '../features/plugins/tategu/domain/DoorDimensions';
+import { DoorTextureSpecs, defaultTextureSpecs, MaterialTexture } from '../features/plugins/tategu/domain/DoorSpecs';
 
 export interface Point { x: number; y: number; }
 export interface LineSegment { start: Point; end: Point; type: 'outline' | 'detail'; }

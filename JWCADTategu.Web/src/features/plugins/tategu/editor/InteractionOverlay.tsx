@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { DoorDimensions } from '../../domain/DoorDimensions';
-import { DoorGeometryGenerator, GeometryPart } from '../../logic/GeometryGenerator';
+import { DoorDimensions } from '../domain/DoorDimensions';
+import { DoorGeometryGenerator, GeometryPart } from '../../../../logic/GeometryGenerator';
 
 interface InteractionOverlayProps {
     dimensions: DoorDimensions;

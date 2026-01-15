@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Door } from '../db/db';
-import { DoorDimensions } from '../domain/DoorDimensions';
+import { DoorDimensions } from '../features/plugins/tategu/domain/DoorDimensions';
 
 export const useDoorViewModel = (initialDoor: Door) => {
     const [door, setDoor] = useState<Door>(initialDoor);

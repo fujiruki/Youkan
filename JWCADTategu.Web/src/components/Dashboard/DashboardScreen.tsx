@@ -4,7 +4,7 @@ import { projectRepository } from '../../repositories/ProjectRepository';
 import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
 import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate, LayoutList, KanbanSquare } from 'lucide-react'; // [NEW] Icons
-import { ScheduleBoard } from './ScheduleBoard';
+import { ScheduleBoard } from '../../features/plugins/tategu/screens/ScheduleBoard';
 // import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
 export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {

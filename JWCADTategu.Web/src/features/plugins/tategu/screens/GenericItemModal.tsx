@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Door } from '../../db/db';
+import { Door } from '../../../../db/db';
 import { ShoppingBag, Box, Hexagon, Wrench, X } from 'lucide-react';
 import clsx from 'clsx';
 

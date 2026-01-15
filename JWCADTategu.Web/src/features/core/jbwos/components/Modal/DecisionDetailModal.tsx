@@ -2,8 +2,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2 } from 'lucide-react';
 import { Item } from '../../types';
-import { cn } from '../../../../lib/utils';
-import { ApiClient } from '../../../../api/client';
+import { cn } from '../../../../../lib/utils';
+import { ApiClient } from '../../../../../api/client';
 import { EstimatedTimeInput } from '../Today/EstimatedTimeInput'; // [NEW]
 
 interface DecisionDetailModalProps {

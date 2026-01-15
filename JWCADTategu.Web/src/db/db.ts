@@ -1,8 +1,8 @@
 import Dexie, { Table } from 'dexie';
-import { DoorDimensions } from '../domain/DoorDimensions';
-import { EstimationSettings } from '../domain/EstimationSettings';
-import { DxfLayerConfig } from '../domain/DxfConfig';
-import { CatalogItem } from '../domain/DoorSpecs';
+import { DoorDimensions } from '../features/plugins/tategu/domain/DoorDimensions';
+import { EstimationSettings } from '../features/plugins/tategu/domain/EstimationSettings';
+import { DxfLayerConfig } from '../features/plugins/tategu/domain/DxfConfig';
+import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
 import { Item } from '../features/core/jbwos/types'; // [NEW]
 
 export interface Project {

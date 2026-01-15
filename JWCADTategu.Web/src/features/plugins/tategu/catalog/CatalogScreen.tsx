@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CatalogItem } from '../../domain/DoorSpecs';
-import { CatalogService } from '../../domain/CatalogService';
+import { CatalogItem } from '../domain/DoorSpecs';
+import { CatalogService } from '../domain/CatalogService';
 import { Search, Trash2 } from 'lucide-react';
-// import { db } from '../../db/db';
+// import { db } from '../../../../db/db';
 
 interface CatalogScreenProps {
     onBack: () => void;

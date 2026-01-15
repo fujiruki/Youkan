@@ -1,7 +1,7 @@
 import { Door } from '../db/db';
 import { DoorGeometryGenerator, GeometryResult } from '../logic/GeometryGenerator';
-import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG, selectLayerGroupForDoor } from '../domain/DxfConfig';
-import { DxfExportOptions, DEFAULT_DXF_EXPORT_OPTIONS } from '../domain/DxfExportOptions';
+import { DxfLayerConfig, DxfColorConfig, DEFAULT_DXF_LAYER_CONFIG, DEFAULT_DXF_COLOR_CONFIG, selectLayerGroupForDoor } from '../features/plugins/tategu/domain/DxfConfig';
+import { DxfExportOptions, DEFAULT_DXF_EXPORT_OPTIONS } from '../features/plugins/tategu/domain/DxfExportOptions';
 import { debugDxf } from '../config/debug';
 import { BUILD_TIME_DISPLAY } from '../config/debug';
 

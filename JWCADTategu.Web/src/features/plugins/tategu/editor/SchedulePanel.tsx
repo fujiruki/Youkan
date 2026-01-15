@@ -1,5 +1,5 @@
 import React from 'react';
-import { Door } from '../../db/db';
+import { Door } from '../../../../db/db';
 import { Calendar, Clock, BarChart } from 'lucide-react';
 
 interface SchedulePanelProps {

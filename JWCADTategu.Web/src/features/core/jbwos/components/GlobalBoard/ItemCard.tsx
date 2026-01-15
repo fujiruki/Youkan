@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../../types';
 import { Calendar } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
+import { cn } from '../../../../../lib/utils';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 
 interface ItemCardProps {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
-import { ApiClient } from '../../../../api/client';
+import { ApiClient } from '../../../../../api/client';
 
 export const HealthCheck: React.FC = () => {
     const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');

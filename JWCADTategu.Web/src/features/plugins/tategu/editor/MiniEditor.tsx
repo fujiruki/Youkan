@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { DoorDimensions } from '../../domain/DoorDimensions';
-import { GeometryPart } from '../../logic/GeometryGenerator';
+import { DoorDimensions } from '../domain/DoorDimensions';
+import { GeometryPart } from '../../../../logic/GeometryGenerator';
 import { X, Minus, Plus } from 'lucide-react';
 
 interface MiniEditorProps {

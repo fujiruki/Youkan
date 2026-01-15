@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, Activity, PlayCircle } from 'lucide-react';
-import { ApiClient } from '../../../../api/client';
+import { ApiClient } from '../../../../../api/client';
 
 // Define Log Interface corresponding to backend
 interface DailyLog {

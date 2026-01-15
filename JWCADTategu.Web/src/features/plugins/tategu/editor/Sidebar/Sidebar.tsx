@@ -1,6 +1,6 @@
 import React from 'react';
-import { DoorDimensions } from '../../../domain/DoorDimensions';
-import { t } from '../../../i18n/labels';
+import { DoorDimensions } from '../../domain/DoorDimensions';
+import { t } from '../../../../../i18n/labels';
 
 interface SidebarProps {
     dimensions: DoorDimensions;

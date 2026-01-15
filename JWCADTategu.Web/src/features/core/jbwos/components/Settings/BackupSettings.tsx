@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { ApiClient } from '../../../../api/client';
+import { ApiClient } from '../../../../../api/client';
 import { Download, Upload, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
-import { cn } from '../../../../lib/utils'; // Assuming this utility exists
+import { cn } from '../../../../../lib/utils'; // Assuming this utility exists
 
 interface Props {
     onClose: () => void;

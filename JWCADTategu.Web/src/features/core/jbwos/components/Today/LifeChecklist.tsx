@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Heart, X } from 'lucide-react';
-import { ApiClient } from '../../../../api/client';
-import { cn } from '../../../../lib/utils';
+import { ApiClient } from '../../../../../api/client';
+import { cn } from '../../../../../lib/utils';
 
 interface LifeItem {
     id: string;

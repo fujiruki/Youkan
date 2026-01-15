@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { ApiClient } from '../../../../api/client';
-import { cn } from '../../../../lib/utils';
+import { ApiClient } from '../../../../../api/client';
+import { cn } from '../../../../../lib/utils';
 import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';

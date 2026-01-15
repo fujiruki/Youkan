@@ -1,5 +1,5 @@
 import { db, Project, Door } from '../db/db';
-import { DefaultEstimationSettings } from '../domain/EstimationSettings';
+import { DefaultEstimationSettings } from '../features/plugins/tategu/domain/EstimationSettings';
 
 export class ProjectRepository {
     async createProjectDraft(name: string): Promise<Project> {

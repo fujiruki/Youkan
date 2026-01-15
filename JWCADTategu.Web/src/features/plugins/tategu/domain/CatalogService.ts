@@ -1,4 +1,4 @@
-import { db, CatalogItemEntity } from '../db/db';
+import { db, CatalogItemEntity } from '../../../../db/db';
 import { CatalogItem } from './DoorSpecs';
 import { v4 as uuidv4 } from 'uuid';
 

@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { DoorDimensions } from '../../domain/DoorDimensions';
-import { DoorGeometryGenerator } from '../../logic/GeometryGenerator';
+import { DoorDimensions } from '../domain/DoorDimensions';
+import { DoorGeometryGenerator } from '../../../../logic/GeometryGenerator';
 
 import { MiniEditor } from './MiniEditor';
-import { GeometryPart } from '../../logic/GeometryGenerator';
+import { GeometryPart } from '../../../../logic/GeometryGenerator';
 import { InteractionOverlay } from './InteractionOverlay';
 import { PresetBar } from './PresetBar';
 
@@ -25,14 +25,14 @@ function adjustColor(hex: string, percent: number): string {
     const gg = (g.toString(16).length === 1 ? '0' : '') + g.toString(16);
     const bb = (b.toString(16).length === 1 ? '0' : '') + b.toString(16);
 
-    return `#${rr}${gg}${bb}`;
+    return `#${rr}${gg}${bb} `;
 }
 
 export interface PreviewCanvasRef {
     toDataURL: () => string | null;
 }
 
-import { DoorTextureSpecs, defaultTextureSpecs } from '../../domain/DoorSpecs';
+import { DoorTextureSpecs, defaultTextureSpecs } from '../domain/DoorSpecs';
 
 interface PreviewCanvasProps {
     dimensions: DoorDimensions;

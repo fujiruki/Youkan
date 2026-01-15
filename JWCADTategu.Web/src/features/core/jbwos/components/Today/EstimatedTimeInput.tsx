@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Clock } from 'lucide-react';
-import { cn } from '../../../../lib/utils';
-import { DefaultEstimationSettings } from '../../../../domain/EstimationSettings';
+import { cn } from '../../../../../lib/utils';
+import { DefaultEstimationSettings } from '../../../../../features/plugins/tategu/domain/EstimationSettings';
 
 interface Props {
     value: number; // minutes

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, FieldNote } from '../../db/db';
+import { db, FieldNote } from '../../../../db/db';
 import { Camera, Image as ImageIcon, Send, Trash2, FileText } from 'lucide-react';
 import clsx from 'clsx';
 

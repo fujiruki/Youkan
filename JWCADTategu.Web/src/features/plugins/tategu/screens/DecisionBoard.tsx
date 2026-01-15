@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Door, db } from '../../db/db';
+import { Door, db } from '../../../../db/db';
 import { Inbox, Hand, Flame, Snowflake, Box, CheckCircle2, Plus, ChevronDown, Package } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GenericItemModal } from './GenericItemModal';

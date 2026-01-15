@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, RotateCcw } from 'lucide-react';
-import { Project } from '../../db/db';
-import { EstimationSettings, DefaultEstimationSettings } from '../../domain/EstimationSettings';
-import { DxfLayerConfig, DEFAULT_DXF_LAYER_CONFIG } from '../../domain/DxfConfig';
+import { Project } from '../../../../db/db';
+import { EstimationSettings, DefaultEstimationSettings } from '../domain/EstimationSettings';
+import { DxfLayerConfig, DEFAULT_DXF_LAYER_CONFIG } from '../domain/DxfConfig';
 import clsx from 'clsx';
 
 interface ProjectSettingsModalProps {

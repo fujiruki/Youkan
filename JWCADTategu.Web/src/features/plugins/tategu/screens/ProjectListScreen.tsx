@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, Project } from '../../db/db';
+import { db, Project } from '../../../../db/db';
 import { Plus, ArrowRight, FileText, Edit2 } from 'lucide-react';
 
 interface ProjectListScreenProps {

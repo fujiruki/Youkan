@@ -1,6 +1,6 @@
 import React from 'react';
 // import { cn } from '../../../../lib/utils';
-import { t } from '../../../../i18n/labels';
+import { t } from '../../../../../i18n/labels';
 
 interface GentleMessageProps {
     variant: 'done_for_day' | 'almost_done' | 'inbox_clean';

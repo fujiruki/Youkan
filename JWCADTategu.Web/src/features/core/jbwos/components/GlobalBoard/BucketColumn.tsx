@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ItemCard } from './ItemCard';
 import { Item } from '../../types';
-import { cn } from '../../../../lib/utils';
+import { cn } from '../../../../../lib/utils';
 
 interface BucketColumnProps {
     id: string; // 'inbox', 'ready', 'waiting', 'pending'

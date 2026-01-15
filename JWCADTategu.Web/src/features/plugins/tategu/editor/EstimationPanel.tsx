@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { DoorDimensions } from '../../domain/DoorDimensions';
-import { EstimationSettings } from '../../domain/EstimationSettings';
-import { calculateCost } from '../../domain/EstimationService';
+import { DoorDimensions } from '../domain/DoorDimensions';
+import { EstimationSettings } from '../domain/EstimationSettings';
+import { calculateCost } from '../domain/EstimationService';
 // icons
 import { Calculator, Table2 } from 'lucide-react';
 
@@ -144,7 +144,7 @@ export const EstimationPanel: React.FC<EstimationPanelProps> = ({ dimensions, se
             {/* Table Body (Scrollable) */}
             <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
                 {items.map((item, idx) => {
-                    const handleOverride = (field: keyof import('../../domain/DoorDimensions').EstimationOverride, val: number) => {
+                    const handleOverride = (field: keyof import('../domain/DoorDimensions').EstimationOverride, val: number) => {
                         const currentOverrides = dimensions.estimationOverrides || {};
                         const itemOverride = currentOverrides[item.name] || {};
 

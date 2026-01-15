@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Door, db } from '../../db/db';
-import { Project } from '../../db/db';
-import { calculateCost } from '../../domain/EstimationService';
-import { generateDoorDxf } from '../../utils/DxfGenerator';
+import { Door, db } from '../../../../db/db';
+import { Project } from '../../../../db/db';
+import { calculateCost } from '../domain/EstimationService';
+import { generateDoorDxf } from '../../../../utils/DxfGenerator';
 // import { exportProjectToJson } from '../../utils/ProjectExport';
 import { Trash2, Copy, ArrowLeft, Plus, DollarSign, FileDown, Search, Settings, Package, ShoppingBag, Box, Hexagon, Wrench, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';

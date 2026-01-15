@@ -1,5 +1,5 @@
 import React from 'react';
-import { DoorTextureSpecs, MaterialTexture, MaterialType } from '../../domain/DoorSpecs';
+import { DoorTextureSpecs, MaterialTexture, MaterialType } from '../domain/DoorSpecs';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 

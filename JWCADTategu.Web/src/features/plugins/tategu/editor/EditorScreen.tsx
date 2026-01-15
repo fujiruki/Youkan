@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { db, Door, Project, DoorPhoto } from '../../db/db';
-import { useDoorViewModel } from '../../hooks/useDoorViewModel';
+import { db, Door, Project, DoorPhoto } from '../../../../db/db';
+import { useDoorViewModel } from '../../../../hooks/useDoorViewModel';
 import { PreviewCanvas } from './PreviewCanvas';
 import { Sidebar } from './Sidebar/Sidebar';
-import { JWCADExporter } from '../../logic/JWCADExporter';
-import { DoorGeometryGenerator } from '../../logic/GeometryGenerator';
+import { JWCADExporter } from '../../../../logic/JWCADExporter';
+import { DoorGeometryGenerator } from '../../../../logic/GeometryGenerator';
 import { EstimationPanel } from './EstimationPanel';
-import { DefaultEstimationSettings } from '../../domain/EstimationSettings';
-import { calculateCost } from '../../domain/EstimationService';
+import { DefaultEstimationSettings } from '../domain/EstimationSettings';
+import { calculateCost } from '../domain/EstimationService';
 import { TextureSettingsPanel } from './TextureSettingsPanel';
-import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../../domain/DoorSpecs';
-import { CatalogService } from '../../domain/CatalogService';
+import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../domain/DoorSpecs';
+import { CatalogService } from '../domain/CatalogService';
 import { PhotoPanel } from './PhotoPanel';
 import { CatalogPicker } from './CatalogPicker';
 import { SchedulePanel } from './SchedulePanel'; // [NEW]

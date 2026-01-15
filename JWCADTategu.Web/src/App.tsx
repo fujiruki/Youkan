@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 // import { DashboardScreen } from './components/Dashboard/DashboardScreen'; // Deprecated
 // import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
-import { ProjectListScreen } from './components/Dashboard/ProjectListScreen';
-import { JoineryScheduleScreen } from './components/Dashboard/JoineryScheduleScreen';
-import { EditorScreen } from './components/Editor/EditorScreen';
+import { ProjectListScreen } from './features/plugins/tategu/screens/ProjectListScreen';
+import { JoineryScheduleScreen } from './features/plugins/tategu/screens/JoineryScheduleScreen';
+import { EditorScreen } from './features/plugins/tategu/editor/EditorScreen';
 import { Project, Door, db } from './db/db';
 import { DebugBanner } from './components/Debug/DebugBanner';
-import { CatalogScreen } from './components/Catalog/CatalogScreen';
+import { CatalogScreen } from './features/plugins/tategu/catalog/CatalogScreen';
 
 import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
 import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { CatalogItem } from '../../domain/DoorSpecs';
-import { CatalogService } from '../../domain/CatalogService';
+import { CatalogItem } from '../domain/DoorSpecs';
+import { CatalogService } from '../domain/CatalogService';
 import { Search } from 'lucide-react';
 
 interface CatalogPickerProps {

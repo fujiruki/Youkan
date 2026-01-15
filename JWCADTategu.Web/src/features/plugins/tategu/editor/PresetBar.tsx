@@ -1,5 +1,5 @@
 import React from 'react';
-import { DoorDimensions } from '../../domain/DoorDimensions';
+import { DoorDimensions } from '../domain/DoorDimensions';
 import { Square, LayoutTemplate, Power, Maximize, Grid, User } from 'lucide-react';
 
 interface PresetBarProps {

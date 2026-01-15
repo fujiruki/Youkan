@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Upload, Trash2 } from 'lucide-react';
-import { DoorPhoto } from '../../db/db';
+import { DoorPhoto } from '../../../../db/db';
 
 interface PhotoPanelProps {
     photo: DoorPhoto | null;
