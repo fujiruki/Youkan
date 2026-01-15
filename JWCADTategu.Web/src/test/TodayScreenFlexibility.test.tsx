@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TodayScreen } from '../features/jbwos/components/Today/TodayScreen';
+import { TodayScreen } from '../features/core/jbwos/components/Today/TodayScreen';
 import { createMockItem } from './testUtils';
-import * as ViewModelHook from '../features/jbwos/viewmodels/useJBWOSViewModel';
+import * as ViewModelHook from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
 
 vi.mock('../api/client', () => ({
     ApiClient: {

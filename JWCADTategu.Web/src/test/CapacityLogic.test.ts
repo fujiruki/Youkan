@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
-import { isHoliday, getDailyCapacity } from '../features/jbwos/logic/capacity';
-import { CapacityConfig } from '../features/jbwos/types';
+import { isHoliday, getDailyCapacity } from '../features/core/jbwos/logic/capacity';
+import { CapacityConfig } from '../features/core/jbwos/types';
 
 describe('Capacity Logic', () => {
     const mockConfig: CapacityConfig = {

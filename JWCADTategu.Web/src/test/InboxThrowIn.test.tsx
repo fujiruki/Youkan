@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { JbwosBoard } from '../features/jbwos/components/GlobalBoard/GlobalBoard';
-import { JBWOSRepository } from '../features/jbwos/repositories/JBWOSRepository';
+import { JbwosBoard } from '../features/core/jbwos/components/GlobalBoard/GlobalBoard';
+import { JBWOSRepository } from '../features/core/jbwos/repositories/JBWOSRepository';
 
 // Mock Dependencies
-vi.mock('../features/jbwos/components/GlobalBoard/BucketColumn', () => ({
+vi.mock('../features/core/jbwos/components/GlobalBoard/BucketColumn', () => ({
     BucketColumn: ({ title, items, footer }: any) => (
         <div data-testid="bucket-column">
             <h2>{title}</h2>
@@ -19,7 +19,7 @@ vi.mock('../features/jbwos/components/GlobalBoard/BucketColumn', () => ({
 }));
 
 // Mock Repository
-vi.mock('../features/jbwos/repositories/JBWOSRepository', () => ({
+vi.mock('../features/core/jbwos/repositories/JBWOSRepository', () => ({
     JBWOSRepository: {
         getGdbShelf: vi.fn().mockImplementation(async () => {
             await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
@@ -39,7 +39,7 @@ vi.mock('../contexts/ToastContext', () => ({
 }));
 
 // Mock UndoContext
-vi.mock('../features/jbwos/contexts/UndoContext', () => ({
+vi.mock('../features/core/jbwos/contexts/UndoContext', () => ({
     useUndo: () => ({
         addUndoAction: vi.fn(),
     })

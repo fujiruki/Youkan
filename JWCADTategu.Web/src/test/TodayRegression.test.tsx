@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TodayScreen } from '../features/jbwos/components/Today/TodayScreen';
-// import { TodayCandidateDetailModal } from '../features/jbwos/components/Modal/TodayCandidateDetailModal';
-import { DecisionDetailModal } from '../features/jbwos/components/Modal/DecisionDetailModal';
-import { JBWOSRepository } from '../features/jbwos/repositories/JBWOSRepository';
+import { TodayScreen } from '../features/core/jbwos/components/Today/TodayScreen';
+// import { TodayCandidateDetailModal } from '../features/core/jbwos/components/Modal/TodayCandidateDetailModal';
+import { DecisionDetailModal } from '../features/core/jbwos/components/Modal/DecisionDetailModal';
+import { JBWOSRepository } from '../features/core/jbwos/repositories/JBWOSRepository';
 // import { ApiClient } from '../api/client';
 
 // Mock ApiClient
@@ -19,15 +19,15 @@ import { createMockItem } from './testUtils'; // Fixed path to .tsx
 // import userEvent from '@testing-library/user-event'; // Unused
 
 // Mock Dependencies
-vi.mock('../features/jbwos/components/Today/LifeChecklist', () => ({
+vi.mock('../features/core/jbwos/components/Today/LifeChecklist', () => ({
     LifeChecklist: () => <div>Life Checklist</div>
 }));
-vi.mock('../features/jbwos/components/Today/GentleReliefModal', () => ({
+vi.mock('../features/core/jbwos/components/Today/GentleReliefModal', () => ({
     GentleReliefModal: () => null
 }));
 
 // Mock Repository
-vi.mock('../features/jbwos/repositories/JBWOSRepository', () => ({
+vi.mock('../features/core/jbwos/repositories/JBWOSRepository', () => ({
     JBWOSRepository: {
         getGdbShelf: vi.fn(),
         getTodayView: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock('../features/jbwos/repositories/JBWOSRepository', () => ({
 vi.mock('../contexts/ToastContext', () => ({
     useToast: () => ({ showToast: vi.fn() })
 }));
-vi.mock('../features/jbwos/contexts/UndoContext', () => ({
+vi.mock('../features/core/jbwos/contexts/UndoContext', () => ({
     useUndo: () => ({ addUndoAction: vi.fn() })
 }));
 

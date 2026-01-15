@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import type { Item } from '../features/jbwos/types';
+import type { Item } from '../features/core/jbwos/types';
 
 /**
  * テスト用のProviderでラップしてレンダリング

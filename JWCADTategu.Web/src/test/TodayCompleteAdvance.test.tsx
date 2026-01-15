@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TodayScreen } from '../features/jbwos/components/Today/TodayScreen';
-import { JBWOSRepository } from '../features/jbwos/repositories/JBWOSRepository';
+import { TodayScreen } from '../features/core/jbwos/components/Today/TodayScreen';
+import { JBWOSRepository } from '../features/core/jbwos/repositories/JBWOSRepository';
 import { createMockItem } from './testUtils';
 
 // Mock Dependencies to minimal
@@ -16,7 +16,7 @@ vi.mock('../features/jbwos/components/Modal/TodayCandidateDetailModal', () => ({
 }));
 
 // Mock Repository
-vi.mock('../features/jbwos/repositories/JBWOSRepository', () => ({
+vi.mock('../features/core/jbwos/repositories/JBWOSRepository', () => ({
     JBWOSRepository: {
         getGdbShelf: vi.fn().mockResolvedValue({ active: [], preparation: [], intent: [], log: [] }),
         getTodayView: vi.fn().mockReturnValue({ candidates: [], commits: [] }), // Default empty, overwritten in test
@@ -32,7 +32,7 @@ vi.mock('../features/jbwos/repositories/JBWOSRepository', () => ({
 vi.mock('../contexts/ToastContext', () => ({
     useToast: () => ({ showToast: vi.fn() })
 }));
-vi.mock('../features/jbwos/contexts/UndoContext', () => ({
+vi.mock('../features/core/jbwos/contexts/UndoContext', () => ({
     useUndo: () => ({ addUndoAction: vi.fn() })
 }));
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { EstimationSettings, DefaultEstimationSettings } from '../../domain/EstimationSettings';
+import { EstimationSettings, DefaultEstimationSettings } from '../../features/plugins/tategu/domain/EstimationSettings';
 import { X, Save } from 'lucide-react';
 
 interface GlobalSettingsModalProps {

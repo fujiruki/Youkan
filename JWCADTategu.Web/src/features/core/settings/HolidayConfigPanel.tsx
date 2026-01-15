@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { CapacityConfig, HolidayRule, WeekDay } from '../types';
-import { motion } from 'framer-motion';
+import { CapacityConfig, WeekDay } from '../jbwos/types';
 
 interface HolidayConfigProps {
     config: CapacityConfig;

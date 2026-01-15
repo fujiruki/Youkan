@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { JbwosBoard } from '../features/jbwos/components/GlobalBoard/GlobalBoard';
+import { JbwosBoard } from '../features/core/jbwos/components/GlobalBoard/GlobalBoard';
 import { createMockItem } from './testUtils';
-import * as ViewModelHook from '../features/jbwos/viewmodels/useJBWOSViewModel';
+import * as ViewModelHook from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
 
 // ToastContextのモック
 vi.mock('../contexts/ToastContext', () => ({
