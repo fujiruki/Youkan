@@ -17,7 +17,8 @@ export interface Item {
     due_date?: string | null;  // "YYYY-MM-DD"
     due_status?: 'confirmed' | 'waiting_external';
     prep_date?: number | null; // [NEW] Preparation Target (Blurry Date, Timestamp)
-    work_days?: number;        // [NEW] 制作目安日数（デフォルト: 1）
+    work_days?: number;        // [Legacy] 制作目安日数（デフォルト: 1）
+    estimatedMinutes?: number; // [NEW] 制作目安時間（分）
     interrupt: boolean;      // 割り込みフラグ
     weight: 1 | 2 | 3;       // 1:Light, 2:Medium, 3:Heavy
 

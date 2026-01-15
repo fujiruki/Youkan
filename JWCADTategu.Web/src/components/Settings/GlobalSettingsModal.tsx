@@ -73,15 +73,32 @@ export const GlobalSettingsModal: React.FC<GlobalSettingsModalProps> = ({ isOpen
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 rounded text-slate-400 hover:bg-slate-800 transition-colors">
-                        キャンセル
-                    </button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20">
-                        <Save size={18} />
-                        保存する
-                    </button>
+                <div>
+                    <h3 className="text-sm font-bold text-amber-400 mb-2">タスク見積設定</h3>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm text-slate-300">1日の標準稼働時間 (Hours/Day)</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                className="w-24 bg-slate-800 border border-slate-700 rounded p-2 text-white outline-none focus:border-amber-500 transition-colors"
+                                value={settings.hoursPerDay || 7}
+                                onChange={e => setSettings({ ...settings, hoursPerDay: Number(e.target.value) })}
+                            />
+                            <span className="text-slate-500 text-sm">時間</span>
+                        </div>
+                        <p className="text-xs text-slate-500">「1日」と入力した際の計算基準になります (例: 7h × 60min = 420min)</p>
+                    </div>
                 </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+                <button onClick={onClose} className="px-4 py-2 rounded text-slate-400 hover:bg-slate-800 transition-colors">
+                    キャンセル
+                </button>
+                <button onClick={handleSave} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20">
+                    <Save size={18} />
+                    保存する
+                </button>
             </div>
         </div>
     );

@@ -13,6 +13,7 @@ export interface EstimationSettings {
     wasteRate: number; // 0.1 = 10%
     glassPricePerM2: number;
     panelPricePerM2: number;
+    hoursPerDay?: number; // [NEW] 1日の稼働時間 (h) Default 7
 }
 
 export const DefaultEstimationSettings: EstimationSettings = {
@@ -26,5 +27,6 @@ export const DefaultEstimationSettings: EstimationSettings = {
     hozoLength: 30,
     wasteRate: 0.1,
     glassPricePerM2: 5000,
-    panelPricePerM2: 3000
+    panelPricePerM2: 3000,
+    hoursPerDay: 7 // Default
 };

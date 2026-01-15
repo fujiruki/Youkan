@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Item } from '../../types';
 import { ApiClient } from '../../../../api/client';
 import { ArrowDownCircle, X, Calendar, Clock, Edit2 } from 'lucide-react';
+import { EstimatedTimeInput } from '../Today/EstimatedTimeInput'; // [NEW]
 
 interface Props {
     item: Item;
@@ -15,8 +16,8 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editedTitle, setEditedTitle] = useState(item.title);
     const [memo, setMemo] = useState(item.memo || '');
-    const [workDays, setWorkDays] = useState(item.work_days || 1);
-    const [isWorkDaysDirty, setIsWorkDaysDirty] = useState(false); // [NEW]
+    const [estimatedMinutes, setEstimatedMinutes] = useState(item.estimatedMinutes || 0); // [NEW]
+    const [isDirty, setIsDirty] = useState(false);
 
     const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,19 +29,16 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
 
     // [NEW] Sync props unless dirty
     useEffect(() => {
-        if (!isWorkDaysDirty) {
-            setWorkDays(item.work_days || 1);
+        if (!isDirty) {
+            setEstimatedMinutes(item.estimatedMinutes || 0);
         }
         setMemo(item.memo || '');
         setEditedTitle(item.title);
-    }, [item.work_days, item.memo, item.title, isWorkDaysDirty]);
+    }, [item.estimatedMinutes, item.memo, item.title, isDirty]);
 
-    // Save changes when unmounting or confirming? 
-    // Ideally we save on blur for title/memo.
     const handleSaveUpdate = async (updates: Partial<Item>) => {
-        // Mark as dirty if work_days is updated
-        if ('work_days' in updates) {
-            setIsWorkDaysDirty(true);
+        if ('estimatedMinutes' in updates) {
+            setIsDirty(true);
         }
 
         if (onUpdate) {
@@ -61,11 +59,10 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
         });
     };
 
-    // [NEW] Save work_days and close
+    // [NEW] Save estimatedMinutes and close
     const handleClose = async () => {
-        // Ensure work_days is saved before closing if dirty
-        if (isWorkDaysDirty || workDays !== item.work_days) {
-            await handleSaveUpdate({ work_days: workDays });
+        if (isDirty || estimatedMinutes !== (item.estimatedMinutes || 0)) {
+            await handleSaveUpdate({ estimatedMinutes });
         }
         onClose();
     };
@@ -133,30 +130,15 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                             </div>
                         </div>
 
-                        {/* Work Days (Editable) */}
+                        {/* Estimated Time (New Component) */}
                         <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                            <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1 mb-1">
-                                <Clock size={12} /> 製作目安 (日)
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    className="w-6 h-6 flex items-center justify-center bg-white border rounded text-slate-500 hover:bg-slate-50"
-                                    onClick={() => {
-                                        const newVal = Math.max(1, workDays - 1);
-                                        setWorkDays(newVal);
-                                        handleSaveUpdate({ work_days: newVal });
-                                    }}
-                                >-</button>
-                                <span className="font-bold text-slate-700 dark:text-slate-200 w-8 text-center">{workDays}</span>
-                                <button
-                                    className="w-6 h-6 flex items-center justify-center bg-white border rounded text-slate-500 hover:bg-slate-50"
-                                    onClick={() => {
-                                        const newVal = workDays + 1;
-                                        setWorkDays(newVal);
-                                        handleSaveUpdate({ work_days: newVal });
-                                    }}
-                                >+</button>
-                            </div>
+                            <EstimatedTimeInput
+                                value={estimatedMinutes}
+                                onChange={(val) => {
+                                    setEstimatedMinutes(val);
+                                    handleSaveUpdate({ estimatedMinutes: val });
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -183,7 +165,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                         <button
                             onClick={() => {
                                 // Save any pending changes first just in case
-                                handleSaveUpdate({ title: editedTitle, memo, work_days: workDays });
+                                handleSaveUpdate({ title: editedTitle, memo, estimatedMinutes });
                                 onConfirm(item.id);
                                 onClose();
                             }}
