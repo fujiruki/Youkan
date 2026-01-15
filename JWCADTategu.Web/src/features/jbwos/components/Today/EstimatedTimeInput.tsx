@@ -33,6 +33,9 @@ export const EstimatedTimeInput: React.FC<Props> = ({ value, onChange, className
         { label: '1h', mins: 60 },
         { label: '2h', mins: 120 },
         { label: '4h', mins: 240 },
+        { label: '1日', mins: hoursPerDay * 60 },
+        { label: '2日', mins: hoursPerDay * 60 * 2 },
+        { label: '3日', mins: hoursPerDay * 60 * 3 },
     ];
 
     // Days Scroller logic
