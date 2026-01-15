@@ -44,6 +44,12 @@
         - [x] Move `planning` (FutureBoard) to `core` <!-- id: 1322 -->
         - [x] Move `settings` to `core` <!-- id: 1324 -->
         - [ ] Identify Tategu-specific components (e.g. Master Data) for plugin <!-- id: 1323 -->
+    - [ ] **Tategu Plugin Migration** <!-- id: 133 -->
+        - [ ] Move `components/Editor` to `plugins/tategu/editor` <!-- id: 1331 -->
+        - [ ] Move `components/Catalog` to `plugins/tategu/catalog` <!-- id: 1332 -->
+        - [ ] Move `JoineryScheduleScreen` & `ProjectListScreen` to `plugins/tategu/screens` <!-- id: 1333 -->
+        - [ ] Move `domain` folder to `plugins/tategu/domain` <!-- id: 1334 -->
+        - [ ] Update imports for Tategu Plugin <!-- id: 1335 -->
 
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
     - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
