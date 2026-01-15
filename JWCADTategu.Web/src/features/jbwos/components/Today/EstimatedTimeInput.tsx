@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Clock } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { DefaultEstimationSettings } from '../../../../domain/EstimationSettings';

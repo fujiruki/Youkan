@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TodayScreen } from '../features/jbwos/components/Today/TodayScreen';
 import { TodayCandidateDetailModal } from '../features/jbwos/components/Modal/TodayCandidateDetailModal';
 import { JBWOSRepository } from '../features/jbwos/repositories/JBWOSRepository';
-import { createMockItem } from './testUtils';
-import userEvent from '@testing-library/user-event';
+import { createMockItem } from './testUtils'; // Fixed path to .tsx
+// import userEvent from '@testing-library/user-event'; // Unused
 
 // Mock Dependencies
 vi.mock('../features/jbwos/components/Today/LifeChecklist', () => ({
@@ -139,7 +139,7 @@ describe('Today Screen Regression & New Features', () => {
 
         // Verify Next Task is treated as Execution (Check for "今日はやめる" arrow which appears on Active)
         // Or check that it is NOT in the waiting list
-        const rows = screen.getAllByRole('article'); // Assuming row implements article or similar? No, divs.
+        // const rows = screen.getAllByRole('article'); // Comment out or remove unused
         // Let's rely on text presence and absence of "Current Task"
     });
 });

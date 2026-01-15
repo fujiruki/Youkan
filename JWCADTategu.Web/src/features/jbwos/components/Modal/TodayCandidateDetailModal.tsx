@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Item } from '../../types';
 import { ApiClient } from '../../../../api/client';
-import { ArrowDownCircle, X, Calendar, Clock, Edit2 } from 'lucide-react';
+import { ArrowDownCircle, X, Calendar, Edit2 } from 'lucide-react';
 import { EstimatedTimeInput } from '../Today/EstimatedTimeInput'; // [NEW]
 
 interface Props {
