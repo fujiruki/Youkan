@@ -101,7 +101,7 @@ describe('Today Screen Regression & New Features', () => {
         fireEvent.click(screen.getByText('2h')); // Change to 120min
 
         // Click Confirm
-        fireEvent.click(screen.getByText('今日やることを確定'));
+        fireEvent.click(screen.getByText('これからやる'));
 
         // Expect update then confirm
         expect(onUpdate).toHaveBeenCalledWith('c-1', expect.objectContaining({ estimatedMinutes: 120 }));

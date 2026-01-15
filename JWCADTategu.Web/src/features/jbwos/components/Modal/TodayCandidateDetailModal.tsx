@@ -172,7 +172,7 @@ export const TodayCandidateDetailModal: React.FC<Props> = ({ item, onClose, onCo
                             className="w-full py-3 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-200/50 dark:shadow-none transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
                         >
                             <ArrowDownCircle size={20} />
-                            今日やることを確定
+                            これからやる
                         </button>
                     </div>
                 </div>
