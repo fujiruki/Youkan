@@ -23,6 +23,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [note, setNote] = React.useState(item.memo || '');
     const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
     const [dueDate, setDueDate] = React.useState(item.due_date || '');
+    const [prepDate, setPrepDate] = React.useState(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''); // [NEW] State
     const [workDays, setWorkDays] = React.useState(item.work_days || 1);
     const [isWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -77,7 +78,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         }
         setEstimatedMinutes(item.estimatedMinutes || 0); // [NEW]
         setEditedTitle(item.title);
-    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, isWorkDaysDirty]);
+        setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''); // [NEW] Sync
+    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, item.prep_date, isWorkDaysDirty]);
 
     // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
@@ -339,10 +341,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             備え (目安)
                                         </span>
                                         <input
+                                            data-testid="prep-date-input"
                                             type="date"
-                                            value={item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''}
+                                            value={prepDate}
                                             onChange={async (e) => {
-                                                const dateObj = new Date(e.target.value);
+                                                const val = e.target.value;
+                                                setPrepDate(val); // Local update
+                                                const dateObj = new Date(val);
                                                 const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
                                                 const updates = { prep_date: timestamp };
                                                 if (onUpdate) await onUpdate(item.id, updates);
