@@ -5,7 +5,7 @@ import { cn } from '../../../../lib/utils';
 import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Clock, ArrowUpCircle, Edit2, Save, X, ArrowLeft, ArrowUp, ArrowDown, Maximize2 } from 'lucide-react';
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
-import { TodayCandidateDetailModal } from '../Modal/TodayCandidateDetailModal';
+import { DecisionDetailModal } from '../Modal/DecisionDetailModal'; // [NEW] (Unified)
 import { Item } from '../../types';
 
 interface Props {
@@ -356,14 +356,31 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* [NEW] Candidate Detail Modal */}
+            {/* Unified Detail Modal */}
             {candidateDetailItem && (
-                <TodayCandidateDetailModal
+                <DecisionDetailModal
                     item={candidateDetailItem}
+                    yesButtonLabel="これからやる"
                     onClose={() => setCandidateDetailItem(null)}
-                    onConfirm={(id) => {
-                        commitToToday(id);
+                    onDecision={(id, decision) => {
+                        // Map standard decision to Today actions
+                        if (decision === 'yes') {
+                            commitToToday(id);
+                        } else if (decision === 'hold') {
+                            // If it's already in Today, "Hold" might mean "Keep in Today" or "Pending"?
+                            // Standard interpretation: Do nothing (keep status) or explicit hold?
+                            // For candidates: Hold means stay in candidates.
+                            // For commits: Hold means stay in commits.
+                            // So just close.
+                        } else if (decision === 'no') {
+                            // "No" usually implies returning to Inbox or Intent
+                            returnToInbox(id, 'today_candidate'); // Using candidate logic for generic return
+                        }
                         setCandidateDetailItem(null);
+                    }}
+                    onDelete={(id) => {
+                        // TodayScreen doesn't usually allow delete, but if unified...
+                        returnToInbox(id, 'today_candidate');
                     }}
                     onUpdate={async (id, updates) => {
                         if (updates.title) {

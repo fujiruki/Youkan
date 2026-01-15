@@ -1,29 +1,33 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Clock, PauseCircle, CheckCircle2 } from 'lucide-react';
+import { X, Trash2, PauseCircle, CheckCircle2 } from 'lucide-react';
 import { Item } from '../../types';
 import { cn } from '../../../../lib/utils';
 import { ApiClient } from '../../../../api/client';
+import { EstimatedTimeInput } from '../Today/EstimatedTimeInput'; // [NEW]
 
 interface DecisionDetailModalProps {
     item: Item | null;
     onClose: () => void;
     onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => void;
     onDelete: (id: string) => void;
-    onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>; // [NEW] Live updates
+    onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>; // [NEW] Live
+    // [NEW] Custom Labels
+    yesButtonLabel?: string;
     initialFocus?: 'date'; // [NEW]
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, initialFocus }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, initialFocus, yesButtonLabel }) => {
     if (!item) return null;
 
     const [note, setNote] = React.useState(item.memo || '');
     const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
     const [dueDate, setDueDate] = React.useState(item.due_date || '');
     const [workDays, setWorkDays] = React.useState(item.work_days || 1);
-    const [isWorkDaysDirty, setIsWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
+    const [isWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
+    const [estimatedMinutes, setEstimatedMinutes] = React.useState(item.estimatedMinutes || 0); // [NEW]
 
     // [NEW] Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -71,8 +75,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         if (!isWorkDaysDirty) {
             setWorkDays(item.work_days || 1);
         }
+        setEstimatedMinutes(item.estimatedMinutes || 0); // [NEW]
         setEditedTitle(item.title);
-    }, [item.due_status, item.due_date, item.work_days, item.title, isWorkDaysDirty]);
+    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, isWorkDaysDirty]);
 
     // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
@@ -86,9 +91,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                 if (dueStatus === 'waiting_external') {
                     setDueStatus('confirmed');
                     if (onUpdate) {
-                        onUpdate(item.id, { due_status: 'confirmed' });
+                        const updates: Partial<Item> = { due_status: 'confirmed' };
+                        onUpdate(item.id, updates);
                     } else {
-                        ApiClient.updateItem(item.id, { due_status: 'confirmed' });
+                        const updates: Partial<Item> = { due_status: 'confirmed' };
+                        ApiClient.updateItem(item.id, updates);
                     }
                 }
                 setTimeout(() => dateInputRef.current?.focus(), 50);
@@ -111,14 +118,29 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
-    // [NEW] Save work_days and close
+    // [NEW] Save work_days AND estimatedMinutes and close
     const handleClose = async () => {
-        // Ensure work_days is saved before closing if dirty
+        const updates: Partial<Item> = {};
+
+        console.log('handleClose called. estimatedMinutes:', estimatedMinutes, 'item.estimated:', item.estimatedMinutes);
+
+        // Check dirty work_days
         if (isWorkDaysDirty || workDays !== item.work_days) {
+            updates.work_days = workDays;
+        }
+
+        // Check dirty estimatedMinutes
+        if (estimatedMinutes !== (item.estimatedMinutes || 0)) {
+            updates.estimatedMinutes = estimatedMinutes;
+        }
+
+        console.log('updates:', updates);
+
+        if (Object.keys(updates).length > 0) {
             if (onUpdate) {
-                await onUpdate(item.id, { work_days: workDays });
+                await onUpdate(item.id, updates);
             } else {
-                await ApiClient.updateItem(item.id, { work_days: workDays });
+                await ApiClient.updateItem(item.id, updates);
             }
         }
         onClose();
@@ -126,11 +148,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
     // [NEW] Helper to save work_days before decision
     const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
+        const updates: Partial<Item> = {};
+
         if (workDays !== item.work_days) {
+            updates.work_days = workDays;
+        }
+        if (estimatedMinutes !== (item.estimatedMinutes || 0)) {
+            updates.estimatedMinutes = estimatedMinutes;
+        }
+
+        if (Object.keys(updates).length > 0) {
             if (onUpdate) {
-                await onUpdate(item.id, { work_days: workDays });
+                await onUpdate(item.id, updates);
             } else {
-                await ApiClient.updateItem(item.id, { work_days: workDays });
+                await ApiClient.updateItem(item.id, updates);
             }
         }
         onDecision(item.id, decision, note);
@@ -145,14 +176,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <motion.div
+                        data-testid="modal-backdrop"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={handleClose}
-                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px]"
-                    />
-
-                    {/* Modal */}
+                    />    {/* Modal */}
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -239,209 +270,146 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                             </div>
                         </div>
 
-                        {/* Content Area - Meta & Note */}
-                        <div className="px-4 py-2 space-y-3">
+                        {/* Content Area - Compact Grid */}
+                        <div className="px-5 py-4 space-y-5">
 
-                            {/* [Fact Check] Due Date Section */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                    【判断材料】事実確認 <span className="text-[10px] text-slate-300 ml-2">(Alt+D)</span>
-                                </label>
-                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <div className="flex-1">
-                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                                            取付日（納期）
-                                        </span>
+                            {/* Schedule & Volume Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                                        {dueStatus === 'waiting_external' ? (
-                                            <span className="text-slate-500 font-medium">未確定（相手都合）</span>
-                                        ) : (
-                                            <input
-                                                ref={dateInputRef}
-                                                type="date"
-                                                value={dueDate}
-                                                onChange={async (e) => {
-                                                    const val = e.target.value;
-                                                    setDueDate(val);
-                                                    if (onUpdate) {
-                                                        await onUpdate(item.id, { due_date: val, due_status: 'confirmed' });
-                                                    } else {
-                                                        await ApiClient.updateItem(item.id, { due_date: val, due_status: 'confirmed' });
-                                                    }
+                                {/* Left Col: Schedule */}
+                                <div className="space-y-4">
+                                    {/* 1. Due Date */}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                                <div className="w-1 h-3 bg-red-400 rounded-full"></div>
+                                                納期 (事実)
+                                            </span>
+                                            <button
+                                                onClick={async () => {
+                                                    const newStatus = dueStatus === 'waiting_external' ? 'confirmed' : 'waiting_external';
+                                                    const todayStr = new Date().toISOString().split('T')[0];
+                                                    const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || todayStr);
+                                                    setDueStatus(newStatus);
+                                                    if (newStatus === 'confirmed' && !dueDate) setDueDate(todayStr);
+                                                    const updates: Partial<Item> = { due_status: newStatus, due_date: newDateVal };
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
+
+                                                    if (newStatus === 'confirmed') setTimeout(() => dateInputRef.current?.focus(), 100);
                                                 }}
-                                                className="bg-transparent text-slate-800 dark:text-slate-200 font-mono font-bold focus:outline-none focus:border-b border-indigo-500 w-full"
-                                            />
+                                                className="text-[10px] text-slate-400 hover:text-indigo-500 underline"
+                                            >
+                                                {dueStatus === 'waiting_external' ? '日付指定' : '未定に戻す'}
+                                            </button>
+                                        </div>
+                                        {dueStatus === 'waiting_external' ? (
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded px-3 py-2 text-sm text-slate-500 font-medium border border-slate-100 dark:border-slate-800">
+                                                相手都合 (未定)
+                                            </div>
+                                        ) : (
+                                            <div className="relative group">
+                                                <input
+                                                    ref={dateInputRef}
+                                                    type="date"
+                                                    value={dueDate || ''}
+                                                    onChange={async (e) => {
+                                                        const val = e.target.value; // Capture value immediately
+                                                        setDueDate(val);
+                                                        const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                        if (onUpdate) await onUpdate(item.id, updates);
+                                                        else await ApiClient.updateItem(item.id, updates);
+                                                    }}
+                                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-400 w-full"
+                                                />
+                                                {/* Expanded click area for Calendar Picker */}
+                                                <div
+                                                    className="absolute top-0 right-0 bottom-0 w-12 cursor-pointer bg-transparent"
+                                                    onClick={() => dateInputRef.current?.showPicker()}
+                                                    title="カレンダーを開く"
+                                                />
+                                            </div>
                                         )}
                                     </div>
-                                    <button
-                                        id="due-toggle-btn"
-                                        onClick={async () => {
-                                            const newStatus = dueStatus === 'waiting_external' ? 'confirmed' : 'waiting_external';
-                                            // Set today's date as default when entering date input mode
-                                            const todayStr = new Date().toISOString().split('T')[0];
-                                            const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || todayStr);
 
-                                            setDueStatus(newStatus);
-                                            if (newStatus === 'confirmed' && !dueDate) {
-                                                setDueDate(todayStr); // Set default date in local state
-                                            }
-
-                                            if (onUpdate) {
-                                                await onUpdate(item.id, { due_status: newStatus, due_date: newDateVal });
-                                            } else {
-                                                await ApiClient.updateItem(item.id, { due_status: newStatus, due_date: newDateVal });
-                                            }
-
-                                            if (newStatus === 'confirmed') {
-                                                setTimeout(() => dateInputRef.current?.focus(), 100);
-                                            }
-                                        }}
-                                        className="text-xs text-slate-400 underline hover:text-indigo-500 whitespace-nowrap"
-                                    >
-                                        {dueStatus === 'waiting_external' ? '[日付を入力する]' : '[未確定にする]'}
-                                    </button>
-                                </div>
-                            </div>
-
-
-                            {/* [Preparation] Prep Date Section */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                    【目安】備え完了目安 <span className="text-[10px] text-slate-300 ml-2">(Blurry)</span>
-                                </label>
-                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <div className="flex-1">
-                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                                            備え完了目安
+                                    {/* 2. Prep Date */}
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                            <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
+                                            備え (目安)
                                         </span>
                                         <input
                                             type="date"
                                             value={item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''}
                                             onChange={async (e) => {
-                                                const val = e.target.value;
-                                                // Convert to timestamp (seconds)
-                                                const dateObj = new Date(val);
+                                                const dateObj = new Date(e.target.value);
                                                 const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
-
-                                                if (onUpdate) {
-                                                    await onUpdate(item.id, { prep_date: timestamp });
-                                                } else {
-                                                    await ApiClient.updateItem(item.id, { prep_date: timestamp });
-                                                }
+                                                const updates = { prep_date: timestamp };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
                                             }}
-                                            className="bg-transparent text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:border-b border-indigo-500 w-full"
+                                            className="bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-400 w-full transition-colors"
                                         />
                                     </div>
-                                    <div className="text-xs text-slate-400 text-right">
-                                        <p>約束ではありません</p>
-                                        <p>緩やかな目標です</p>
-                                    </div>
                                 </div>
-                            </div>
 
-                            {/* [Work Days] 制作目安日数 */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                    【量感】制作目安 (日) <span className="text-[10px] text-slate-300 ml-2">(Volume)</span>
-                                </label>
-                                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <div className="flex-1">
-                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                                            制作目安日数
-                                        </span>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="30"
-                                            value={workDays}
-                                            onChange={async (e) => {
-                                                const val = parseInt(e.target.value, 10);
-                                                if (!isNaN(val) && val > 0) {
-                                                    setWorkDays(val); // Update local state immediately
-                                                    setIsWorkDaysDirty(true); // [NEW] Mark as dirty
-                                                    if (onUpdate) {
-                                                        await onUpdate(item.id, { work_days: val });
-                                                    } else {
-                                                        await ApiClient.updateItem(item.id, { work_days: val });
-                                                    }
-                                                }
-                                            }}
-                                            className="bg-transparent text-slate-800 dark:text-slate-200 font-mono font-bold focus:outline-none focus:border-b border-indigo-500 w-20 text-center"
+                                {/* Right Col: Volume (Estimated Time) */}
+                                <div className="space-y-1">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
+                                        制作目安 (見積)
+                                    </span>
+                                    <div className="bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
+                                        <EstimatedTimeInput
+                                            value={estimatedMinutes}
+                                            onChange={(val) => setEstimatedMinutes(val)}
+                                            className="w-full"
                                         />
-                                        <span className="text-slate-500 dark:text-slate-400 ml-2">日</span>
-                                    </div>
-                                    <div className="text-xs text-slate-400 text-right">
-                                        <p>カレンダーの量感に反映</p>
-                                        <p>予定ではありません</p>
                                     </div>
                                 </div>
+
                             </div>
 
-                            {/* [Intent Boost] Today Only Forward */}
-                            <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-lg border border-amber-100 dark:border-amber-800/20 flex items-center justify-between">
-                                <div>
-                                    <span className="text-sm font-bold text-amber-800 dark:text-amber-200 block">
-                                        今日だけ前に出す
-                                    </span>
-                                    <span className="text-xs text-amber-600 dark:text-amber-400">
-                                        判断はせず、視界に入れるだけ
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={async () => {
-                                        const newBoostState = !item.is_boosted;
-                                        if (onUpdate) {
-                                            // Optimistic update handled by onUpdate usually
-                                            await onUpdate(item.id, { is_boosted: newBoostState, boosted_date: Date.now() });
-                                        } else {
-                                            await ApiClient.updateItem(item.id, { is_boosted: newBoostState, boosted_date: Date.now() });
-                                        }
-                                    }}
-                                    className={cn(
-                                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2",
-                                        item.is_boosted ? "bg-amber-500" : "bg-slate-200 dark:bg-slate-700"
-                                    )}
-                                >
-                                    <span
+                            {/* Divider with Boost */}
+                            <div className="flex items-center gap-4 py-2 opacity-80 hover:opacity-100 transition-opacity">
+                                <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={async () => {
+                                            const newBoostState = !item.is_boosted;
+                                            const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        }}
                                         className={cn(
-                                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                                            item.is_boosted ? "translate-x-6" : "translate-x-1"
+                                            "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-colors border",
+                                            item.is_boosted
+                                                ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
                                         )}
-                                    />
-                                </button>
-                            </div>
-
-                            {/* Meta Info */}
-                            <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400 pt-2">
-                                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded border border-slate-100 dark:border-slate-700">
-                                    <Clock size={12} />
-                                    <span>Created: {new Date(item.createdAt).toLocaleDateString()}</span>
+                                    >
+                                        <span className={cn("w-2 h-2 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
+                                        今日だけ前に出す (Boost)
+                                    </button>
                                 </div>
-                                {item.projectId && (
-                                    <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/30">
-                                        <span>Project: {item.projectId}</span>
-                                    </div>
-                                )}
+                                <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
                             </div>
 
-                            {/* Note Input */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wide">
-                                    Memo / Reasoning
-                                </label>
+                            {/* Note Input (Compact) */}
+                            <div className="relative">
                                 <textarea
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
                                     onBlur={async () => {
-                                        if (onUpdate) {
-                                            await onUpdate(item.id, { memo: note });
-                                        } else {
-                                            await ApiClient.updateItem(item.id, { memo: note });
-                                        }
+                                        const updates = { memo: note };
+                                        if (onUpdate) await onUpdate(item.id, updates);
+                                        else await ApiClient.updateItem(item.id, updates);
                                     }}
-                                    placeholder="条件、理由、その他のメモ..."
-                                    className="w-full text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 min-h-[80px] focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+                                    placeholder="メモ・条件・懸念点など..."
+                                    className="w-full text-sm bg-transparent border-none p-0 focus:ring-0 resize-none min-h-[60px] text-slate-700 dark:text-slate-300 placeholder:text-slate-300"
                                 />
+                                {/* Bottom Border fake */}
+                                <div className="absolute bottom-0 left-0 right-0 h-px bg-slate-100 dark:bg-slate-800"></div>
                             </div>
                         </div>
 
@@ -556,7 +524,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg shadow-md shadow-amber-200 dark:shadow-none transition-all transform active:scale-95 bg-amber-400 hover:bg-amber-500 text-white"
                             >
                                 <CheckCircle2 size={20} className="mb-1" />
-                                <span className="text-xs font-bold">今日やる (Yes)</span>
+                                <span className="text-xs font-bold">{yesButtonLabel || '今日やる (Yes)'}</span>
                             </button>
 
                         </div>
