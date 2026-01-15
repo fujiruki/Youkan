@@ -24,6 +24,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
         updateItemTitle,
         prioritizeTask,       // [NEW]
         uncommitFromToday,    // [NEW]
+        updateItem,           // [NEW]
         error,
         clearError
     } = useJBWOSViewModel();
@@ -362,6 +363,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                     item={candidateDetailItem}
                     yesButtonLabel="これからやる"
                     onClose={() => setCandidateDetailItem(null)}
+                    onUpdate={updateItem}
                     onDecision={(id, decision) => {
                         // Map standard decision to Today actions
                         if (decision === 'yes') {
@@ -382,13 +384,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                         // TodayScreen doesn't usually allow delete, but if unified...
                         returnToInbox(id, 'today_candidate');
                     }}
-                    onUpdate={async (id, updates) => {
-                        if (updates.title) {
-                            await updateItemTitle(id, updates.title);
-                        } else {
-                            await ApiClient.updateItem(id, updates);
-                        }
-                    }}
+
                 />
             )}
 

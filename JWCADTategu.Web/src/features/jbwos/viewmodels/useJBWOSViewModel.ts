@@ -376,10 +376,34 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    const updateItem = async (id: string, updates: Partial<Item>) => {
+        // Helper to update a list
+        const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
+
+        // Optimistic Updates across all lists
+        setTodayCandidates(prev => updateList(prev));
+        setTodayCommits(prev => updateList(prev));
+        setGdbActive(prev => updateList(prev));
+        setGdbPreparation(prev => updateList(prev));
+        setGdbIntent(prev => updateList(prev));
+
+        // Update Execution Item if active
+        if (executionItem && executionItem.id === id) {
+            setExecutionItem(prev => prev ? { ...prev, ...updates } : null);
+        }
+
+        try {
+            await JBWOSRepository.updateItem(id, updates);
+        } catch (e) {
+            console.error('Failed to update item:', e);
+            // Optionally revert here, but for MVP keep simple
+        }
+    };
+
     return {
         // State
         gdbActive,
-        gdbPreparation, // Renamed from hold
+        gdbPreparation,
         gdbIntent,
         gdbLog,
         todayCandidates,
@@ -390,20 +414,21 @@ export const useJBWOSViewModel = () => {
 
         // Actions
         refresh: refreshAll,
-        resolveDecision, // The main GDB action
-        commitToToday,   // The main Today action
-        completeItem,    // [FIX] Exported
+        resolveDecision,
+        commitToToday,
+        completeItem,
+        deleteItem,
+        returnToInbox,
+        updateItemTitle,
+        prioritizeTask,
+        uncommitFromToday,
+        updatePreparationDate,
+        updateItem, // [NEW] Generic Update
 
         // Memo Actions
         addSideMemo,
         deleteSideMemo,
         memoToInbox,
-        deleteItem, // [NEW]
-        returnToInbox, // [NEW] Flexibility
-        updateItemTitle, // [NEW] Flexibility
-        prioritizeTask, // [NEW] Flexibility
-        uncommitFromToday, // [NEW] Flexibility
-        updatePreparationDate, // [NEW]
 
         // Helpers
         throwIn,
