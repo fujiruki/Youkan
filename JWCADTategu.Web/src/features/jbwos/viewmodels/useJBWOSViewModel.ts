@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
-import { Item, SideMemo } from '../types';
+import { Item, SideMemo, CapacityConfig } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 
 export const useJBWOSViewModel = () => {
@@ -206,6 +206,8 @@ export const useJBWOSViewModel = () => {
         // Optimistic UI
         setGdbActive(prev => prev.filter(i => i.id !== id));
         setGdbPreparation(prev => prev.filter(i => i.id !== id));
+        setTodayCandidates(prev => prev.filter(i => i.id !== id)); // [FIX] Remove from Today Candidates
+        setTodayCommits(prev => prev.filter(i => i.id !== id));    // [FIX] Remove from Today Commits
 
         try {
             await JBWOSRepository.deleteItem(id);
@@ -400,6 +402,19 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    // --- Capacity & Holiday ---
+    const [capacityConfig, setCapacityConfig] = useState<CapacityConfig>({
+        defaultDailyMinutes: 480,
+        holidays: [{ type: 'weekly', value: '0' }], // Default Sunday
+        exceptions: {}
+    });
+
+    const updateCapacityConfig = async (newConfig: CapacityConfig) => {
+        setCapacityConfig(newConfig);
+        // Persist to Settings API (Future)
+        // For now, local state only or mock persistence
+    };
+
     return {
         // State
         gdbActive,
@@ -411,6 +426,7 @@ export const useJBWOSViewModel = () => {
         executionItem,
         memos,
         error,
+        capacityConfig, // New state
 
         // Actions
         refresh: refreshAll,
@@ -424,6 +440,7 @@ export const useJBWOSViewModel = () => {
         uncommitFromToday,
         updatePreparationDate,
         updateItem, // [NEW] Generic Update
+        updateCapacityConfig, // New action
 
         // Memo Actions
         addSideMemo,

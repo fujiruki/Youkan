@@ -74,3 +74,18 @@ export interface SideMemo {
     content: string;
     createdAt: number;
 }
+
+// --- Holiday & Capacity Configuration ---
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Sun, 1=Mon...
+
+export interface HolidayRule {
+    type: 'weekly' | 'specific' | 'pattern';
+    value: string | number; // "0" (Sun), "2026-01-01", "2-1" (2nd Mon)
+    label?: string; // "定休日", "元日"
+}
+
+export interface CapacityConfig {
+    defaultDailyMinutes: number; // e.g. 480 (8h)
+    holidays: HolidayRule[];
+    exceptions: Record<string, number>; // "2026-01-20": 240 (Half day)
+}

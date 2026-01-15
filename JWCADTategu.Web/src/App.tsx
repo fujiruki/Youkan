@@ -18,8 +18,9 @@ import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
+import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history';
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history' | 'settings';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -198,10 +199,11 @@ const AppContent: React.FC<{
                         {/* New JBWOS Header */}
                         {(currentView === 'jbwos' || currentView === 'today' || currentView === 'history') && (
                             <JBWOSHeader
-                                currentView={currentView as 'jbwos' | 'today' | 'history'}
+                                currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings'}
                                 onNavigateToToday={() => setCurrentView('today')}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
+                                onNavigateToSettings={() => setCurrentView('settings')}
                             />
                         )}
 
@@ -267,6 +269,13 @@ const AppContent: React.FC<{
                             {/* 7. History Screen */}
                             {currentView === 'history' && (
                                 <HistoryScreen onBack={() => setCurrentView('jbwos')} />
+                            )}
+
+                            {/* 8. Settings Screen */}
+                            {currentView === 'settings' && (
+                                <div className="h-full w-full overflow-auto">
+                                    <SettingsScreen />
+                                </div>
                             )}
                         </div>
 

@@ -32,6 +32,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
     // [NEW] Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const [confirmDelete, setConfirmDelete] = React.useState(false); // [NEW] Confirmation state
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const dateInputRef = React.useRef<HTMLInputElement>(null);
@@ -476,13 +477,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         History (却下・ログ)
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (confirm('この操作は取り消せません。完全に削除しますか？')) onDelete(item.id);
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (confirmDelete) {
+                                                onDelete(item.id);
+                                            } else {
+                                                setConfirmDelete(true);
+                                            }
                                         }}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded flex items-center gap-2"
+                                        className={cn(
+                                            "w-full text-left px-3 py-2 text-xs font-bold rounded flex items-center gap-2 transition-colors",
+                                            confirmDelete
+                                                ? "bg-red-500 text-white hover:bg-red-600"
+                                                : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        )}
                                     >
                                         <Trash2 size={12} />
-                                        完全削除
+                                        {confirmDelete ? "本当に削除しますか？" : "完全削除"}
                                     </button>
                                 </div>
                             </div>

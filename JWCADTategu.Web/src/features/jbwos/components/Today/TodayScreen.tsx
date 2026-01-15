@@ -6,6 +6,8 @@ import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Cl
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal'; // [NEW] (Unified)
+import { FutureBoard } from '../../../planning/FutureBoard';
+import { AnimatePresence } from 'framer-motion';
 import { Item } from '../../types';
 
 interface Props {
@@ -15,6 +17,7 @@ interface Props {
 export const TodayScreen: React.FC<Props> = ({ onBack }) => {
     // [NEW] Selected Candidate for Detail Modal
     const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
+    const [showPlanning, setShowPlanning] = useState(false);
     const {
         todayCandidates,
         todayCommits,
@@ -25,6 +28,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
         prioritizeTask,       // [NEW]
         uncommitFromToday,    // [NEW]
         updateItem,           // [NEW]
+        deleteItem,           // [NEW]
         error,
         clearError
     } = useJBWOSViewModel();
@@ -131,7 +135,17 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                 <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
                     <span>今日</span>
                     {todayCommits.length >= 2 && <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">満杯 (2件)</span>}
+
                 </h1>
+
+                <div className="flex justify-end -mt-8 mb-4">
+                    <button
+                        onClick={() => setShowPlanning(true)}
+                        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
+                    >
+                        <span>🌅</span> 明日の計画
+                    </button>
+                </div>
 
                 {error && (
                     <div className="mt-4 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
@@ -294,35 +308,6 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
             </div>
 
             {/* ZONE 1.5: Intent Boost (Today Only Forward) */}
-            {todayCandidates.some(i => i.is_boosted) && (
-                <div className="w-full max-w-2xl px-6 mb-8 animate-in fade-in slide-in-from-top-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-amber-100/50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-500 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
-                            今日のみ (ブースト)
-                        </span>
-                    </div>
-                    <div className="space-y-2">
-                        {todayCandidates.filter(i => i.is_boosted).map(item => (
-                            <div key={item.id} className="bg-amber-50/80 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-800/30 flex items-center justify-between group">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-amber-500 font-bold">★</span>
-                                    <div>
-                                        <h3 className="font-bold text-slate-700 dark:text-slate-200">{item.title}</h3>
-                                        <p className="text-xs text-slate-400">今日だけ前に出しています (自動解除)</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => completeItem(item.id)}
-                                    className="p-2 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-full text-slate-400 hover:text-amber-600 transition-colors"
-                                    title="完了 (Done)"
-                                >
-                                    <CheckCircle2 size={24} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {/* CANDIDATES AREA (Before Commitment) */}
             {canCommitMore && todayCandidates.filter(i => !i.is_boosted).length > 0 && (
@@ -381,8 +366,8 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                         setCandidateDetailItem(null);
                     }}
                     onDelete={(id) => {
-                        // TodayScreen doesn't usually allow delete, but if unified...
-                        returnToInbox(id, 'today_candidate');
+                        deleteItem(id);
+                        setCandidateDetailItem(null); // Close modal
                     }}
 
                 />
@@ -475,6 +460,11 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                 <LifeChecklist />
             </div>
 
+            <AnimatePresence>
+                {showPlanning && (
+                    <FutureBoard onClose={() => setShowPlanning(false)} />
+                )}
+            </AnimatePresence>
         </div >
     );
 };

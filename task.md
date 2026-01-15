@@ -21,6 +21,19 @@
         - [x] Today: 確認ボタン・開始ボタン削除・3ゾーン厳格化 <!-- id: 1181 -->
         - [x] GDB: 棚レイアウト・縦積み・詳細ビュー分離・納期隠蔽 <!-- id: 1182 -->
 
+- [ ] **Phase 4: Future Board (Tomorrow Planning) & Renaming** <!-- id: 120 -->
+    - [ ] **Infrastructure** <!-- id: 121 -->
+        - [ ] Rename `JWCADTategu.Web` -> `JBWOS.Web` <!-- id: 1211 -->
+        - [ ] Create `src/extensions/tategu` structure <!-- id: 1212 -->
+    - [ ] **Phase 1: Foundation & UI** <!-- id: 122 -->
+        - [ ] Holiday/Capacity Config (`Settings` module) <!-- id: 1221 -->
+        - [x] UI Component: `FutureBoard.tsx` (Flip/Transition) <!-- id: 1222 -->
+        - [x] Start Transition from Today Screen <!-- id: 1223 -->
+        - [/] Show Capacity Bar & Stock Pile (Mock Data for now) <!-- id: 1224 -->
+        - [ ] Multi-day Swipe View <!-- id: 1232 -->
+    - [ ] **Phase 2: Logic & Intelligence** <!-- id: 123 -->
+        - [ ] Reverse Calculation Logic (Suggestion Engine) <!-- id: 1231 -->
+
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
     - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
     - [ ] **History画面作成**: 事実ログの表示 UI <!-- id: 112 -->
