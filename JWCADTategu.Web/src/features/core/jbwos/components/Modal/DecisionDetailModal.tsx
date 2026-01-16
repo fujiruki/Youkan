@@ -14,6 +14,7 @@ interface DecisionDetailModalProps {
     onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
     onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
     onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
+    onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>; // [NEW]
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';

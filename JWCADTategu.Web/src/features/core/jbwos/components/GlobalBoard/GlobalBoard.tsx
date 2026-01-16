@@ -208,6 +208,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     setDetailItem(null);
                 }}
                 onUpdate={vm.updateItem}
+                onDelegate={vm.delegateTask}
             />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
