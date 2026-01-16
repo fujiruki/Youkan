@@ -14,6 +14,44 @@ interface Props {
     onBack: () => void;
 }
 
+const TimeProgressBar: React.FC = () => {
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 60000); // Create an interval to update every minute
+        return () => clearInterval(timer);
+    }, []);
+
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+    const dayMinutes = 24 * 60;
+    const progress = Math.min(100, (totalMinutes / dayMinutes) * 100);
+
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const percentString = `${Math.round(progress)}%`;
+
+    return (
+        <div className="w-full">
+            <div className="flex justify-between items-end mb-1">
+                <div className="text-3xl font-black text-slate-700 dark:text-slate-200 tracking-tight leading-none">
+                    {timeString}
+                    <span className="text-xs font-medium text-slate-400 ml-2 tracking-normal">経過</span>
+                </div>
+                <div className="text-sm font-bold text-slate-400 dark:text-slate-500">
+                    {percentString}
+                </div>
+            </div>
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                    className="h-full bg-slate-800 dark:bg-slate-200 rounded-full transition-all duration-1000"
+                    style={{ width: `${progress}%` }}
+                />
+            </div>
+        </div>
+    );
+};
+
 export const TodayScreen: React.FC<Props> = ({ onBack }) => {
     // [NEW] Selected Candidate for Detail Modal
     const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
@@ -138,7 +176,12 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
 
                 </h1>
 
-                <div className="flex justify-end -mt-8 mb-4">
+                {/* [NEW] Time Progress Bar */}
+                <div className="mt-2 mb-4">
+                    <TimeProgressBar />
+                </div>
+
+                <div className="flex justify-end -mt-0 mb-4">
                     <button
                         onClick={() => setShowPlanning(true)}
                         className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"

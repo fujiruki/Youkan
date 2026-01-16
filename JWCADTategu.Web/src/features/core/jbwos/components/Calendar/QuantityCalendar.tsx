@@ -1,7 +1,18 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Item } from '../../types';
 import { useDroppable } from '@dnd-kit/core';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { isHoliday } from '../../logic/capacity';
+
+// Default config for visualization logic (Standard Weekend Holidays)
+const DEFAULT_CAPACITY_CONFIG: any = { // Changed to 'any' as CapacityConfig type is removed
+    holidays: [
+        { type: 'weekly', value: '0' }, // Sunday
+        { type: 'weekly', value: '6' }  // Saturday
+    ],
+    defaultDailyMinutes: 480, // 8 hours
+    exceptions: {}
+};
 
 // --- Date Helpers ---
 const getStartOfToday = () => {
@@ -97,9 +108,11 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         return map;
     }, [items]);
 
-    // Calculate Heatmap (Volume) - Due + Prep Span
+    // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
     const heatMap = useMemo(() => {
         const map = new Map<string, number>();
+        const config = DEFAULT_CAPACITY_CONFIG; // Use local default config
+
         items.forEach(item => {
             // 1. Due Date: Add moderate heat
             if (item.due_date) {
@@ -109,25 +122,50 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                     map.set(key, (map.get(key) || 0) + 1.0);
                 }
             }
-            // 2. Prep Date Span: Add heat for work_days range
+            // 2. Prep Date Span: Add heat for work_days range (Working Days Only)
             if (item.prep_date) {
                 const prepDate = new Date(item.prep_date * 1000);
-                const workDays = item.work_days || 1;
-                for (let i = 0; i < workDays; i++) {
-                    const d = new Date(prepDate);
-                    d.setDate(d.getDate() - i);
-                    const key = d.toDateString();
-                    // Lighter weight for prep items
-                    map.set(key, (map.get(key) || 0) + 0.5);
+                // Fallback: If work_days is 1 (default) or missing, try to use estimatedMinutes
+                const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0; // 7h * 60m = 420m
+                const workDays = (item.work_days && item.work_days > 1) ? item.work_days : (estimatedDays || 1);
+
+                let count = 0;
+                let current = new Date(prepDate);
+                // Safety break to prevent infinite loop
+                let safety = 0;
+
+                while (count < workDays && safety < 30) {
+                    safety++;
+
+                    // Check if current is holiday
+                    // Note: isHoliday expects Date object.
+                    // If prep_date itself is a holiday, do we count it?
+                    // Spec: "StartDate is Prep Date". If Prep Date is holiday, we might start from NEXT work day?
+                    // But current logic is: If today is work day, paint it.
+                    // If Prep Date is Holiday, the loop checks isHoliday(current). It returns true.
+                    // So we do NOT paint it, and do NOT increment count.
+                    // Loop continues to next day. Correct.
+                    if (!isHoliday(current, config)) {
+                        const key = current.toDateString();
+                        map.set(key, (map.get(key) || 0) + 1.0);
+                        count++;
+                    }
+
+                    // Move to previous day (Backwards)
+                    // Spec: "Prep Date" is the TARGET completion date.
+                    // "2/4までの3日間" -> 2/2, 2/3, 2/4.
+                    current.setDate(current.getDate() - 1);
                 }
             }
         });
         return map;
     }, [items]);
 
-    // Signs Map (ALL related items for cell click) - Due + Prep
+    // [MODIFIED] Signs Map (ALL related items for cell click) - Due + Prep (Working Days Only)
     const signsMap = useMemo(() => {
         const map = new Map<string, Item[]>();
+        const config = DEFAULT_CAPACITY_CONFIG;
+
         items.forEach(item => {
             // 1. Due Date
             if (item.due_date) {
@@ -141,22 +179,33 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
             // 2. Prep Date Span
             if (item.prep_date) {
                 const prepDate = new Date(item.prep_date * 1000);
-                const workDays = item.work_days || 1;
-                for (let i = 0; i < workDays; i++) {
-                    const d = new Date(prepDate);
-                    d.setDate(d.getDate() - i);
-                    const key = d.toDateString();
-                    if (!map.has(key)) map.set(key, []);
-                    // Avoid duplicates
-                    const existing = map.get(key)!;
-                    if (!existing.find(x => x.id === item.id)) {
-                        existing.push(item);
+                // Fallback: If work_days is 1 (default) or missing, try to use estimatedMinutes
+                const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0;
+                const workDays = (item.work_days && item.work_days > 1) ? Number(item.work_days) : (estimatedDays || 1);
+
+                let count = 0;
+                let current = new Date(prepDate);
+                let safety = 0;
+
+                while (count < workDays && safety < 30) {
+                    safety++;
+
+                    if (!isHoliday(current, config)) {
+                        const key = current.toDateString();
+                        if (!map.has(key)) map.set(key, []);
+                        const existing = map.get(key)!;
+                        if (!existing.find(x => x.id === item.id)) {
+                            existing.push(item);
+                        }
+                        count++;
                     }
+                    current.setDate(current.getDate() - 1); // BACKWARD
                 }
             }
         });
         return map;
     }, [items]);
+
 
 
     // Auto-scroll to today
@@ -236,6 +285,49 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative" ref={containerRef}>
+            {/* DEBUG OVERLAY */}
+            <div className="fixed bottom-0 left-0 right-0 h-48 bg-black/80 text-white p-4 overflow-auto z-[9999] text-xs font-mono">
+                <h3 className="font-bold border-b border-gray-600 mb-2">Debug Info (v3.1)</h3>
+                {items.filter(i => i.title.includes('木組み') || i.title.includes('Coaster')).map(item => {
+                    const prepDate = item.prep_date ? new Date(item.prep_date * 1000) : null;
+                    const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0;
+                    const rawWorkDays = item.work_days;
+                    const effectiveWorkDays = (Number(rawWorkDays) > 1) ? Number(rawWorkDays) : (estimatedDays || 1);
+
+                    // Re-calculate dates for this item to show what SHOULD be painted
+                    const dates = [];
+                    if (prepDate) {
+                        let count = 0;
+                        let current = new Date(prepDate);
+                        let safety = 0;
+                        const config = DEFAULT_CAPACITY_CONFIG;
+
+                        while (count < effectiveWorkDays && safety < 30) {
+                            safety++;
+                            if (!isHoliday(current, config)) {
+                                dates.push(current.toDateString());
+                                count++;
+                            }
+                            // Important: Match the logic in heatMap (Backward iteration)
+                            current.setDate(current.getDate() - 1);
+                        }
+                    }
+
+                    return (
+                        <div key={item.id} className="mb-2 border-b border-gray-700 pb-1">
+                            <div className="text-emerald-400 font-bold">{item.title}</div>
+                            <div>ID: {item.id}</div>
+                            <div>Prep: {prepDate?.toLocaleString()}</div>
+                            <div>
+                                WorkDays (Effective): <span className="text-amber-400 font-bold">{effectiveWorkDays}</span>
+                                <span className="text-gray-400 ml-2">(Raw: {rawWorkDays || 'null'}, Est: {item.estimatedMinutes || 0}m → {estimatedDays}d)</span>
+                            </div>
+                            <div>Calculated Dates: {dates.join(', ')}</div>
+                        </div>
+                    );
+                })}
+            </div>
+
             {/* SVG Overlay Layer */}
             <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
                 <defs>

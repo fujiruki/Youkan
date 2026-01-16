@@ -24,6 +24,8 @@ export interface Item {
 
     // --- Context ---
     projectId?: string;      // 案件ID（nullなら個人タスク）
+    parentId?: string;       // [NEW] 親タスクID（Projectization）
+    isProject?: boolean;     // [NEW] プロジェクト化されたコンテナフラグ
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
 

@@ -438,6 +438,37 @@ export const useJBWOSViewModel = () => {
         // For now, local state only or mock persistence
     };
 
+    // [NEW] Sub-Task Actions
+    const createSubTask = async (parentId: string, title: string) => {
+        if (!title.trim()) return;
+
+        // Uses the same create logic but with parentId
+        const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+            title,
+            status: 'inbox',
+            parentId,
+            // Defaults
+            weight: 1,
+            interrupt: false,
+            category: 'subtask',
+            type: 'generic'
+        };
+
+        try {
+            await JBWOSRepository.createItem(newItem);
+            // We don't verify here, the Modal calling this should refresh its local list
+            // or we need a way to trigger refresh of the specific parent context.
+            // For now, simple return.
+        } catch (e) {
+            console.error('Failed to create subtask', e);
+        }
+    };
+
+    // [NEW] Get Sub-Tasks (Directly from Repo for now, often used in Modal)
+    const getSubTasks = useCallback(async (parentId: string) => {
+        return await JBWOSRepository.getSubTasks(parentId);
+    }, []);
+
     return {
         // State
         gdbActive,
@@ -469,6 +500,10 @@ export const useJBWOSViewModel = () => {
         addSideMemo,
         deleteSideMemo,
         memoToInbox,
+
+        // Project Actions [NEW]
+        createSubTask,
+        getSubTasks,
 
         // Helpers
         throwIn,

@@ -4,7 +4,7 @@ import { useJBWOSViewModel } from '../jbwos/viewmodels/useJBWOSViewModel';
 import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ArrowLeft, Coffee, Grid, GripVertical, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Coffee, Grid, GripVertical, ArrowRight, Folder } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, closestCorners } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -16,10 +16,10 @@ interface FutureBoardProps {
     onClose: () => void;
 }
 
-const SortableItem = ({ item, type, isGhost, daysLeft, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; onClick?: (item: Item) => void }) => {
+const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; containerId?: string; onClick?: (item: Item) => void }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: isGhost ? `${item.id}-ghost-${daysLeft}` : item.id,
-        data: { type, item, isGhost },
+        data: { type, item, isGhost, containerId }, // Pass containerId to data
         disabled: isGhost // Ghosts are not draggable
     });
 
@@ -48,7 +48,8 @@ const SortableItem = ({ item, type, isGhost, daysLeft, onClick }: { item: Item; 
             <div className="flex items-center gap-2">
                 {!isGhost && <GripVertical size={14} className="text-slate-300 flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate leading-tight">
+                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate leading-tight flex items-center gap-1">
+                        {item.isProject && <Folder size={12} className="text-blue-500 fill-blue-100 dark:fill-blue-900/30" />}
                         {item.title}
                         {isGhost && <span className="text-[10px] text-slate-400 ml-1">(続く)</span>}
                     </div>
@@ -94,10 +95,14 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
 
     // Filter Stock Items (Inbox + Unscheduled Preparation)
     // Exclude: Pending(Waiting/Hold), Intent, Today Active
-    const stockItems = [
+    const rawStockItems = [
         ...vm.gdbActive.filter(i => i.status === 'inbox'), // Pure Inbox
         ...vm.gdbPreparation.filter(i => !i.prep_date && i.status !== 'decision_hold') // Unscheduled Prep (excluding hold)
     ].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    // Split into 2 Stages
+    const unorganizedItems = rawStockItems.filter(i => !i.due_date && (!i.estimatedMinutes && !i.work_days));
+    const standbyItems = rawStockItems.filter(i => i.due_date || (i.estimatedMinutes || i.work_days)); // Has some detail
 
     // Helper: Logic to determine if item occupies a day (Working Days only)
     const getItemStatusForDay = (item: Item, day: Date): { type: 'head' | 'ghost', daysLeft: number } | null => {
@@ -173,10 +178,18 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
             return;
         }
 
+        // Identify Target Container ID
+        let targetId = over.id as string;
+
+        // If dropped on an item, look up its containerId
+        if (over.data.current?.containerId) {
+            targetId = over.data.current.containerId;
+        }
+
         // Drop on Day Column (id is timestamp string or date string)
         // We used `day-${ts}` as ID
-        if (typeof over.id === 'string' && over.id.startsWith('day-')) {
-            const ts = parseInt(over.id.replace('day-', ''), 10);
+        if (typeof targetId === 'string' && targetId.startsWith('day-')) {
+            const ts = parseInt(targetId.replace('day-', ''), 10);
             if (!isNaN(ts)) {
                 // Determine the correct timestamp (User dropped on specific day)
                 // We preserve the time? No, set to start of that day (or noon) to be safe.
@@ -186,7 +199,7 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
         }
     };
 
-    const activeItem = activeId ? [...stockItems, ...vm.gdbPreparation, ...vm.gdbActive].find(i => i.id === activeId) : null;
+    const activeItem = activeId ? [...rawStockItems, ...vm.gdbPreparation, ...vm.gdbActive].find(i => i.id === activeId) : null;
 
     return (
         <motion.div
@@ -217,21 +230,59 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
-                    {/* Left: Stock */}
+                    {/* Left: Stock (2-Stage: Unorganized & Standby) */}
                     <div className="w-64 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-                        <div className="p-3 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-600 text-sm flex justify-between">
-                            <span>Inbox (未定)</span>
-                            <span className="text-xs bg-slate-200 px-2 rounded-full">{stockItems.length}</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2">
-                            <SortableContext items={stockItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                <div ref={setStockListRef} id="stock-list" className="min-h-[200px] space-y-2">
-                                    {stockItems.map(item => (
-                                        <SortableItem key={item.id} item={item} type="stock" onClick={setEditingItem} />
-                                    ))}
-                                    {stockItems.length === 0 && <div className="text-xs text-center text-slate-400 mt-10">空です</div>}
+                        {/* Header for Total Count? Or section headers only? */}
+
+                        <div ref={setStockListRef} id="stock-list" className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+
+                            {/* Section 1: Unorganized (Draft) */}
+                            <div className="mb-6">
+                                <div className="px-2 pb-2 flex items-center justify-between border-b border-red-100 dark:border-red-900/30 mb-2">
+                                    <span className="text-xs font-bold text-red-500 flex items-center gap-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 blinking-dot"></div>
+                                        未整理 (Inbox)
+                                    </span>
+                                    <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 px-1.5 py-0.5 rounded-md">{unorganizedItems.length}</span>
                                 </div>
-                            </SortableContext>
+                                <SortableContext items={unorganizedItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                    <div className="space-y-2 min-h-[50px]">
+                                        {unorganizedItems.map(item => (
+                                            <SortableItem key={item.id} item={item} type="stock" onClick={setEditingItem} />
+                                        ))}
+                                        {unorganizedItems.length === 0 && (
+                                            <div className="text-[10px] text-center text-slate-400 py-4 border border-dashed border-slate-200 dark:border-slate-800 rounded">
+                                                未整理なし
+                                            </div>
+                                        )}
+                                    </div>
+                                </SortableContext>
+                            </div>
+
+                            {/* Section 2: Standby (Ready) */}
+                            <div>
+                                <div className="px-2 pb-2 flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/30 mb-2">
+                                    <span className="text-xs font-bold text-indigo-500 flex items-center gap-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                                        スタンバイ (Stock)
+                                    </span>
+                                    <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-1.5 py-0.5 rounded-md">{standbyItems.length}</span>
+                                </div>
+                                <SortableContext items={standbyItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                    <div className="space-y-2 min-h-[50px]">
+                                        {standbyItems.map(item => (
+                                            <SortableItem key={item.id} item={item} type="stock" onClick={setEditingItem} />
+                                        ))}
+                                        {standbyItems.length === 0 && (
+                                            <div className="text-[10px] text-center text-slate-400 py-8 opacity-50">
+                                                スタンバイなし<br />カレンダーへ配置可能
+                                            </div>
+                                        )}
+                                    </div>
+                                </SortableContext>
+                            </div>
+
+                            {rawStockItems.length === 0 && <div className="text-xs text-center text-slate-400 mt-10">Inboxは空です<br />すべて片付きました🎉</div>}
                         </div>
                     </div>
 
@@ -260,7 +311,7 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                                 const loadPercent = Math.min(100, (plannedMins / (capacity || 1)) * 100);
 
                                 // Droppable for this day
-                                const { setNodeRef: setDayRef } = useDroppable({
+                                const { setNodeRef: setDayRef, isOver } = useDroppable({
                                     id: `day-${dayTs}`,
                                     data: { type: 'day-container', date: day }
                                 });
@@ -272,7 +323,8 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                                         className={cn(
                                             "w-64 flex flex-col rounded-xl overflow-hidden shadow-sm border-t-4 transition-colors",
                                             isHolidayDay ? "bg-slate-100 dark:bg-slate-800/50 border-red-300" : "bg-white dark:bg-slate-800 border-transparent",
-                                            isHolidayDay ? "opacity-90" : ""
+                                            isHolidayDay ? "opacity-90" : "",
+                                            isOver ? "bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-400 border-indigo-400" : ""
                                         )}
                                     >
                                         {/* Day Header */}
@@ -305,6 +357,7 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                                                         type="plan"
                                                         isGhost={status === 'ghost'}
                                                         daysLeft={daysLeft}
+                                                        containerId={`day-${dayTs}`}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -347,6 +400,8 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                 onUpdate={async (id, updates) => {
                     await vm.updateItem(id, updates);
                 }}
+                onCreateSubTask={vm.createSubTask}
+                onGetSubTasks={vm.getSubTasks}
                 yesButtonLabel="今日やる"
             />
         </motion.div >

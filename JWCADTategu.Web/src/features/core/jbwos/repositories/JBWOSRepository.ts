@@ -174,6 +174,36 @@ export const JBWOSRepository = {
         // For now, we assume Today items are server-synced.
         return ApiClient.updateItem(id, data);
     },
+
+    // [NEW] Create Item (Generic)
+    createItem: async (item: Partial<Item>): Promise<string> => {
+        // Use ApiClient to create item.
+        // If ApiClient.createItem returns void, we might need to adjust or rely on the ID we passed if generated.
+        // Actually ApiClient.createItem definition says: async createItem(item: Partial<Item>): Promise<void>
+        // But usually we want to return the ID. Repository.addItemToInbox generates it.
+        // Let's assume the ID is passed in the item object or we generate it if missing.
+        if (!item.id) {
+            item.id = uuidv4();
+        }
+        await ApiClient.createItem(item);
+        return item.id!;
+    },
+
+    // [NEW] Get Sub-Tasks
+    getSubTasks: async (parentId: string): Promise<Item[]> => {
+        // API doesn't have explicit getSubTasks yet? 
+        // We can use getAllItems and filter, or assume ApiClient has ability.
+        // For Hybrid/Local, we need to check DB if items are stored there?
+        // Wait, JBWOSRepository.getItemsByStatus fetches from API + Local.
+        // Currently Sub-tasks are likely on Server (API).
+        // Let's assume we fetch all and filter for MVP, or add query logic.
+        // Since we don't have a specific endpoint, efficiently we should query by parentId.
+        // If API doesn't support it, we must fetch all.
+        // However, `getItemsByStatus` implementation suggests `ApiClient.getAllItems()` exists.
+
+        const allItems = await ApiClient.getAllItems();
+        return allItems.filter(i => i.parentId === parentId);
+    }
 };
 
 // Helper function (Simulated private)

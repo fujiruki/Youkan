@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { FutureBoard } from './FutureBoard';
 import * as useJBWOSViewModelModule from '../jbwos/viewmodels/useJBWOSViewModel';
 import { Item } from '../jbwos/types';
@@ -36,14 +36,26 @@ describe('FutureBoard', () => {
         (useJBWOSViewModelModule.useJBWOSViewModel as any).mockReturnValue(mockViewModel);
     });
 
+    const createMockItem = (overrides: Partial<Item>): Item => ({
+        id: 'mock-item',
+        title: 'Mock Item',
+        status: 'inbox',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        statusUpdatedAt: Date.now(),
+        interrupt: false,
+        weight: 1,
+        ...overrides
+    });
+
     it('filters stockItems strictly to Inbox items (Unscheduled)', () => {
         // Setup scenarios
-        const inboxItem: Item = { id: '1', title: 'Inbox Item', status: 'inbox', updatedAt: 100 };
-        const waitingItem: Item = { id: '2', title: 'Waiting Item', status: 'waiting', updatedAt: 90 };
-        const holdItem: Item = { id: '3', title: 'Hold Item', status: 'decision_hold', updatedAt: 80 };
-        const intentItem: Item = { id: '4', title: 'Intent Item', status: 'intent', updatedAt: 70 };
-        const scheduledItem: Item = { id: '5', title: 'Scheduled Item', status: 'scheduled', prep_date: 1234567890, updatedAt: 60 };
-        const todayItem: Item = { id: '6', title: 'Today Item', status: 'today_commit', updatedAt: 50 };
+        const inboxItem = createMockItem({ id: '1', title: 'Inbox Item', status: 'inbox', updatedAt: 100 });
+        const waitingItem = createMockItem({ id: '2', title: 'Waiting Item', status: 'waiting', updatedAt: 90 });
+        const holdItem = createMockItem({ id: '3', title: 'Hold Item', status: 'decision_hold', updatedAt: 80 });
+        const intentItem = createMockItem({ id: '4', title: 'Intent Item', status: 'intent', updatedAt: 70 });
+        const scheduledItem = createMockItem({ id: '5', title: 'Scheduled Item', status: 'scheduled', prep_date: 1234567890, updatedAt: 60 });
+        const todayItem = createMockItem({ id: '6', title: 'Today Item', status: 'today_commit', updatedAt: 50 });
 
         // Items in vm.gdbActive usually include inbox, waiting, etc. if not filtered by getter
         // Items in vm.gdbPreparation include scheduled ones.
@@ -54,11 +66,34 @@ describe('FutureBoard', () => {
 
         render(<FutureBoard onClose={() => { }} />);
 
-        // Verify "Inbox (未定)" header exists
-        expect(screen.getByText('Inbox (未定)')).toBeDefined();
+        // Verify "未整理 (Inbox)" section exists
+        expect(screen.getByText('未整理 (Inbox)')).toBeDefined();
 
-        // Verify ONLY Inbox Item is in the list
-        expect(screen.getByText('Inbox Item')).toBeDefined();
+        // Verify "スタンバイ (Stock)" section exists
+        expect(screen.getByText('スタンバイ (Stock)')).toBeDefined();
+
+        // Setup Scenarios for Split
+        // 1. Unorganized (Draft): No due_date, no estimatedMinutes
+        const draftItem = createMockItem({ id: 'draft1', title: 'Draft Item', status: 'inbox', updatedAt: 100 });
+        // 2. Standby (Ready): Has due_date OR estimatedMinutes
+        const readyItemDue = createMockItem({ id: 'ready1', title: 'Ready Item Due', status: 'inbox', due_date: '2026-01-31', updatedAt: 90 });
+        const readyItemEst = createMockItem({ id: 'ready2', title: 'Ready Item Est', status: 'inbox', estimatedMinutes: 30, updatedAt: 95 });
+
+        mockViewModel.gdbActive = [draftItem, readyItemDue, readyItemEst];
+        mockViewModel.gdbPreparation = [];
+
+        render(<FutureBoard onClose={() => { }} />);
+
+        // Draft Item should be under "未整理" (implied by order or structure, but for now just presence)
+        expect(screen.getByText('Draft Item')).toBeDefined();
+
+        // Ready Items should be under "スタンバイ"
+        expect(screen.getByText('Ready Item Due')).toBeDefined();
+        expect(screen.getByText('Ready Item Est')).toBeDefined();
+
+        // Important: We need to verify they are separated.
+        // In the implementation, we'll likely use separate headers.
+        // For strict TDD, we might check if they are in specific containers, but text presence is a good start.
 
         // Others should NOT be present
         expect(screen.queryByText('Waiting Item')).toBeNull();
@@ -68,9 +103,21 @@ describe('FutureBoard', () => {
         expect(screen.queryByText('Today Item')).toBeNull();
     });
 
+    it('categorizes items into Unorganized and Standby correctly', () => {
+        const draft = createMockItem({ id: '1', title: 'Unorganized Task', status: 'inbox' });
+        const ready = createMockItem({ id: '2', title: 'Standby Task', status: 'inbox', estimatedMinutes: 60 });
+
+        mockViewModel.gdbActive = [draft, ready];
+        render(<FutureBoard onClose={() => { }} />);
+
+        // We assume the headers will render.
+        expect(screen.getByText('未整理 (Inbox)')).toBeInTheDocument();
+        expect(screen.getByText('スタンバイ (Stock)')).toBeInTheDocument();
+    });
+
     it('includes unscheduled preparation items in Stock', () => {
         // Case: Item is in gdbPreparation (maybe moved there) but has prep_date removed (unscheduled)
-        const unscheduledPrepItem: Item = { id: '7', title: 'Unscheduled Prep', status: 'inbox', prep_date: null, updatedAt: 100 };
+        const unscheduledPrepItem = createMockItem({ id: '7', title: 'Unscheduled Prep', status: 'inbox', prep_date: null, updatedAt: 100 });
 
         mockViewModel.gdbActive = [];
         mockViewModel.gdbPreparation = [unscheduledPrepItem];

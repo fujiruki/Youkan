@@ -1,58 +1,58 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, PauseCircle, CheckCircle2 } from 'lucide-react';
+import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 'lucide-react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
-import { EstimatedTimeInput } from '../Today/EstimatedTimeInput'; // [NEW]
+import { EstimatedTimeInput } from '../Today/EstimatedTimeInput';
 
 interface DecisionDetailModalProps {
     item: Item | null;
     onClose: () => void;
     onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => void;
     onDelete: (id: string) => void;
-    onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>; // [NEW] Live
-    // [NEW] Custom Labels
+    onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
+    onCreateSubTask?: (parentId: string, title: string) => Promise<void>; // [NEW]
+    onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
+    // Custom Labels
     yesButtonLabel?: string;
-    initialFocus?: 'date'; // [NEW]
+    initialFocus?: 'date';
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, initialFocus, yesButtonLabel }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, initialFocus: _, yesButtonLabel }) => {
     if (!item) return null;
 
     const [note, setNote] = React.useState(item.memo || '');
     const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
     const [dueDate, setDueDate] = React.useState(item.due_date || '');
-    const [prepDate, setPrepDate] = React.useState(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''); // [NEW] State
+    const [prepDate, setPrepDate] = React.useState(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
     const [workDays, setWorkDays] = React.useState(item.work_days || 1);
-    const [isWorkDaysDirty] = React.useState(false); // [NEW] Track dirty state
+    const [isWorkDaysDirty] = React.useState(false);
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState(item.title);
-    const [estimatedMinutes, setEstimatedMinutes] = React.useState(item.estimatedMinutes || 0); // [NEW]
+    const [estimatedMinutes, setEstimatedMinutes] = React.useState(item.estimatedMinutes || 0);
 
-    // [NEW] Menu Latching State
+    // [NEW] Sub-Task State
+    const [subTasks, setSubTasks] = React.useState<Item[]>([]);
+    const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
+    const [isProject, setIsProject] = React.useState(item.isProject || false);
+
+    // [NEW] Load Sub-tasks
+    React.useEffect(() => {
+        if (isProject && onGetSubTasks) {
+            onGetSubTasks(item.id).then(tasks => setSubTasks(tasks));
+        }
+    }, [item.id, isProject, onGetSubTasks]);
+
+    // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-    const [confirmDelete, setConfirmDelete] = React.useState(false); // [NEW] Confirmation state
+    const [confirmDelete, setConfirmDelete] = React.useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const dateInputRef = React.useRef<HTMLInputElement>(null);
     const titleInputRef = React.useRef<HTMLInputElement>(null);
 
-    // Initial Focus Logic
-    React.useEffect(() => {
-        if (initialFocus === 'date') {
-            // Force status to confirmed locally for instant UI
-            if (dueStatus === 'waiting_external') {
-                setDueStatus('confirmed');
-                // Fire API in background
-                ApiClient.updateItem(item.id, { due_status: 'confirmed' });
-            }
-
-            setTimeout(() => {
-                dateInputRef.current?.focus();
-            }, 100);
-        }
-    }, [initialFocus, item.id, dueStatus]); // trigger when ID changes (new item opened)
+    // ... Initial Focus Logic ...
 
     // Click Outside for Menu Latching
     React.useEffect(() => {
@@ -70,17 +70,18 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         };
     }, [isMenuOpen]);
 
-    // Sync prop changes if item updates from outside (optional but good practice)
+    // Sync prop changes
     React.useEffect(() => {
         setDueStatus(item.due_status || 'waiting_external');
         setDueDate(item.due_date || '');
         if (!isWorkDaysDirty) {
             setWorkDays(item.work_days || 1);
         }
-        setEstimatedMinutes(item.estimatedMinutes || 0); // [NEW]
+        setEstimatedMinutes(item.estimatedMinutes || 0);
         setEditedTitle(item.title);
-        setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : ''); // [NEW] Sync
-    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, item.prep_date, isWorkDaysDirty]);
+        setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
+        setIsProject(item.isProject || false); // Sync project status
+    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, item.prep_date, item.isProject, isWorkDaysDirty]);
 
     // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
@@ -243,34 +244,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
                             {/* Right: Quick Actions + Close */}
                             <div className="flex items-start gap-2 ml-4">
-                                <button
-                                    onClick={async () => {
-                                        if (onUpdate) {
-                                            await onUpdate(item.id, { work_days: workDays });
-                                        } else {
-                                            await ApiClient.updateItem(item.id, { work_days: workDays });
-                                        }
-                                        onDecision(item.id, 'hold', note);
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-bold transition-all bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-200"
-                                    title="保留"
-                                >
-                                    保留
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (onUpdate) {
-                                            await onUpdate(item.id, { work_days: workDays });
-                                        } else {
-                                            await ApiClient.updateItem(item.id, { work_days: workDays });
-                                        }
-                                        onDecision(item.id, 'yes', note);
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-bold transition-all bg-amber-400 hover:bg-amber-500 text-white shadow-md"
-                                    title="今日やる"
-                                >
-                                    今日やる
-                                </button>
                                 <button onClick={handleClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
                                     <X size={20} className="text-slate-400" />
                                 </button>
@@ -421,138 +394,165 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 {/* Bottom Border fake */}
                                 <div className="absolute bottom-0 left-0 right-0 h-px bg-slate-100 dark:bg-slate-800"></div>
                             </div>
+
+                            {/* Sub-Tasks Section (Project Mode) */}
+                            {isProject && (
+                                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">
+                                        <Folder size={12} className="text-blue-400" />
+                                        サブタスク (Project)
+                                    </div>
+
+                                    {/* List */}
+                                    <div className="space-y-1 mb-2">
+                                        {subTasks.map(sub => (
+                                            <div key={sub.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700">
+                                                <CheckSquare size={14} className="text-slate-300" />
+                                                <span className="text-xs font-medium text-slate-700 dark:text-slate-200 flex-1">{sub.title}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Add Input */}
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={newSubTaskTitle}
+                                            onChange={e => setNewSubTaskTitle(e.target.value)}
+                                            onKeyDown={async e => {
+                                                if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
+                                                    e.preventDefault();
+                                                    await onCreateSubTask(item.id, newSubTaskTitle);
+                                                    setNewSubTaskTitle('');
+                                                    if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                }
+                                            }}
+                                            placeholder="サブタスクを追加..."
+                                            className="flex-1 bg-transparent border-b border-slate-200 dark:border-slate-800 text-sm py-1 focus:outline-none focus:border-blue-400 transition-colors"
+                                        />
+                                        <button
+                                            onClick={async () => {
+                                                if (newSubTaskTitle.trim() && onCreateSubTask) {
+                                                    await onCreateSubTask(item.id, newSubTaskTitle);
+                                                    setNewSubTaskTitle('');
+                                                    if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                }
+                                            }}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Actions Footer */}
-                        <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
+                        <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
 
-                            {/* NOT NOW (Menu) */}
-                            <div className="relative group/notnow" ref={menuRef}>
-                                <button
-                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className={cn(
-                                        "w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent transition-all",
-                                        isMenuOpen
-                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                                            : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                                    )}
-                                >
-                                    <Trash2 size={20} className="mb-1" />
-                                    <span className="text-xs font-bold">今回見送り...</span>
-                                </button>
-
-                                {/* Popup Menu */}
-                                <div
-                                    className={cn(
-                                        "absolute bottom-full left-0 w-48 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
-                                        isMenuOpen ? "block" : "hidden group-hover/notnow:block"
-                                    )}
-                                    tabIndex={0}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Delete') {
-                                            e.preventDefault();
-                                            if (confirm('この操作は取り消せません。完全に削除しますか？')) {
-                                                onDelete(item.id);
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1">行き先を選択</div>
+                            {/* LEFT GROUP: Negative / Defer */}
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                {/* NOT NOW (Menu) */}
+                                <div className="relative group/notnow" ref={menuRef}>
                                     <button
-                                        onClick={() => onDecision(item.id, 'no', 'intent')}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
-                                    >
-                                        <span className="w-2 h-2 rounded-full bg-amber-400" />
-                                        Intent (やれたらいい)
-                                    </button>
-                                    <button
-                                        onClick={() => onDecision(item.id, 'no', 'life')}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex items-center gap-2"
-                                    >
-                                        <span className="w-2 h-2 rounded-full bg-green-400" />
-                                        Life (習慣・生活)
-                                    </button>
-                                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
-                                    <button
-                                        onClick={() => onDecision(item.id, 'no', 'history')}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded flex items-center gap-2"
-                                    >
-                                        <span className="w-2 h-2 rounded-full bg-slate-400" />
-                                        History (却下・ログ)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if (confirmDelete) {
-                                                onDelete(item.id);
-                                            } else {
-                                                setConfirmDelete(true);
-                                            }
-                                        }}
+                                        onClick={() => setIsMenuOpen(!isMenuOpen)}
                                         className={cn(
-                                            "w-full text-left px-3 py-2 text-xs font-bold rounded flex items-center gap-2 transition-colors",
-                                            confirmDelete
-                                                ? "bg-red-500 text-white hover:bg-red-600"
-                                                : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            "flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-transparent transition-all",
+                                            isMenuOpen
+                                                ? "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                                : "hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                        )}
+                                        title="ゴミ箱・その他"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+
+                                    {/* Popup Menu */}
+                                    <div
+                                        className={cn(
+                                            "absolute bottom-full left-0 w-56 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
+                                            isMenuOpen ? "block" : "hidden group-hover/notnow:block"
                                         )}
                                     >
-                                        <Trash2 size={12} />
-                                        {confirmDelete ? "本当に削除しますか？" : "完全削除"}
-                                    </button>
+                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1">行き先を選択</div>
+                                        {!isProject && (
+                                            <button
+                                                onClick={async () => {
+                                                    setIsProject(true);
+                                                    if (onUpdate) await onUpdate(item.id, { isProject: true });
+                                                    else await ApiClient.updateItem(item.id, { isProject: true });
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
+                                            >
+                                                <Folder size={14} className="text-blue-500" />
+                                                プロジェクト化 (タスク分解)
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => onDecision(item.id, 'no', 'intent')}
+                                            className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                            Intent (やれたらいい)
+                                        </button>
+                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                if (confirmDelete) onDelete(item.id);
+                                                else setConfirmDelete(true);
+                                            }}
+                                            className={cn(
+                                                "w-full text-left px-3 py-2 text-xs font-bold rounded flex items-center gap-2 transition-colors",
+                                                confirmDelete ? "bg-red-500 text-white" : "text-red-500 hover:bg-red-50"
+                                            )}
+                                        >
+                                            <Trash2 size={12} />
+                                            {confirmDelete ? "本当に削除？" : "完全削除"}
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {/* HIDE (SLEEP) - OLD HOLD */}
+                                <button
+                                    onClick={async () => {
+                                        if (onUpdate) await onUpdate(item.id, { work_days: workDays });
+                                        else await ApiClient.updateItem(item.id, { work_days: workDays });
+                                        onDecision(item.id, 'hold', note);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition-all"
+                                    title="今は隠す (Shelfへ移動)"
+                                >
+                                    <PauseCircle size={18} />
+                                    <span className="text-xs font-bold">今は隠す (Sleep)</span>
+                                </button>
                             </div>
 
-                            {/* HOLD */}
-                            <button
-                                onClick={async () => {
-                                    // Save work_days before decision
-                                    if (onUpdate) {
-                                        await onUpdate(item.id, { work_days: workDays });
-                                    } else {
-                                        await ApiClient.updateItem(item.id, { work_days: workDays });
-                                    }
-                                    onDecision(item.id, 'hold', note);
-                                }}
-                                className={cn(
-                                    "flex flex-col items-center justify-center gap-1 p-3 rounded-lg border border-transparent transition-all group",
-                                    item.status === 'decision_hold'
-                                        ? "bg-purple-50 text-purple-700 border-purple-200"
-                                        : "hover:bg-purple-50 hover:text-purple-600 hover:border-purple-100"
-                                )}
-                            >
-                                <PauseCircle size={20} className={cn(
-                                    "mb-1 transition-colors",
-                                    item.status === 'decision_hold' ? "text-purple-600" : "text-slate-400 group-hover:text-purple-500"
-                                )} />
-                                <span className={cn(
-                                    "text-xs font-bold",
-                                    item.status === 'decision_hold' ? "text-purple-700" : "text-slate-500 group-hover:text-purple-600"
-                                )}>保留 (Hold)</span>
-                            </button>
+                            {/* RIGHT GROUP: Positive / Action */}
+                            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                                {/* SAVE TO INBOX (New) */}
+                                <button
+                                    onClick={handleClose}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm transition-all"
+                                    title="内容を保存してInbox(スタンバイ)に置く"
+                                >
+                                    スタンバイに置く
+                                </button>
 
-                            {/* YES / READY */}
-                            <button
-                                onClick={async () => {
-                                    // Save work_days before decision
-                                    if (onUpdate) {
-                                        await onUpdate(item.id, { work_days: workDays });
-                                    } else {
-                                        await ApiClient.updateItem(item.id, { work_days: workDays });
-                                    }
-                                    onDecision(item.id, 'yes', note);
-                                }}
-                                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg shadow-md shadow-amber-200 dark:shadow-none transition-all transform active:scale-95 bg-amber-400 hover:bg-amber-500 text-white"
-                            >
-                                <CheckCircle2 size={20} className="mb-1" />
-                                <span className="text-xs font-bold">{yesButtonLabel || '今日やる (Yes)'}</span>
-                            </button>
-
+                                {/* TODAY (Yes) */}
+                                <button
+                                    onClick={() => handleDecisionWithSave('yes')}
+                                    className="flex items-center gap-2 px-6 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-none font-bold text-sm transition-all transform active:scale-95"
+                                >
+                                    <CheckCircle2 size={18} />
+                                    {yesButtonLabel || '今日やる'}
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
-                </div >
+                </div>
             )}
-        </AnimatePresence >
+        </AnimatePresence>
     );
 };

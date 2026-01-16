@@ -1,6 +1,5 @@
-
 import { CapacityConfig, WeekDay } from '../types';
-import { isSameDay, getDay, format } from 'date-fns';
+import { getDay, format } from 'date-fns';
 
 /**
  * Check if a given date is a holiday based on the configuration.
