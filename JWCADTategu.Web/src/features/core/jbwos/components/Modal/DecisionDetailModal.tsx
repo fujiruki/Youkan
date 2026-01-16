@@ -284,8 +284,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             </button>
                                         </div>
                                         {dueStatus === 'waiting_external' ? (
-                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded px-3 py-2 text-sm text-slate-500 font-medium border border-slate-100 dark:border-slate-800">
-                                                相手都合 (未定)
+                                            <div
+                                                onClick={async () => {
+                                                    const todayStr = new Date().toISOString().split('T')[0];
+                                                    setDueStatus('confirmed');
+                                                    setDueDate(todayStr);
+                                                    const updates: Partial<Item> = { due_status: 'confirmed', due_date: todayStr };
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
+                                                    setTimeout(() => dateInputRef.current?.focus(), 100);
+                                                }}
+                                                className="bg-slate-50 dark:bg-slate-800/50 rounded px-3 py-2 text-sm text-slate-400 font-medium border border-dashed border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+                                            >
+                                                未記入 (タップして入力)
                                             </div>
                                         ) : (
                                             <div className="relative group">
@@ -316,7 +327,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     <div className="flex flex-col gap-1">
                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                             <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
-                                            備え (目安)
+                                            マイ期限
                                         </span>
                                         <input
                                             data-testid="prep-date-input"
@@ -340,7 +351,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 <div className="space-y-1">
                                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                         <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
-                                        制作目安 (見積)
+                                        目安時間
                                     </span>
                                     <div className="bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
                                         <EstimatedTimeInput
