@@ -44,16 +44,34 @@
         - [x] Move `planning` (FutureBoard) to `core` <!-- id: 1322 -->
         - [x] Move `settings` to `core` <!-- id: 1324 -->
         - [ ] Identify Tategu-specific components (e.g. Master Data) for plugin <!-- id: 1323 -->
-    - [ ] **Tategu Plugin Migration** <!-- id: 133 -->
-        - [ ] Move `components/Editor` to `plugins/tategu/editor` <!-- id: 1331 -->
-        - [ ] Move `components/Catalog` to `plugins/tategu/catalog` <!-- id: 1332 -->
-        - [ ] Move `JoineryScheduleScreen` & `ProjectListScreen` to `plugins/tategu/screens` <!-- id: 1333 -->
-        - [ ] Move `domain` folder to `plugins/tategu/domain` <!-- id: 1334 -->
-        - [ ] Update imports for Tategu Plugin <!-- id: 1335 -->
+    - [x] **Tategu Plugin Migration** <!-- id: 133 -->
+        - [x] Move `components/Editor` to `plugins/tategu/editor` <!-- id: 1331 -->
+        - [x] Move `components/Catalog` to `plugins/tategu/catalog` <!-- id: 1332 -->
+        - [x] Move `JoineryScheduleScreen` & `ProjectListScreen` to `plugins/tategu/screens` <!-- id: 1333 -->
+        - [x] Move `domain` folder to `plugins/tategu/domain` <!-- id: 1334 -->
+        - [x] Update imports for Tategu Plugin <!-- id: 1335 -->
 
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
     - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
     - [ ] **History画面作成**: 事実ログの表示 UI <!-- id: 112 -->
+
+- [ ] **Phase 4.5: Design & Story (User Nuance)** <!-- id: 140 -->
+    - [ ] **AI Meeting**: Tomorrow Planning Story & User Flow <!-- id: 1401 -->
+        - [ ] Create Story Document (`docs/design/Story_TomorrowPlanning.md`)
+    - [ ] **UI Refinement based on Story** <!-- id: 1402 -->
+    - [ ] UI: Detailed Estimation Input (Scrollable days/hours + Numeric input) <!-- id: 1403 -->
+    - [ ] UI: Mobile Side Memo (Slide-out button) <!-- id: 1404 -->
+
+- [ ] **Maintenance: Logic Fixes & Tests** <!-- id: 150 -->
+    - [ ] **Today Screen Logic** <!-- id: 151 -->
+        - [ ] Fix: "Commit to Today" -> Close/Save behavior <!-- id: 1511 -->
+        - [ ] Fix: "Complete" button behavior (To GDB/Log/Return?) <!-- id: 1512 -->
+        - [ ] Fix: Today -> GDB -> Back navigation consistency <!-- id: 1513 -->
+        - [ ] **Add Tests**: Verify behavior for Commit/Complete/Navigation <!-- id: 1514 -->
+    - [ ] **Data Persistence** <!-- id: 152 -->
+        - [ ] Fix: Save on Close (Detail Modal) for all fields (Estimation, etc.) <!-- id: 1521 -->
+    - [ ] **Calendar Visualization** <!-- id: 153 -->
+        - [ ] Fix: Multi-day background color rendering <!-- id: 1531 -->
 
 - [x] **ドキュメント整理・日本語化** <!-- id: 115 -->
     - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
