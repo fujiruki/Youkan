@@ -5,7 +5,7 @@ import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ArrowLeft, Coffee, Grid, GripVertical, ArrowRight, Folder } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, closestCorners, rectIntersection, MeasuringStrategy } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, rectIntersection, MeasuringStrategy } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../jbwos/types';
