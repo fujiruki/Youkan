@@ -441,7 +441,7 @@ export const useJBWOSViewModel = () => {
     };
 
     // [NEW] Sub-Task Actions
-    const createSubTask = async (parentId: string, title: string) => {
+    const createSubTask = async (parentId: string, title: string): Promise<string | undefined> => {
         if (!title.trim()) return;
 
         // Uses the same create logic but with parentId
@@ -457,10 +457,10 @@ export const useJBWOSViewModel = () => {
         };
 
         try {
-            await JBWOSRepository.createItem(newItem);
-            // We don't verify here, the Modal calling this should refresh its local list
-            // or we need a way to trigger refresh of the specific parent context.
-            // For now, simple return.
+            const id = await JBWOSRepository.createItem(newItem);
+            // Trigger global refresh so all views update
+            window.dispatchEvent(new Event('jbwos-data-changed'));
+            return id;
         } catch (e) {
             console.error('Failed to create subtask', e);
         }

@@ -12,7 +12,7 @@ interface DecisionDetailModalProps {
     onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => void;
     onDelete: (id: string) => void;
     onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
-    onCreateSubTask?: (parentId: string, title: string) => Promise<void>; // [NEW]
+    onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
     onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
     // Custom Labels
     yesButtonLabel?: string;
