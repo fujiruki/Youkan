@@ -39,21 +39,23 @@ Ensure-Port-Free -Port $VITE_PORT -Name "Frontend"
 # --- Phase 2: Launch ---
 
 # 1. Start Backend
-Write-Status "Starting PHP Backend ($PHP_HOST`:$PHP_PORT)..." "Cyan"
+$backendPath = Join-Path $PSScriptRoot "backend"
+if (-not (Test-Path $backendPath)) {
+    Write-Status "❌ Backend directory not found at $backendPath" "Red"
+    exit 1
+}
+
+Write-Status "Starting PHP Backend ($PHP_HOST`:$PHP_PORT) in $backendPath..." "Cyan"
 $phpJob = Start-Job -ScriptBlock {
     param($h, $p, $path)
     Set-Location $path
     php -S "$($h):$($p)" -t .
-} -ArgumentList $PHP_HOST, $PHP_PORT, (Join-Path $PWD "backend")
+} -ArgumentList $PHP_HOST, $PHP_PORT, $backendPath
 
 # 2. Start Frontend
 Write-Status "Starting Vite Frontend..." "Cyan"
-# Vite is interactive, so we launch it in a new window or use Start-Process used carefully
-# For dev experience, we usually want Vite output visible. 
-# But for strict automation, let's use Start-Process.
-# To keep it simple for this script, we'll launch it as a background job or separate process.
-# Ideally, "npm run dev" opens a persistent process.
-$viteProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory (Join-Path $PWD "JWCADTategu.Web") -PassThru -NoNewWindow
+# Use npm.cmd for better Windows compatibility
+$viteProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
 
 # --- Phase 3: Verification ---
 
@@ -63,19 +65,28 @@ Write-Status "Waiting for services to be healthy..." "Yellow"
 $backendReady = $false
 for ($i = 0; $i -lt 10; $i++) {
     try {
+        # Ensure we get JSON
         $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
-        if ($res.status -eq "ok") {
+        
+        # Check if response acts like an object with 'status' property
+        if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
             $backendReady = $true
             break
         }
+        else {
+            Write-Host "." -NoNewline
+        }
     }
     catch {
+        Write-Host "." -NoNewline
         Start-Sleep -Seconds 1
     }
 }
+Write-Host "" # Newline
 
 if (-not $backendReady) {
-    Write-Status "❌ Backend failed to start or verify." "Red"
+    Write-Status "❌ Backend failed to start or returned invalid response." "Red"
+    Write-Status "   (Check if another service is on port $PHP_PORT or if PHP is failing)" "Red"
     Stop-Job $phpJob
     Stop-Process -Id $viteProcess.Id -Force
     exit 1

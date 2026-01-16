@@ -121,52 +121,56 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
-    // [NEW] Save work_days AND estimatedMinutes and close
-    const handleClose = async () => {
+    // [NEW] Unified Save Helper
+    const saveChanges = async () => {
         const updates: Partial<Item> = {};
 
-        console.log('handleClose called. estimatedMinutes:', estimatedMinutes, 'item.estimated:', item.estimatedMinutes);
-
-        // Check dirty work_days
+        // Work Days
         if (isWorkDaysDirty || workDays !== item.work_days) {
             updates.work_days = workDays;
         }
-
-        // Check dirty estimatedMinutes
+        // Estimated Minutes
         if (estimatedMinutes !== (item.estimatedMinutes || 0)) {
             updates.estimatedMinutes = estimatedMinutes;
         }
-
-        console.log('updates:', updates);
+        // Memo (Note)
+        if (note !== (item.memo || '')) {
+            updates.memo = note;
+        }
+        // Prep Date (Safety check)
+        const itemPrepStr = item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '';
+        if (prepDate !== itemPrepStr) {
+            const dateObj = new Date(prepDate);
+            const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
+            if (timestamp !== item.prep_date) {
+                updates.prep_date = timestamp;
+            }
+        }
+        // Due Date (Safety check)
+        if (dueDate !== (item.due_date || '')) {
+            updates.due_date = dueDate;
+            updates.due_status = dueStatus; // If date changed, likely status is confirmed
+        }
 
         if (Object.keys(updates).length > 0) {
+            console.log('Saving changes before close/decision:', updates);
             if (onUpdate) {
                 await onUpdate(item.id, updates);
             } else {
                 await ApiClient.updateItem(item.id, updates);
             }
         }
+    };
+
+    // [NEW] Save work_days AND estimatedMinutes and close
+    const handleClose = async () => {
+        await saveChanges();
         onClose();
     };
 
     // [NEW] Helper to save work_days before decision
     const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
-        const updates: Partial<Item> = {};
-
-        if (workDays !== item.work_days) {
-            updates.work_days = workDays;
-        }
-        if (estimatedMinutes !== (item.estimatedMinutes || 0)) {
-            updates.estimatedMinutes = estimatedMinutes;
-        }
-
-        if (Object.keys(updates).length > 0) {
-            if (onUpdate) {
-                await onUpdate(item.id, updates);
-            } else {
-                await ApiClient.updateItem(item.id, updates);
-            }
-        }
+        await saveChanges();
         onDecision(item.id, decision, note);
     };
 

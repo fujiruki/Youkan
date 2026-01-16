@@ -28,7 +28,8 @@
 - ログ
 - スクリーンショットに表示される文字
 - コミットコメント
-- ImplementationPlan
+- 現在のタスク (Task Name), 状況 (Status), 進捗サマリー (Summary)
+- ImplementationPlan/Walkthrough
 
 ### 2.2 多言語対応方針
 - 設計は多言語対応前提
