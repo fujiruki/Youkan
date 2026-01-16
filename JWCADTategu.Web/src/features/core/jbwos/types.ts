@@ -26,8 +26,13 @@ export interface Item {
     projectId?: string;      // 案件ID（nullなら個人タスク）
     parentId?: string;       // [NEW] 親タスクID（Projectization）
     isProject?: boolean;     // [NEW] プロジェクト化されたコンテナフラグ
+    projectCategory?: string; // [NEW] プロジェクト分類ID
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
+
+    // --- Delegation (外注) [NEW] ---
+    assignedTo?: string;     // 外注先の担当者ID
+    delegation?: DelegationInfo; // 外注詳細情報
 
     // --- Reference ---
     doorId?: string;         // 建具データへの参照（ある場合）
@@ -90,4 +95,57 @@ export interface CapacityConfig {
     defaultDailyMinutes: number; // e.g. 480 (8h)
     holidays: HolidayRule[];
     exceptions: Record<string, number>; // "2026-01-20": 240 (Half day)
+}
+
+// --- Delegation (外注) [NEW] ---
+export interface DelegationInfo {
+    assignedTo: string;      // 担当者ID
+    assignedAt: number;      // 依頼日時
+    dueDate?: string;        // 期限 (YYYY-MM-DD)
+    completedAt?: number;    // 完了日時
+    note?: string;           // 外注先への指示
+}
+
+export interface Assignee {
+    id: string;
+    name: string;            // "太郎さん"
+    type: 'internal' | 'external';  // 社内/社外
+    contact?: string;        // 連絡先
+    createdAt: number;
+}
+
+// --- Project Categories [NEW] ---
+export interface TaskTemplate {
+    title: string;
+    estimatedMinutes?: number;
+    category?: string;
+    description?: string;
+}
+
+export interface ProjectCategory {
+    id: string;
+    name: string;            // "建具プロジェクト"
+    icon?: string;           // "🚪"
+    defaultTasks: TaskTemplate[];
+    pluginId?: string;       // "tategu-plugin"
+    color?: string;          // カテゴリーの色
+    isCustom?: boolean;      // ユーザーが作成したカスタム分類
+    createdAt: number;
+}
+
+// --- Plugin System [NEW] ---
+export interface PluginSettings {
+    [key: string]: any;
+}
+
+export interface PluginManifest {
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    icon?: string;
+    projectCategories?: ProjectCategory[];
+    settings?: PluginSettings;
+    enabled: boolean;
+    installedAt?: number;
 }
