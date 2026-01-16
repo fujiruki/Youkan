@@ -471,6 +471,61 @@ export const useJBWOSViewModel = () => {
         return await JBWOSRepository.getSubTasks(parentId);
     }, []);
 
+    // [NEW] Delegation Actions
+    const delegateTask = async (taskId: string, assignedTo: string, dueDate?: string, note?: string) => {
+        const assigneeName = assignedTo; // In real implementation, get name from AssigneeManager
+
+        await updateItem(taskId, {
+            status: 'waiting',
+            waitingReason: `${assigneeName}の作業待ち`,
+            assignedTo,
+            delegation: {
+                assignedTo,
+                assignedAt: Date.now(),
+                dueDate,
+                note
+            }
+        });
+
+        refreshAll();
+    };
+
+    const reportDelegationCompletion = async (taskId: string) => {
+        const item = [...gdbActive, ...gdbPreparation].find(i => i.id === taskId);
+        if (!item?.delegation) return;
+
+        await updateItem(taskId, {
+            delegation: {
+                ...item.delegation,
+                completedAt: Date.now()
+            }
+        });
+
+        refreshAll();
+    };
+
+    const confirmDelegationCompletion = async (taskId: string) => {
+        await updateItem(taskId, {
+            status: 'done'
+        });
+
+        refreshAll();
+    };
+
+    // [NEW] Project Creation
+    const createProject = async (project: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'>, defaultTasks: any[]) => {
+        // Create project
+        const projectId = await JBWOSRepository.createItem(project);
+
+        // Create default tasks as subtasks
+        for (const task of defaultTasks) {
+            await createSubTask(projectId, task.title);
+        }
+
+        refreshAll();
+        return projectId;
+    };
+
     return {
         // State
         gdbActive,
@@ -506,6 +561,12 @@ export const useJBWOSViewModel = () => {
         // Project Actions [NEW]
         createSubTask,
         getSubTasks,
+        createProject,
+
+        // Delegation Actions [NEW]
+        delegateTask,
+        reportDelegationCompletion,
+        confirmDelegationCompletion,
 
         // Helpers
         throwIn,
