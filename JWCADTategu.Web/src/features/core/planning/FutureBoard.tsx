@@ -5,7 +5,7 @@ import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ArrowLeft, Coffee, Grid, GripVertical, ArrowRight, Folder } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, closestCorners } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, closestCorners, rectIntersection, MeasuringStrategy } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../jbwos/types';
@@ -16,30 +16,29 @@ interface FutureBoardProps {
     onClose: () => void;
 }
 
-const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; containerId?: string; onClick?: (item: Item) => void }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: isGhost ? `${item.id}-ghost-${daysLeft}` : item.id,
-        data: { type, item, isGhost, containerId }, // Pass containerId to data
-        disabled: isGhost // Ghosts are not draggable
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : isGhost ? 0.6 : 1,
-    };
-
+const ItemCard = ({ item, type, isGhost, isDragging, style, listeners, attributes, daysLeft, onClick }: {
+    item: Item;
+    type: 'stock' | 'plan';
+    isGhost?: boolean;
+    isDragging?: boolean;
+    style?: React.CSSProperties;
+    listeners?: any;
+    attributes?: any;
+    daysLeft?: number;
+    onClick?: (item: Item) => void;
+}) => {
     const isDraft = !item.due_date || (!item.work_days && !item.estimatedMinutes);
 
     return (
         <div
-            ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
             onClick={() => !isDragging && !isGhost && onClick && onClick(item)}
             className={cn(
-                "p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-colors group flex flex-col gap-1 relative overflow-hidden",
+                "p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 transition-colors group flex flex-col gap-1 relative overflow-hidden",
+                // Hover effect only if not dragging
+                !isDragging && "hover:border-amber-400",
                 type === 'plan' && !isGhost ? 'border-l-4 border-l-amber-400' : '',
                 isGhost ? 'bg-slate-50 dark:bg-slate-800/50 border-dashed' : 'cursor-move',
                 type === 'stock' && isDraft ? 'border-dashed border-slate-300' : ''
@@ -73,13 +72,160 @@ const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: {
             </div>
         </div>
     );
+}
+
+const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; containerId?: string; onClick?: (item: Item) => void }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: isGhost ? `${item.id}-ghost-${daysLeft}` : item.id,
+        data: { type, item, isGhost, containerId }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : isGhost ? 0.6 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <ItemCard
+                item={item}
+                type={type}
+                isGhost={isGhost}
+                daysLeft={daysLeft}
+                listeners={listeners}
+                attributes={attributes}
+                onClick={onClick}
+                isDragging={isDragging}
+            />
+        </div>
+    );
+};
+
+// Helper: Logic to determine if item occupies a day (Working Days only)
+const getItemStatusForDay = (item: Item, day: Date, capacityConfig: any): { type: 'head' | 'ghost', daysLeft: number } | null => {
+    if (!item.prep_date) return null;
+
+    const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
+    const itemDate = new Date(item.prep_date * 1000);
+    itemDate.setHours(0, 0, 0, 0);
+
+    // If current day is before start date, irrelevant
+    if (dayStart < itemDate) return null;
+
+    const isStartDay = isSameDay(itemDate, dayStart);
+    const duration = item.work_days || 1;
+
+    if (isStartDay) {
+        return { type: 'head', daysLeft: duration - 1 };
+    }
+
+    // For ghost days, if the current day is a holiday, it's a gap.
+    if (isHoliday(dayStart, capacityConfig)) {
+        return null;
+    }
+
+    // Calculate how many *working days* have passed from itemDate (inclusive) to dayStart (exclusive).
+    let workingDaysPassed = 0;
+    let iter = new Date(itemDate);
+
+    while (iter < dayStart) {
+        if (!isHoliday(iter, capacityConfig)) {
+            workingDaysPassed++;
+        }
+        iter = addDays(iter, 1);
+    }
+
+    if (workingDaysPassed < duration) {
+        return { type: 'ghost', daysLeft: duration - 1 - workingDaysPassed };
+    }
+
+    return null;
+};
+
+const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditingItem: (item: Item | null) => void }) => {
+    const dayTs = Math.floor(day.getTime() / 1000);
+    const isHolidayDay = isHoliday(day, vm.capacityConfig);
+    const capacity = getDailyCapacity(day, vm.capacityConfig);
+    const dayLabel = format(day, 'M/d (E)', { locale: ja });
+
+    // Find Items for this day
+    const dayItems: { item: Item, status: 'head' | 'ghost', daysLeft: number }[] = [];
+
+    vm.gdbPreparation.forEach((item: Item) => {
+        const status = getItemStatusForDay(item, day, vm.capacityConfig);
+        if (status) {
+            dayItems.push({ item, status: status.type, daysLeft: status.daysLeft });
+        }
+    });
+
+    const plannedMins = dayItems.reduce((acc, { item }) => acc + (item.estimatedMinutes || 0), 0);
+    const loadPercent = Math.min(100, (plannedMins / (capacity || 1)) * 100);
+
+    const { setNodeRef: setDayRef, isOver } = useDroppable({
+        id: `day-${dayTs}`,
+        data: { type: 'day-container', date: day }
+    });
+
+    return (
+        <div
+            ref={setDayRef}
+            className={cn(
+                "w-64 flex flex-col rounded-xl overflow-hidden shadow-sm border-t-4 transition-colors",
+                isHolidayDay ? "bg-slate-100 dark:bg-slate-800/50 border-red-300" : "bg-white dark:bg-slate-800 border-transparent",
+                isHolidayDay ? "opacity-90" : "",
+                isOver ? "bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-400 border-indigo-400" : ""
+            )}
+        >
+            <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
+                <div className="flex justify-between items-center mb-1">
+                    <span className={cn("font-bold text-sm", isHolidayDay ? "text-red-500" : "text-slate-700 dark:text-slate-200")}>
+                        {dayLabel}
+                    </span>
+                    {isHolidayDay && <Coffee size={14} className="text-red-400" />}
+                </div>
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                        className={cn("h-full rounded-full", loadPercent > 100 ? "bg-red-500" : "bg-green-400")}
+                        style={{ width: `${loadPercent}%` }}
+                    />
+                </div>
+                <div className="text-[10px] text-right text-slate-400 mt-1">
+                    use: {plannedMins}m / cap: {capacity}m
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50/50 dark:bg-slate-900/30">
+                <SortableContext items={dayItems.filter(i => i.status === 'head').map(i => i.item.id)} strategy={verticalListSortingStrategy}>
+                    {dayItems.map(({ item, status, daysLeft }) => (
+                        <SortableItem
+                            key={`${item.id}-${dayTs}`}
+                            item={item}
+                            type="plan"
+                            isGhost={status === 'ghost'}
+                            daysLeft={daysLeft}
+                            containerId={`day-${dayTs}`}
+                            onClick={setEditingItem}
+                        />
+                    ))}
+                </SortableContext>
+                {dayItems.length === 0 && !isHolidayDay && (
+                    <div className="text-center py-10 opacity-20 hover:opacity-100 transition-opacity">
+                        <div className="text-xs text-slate-400 border-2 border-dashed border-slate-300 rounded-lg p-2 mx-4">
+                            ドロップして配置
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
     const vm = useJBWOSViewModel();
     const [startDate] = useState<Date>(addDays(new Date(), 1)); // Start from Tomorrow
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [editingItem, setEditingItem] = useState<Item | null>(null); // [NEW] Grooming Modal State
+    const [editingItem, setEditingItem] = useState<Item | null>(null);
 
     // Dnd Sensors
     const sensors = useSensors(
@@ -94,70 +240,14 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
     const { setNodeRef: setStockListRef } = useDroppable({ id: 'stock-list', data: { type: 'stock-container' } });
 
     // Filter Stock Items (Inbox + Unscheduled Preparation)
-    // Exclude: Pending(Waiting/Hold), Intent, Today Active
     const rawStockItems = [
-        ...vm.gdbActive.filter(i => i.status === 'inbox'), // Pure Inbox
-        ...vm.gdbPreparation.filter(i => !i.prep_date && i.status !== 'decision_hold') // Unscheduled Prep (excluding hold)
+        ...vm.gdbActive.filter(i => i.status === 'inbox'),
+        ...vm.gdbPreparation.filter(i => !i.prep_date && i.status !== 'decision_hold')
     ].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
     // Split into 2 Stages
     const unorganizedItems = rawStockItems.filter(i => !i.due_date && (!i.estimatedMinutes && !i.work_days));
-    const standbyItems = rawStockItems.filter(i => i.due_date || (i.estimatedMinutes || i.work_days)); // Has some detail
-
-    // Helper: Logic to determine if item occupies a day (Working Days only)
-    const getItemStatusForDay = (item: Item, day: Date): { type: 'head' | 'ghost', daysLeft: number } | null => {
-        if (!item.prep_date) return null;
-
-        const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
-        const itemDate = new Date(item.prep_date * 1000);
-        itemDate.setHours(0, 0, 0, 0);
-
-        // If current day is before start date, irrelevant
-        if (dayStart < itemDate) return null;
-
-        const isStartDay = isSameDay(itemDate, dayStart);
-        const duration = item.work_days || 1;
-
-        if (isStartDay) {
-            // Head always shows, regardless of holiday status of itemDate
-            return { type: 'head', daysLeft: duration - 1 };
-        }
-
-        // For ghost days, if the current day is a holiday, it's a gap.
-        if (isHoliday(dayStart, vm.capacityConfig)) {
-            return null;
-        }
-
-        // Calculate how many *working days* have passed from itemDate (inclusive) to dayStart (exclusive).
-        let workingDaysPassed = 0;
-        let iter = new Date(itemDate);
-
-        while (iter < dayStart) {
-            if (!isHoliday(iter, vm.capacityConfig)) {
-                workingDaysPassed++;
-            }
-            iter = addDays(iter, 1);
-        }
-
-        // If the number of working days passed (including the itemDate if it was a working day)
-        // is less than the total duration, then this day is a ghost.
-        // The `workingDaysPassed` variable now represents the index of the current day
-        // relative to the start of the task, considering only working days.
-        // E.g., if itemDate is Mon (working), dayStart is Tue (working), workingDaysPassed = 1.
-        // If itemDate is Mon (working), dayStart is Wed (working), workingDaysPassed = 2.
-        // If itemDate is Mon (working), dayStart is Tue (holiday), Wed (working), workingDaysPassed = 1.
-
-        // So, if workingDaysPassed is 0, it means dayStart is the first working day after itemDate.
-        // If workingDaysPassed is 1, it means dayStart is the second working day after itemDate.
-        // ...
-        // If workingDaysPassed < duration - 1, then it's a ghost.
-        // The `daysLeft` should be `duration - 1 - workingDaysPassed`.
-        if (workingDaysPassed < duration) {
-            return { type: 'ghost', daysLeft: duration - 1 - workingDaysPassed };
-        }
-
-        return null;
-    };
+    const standbyItems = rawStockItems.filter(i => i.due_date || (i.estimatedMinutes || i.work_days));
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
@@ -170,7 +260,9 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
         if (!over) return;
 
         const activeItemObj = active.data.current?.item as Item;
-        if (!activeItemObj) return;
+        if (!activeItemObj) {
+            return;
+        }
 
         // Drop on Stock
         if (over.id === 'stock-list' || over.data.current?.type === 'stock-container') {
@@ -191,9 +283,6 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
         if (typeof targetId === 'string' && targetId.startsWith('day-')) {
             const ts = parseInt(targetId.replace('day-', ''), 10);
             if (!isNaN(ts)) {
-                // Determine the correct timestamp (User dropped on specific day)
-                // We preserve the time? No, set to start of that day (or noon) to be safe.
-                // Actually `prep_date` is date-only effectively in logic usually.
                 vm.updatePreparationDate(activeItemObj.id, ts);
             }
         }
@@ -203,12 +292,18 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 bg-slate-100 dark:bg-slate-900 z-50 flex flex-col overflow-hidden"
         >
-            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+            >
                 {/* Header */}
                 <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm z-10 shrink-0">
                     <div className="flex items-center gap-3">
@@ -223,19 +318,12 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                             <p className="text-xs text-slate-500">週間の流れをデザインする</p>
                         </div>
                     </div>
-                    {/* Navigation or Info */}
-                    <div className="flex gap-2">
-                        {/* Maybe Add Week Navigation later */}
-                    </div>
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
                     {/* Left: Stock (2-Stage: Unorganized & Standby) */}
                     <div className="w-64 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-                        {/* Header for Total Count? Or section headers only? */}
-
                         <div ref={setStockListRef} id="stock-list" className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-
                             {/* Section 1: Unorganized (Draft) */}
                             <div className="mb-6">
                                 <div className="px-2 pb-2 flex items-center justify-between border-b border-red-100 dark:border-red-900/30 mb-2">
@@ -289,97 +377,29 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                     {/* Right: Week Columns */}
                     <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-200 dark:bg-slate-900">
                         <div className="flex h-full p-4 gap-4 min-w-max">
-                            {days.map((day, _index) => {
-                                const dayTs = Math.floor(day.getTime() / 1000);
-                                const isHolidayDay = isHoliday(day, vm.capacityConfig);
-                                const capacity = getDailyCapacity(day, vm.capacityConfig);
-                                const dayLabel = format(day, 'M/d (E)', { locale: ja });
-
-                                // Find Items for this day
-                                const dayItems: { item: Item, status: 'head' | 'ghost', daysLeft: number }[] = [];
-
-                                vm.gdbPreparation.forEach(item => {
-                                    const status = getItemStatusForDay(item, day);
-                                    if (status) {
-                                        dayItems.push({ item, status: status.type, daysLeft: status.daysLeft });
-                                    }
-                                });
-
-                                // Calculate Capacity
-                                // We count ALL items (head + ghost) for load
-                                const plannedMins = dayItems.reduce((acc, { item }) => acc + (item.estimatedMinutes || 0), 0);
-                                const loadPercent = Math.min(100, (plannedMins / (capacity || 1)) * 100);
-
-                                // Droppable for this day
-                                const { setNodeRef: setDayRef, isOver } = useDroppable({
-                                    id: `day-${dayTs}`,
-                                    data: { type: 'day-container', date: day }
-                                });
-
-                                return (
-                                    <div
-                                        key={dayTs}
-                                        ref={setDayRef}
-                                        className={cn(
-                                            "w-64 flex flex-col rounded-xl overflow-hidden shadow-sm border-t-4 transition-colors",
-                                            isHolidayDay ? "bg-slate-100 dark:bg-slate-800/50 border-red-300" : "bg-white dark:bg-slate-800 border-transparent",
-                                            isHolidayDay ? "opacity-90" : "",
-                                            isOver ? "bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-400 border-indigo-400" : ""
-                                        )}
-                                    >
-                                        {/* Day Header */}
-                                        <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className={cn("font-bold text-sm", isHolidayDay ? "text-red-500" : "text-slate-700 dark:text-slate-200")}>
-                                                    {dayLabel}
-                                                </span>
-                                                {isHolidayDay && <Coffee size={14} className="text-red-400" />}
-                                            </div>
-                                            {/* Capacity Bar */}
-                                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className={cn("h-full rounded-full", loadPercent > 100 ? "bg-red-500" : "bg-green-400")}
-                                                    style={{ width: `${loadPercent}%` }}
-                                                />
-                                            </div>
-                                            <div className="text-[10px] text-right text-slate-400 mt-1">
-                                                use: {plannedMins}m / cap: {capacity}m
-                                            </div>
-                                        </div>
-
-                                        {/* Items List */}
-                                        <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50/50 dark:bg-slate-900/30">
-                                            <SortableContext items={dayItems.filter(i => i.status === 'head').map(i => i.item.id)} strategy={verticalListSortingStrategy}>
-                                                {dayItems.map(({ item, status, daysLeft }) => (
-                                                    <SortableItem
-                                                        key={`${item.id}-${dayTs}`} // Unique key for render
-                                                        item={item}
-                                                        type="plan"
-                                                        isGhost={status === 'ghost'}
-                                                        daysLeft={daysLeft}
-                                                        containerId={`day-${dayTs}`}
-                                                    />
-                                                ))}
-                                            </SortableContext>
-                                            {dayItems.length === 0 && !isHolidayDay && (
-                                                <div className="text-center py-10 opacity-20 hover:opacity-100 transition-opacity">
-                                                    <div className="text-xs text-slate-400 border-2 border-dashed border-slate-300 rounded-lg p-2 mx-4">
-                                                        ドロップして配置
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {days.map((day) => (
+                                <DayColumn key={day.getTime()} day={day} vm={vm} setEditingItem={setEditingItem} />
+                            ))}
                         </div>
                     </div>
                 </div>
 
                 <DragOverlay>
                     {activeItem ? (
-                        <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-amber-400 w-64 opacity-90 cursor-grabbing">
-                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">{activeItem.title}</div>
+                        <div className="opacity-90 cursor-grabbing pointer-events-none w-64">
+                            <ItemCard
+                                item={activeItem}
+                                type="plan" // Use plan type for cleaner look or match activeItem.type logic?
+                                // Actually, activeItem data should have type. 
+                                // But here we just want it to look like a card.
+                                // 'plan' type usually means with left border. 
+                                // 'stock' means simple.
+                                // Let's guess type based on where it came from?
+                                // active.data.current.type might be available but we don't have it easily here.
+                                // Let's just use 'plan' style for dragging as it's the "card" look.
+                                isGhost={false}
+                                isDragging={true}
+                            />
                         </div>
                     ) : null}
                 </DragOverlay>
@@ -391,7 +411,7 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                 onClose={() => setEditingItem(null)}
                 onDecision={(id, decision, note) => {
                     vm.resolveDecision(id, decision, note);
-                    setEditingItem(null); // Close after decision
+                    setEditingItem(null);
                 }}
                 onDelete={(id) => {
                     vm.deleteItem(id);
@@ -404,6 +424,6 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                 onGetSubTasks={vm.getSubTasks}
                 yesButtonLabel="今日やる"
             />
-        </motion.div >
+        </motion.div>
     );
 };

@@ -371,6 +371,8 @@ export const useJBWOSViewModel = () => {
         // Optimistic: Find and Move
         const allItems = [...gdbActive, ...gdbPreparation];
         const item = allItems.find(i => i.id === id);
+        console.log(`[ViewModel] updatePreparationDate: ID=${id} Date=${date} Found=${!!item} CurrentPrep=${item?.prep_date}`);
+
 
         if (item) {
             const updatedItem = { ...item, prep_date: date, status: newStatus as any };
