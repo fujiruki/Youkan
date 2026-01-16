@@ -24,6 +24,7 @@ import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 import { QuantityCalendar } from '../Calendar/QuantityCalendar'; // [NEW]
 import { useToast } from '../../../../../contexts/ToastContext'; // [NEW]
+import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog'; // [NEW]
 
 interface GlobalBoardProps {
     onClose?: () => void;
@@ -106,6 +107,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     const [lastThrowInId, setLastThrowInId] = useState<string | null>(null); // [NEW] Track last added item
     const inputRef = React.useRef<HTMLInputElement>(null); // [NEW] Ref for keeping focus
     const { showToast } = useToast(); // [NEW] Toast
+    const [showProjectDialog, setShowProjectDialog] = useState(false); // [NEW] Project creation dialog
 
     const handleThrowIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -155,6 +157,17 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     return (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <HelpGuideModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+            <ProjectCreationDialog
+                isOpen={showProjectDialog}
+                onClose={() => setShowProjectDialog(false)}
+                onCreate={async (project, defaultTasks) => {
+                    // Ensure required fields are present
+                    if (!project.title) return;
+                    await vm.createProject(project as Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'>, defaultTasks);
+                    setShowProjectDialog(false);
+                    showToast({ type: 'success', title: 'プロジェクト作成完了', message: project.title });
+                }}
+            />
 
             {/* Context Menu Overlay */}
             {contextMenu && (
@@ -230,6 +243,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 CALENDAR
                             </button>
                         </div>
+                        <button
+                            onClick={() => setShowProjectDialog(true)}
+                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2"
+                            title="新規プロジェクト作成"
+                        >
+                            + プロジェクト
+                        </button>
                         <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 rounded-full" title="Help">
                             <BookOpen size={18} className="text-slate-400" />
                         </button>

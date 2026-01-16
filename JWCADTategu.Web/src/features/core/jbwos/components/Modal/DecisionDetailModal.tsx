@@ -20,7 +20,7 @@ interface DecisionDetailModalProps {
     initialFocus?: 'date';
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, initialFocus: _, yesButtonLabel }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, initialFocus: _, yesButtonLabel }) => {
     if (!item) return null;
 
     const [note, setNote] = React.useState(item.memo || '');
@@ -494,10 +494,30 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     if (onUpdate) await onUpdate(item.id, { isProject: true });
                                                     else await ApiClient.updateItem(item.id, { isProject: true });
                                                 }}
-                                                className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
+                                                className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
                                             >
                                                 <Folder size={14} className="text-blue-500" />
                                                 プロジェクト化 (タスク分解)
+                                            </button>
+                                        )}
+                                        {onDelegate && (
+                                            <button
+                                                onClick={() => {
+                                                    setIsMenuOpen(false);
+                                                    // Open delegation dialog
+                                                    // For now, we'll use a simple prompt
+                                                    const assignee = prompt('外注先を入力してください:');
+                                                    if (assignee) {
+                                                        const dueDate = prompt('期限 (YYYY-MM-DD):');
+                                                        const note = prompt('メモ (任意):');
+                                                        onDelegate(item.id, assignee, dueDate || undefined, note || undefined);
+                                                        onClose();
+                                                    }
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded flex items-center gap-2"
+                                            >
+                                                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                                                外注する
                                             </button>
                                         )}
                                         <button
