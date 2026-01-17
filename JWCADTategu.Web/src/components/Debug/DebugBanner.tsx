@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { DEBUG_MODE, DEBUG_INFO } from '../../config/debug';
+import { X } from 'lucide-react';
 
 /**
  * Debug Banner Component
  * Displays build time and debug information at the top of all screens
  */
 export const DebugBanner: React.FC = () => {
-    if (!DEBUG_MODE) return null;
+    const [isVisible, setIsVisible] = useState(true);
+
+    if (!DEBUG_MODE || !isVisible) return null;
 
     return (
         <div style={{
@@ -21,7 +25,22 @@ export const DebugBanner: React.FC = () => {
             boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
             flexShrink: 0
         }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                    onClick={() => setIsVisible(false)}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}
+                    title="閉じる"
+                >
+                    <X size={14} />
+                </button>
                 <strong>🔧 DEBUG MODE</strong>
                 <span style={{ marginLeft: '16px' }}>
                     ビルド時刻: <strong>{DEBUG_INFO.buildTime}</strong>
