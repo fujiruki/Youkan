@@ -3,30 +3,62 @@
 
 class ItemController {
     
-    public static function getAll($db) {
-        $stmt = $db->query("SELECT * FROM items");
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    public static function mapRow($item) {
+        $item['interrupt'] = (bool)$item['interrupt'];
+        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
         
-        // SQLite stores booleans as 0/1, convert back if needed
-        foreach ($items as &$item) {
-            $item['interrupt'] = (bool)$item['interrupt'];
-            $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
+        // Map DB snake_case to Frontend camelCase/Expected fields
+        $item['parentId'] = $item['parent_id'] ?? null;
+        $item['isProject'] = (bool)($item['is_project'] ?? 0);
+        $item['projectCategory'] = $item['project_category'] ?? null;
+        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
+        $item['assignedTo'] = $item['assigned_to'] ?? null;
+        
+        $item['projectTitle'] = $item['parent_title'] ?? null;
+        
+        if (!empty($item['delegation']) && is_string($item['delegation'])) {
+            $item['delegation'] = json_decode($item['delegation'], true);
         }
-        return $items;
+        return $item;
+    }
+
+    public static function getAll($db) {
+        $sql = "
+            SELECT items.*, parent.title as parent_title
+            FROM items
+            LEFT JOIN items parent ON items.parent_id = parent.id
+        ";
+        $stmt = $db->query($sql);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map([self::class, 'mapRow'], $items);
     }
 
     public static function create($db, $data) {
-        $sql = "INSERT INTO items (id, title, status, created_at, updated_at, status_updated_at) VALUES (:id, :title, :status, :now, :now, :now)";
+        $sql = "INSERT INTO items (
+            id, title, status, created_at, updated_at, status_updated_at,
+            parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation
+        ) VALUES (
+            :id, :title, :status, :now, :now, :now,
+            :parent_id, :is_project, :project_category, :estimated_minutes, :assigned_to, :delegation
+        )";
         $stmt = $db->prepare($sql);
         
         $id = $data['id'] ?? uniqid('item_', true); // Basic ID gen if not provided
         $now = time();
         
+        $delegationJson = isset($data['delegation']) ? json_encode($data['delegation']) : null;
+        
         $stmt->execute([
             ':id' => $id,
             ':title' => $data['title'],
             ':status' => $data['status'] ?? 'inbox',
-            ':now' => $now
+            ':now' => $now,
+            ':parent_id' => $data['parentId'] ?? null,
+            ':is_project' => ($data['isProject'] ?? false) ? 1 : 0,
+            ':project_category' => $data['projectCategory'] ?? null,
+            ':estimated_minutes' => $data['estimatedMinutes'] ?? 0,
+            ':assigned_to' => $data['assignedTo'] ?? null,
+            ':delegation' => $delegationJson
         ]);
         
         return ['id' => $id, 'success' => true];
@@ -71,6 +103,32 @@ class ItemController {
         if (array_key_exists('prep_date', $data)) {
             $fields[] = "prep_date = :prep_date";
             $params[':prep_date'] = $data['prep_date'];
+        }
+        
+        // [v6] New Fields
+        if (array_key_exists('parentId', $data)) {
+            $fields[] = "parent_id = :parent_id";
+            $params[':parent_id'] = $data['parentId'];
+        }
+        if (array_key_exists('isProject', $data)) {
+            $fields[] = "is_project = :is_project";
+            $params[':is_project'] = $data['isProject'] ? 1 : 0;
+        }
+        if (array_key_exists('projectCategory', $data)) {
+            $fields[] = "project_category = :project_category";
+            $params[':project_category'] = $data['projectCategory'];
+        }
+        if (array_key_exists('estimatedMinutes', $data)) {
+            $fields[] = "estimated_minutes = :estimated_minutes";
+            $params[':estimated_minutes'] = $data['estimatedMinutes'];
+        }
+        if (array_key_exists('assignedTo', $data)) {
+            $fields[] = "assigned_to = :assigned_to";
+            $params[':assigned_to'] = $data['assignedTo'];
+        }
+        if (array_key_exists('delegation', $data)) {
+            $fields[] = "delegation = :delegation";
+            $params[':delegation'] = isset($data['delegation']) ? json_encode($data['delegation']) : null;
         }
         
         $fields[] = "updated_at = " . time();

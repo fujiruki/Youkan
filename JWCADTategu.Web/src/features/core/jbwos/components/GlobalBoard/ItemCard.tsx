@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../../types';
-import { Calendar } from 'lucide-react';
+import { Calendar, Folder } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 
@@ -103,7 +103,13 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                         />
                     ) : (
                         <span className="text-slate-700 dark:text-slate-200 font-medium line-clamp-2 leading-snug">
+                            {item.isProject && <Folder size={14} className="inline-block mr-1 text-slate-400 align-text-bottom" />}
                             {item.title}
+                            {item.projectTitle && (
+                                <span className="ml-2 text-[0.9em] font-normal text-slate-400">
+                                    ({item.projectTitle})
+                                </span>
+                            )}
                         </span>
                     )}
                 </div>
@@ -118,12 +124,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 ⏳ {item.waitingReason}
                             </span>
                         )}
-                        {/* Project Badge placeholder */}
-                        {item.projectId && (
-                            <span className="bg-blue-100/50 dark:bg-blue-900/30 px-1.5 rounded text-[0.9em]">
-                                Project A
-                            </span>
-                        )}
+
                     </div>
                 )}
             </div>

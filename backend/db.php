@@ -30,7 +30,14 @@ function getDB() {
             'rdd_date' => 'TEXT DEFAULT NULL', // For Decision RDD
             'work_days' => 'REAL DEFAULT 1.0',
             'due_date' => 'TEXT', 
-            'prep_date' => 'TEXT' // Ensure this exists too if used
+            'prep_date' => 'TEXT', // Ensure this exists too if used
+            // [v6] Project & Delegation Fields
+            'parent_id' => 'TEXT DEFAULT NULL',
+            'is_project' => 'INTEGER DEFAULT 0',
+            'project_category' => 'TEXT DEFAULT NULL',
+            'estimated_minutes' => 'INTEGER DEFAULT 0',
+            'assigned_to' => 'TEXT DEFAULT NULL',
+            'delegation' => 'TEXT DEFAULT NULL' // JSON String
         ];
 
         foreach ($requiredColumns as $col => $def) {
@@ -66,7 +73,13 @@ function initDB($pdo) {
             is_boosted INTEGER DEFAULT 0,
             boosted_date INTEGER DEFAULT NULL,
             rdd_date TEXT DEFAULT NULL,
-            work_days REAL DEFAULT 1.0
+            work_days REAL DEFAULT 1.0,
+            parent_id TEXT DEFAULT NULL,
+            is_project INTEGER DEFAULT 0,
+            project_category TEXT DEFAULT NULL,
+            estimated_minutes INTEGER DEFAULT 0,
+            assigned_to TEXT DEFAULT NULL,
+            delegation TEXT DEFAULT NULL
         )",
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

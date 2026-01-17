@@ -30,19 +30,22 @@ class GdbController {
         // - Rejected items (History)
         
         $sqlActive = "
-            SELECT * FROM items 
+            SELECT items.*, parent.title as parent_title
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
+                items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
                 AND (
-                    status = 'inbox' 
-                    OR (rdd_date IS NOT NULL AND rdd_date <= :now)
+                    items.status = 'inbox' 
+                    OR (items.rdd_date IS NOT NULL AND items.rdd_date <= :now)
                 )
-            ORDER BY rdd_date ASC, created_at DESC
+            ORDER BY items.rdd_date ASC, items.created_at DESC
         ";
         
         $stmtActive = $this->pdo->prepare($sqlActive);
         $stmtActive->execute([':now' => $now]);
-        $activeItems = $stmtActive->fetchAll(PDO::FETCH_ASSOC);
+        $stmtActive->execute([':now' => $now]);
+        $activeItems = array_map(['ItemController', 'mapRow'], $stmtActive->fetchAll(PDO::FETCH_ASSOC));
 
         // 2. Preparation Section (Formerly Hold)
         // Items that are explicitly held (status='decision_hold')
@@ -53,27 +56,44 @@ class GdbController {
         // This is Consistent with "Expose" logic.
         
         $sqlPrep = "
-            SELECT * FROM items 
+            SELECT items.*, parent.title as parent_title
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                status = 'decision_hold'
-                AND (rdd_date IS NULL OR rdd_date > :now)
-            ORDER BY prep_date ASC, updated_at DESC
+                items.status = 'decision_hold'
+                AND (items.rdd_date IS NULL OR items.rdd_date > :now)
+            ORDER BY items.prep_date ASC, items.updated_at DESC
         ";
         
         $stmtPrep = $this->pdo->prepare($sqlPrep);
         $stmtPrep->execute([':now' => $now]);
-        $prepItems = $stmtPrep->fetchAll(PDO::FETCH_ASSOC);
+        $stmtPrep->execute([':now' => $now]);
+        $prepItems = array_map(['ItemController', 'mapRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
 
         // 3. Intent Section (Nice to do)
         // status = 'intent'
         // Just a pool of ideas.
-        $sqlIntent = "SELECT * FROM items WHERE status = 'intent' ORDER BY updated_at DESC";
-        $intentItems = $this->pdo->query($sqlIntent)->fetchAll(PDO::FETCH_ASSOC);
+        $sqlIntent = "
+            SELECT items.*, parent.title as parent_title
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            WHERE items.status = 'intent' 
+            ORDER BY items.updated_at DESC
+        ";
+        $intentItems = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlIntent)->fetchAll(PDO::FETCH_ASSOC));
 
         // 4. History Section (Log)
         // 'decision_rejected' (Did not do today / Declined)
-        $sqlLog = "SELECT * FROM items WHERE status IN ('decision_rejected') ORDER BY updated_at DESC LIMIT 20";
-        $logItems = $this->pdo->query($sqlLog)->fetchAll(PDO::FETCH_ASSOC);
+        // 'decision_rejected' (Did not do today / Declined)
+        $sqlLog = "
+            SELECT items.*, parent.title as parent_title
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            WHERE items.status IN ('decision_rejected') 
+            ORDER BY items.updated_at DESC 
+            LIMIT 20
+        ";
+        $logItems = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlLog)->fetchAll(PDO::FETCH_ASSOC));
 
         return [
             'active' => $activeItems,      // Judgment

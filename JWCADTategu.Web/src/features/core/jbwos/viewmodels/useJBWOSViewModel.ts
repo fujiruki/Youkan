@@ -441,7 +441,7 @@ export const useJBWOSViewModel = () => {
     };
 
     // [NEW] Sub-Task Actions
-    const createSubTask = async (parentId: string, title: string): Promise<string | undefined> => {
+    const createSubTask = async (parentId: string, title: string, initialDueDate?: string): Promise<string | undefined> => { // [FIX] Added initialDueDate
         if (!title.trim()) return;
 
         // Uses the same create logic but with parentId
@@ -449,6 +449,7 @@ export const useJBWOSViewModel = () => {
             title,
             status: 'inbox',
             parentId,
+            due_date: initialDueDate, // [NEW] Inherit due date
             // Defaults
             weight: 1,
             interrupt: false,

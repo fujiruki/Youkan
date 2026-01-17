@@ -25,6 +25,7 @@ export interface Item {
     // --- Context ---
     projectId?: string;      // 案件ID（nullなら個人タスク）
     parentId?: string;       // [NEW] 親タスクID（Projectization）
+    projectTitle?: string;   // [NEW] Parent Project Title (Joined)
     isProject?: boolean;     // [NEW] プロジェクト化されたコンテナフラグ
     projectCategory?: string; // [NEW] プロジェクト分類ID
     waitingReason?: string;  // status='waiting' の場合必須

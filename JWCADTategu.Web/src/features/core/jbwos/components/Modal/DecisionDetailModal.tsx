@@ -12,15 +12,17 @@ interface DecisionDetailModalProps {
     onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => void;
     onDelete: (id: string) => void;
     onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
-    onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
+    onCreateSubTask?: (parentId: string, title: string, initialDueDate?: string) => Promise<string | undefined>; // [FIX] Added initialDueDate
     onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
     onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>; // [NEW]
+    onOpenItem?: (item: Item) => void; // [NEW] Drill-down navigation
+    onOpenParent?: (parentId: string) => void; // [NEW] Drill-up navigation
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, initialFocus: _, yesButtonLabel }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, onOpenItem, onOpenParent, initialFocus: _, yesButtonLabel }) => {
     if (!item) return null;
 
     const [note, setNote] = React.useState(item.memo || '');
@@ -197,14 +199,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col"
+                        className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]" // [FIX] Added max-h-[90vh]
                     >
                         {/* Header Area */}
-                        <div className="p-4 pb-3 flex justify-between items-start">
+                        <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
                             <div className="flex-1">
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 mb-1">
-                                    {item.category || 'ITEM'}
-                                </span>
+
+                                {item.projectTitle && (
+                                    <div
+                                        onClick={() => item.parentId && onOpenParent?.(item.parentId)}
+                                        className={cn(
+                                            "flex items-center gap-2 text-lg font-bold text-slate-400 mb-1 leading-snug",
+                                            item.parentId && "cursor-pointer hover:text-blue-500 transition-colors"
+                                        )}
+                                        title={item.parentId ? "親プロジェクトを開く" : undefined}
+                                    >
+                                        <Folder size={18} />
+                                        <span>{item.projectTitle}</span>
+                                    </div>
+                                )}
                                 {isEditingTitle ? (
                                     <input
                                         ref={titleInputRef}
@@ -234,7 +247,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     />
                                 ) : (
                                     <h2
-                                        className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors"
+                                        className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors pl-0"
                                         onClick={() => setIsEditingTitle(true)}
                                         title="クリックして編集"
                                     >
@@ -252,7 +265,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         </div>
 
                         {/* Content Area - Compact Grid */}
-                        <div className="px-5 py-4 space-y-5">
+                        <div className="px-5 py-4 space-y-5 flex-1 overflow-y-auto min-h-0"> {/* [FIX] Added scrollable area */}
 
                             {/* Schedule & Volume Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -418,9 +431,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     {/* List */}
                                     <div className="space-y-1 mb-2">
                                         {subTasks.map(sub => (
-                                            <div key={sub.id} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700">
+                                            <div
+                                                key={sub.id}
+                                                onClick={() => onOpenItem?.(sub)}
+                                                className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all"
+                                            >
                                                 <CheckSquare size={14} className="text-slate-300" />
                                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 flex-1">{sub.title}</span>
+
+                                                {/* [NEW] Estimated Days Display */}
+                                                {sub.work_days !== undefined && sub.work_days > 0 && (
+                                                    <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
+                                                        {Number(sub.work_days).toFixed(1)}日
+                                                    </span>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -434,9 +458,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             onKeyDown={async e => {
                                                 if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
                                                     e.preventDefault();
-                                                    await onCreateSubTask(item.id, newSubTaskTitle);
-                                                    setNewSubTaskTitle('');
-                                                    if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                    // Call create with parentId
+                                                    // [FIX] Pass parent's due_date (item.due_date) for inheritance
+                                                    const newId = await onCreateSubTask?.(item.id, newSubTaskTitle, item.due_date || undefined);
+                                                    if (newId) {
+                                                        setNewSubTaskTitle('');
+                                                        if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                    }
                                                 }
                                             }}
                                             placeholder="サブタスクを追加..."

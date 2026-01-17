@@ -20,7 +20,14 @@ class TodayController {
         $this->resetExpiredBoosts();
 
         // Zone 1: Commit (Status: today_commit)
-        $commits = $this->pdo->query("SELECT * FROM items WHERE status = 'today_commit' ORDER BY sort_order ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $sqlCommits = "
+            SELECT items.*, parent.title as parent_title 
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            WHERE items.status = 'today_commit' 
+            ORDER BY items.sort_order ASC
+        ";
+        $commits = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlCommits)->fetchAll(PDO::FETCH_ASSOC));
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
         // Rule: Only ONE active execution displayed, but we return all logic-wise active ones, 
@@ -30,7 +37,15 @@ class TodayController {
         
         // Priority: In Progress > Paused > Others
         // Actually, pure execution items are those moved from Commit.
-        $executions = $this->pdo->query("SELECT * FROM items WHERE status IN ('execution_in_progress', 'execution_paused') ORDER BY updated_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $sqlExec = "
+            SELECT items.*, parent.title as parent_title 
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            WHERE items.status IN ('execution_in_progress', 'execution_paused') 
+            ORDER BY items.updated_at DESC
+        ";
+        $executionsRaw = $this->pdo->query($sqlExec)->fetchAll(PDO::FETCH_ASSOC);
+        $executions = array_map(['ItemController', 'mapRow'], $executionsRaw);
 
         // Zone 3: Life (From separate Storage or Table? Currently LifeChecklist is Client-side in MVP, 
         // but Plan says 'Independent'. For now, let's keep Life client-side or add simple table if needed.
@@ -40,14 +55,19 @@ class TodayController {
         // Candidates for Today (Status: confirmed)
         // Candidates for Today (Status: confirmed OR Intent Boosted)
         // Intent Boosted items appear here regardless of status (unless already committed/active/done)
-        $candidates = $this->pdo->query("
-            SELECT * FROM items 
+        // Intent Boosted items appear here regardless of status (unless already committed/active/done)
+        $sqlCandidates = "
+            SELECT items.*, parent.title as parent_title 
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                (status = 'confirmed') 
+                (items.status = 'confirmed') 
                 OR 
-                (is_boosted = 1 AND status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused'))
-            ORDER BY is_boosted DESC, rdd_date ASC
-        ")->fetchAll(PDO::FETCH_ASSOC);
+                (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused'))
+            ORDER BY items.is_boosted DESC, items.rdd_date ASC
+        ";
+        $candidates = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlCandidates)->fetchAll(PDO::FETCH_ASSOC));
+
 
         return [
             'commits' => $commits,

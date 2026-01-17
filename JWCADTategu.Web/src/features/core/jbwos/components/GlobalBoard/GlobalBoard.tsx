@@ -148,10 +148,53 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     // --- Context Menu Logic ---
     const [initialFocus, setInitialFocus] = useState<'date' | undefined>(undefined); // [NEW] moved to top
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+    const [modalHistory, setModalHistory] = useState<Item[]>([]); // [NEW] Navigation Stack
 
     const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY, itemId });
+    };
+
+    // [NEW] Open Item with History
+    const handleOpenItem = (item: Item) => {
+        if (detailItem) {
+            // Push current to history if we are drilling down
+            setModalHistory(prev => [...prev, detailItem]);
+        }
+        setDetailItem(item);
+    };
+
+    // [NEW] Open Parent (Drill-up / Context Switch)
+    const handleOpenParent = (parentId: string) => {
+        const parent = findItem(parentId);
+        if (parent) {
+            handleOpenItem(parent);
+        }
+    };
+
+    const handleCloseModal = () => {
+        if (modalHistory.length > 0) {
+            // Pop from history
+            const prev = modalHistory[modalHistory.length - 1];
+            setDetailItem(prev);
+            setModalHistory(prev => prev.slice(0, -1));
+        } else {
+            // Fully close
+            setDetailItem(null);
+            setInitialFocus(undefined);
+            // [FIX] Restore focus to input after modal closes
+            setTimeout(() => inputRef.current?.focus(), 100);
+        }
+    };
+
+    // [FIX] Wrapper to ensure detailItem tracks updates immediately
+    const handleItemUpdate = async (id: string, updates: Partial<Item>) => {
+        // 1. Optimistic / Immediate Local Update
+        if (detailItem && detailItem.id === id) {
+            setDetailItem(prev => prev ? { ...prev, ...updates } : null);
+        }
+        // 2. Persist & Global State
+        await vm.updateItem(id, updates);
     };
 
     return (
@@ -194,12 +237,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             <DecisionDetailModal
                 item={detailItem}
                 initialFocus={initialFocus}
-                onClose={() => {
-                    setDetailItem(null);
-                    setInitialFocus(undefined);
-                    // [FIX] Restore focus to input after modal closes
-                    setTimeout(() => inputRef.current?.focus(), 100);
-                }}
+                onClose={handleCloseModal}
+                onOpenItem={handleOpenItem}
+                onOpenParent={handleOpenParent} // [NEW]
                 onDecision={async (id, decision, note) => {
                     // [NEW] Custom Routing for "Not This Time" (No)
                     if (decision === 'no' && (note === 'intent' || note === 'life')) {
@@ -220,8 +260,10 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     await vm.deleteItem(id);
                     setDetailItem(null);
                 }}
-                onUpdate={vm.updateItem}
+                onUpdate={handleItemUpdate} // [FIX] Use wrapper
                 onDelegate={vm.delegateTask}
+                onCreateSubTask={vm.createSubTask}
+                onGetSubTasks={vm.getSubTasks}
             />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
@@ -275,7 +317,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                             <section>
                                 <BucketColumn
                                     id="active"
-                                    title="【今日の約束にするか】"
+                                    title="【今日やるか決める (Inbox)】"
                                     items={vm.gdbActive}
                                     description="ここにあるものを今日やるか決める"
                                     className="w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"
@@ -302,7 +344,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                             <section className="opacity-90">
                                 <BucketColumn
                                     id="preparation"
-                                    title="【備え（ぼやけ）】"
+                                    title="【準備・出番待ち (Standby)】"
                                     items={vm.gdbPreparation}
                                     description="まだ約束しない。量感カレンダーへ。"
                                     className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"
@@ -316,7 +358,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                             <section className="opacity-80">
                                 <BucketColumn
                                     id="intent"
-                                    title="【Intent（やれたらいい）】"
+                                    title="【いつかやれたら (Someday)】"
                                     items={vm.gdbIntent}
                                     description="期限も約束もない、溜めておく場所。"
                                     className="w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"
