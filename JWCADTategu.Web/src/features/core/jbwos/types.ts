@@ -150,3 +150,28 @@ export interface PluginManifest {
     enabled: boolean;
     installedAt?: number;
 }
+
+// --- Manufacturing Bus (External Import) [NEW] ---
+export interface ExternalItem {
+    id: string;              // External ID (e.g. "factory-123")
+    title: string;           // Display Name
+    description?: string;    // Detail
+    thumbnail?: string;      // Image URL
+    sourceId: string;        // Source Identifier (e.g. "mock-factory")
+    metadata?: any;          // Extra data for import
+}
+
+export interface ExternalSource {
+    id: string;              // "mock-factory"
+    name: string;            // "Mock Factory"
+    icon?: string;           // "🏭"
+    items: ExternalItem[];   // Available items to import
+}
+
+export interface ManufacturingPlugin {
+    id: string;
+    name: string;
+    getSources(): Promise<ExternalSource[]>;
+    // Optional: Capability to handle import/sync
+    onImport?(item: ExternalItem): Promise<void>;
+}

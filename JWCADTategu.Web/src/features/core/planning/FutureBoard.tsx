@@ -11,6 +11,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Item } from '../jbwos/types';
 import { cn } from '../../../lib/utils';
 import { DecisionDetailModal } from '../jbwos/components/Modal/DecisionDetailModal';
+import { ManufacturingBus } from '../jbwos/logic/ManufacturingBus';
+import { ExternalSource, ExternalItem } from '../jbwos/types';
 
 interface FutureBoardProps {
     onClose: () => void;
@@ -73,6 +75,51 @@ const ItemCard = ({ item, type, isGhost, isDragging, style, listeners, attribute
         </div>
     );
 }
+
+// [NEW] External Item Card
+const ExternalItemCard = ({ item, isDragging, listeners, attributes }: { item: ExternalItem, isDragging?: boolean, listeners?: any, attributes?: any }) => {
+    return (
+        <div
+            {...attributes}
+            {...listeners}
+            className={cn(
+                "p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-md shadow-sm border border-indigo-200 dark:border-indigo-800 transition-colors group flex flex-col gap-1 relative overflow-hidden",
+                !isDragging && "hover:border-indigo-400 cursor-grab",
+                isDragging && "opacity-50"
+            )}
+        >
+            <div className="flex items-center gap-2">
+                <GripVertical size={14} className="text-indigo-300 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate leading-tight">
+                        {item.title}
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate">{item.description}</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// [NEW] Sortable Wrapper for External Item
+const SortableExternalItem = ({ item }: { item: ExternalItem }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: `external-${item.sourceId}-${item.id}`,
+        data: { type: 'external', item }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <ExternalItemCard item={item} isDragging={isDragging} listeners={listeners} attributes={attributes} />
+        </div>
+    );
+};
 
 const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; containerId?: string; onClick?: (item: Item) => void }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -227,6 +274,20 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [editingItem, setEditingItem] = useState<Item | null>(null);
 
+    // [NEW] External Sources State
+    const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
+
+    // Load External Sources
+    React.useEffect(() => {
+        const load = async () => {
+            console.log('[FutureBoard] Loading external sources...');
+            const sources = await ManufacturingBus.getSources();
+            console.log('[FutureBoard] Loaded sources:', sources);
+            setExternalSources(sources);
+        };
+        load();
+    }, []);
+
     // Dnd Sensors
     const sensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
@@ -249,6 +310,9 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
     const unorganizedItems = rawStockItems.filter(i => !i.due_date && (!i.estimatedMinutes && !i.work_days));
     const standbyItems = rawStockItems.filter(i => i.due_date || (i.estimatedMinutes || i.work_days));
 
+    // [NEW] External Items Flattened for DragOverlay
+    const allExternalItems = externalSources.flatMap(s => s.items);
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
@@ -257,15 +321,23 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
         const { active, over } = event;
         setActiveId(null);
 
-        if (!over) return;
+        if (!over) {
+            return;
+        }
 
         const activeItemObj = active.data.current?.item as Item;
-        if (!activeItemObj) {
+        const isExternal = active.data.current?.type === 'external';
+
+        if (!activeItemObj && !isExternal) {
             return;
         }
 
         // Drop on Stock
         if (over.id === 'stock-list' || over.data.current?.type === 'stock-container') {
+            if (isExternal) {
+                // External items cannot be dropped on stock list yet
+                return;
+            }
             vm.updatePreparationDate(activeItemObj.id, null);
             return;
         }
@@ -283,12 +355,29 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
         if (typeof targetId === 'string' && targetId.startsWith('day-')) {
             const ts = parseInt(targetId.replace('day-', ''), 10);
             if (!isNaN(ts)) {
-                vm.updatePreparationDate(activeItemObj.id, ts);
+                // Check if it's an External Item
+                if (isExternal) {
+                    const extItem = active.data.current?.item as ExternalItem;
+                    // Import!
+                    vm.importFromPlugin(extItem.sourceId, extItem.id, ts);
+
+                } else {
+                    // Normal Item Move
+                    if (activeItemObj) {
+                        console.log('[FutureBoard] Moving internal item:', activeItemObj.title, 'to date:', new Date(ts));
+                        vm.updatePreparationDate(activeItemObj.id, ts);
+                    }
+                }
+            } else {
+                console.error('[FutureBoard] Invalid timestamp parsed:', targetId);
             }
         }
     };
 
     const activeItem = activeId ? [...rawStockItems, ...vm.gdbPreparation, ...vm.gdbActive].find(i => i.id === activeId) : null;
+    const activeExternalItem = activeId && activeId.startsWith('external-')
+        ? allExternalItems.find(i => `external-${i.sourceId}-${i.id}` === activeId)
+        : null;
 
     return (
         <motion.div
@@ -371,6 +460,31 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                             </div>
 
                             {rawStockItems.length === 0 && <div className="text-xs text-center text-slate-400 mt-10">Inboxは空です<br />すべて片付きました🎉</div>}
+
+                            {/* [NEW] Section 3: External Sources */}
+                            {externalSources.map(source => (
+                                <div key={source.id} className="mt-8">
+                                    <div className="px-2 pb-2 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 mb-2">
+                                        <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                            <span>{source.icon || '📦'}</span>
+                                            {source.name}
+                                        </span>
+                                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">{source.items.length}</span>
+                                    </div>
+                                    <SortableContext items={source.items.map(i => `external-${source.id}-${i.id}`)} strategy={verticalListSortingStrategy}>
+                                        <div className="space-y-2 min-h-[50px]">
+                                            {source.items.map(item => (
+                                                <SortableExternalItem key={item.id} item={item} />
+                                            ))}
+                                            {source.items.length === 0 && (
+                                                <div className="text-[10px] text-center text-slate-400 py-4 opacity-50">
+                                                    アイテムなし
+                                                </div>
+                                            )}
+                                        </div>
+                                    </SortableContext>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -400,6 +514,11 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
                                 isGhost={false}
                                 isDragging={true}
                             />
+                        </div>
+                    ) : null}
+                    {activeExternalItem ? (
+                        <div className="opacity-90 cursor-grabbing pointer-events-none w-64">
+                            <ExternalItemCard item={activeExternalItem} isDragging={true} />
                         </div>
                     ) : null}
                 </DragOverlay>

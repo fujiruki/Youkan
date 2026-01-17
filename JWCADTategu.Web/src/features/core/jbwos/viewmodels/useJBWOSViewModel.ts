@@ -2,9 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { Item, SideMemo, CapacityConfig } from '../types';
 import { useUndo } from '../contexts/UndoContext';
+import { ManufacturingBus } from '../logic/ManufacturingBus';
+
 
 export const useJBWOSViewModel = () => {
     // Phase 2: Dumb UI ViewModel (Server is the Brain)
+
+    // Phase 2: Dumb UI ViewModel (Server is the Brain)\n
 
     // --- State (Aligned with v3.1 Zones) ---
     // GDB Shelf
@@ -295,6 +299,45 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    // [NEW] Robust Start (Commit + Prioritize Atomic Operation)
+    const startImmediately = async (id: string) => {
+        // 1. Client-side check
+        // If already in commits, just prioritize
+        const inCommits = todayCommits.find(i => i.id === id);
+        if (inCommits) {
+            await prioritizeTask(id);
+            return;
+        }
+
+        // 2. Optimistic: Commit + Prioritize
+        const target = todayCandidates.find(i => i.id === id);
+        if (target) {
+            // Remove from Candidates
+            setTodayCandidates(prev => prev.filter(i => i.id !== id));
+            // Add to Commits at TOP
+            const newItem = { ...target, status: 'today_commit' } as any;
+            setTodayCommits(prev => [newItem, ...prev.filter(i => i.id !== id)]); // Prepend
+            // Set Execution Item
+            setExecutionItem(newItem);
+        }
+
+        // 3. Server Interaction
+        try {
+            // We need to commit first, then start.
+            // If we just start, server might complain if it's not in today list?
+            // Assuming startExecution handles implicitly or we call both.
+            // Safer to call both or use a specialized endpoint if exists.
+            // For now: Commit then Start.
+            await JBWOSRepository.commitToToday(id);
+            await JBWOSRepository.startExecution(id);
+            refreshToday();
+        } catch (e) {
+            console.error('Start Immediately failed', e);
+            setError('開始に失敗しました');
+            refreshToday();
+        }
+    };
+
     const updateItemTitle = async (id: string, newTitle: string) => {
         // Optimistic
         if (executionItem?.id === id) setExecutionItem({ ...executionItem, title: newTitle });
@@ -527,6 +570,40 @@ export const useJBWOSViewModel = () => {
         return projectId;
     };
 
+    // [NEW] Import from Plugin (Future Board Drag & Drop)
+    const importFromPlugin = async (sourceId: string, itemId: string, date: number) => {
+        // 1. Fetch source item details (via Bus)
+        const sources = await ManufacturingBus.getSources();
+        const source = sources.find(s => s.id === sourceId);
+        const item = source?.items.find(i => i.id === itemId);
+
+        if (!item) {
+            console.error('Import failed: Source item not found', sourceId, itemId);
+            return;
+        }
+
+        // 2. Create JBWOS Item
+        const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+            title: item.title, // Use title from external source
+            status: 'scheduled', // Directly scheduled since dropped on a date
+            prep_date: date,
+            // Defaults
+            weight: 1,
+            interrupt: false,
+            category: 'import',
+            type: 'generic',
+            memo: `Imported from ${source?.name}`
+        };
+
+        try {
+            await JBWOSRepository.createItem(newItem);
+            refreshAll(); // Refresh to show new item
+            console.log('Import successful', item.title);
+        } catch (e) {
+            console.error('Import failed', e);
+        }
+    };
+
     return {
         // State
         gdbActive,
@@ -550,6 +627,7 @@ export const useJBWOSViewModel = () => {
         updateItemTitle,
         prioritizeTask,
         uncommitFromToday,
+        startImmediately, // [NEW]
         updatePreparationDate,
         updateItem, // [NEW] Generic Update
         updateCapacityConfig, // New action
@@ -563,6 +641,9 @@ export const useJBWOSViewModel = () => {
         createSubTask,
         getSubTasks,
         createProject,
+
+        // Plugin Import [NEW]
+        importFromPlugin,
 
         // Delegation Actions [NEW]
         delegateTask,

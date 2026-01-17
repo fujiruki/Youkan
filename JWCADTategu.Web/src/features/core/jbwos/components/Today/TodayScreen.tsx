@@ -32,7 +32,7 @@ const TimeProgressBar: React.FC = () => {
     const percentString = `${Math.round(progress)}%`;
 
     return (
-        <div className="w-full">
+        <div className="w-full relative">
             <div className="flex justify-between items-end mb-1">
                 <div className="text-3xl font-black text-slate-700 dark:text-slate-200 tracking-tight leading-none">
                     {timeString}
@@ -42,11 +42,24 @@ const TimeProgressBar: React.FC = () => {
                     {percentString}
                 </div>
             </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden relative z-10">
                 <div
                     className="h-full bg-slate-800 dark:bg-slate-200 rounded-full transition-all duration-1000"
                     style={{ width: `${progress}%` }}
                 />
+            </div>
+            {/* Time Markers */}
+            <div className="w-full h-4 relative mt-1">
+                {[6, 9, 12, 15, 18, 21].map(h => (
+                    <div
+                        key={h}
+                        className="absolute top-0 flex flex-col items-center"
+                        style={{ left: `${(h / 24) * 100}%`, transform: 'translateX(-50%)' }}
+                    >
+                        <div className="h-1 w-px bg-slate-200 mb-0.5"></div>
+                        <span className="text-[10px] text-slate-300 font-mono leading-none">{h}</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -68,7 +81,8 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
         updateItem,           // [NEW]
         deleteItem,           // [NEW]
         error,
-        clearError
+        clearError,
+        startImmediately // [NEW]
     } = useJBWOSViewModel();
 
     // ZONE 1: Commit (Today's Vow)
@@ -395,7 +409,8 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                     onDecision={(id, decision) => {
                         // Map standard decision to Today actions
                         if (decision === 'yes') {
-                            commitToToday(id);
+                            // [FIX] Use atomic startImmediately
+                            startImmediately(id);
                         } else if (decision === 'hold') {
                             // If it's already in Today, "Hold" might mean "Keep in Today" or "Pending"?
                             // Standard interpretation: Do nothing (keep status) or explicit hold?
