@@ -6,8 +6,8 @@
  * - "Private Core, Public Volume": 個人の詳細は見せず、量感だけを見せる
  * - "Deep Blue": 忙しさをポジティブ（没頭）な色で表現
  */
-import React from 'react';
-import { BarChart, Activity, Zap } from 'lucide-react';
+
+import { Activity, Zap } from 'lucide-react';
 
 export const CompanyDashboard: React.FC = () => {
     // Mock Data for Heatmap (3 months, 5 employees)
@@ -50,7 +50,7 @@ export const CompanyDashboard: React.FC = () => {
                             {employees.map(emp => (
                                 <tr key={emp} className="border-t border-gray-100">
                                     <td className="p-3 font-medium text-gray-700">{emp}</td>
-                                    {weeks.map((w, i) => {
+                                    {weeks.map((w) => {
                                         // Mock random load
                                         const load = Math.random();
                                         return (

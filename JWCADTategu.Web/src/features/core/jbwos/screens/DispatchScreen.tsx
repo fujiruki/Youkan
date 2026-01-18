@@ -8,7 +8,7 @@
  */
 import React, { useEffect } from 'react';
 import { useStocks } from '../hooks/useStocks';
-import { Package, ArrowRight, User } from 'lucide-react';
+import { Package, ArrowRight } from 'lucide-react';
 
 export const DispatchScreen: React.FC = () => {
     const { stocks, loading, fetchStocks } = useStocks();
@@ -47,8 +47,8 @@ export const DispatchScreen: React.FC = () => {
                                 <div className="flex justify-between items-start mb-2">
                                     <h3 className="font-medium text-gray-800 line-clamp-2">{stock.title}</h3>
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${stock.estimatedMinutes > 180 ? 'bg-orange-100 text-orange-700' :
-                                            stock.estimatedMinutes > 60 ? 'bg-blue-100 text-blue-700' :
-                                                'bg-green-100 text-green-700'
+                                        stock.estimatedMinutes > 60 ? 'bg-blue-100 text-blue-700' :
+                                            'bg-green-100 text-green-700'
                                         }`}>
                                         {Math.round(stock.estimatedMinutes / 60 * 10) / 10}h
                                     </span>
