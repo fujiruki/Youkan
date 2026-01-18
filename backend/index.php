@@ -127,6 +127,20 @@ if (preg_match('#^(/api)?/customers(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// Deliverable Routes (Manufacturing Plugin)
+require_once 'api/deliverables.php';
+if (preg_match('#^(/api)?/deliverables(?:/summary/([^/]+))?$#', $path, $matches) && isset($matches[2])) {
+    // Summary endpoint: /api/deliverables/summary/{projectId}
+    $_GET['projectId'] = $matches[2];
+    handleDeliverableRequest($db, $method, 'summary', $_GET, json_decode(file_get_contents('php://input'), true) ?? []);
+    exit;
+}
+if (preg_match('#^(/api)?/deliverables(?:/([^/]+))?$#', $path, $matches)) {
+    $deliverableId = $matches[2] ?? null;
+    handleDeliverableRequest($db, $method, $deliverableId, $_GET, json_decode(file_get_contents('php://input'), true) ?? []);
+    exit;
+}
+
 // GDB Routes
 if (preg_match('#^(/api)?/gdb$#', $path)) {
     $controller = new GdbController($db);
