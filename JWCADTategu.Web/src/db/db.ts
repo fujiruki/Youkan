@@ -42,6 +42,9 @@ export interface Door {
         note: string;
     };
 
+    // Manufacturing Plugin Integration [NEW]
+    deliverableId?: string; // Links to Deliverable in Manufacturing Plugin
+
     // Constitution Scheduler Fields
     judgmentStatus?: 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
     waitingReason?: string;
@@ -99,6 +102,16 @@ export class TateguDatabase extends Dexie {
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(11).stores({
+            projects: '++id, name, isArchived, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt', // Added deliverableId
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt'
+        });
 
         this.version(10).stores({
             projects: '++id, name, isArchived, updatedAt',

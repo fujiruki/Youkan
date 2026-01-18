@@ -7,11 +7,11 @@ interface GenericItemModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (item: Partial<Door>) => void;
-    initialItem?: Door | null;
+    item?: Door | null;
     projectId: number;
 }
 
-export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onClose, onSave, initialItem, projectId }) => {
+export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onClose, onSave, item, projectId }) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState<'frame' | 'furniture' | 'hardware' | 'other'>('frame');
     const [width, setWidth] = useState(0);
@@ -24,22 +24,22 @@ export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onCl
 
     useEffect(() => {
         if (isOpen) {
-            if (initialItem) {
-                setName(initialItem.name);
-                setCategory((initialItem.category as any) || 'other');
-                setWidth(initialItem.dimensions.width);
-                setHeight(initialItem.dimensions.height);
-                setDepth(initialItem.dimensions.depth);
-                setCount(initialItem.count);
+            if (item) {
+                setName(item.name);
+                setCategory((item.category as any) || 'other');
+                setWidth(item.dimensions.width);
+                setHeight(item.dimensions.height);
+                setDepth(item.dimensions.depth);
+                setCount(item.count);
                 // For generic items, price might be stored differently in future, but for now we assume it's calculated or stored in a generic spec
                 // Let's assume genericSpecs has unit, and we use a simple calculation or field for price
-                setUnit(initialItem.genericSpecs?.unit || '式');
-                setNote(initialItem.genericSpecs?.note || '');
+                setUnit(item.genericSpecs?.unit || '式');
+                setNote(item.genericSpecs?.note || '');
                 // Cost handling is complex, for now we let users input Unit Price if we had a field, 
                 // but Door table doesn't have explicit unitPrice field (it's calculated).
                 // We might need to add one or abuse a spec field. 
                 // Let's use `specs.unitPrice` for now.
-                setUnitPrice(initialItem.specs?.unitPrice || 0);
+                setUnitPrice(item.specs?.unitPrice || 0);
             } else {
                 // Default new item
                 setName('');
@@ -53,14 +53,14 @@ export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onCl
                 setNote('');
             }
         }
-    }, [isOpen, initialItem]);
+    }, [isOpen, item]);
 
     const handleSave = () => {
         const newItem: Partial<Door> = {
             projectId,
             name: name || '名称未設定',
             category: category,
-            tag: initialItem?.tag || 'GEN-?', // Tag generation should be handled by parent or here
+            tag: item?.tag || 'GEN-?', // Tag generation should be handled by parent or here
             count,
             dimensions: {
                 width, height, depth,
@@ -78,12 +78,12 @@ export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onCl
                 unit,
                 note
             },
-            createdAt: initialItem ? initialItem.createdAt : new Date(),
+            createdAt: item ? item.createdAt : new Date(),
             updatedAt: new Date()
         };
 
-        if (initialItem?.id) {
-            newItem.id = initialItem.id;
+        if (item?.id) {
+            newItem.id = item.id;
         }
 
         onSave(newItem);
@@ -106,7 +106,7 @@ export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onCl
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-slate-800">
                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                        {initialItem ? '製作物を編集' : '新しい製作物を追加'}
+                        {item ? '製作物を編集' : '新しい製作物を追加'}
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
                         <X size={24} />
