@@ -128,14 +128,38 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
                                     <Factory size={12} className="inline mr-1" />
-                                    製作時間（分）
+                                    作業時間
                                 </label>
-                                <input
-                                    type="number"
-                                    value={form.estimatedWorkMinutes}
-                                    onChange={(e) => handleChange('estimatedWorkMinutes', parseInt(e.target.value) || 0)}
-                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={form.estimatedWorkMinutes ? Math.round(form.estimatedWorkMinutes / 60 * 100) / 100 : ''}
+                                                onChange={(e) => {
+                                                    const h = parseFloat(e.target.value) || 0;
+                                                    handleChange('estimatedWorkMinutes', Math.round(h * 60));
+                                                }}
+                                                className="w-full pl-3 pr-6 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                                placeholder="0.0"
+                                            />
+                                            <span className="absolute right-2 top-2 text-xs text-slate-400">h</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={form.estimatedWorkMinutes}
+                                                onChange={(e) => handleChange('estimatedWorkMinutes', parseInt(e.target.value) || 0)}
+                                                className="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                                placeholder="0"
+                                            />
+                                            <span className="absolute right-2 top-2 text-xs text-slate-400">min</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
@@ -185,6 +209,11 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                                         placeholder="例: 50000"
                                         className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
                                     />
+                                    {isNew && (
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            自動算出: ¥{(deliverable.materialCost || 0).toLocaleString()}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-xs text-slate-400 mb-1">労務費</label>

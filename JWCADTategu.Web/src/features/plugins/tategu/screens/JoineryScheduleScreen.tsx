@@ -10,13 +10,23 @@ import { DeliverableList } from '../../manufacturing/DeliverableList';
 import { DecisionBoard } from './DecisionBoard';
 import { useJoineryViewModel } from '../hooks/useJoineryViewModel';
 
-export const JoineryScheduleScreen: React.FC<{
+type JoineryScheduleScreenProps = {
     project: Project;
     onBack: () => void;
     onOpenDoor: (door: Door) => void;
     onDeleteProject: (id: number) => void;
+    onArchiveProject: () => void;
     onUpdateProject: (p: Project) => void
-}> = ({ project, onBack, onOpenDoor, onDeleteProject, onUpdateProject }) => {
+}
+
+export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
+    project,
+    onBack,
+    onOpenDoor,
+    onDeleteProject,
+    onArchiveProject,
+    onUpdateProject
+}) => {
 
     const {
         // State
@@ -56,10 +66,10 @@ export const JoineryScheduleScreen: React.FC<{
                     project={project}
                     onBack={onBack}
                     onUpdateProject={onUpdateProject}
-                    onDeleteProject={onDeleteProject}
                     onExportDxf={handleExportDxf}
                     onSwitchInternal={() => { /* Already internal */ }}
                     onOpenSettings={() => setIsSettingsOpen(true)}
+                    theme="dark"
                 />
                 <div className="flex-1 overflow-hidden">
                     <DecisionBoard
@@ -74,6 +84,8 @@ export const JoineryScheduleScreen: React.FC<{
                         isOpen={isSettingsOpen}
                         onClose={() => setIsSettingsOpen(false)}
                         onSave={handleSaveSettings}
+                        onDeleteProject={onDeleteProject}
+                        onArchiveProject={onArchiveProject}
                     />
                 )}
             </div>
@@ -86,10 +98,10 @@ export const JoineryScheduleScreen: React.FC<{
                 project={project}
                 onBack={onBack}
                 onUpdateProject={onUpdateProject}
-                onDeleteProject={onDeleteProject}
                 onExportDxf={handleExportDxf}
                 onSwitchInternal={() => handleSwitchViewMode('internal')}
                 onOpenSettings={() => setIsSettingsOpen(true)}
+                theme="light"
             />
 
             <div className="flex-1 flex overflow-hidden">
@@ -135,6 +147,8 @@ export const JoineryScheduleScreen: React.FC<{
                     isOpen={isSettingsOpen}
                     onClose={() => setIsSettingsOpen(false)}
                     onSave={handleSaveSettings}
+                    onDeleteProject={onDeleteProject}
+                    onArchiveProject={onArchiveProject}
                 />
             )}
 

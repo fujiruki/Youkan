@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Project, db } from '../../../../db/db';
-import { ArrowLeft, Trash2, FileDown, LayoutDashboard, Settings } from 'lucide-react';
+import { ArrowLeft, FileDown, LayoutDashboard, Settings } from 'lucide-react';
 
 interface JoineryHeaderProps {
     project: Project;
     onBack: () => void;
     onUpdateProject: (p: Project) => void;
-    onDeleteProject: (id: number) => void;
     onExportDxf: () => void;
     onSwitchInternal: () => void;
     onOpenSettings: () => void;
+    theme?: 'light' | 'dark';
 }
 
 export const JoineryHeader: React.FC<JoineryHeaderProps> = ({
     project,
     onBack,
     onUpdateProject,
-    onDeleteProject,
     onExportDxf,
     onSwitchInternal,
-    onOpenSettings
+    onOpenSettings,
+    theme = 'light'
 }) => {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editTableName, setEditTableName] = useState(project.name);
@@ -36,20 +36,6 @@ export const JoineryHeader: React.FC<JoineryHeaderProps> = ({
             }
         }
         setIsEditingTitle(false);
-    };
-
-    const handleArchiveProject = async () => {
-        if (confirm('このプロジェクトをアーカイブしますか？\n（プロジェクト一覧で非表示になりますが、検索は可能です - 機能未実装）')) {
-            onUpdateProject({ ...project, isArchived: true });
-            alert('アーカイブしました');
-            onBack();
-        }
-    };
-
-    const handleDeleteProjectAction = () => {
-        if (confirm('【危険】プロジェクトを削除しますか？\nこの操作は取り消せません。\n含まれる全ての建具データも削除されます。')) {
-            onDeleteProject(project.id!);
-        }
     };
 
     return (
@@ -76,7 +62,7 @@ export const JoineryHeader: React.FC<JoineryHeaderProps> = ({
                     ) : (
                         <h1
                             onClick={() => setIsEditingTitle(true)}
-                            className="text-3xl font-bold text-white cursor-pointer hover:text-emerald-400 transition-colors"
+                            className={`text-3xl font-bold cursor-pointer hover:text-emerald-400 transition-colors ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}
                         >
                             {project.name}
                         </h1>
@@ -112,24 +98,6 @@ export const JoineryHeader: React.FC<JoineryHeaderProps> = ({
                 >
                     <Settings size={20} />
                 </button>
-
-                <div className="dropdown dropdown-end">
-                    <button tabIndex={0} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
-                        <Trash2 size={20} />
-                    </button>
-                    <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-slate-800 rounded-box w-52 border border-slate-700">
-                        <li>
-                            <a onClick={handleArchiveProject} className="text-amber-400 hover:text-amber-300">
-                                アーカイブ
-                            </a>
-                        </li>
-                        <li>
-                            <a onClick={handleDeleteProjectAction} className="text-red-400 hover:text-red-300">
-                                プロジェクト削除
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </div>
     );

@@ -8,7 +8,7 @@ import { Package, Plus, Factory, MapPin, CheckCircle, Circle, Loader2, ChevronDo
 import { Deliverable, ProjectSummary } from './types';
 import { deliverableRepository } from './repository';
 import { DeliverableEditModal } from './DeliverableEditModal';
-import { generateTasksFromDeliverable } from './TaskGenerationService';
+import { syncStockFromDeliverable } from './StockIntegrationService';
 import { cn } from '../../../lib/utils';
 
 interface DeliverableListProps {
@@ -24,7 +24,7 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, pro
     const [editingDeliverable, setEditingDeliverable] = useState<Deliverable | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [showSummary, setShowSummary] = useState(true);
-    const [autoGenerateTasks, setAutoGenerateTasks] = useState(true); // タスク自動生成フラグ
+    const [autoGenerateTasks, setAutoGenerateTasks] = useState(true); // Stock自動生成フラグ
 
     // 成果物一覧と集計を取得
     const loadData = async () => {
@@ -65,11 +65,11 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, pro
                     memo: deliverable.memo
                 });
 
-                // 自動タスク生成
+                // 自動Stock生成
                 if (autoGenerateTasks && created) {
-                    const tasks = await generateTasksFromDeliverable(created, projectTitle);
-                    if (tasks.length > 0) {
-                        console.log(`[DeliverableList] Generated ${tasks.length} tasks for deliverable:`, created.name);
+                    const stocks = await syncStockFromDeliverable(created, projectTitle);
+                    if (stocks.length > 0) {
+                        console.log(`[DeliverableList] Generated ${stocks.length} stocks for deliverable:`, created.name);
                     }
                 }
             } else {
@@ -178,7 +178,7 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, pro
                             <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                                 <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
                                     <Factory size={14} />
-                                    <span className="text-xs font-bold">製作時間</span>
+                                    <span className="text-xs font-bold">作業時間</span>
                                 </div>
                                 <div className="text-lg font-bold text-blue-700 dark:text-blue-400">
                                     {formatMinutes(summary.totalEstimatedWorkMinutes)}

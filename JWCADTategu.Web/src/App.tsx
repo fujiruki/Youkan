@@ -103,6 +103,25 @@ function App() {
         }
     };
 
+    // [NEW] Archive Project Handler
+    const handleArchiveProject = async (projectId: number) => {
+        console.log('[App] handleArchiveProject called for ID:', projectId);
+        try {
+            await db.projects.update(projectId, { isArchived: true });
+            console.log(`[App] Project ${projectId} archived (DB update success).`);
+
+            // Allow time for DB to persist
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            setActiveProject(null);
+            setCurrentView('projectList');
+            alert('プロジェクトをアーカイブしました。');
+        } catch (error) {
+            console.error('[App] Failed to archive project:', error);
+            alert('アーカイブに失敗しました。');
+        }
+    };
+
     // [NEW] Global Keyboard Shortcuts
     // [NEW] Global Keyboard Shortcuts & Deep Linking
     useEffect(() => {
@@ -182,6 +201,7 @@ function App() {
                 handleBackToProjectList={handleBackToProjectList}
                 handleBackToSchedule={handleBackToSchedule}
                 handleDeleteProject={handleDeleteProject}
+                handleArchiveProject={handleArchiveProject}
                 setActiveProject={setActiveProject}
             />
         </ToastProvider>
@@ -201,6 +221,7 @@ const AppContent: React.FC<{
     handleBackToProjectList: () => void;
     handleBackToSchedule: () => void;
     handleDeleteProject: (id: number) => Promise<void>;
+    handleArchiveProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
 }> = ({
     currentView,
@@ -214,6 +235,7 @@ const AppContent: React.FC<{
     handleBackToProjectList,
     handleBackToSchedule,
     handleDeleteProject,
+    handleArchiveProject,
     setActiveProject
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
@@ -280,6 +302,7 @@ const AppContent: React.FC<{
                                     onBack={handleBackToProjectList}
                                     onOpenDoor={handleOpenDoor}
                                     onDeleteProject={() => handleDeleteProject(activeProject.id!)} // [FIX] Connect handler
+                                    onArchiveProject={() => handleArchiveProject(activeProject.id!)}
                                     onUpdateProject={setActiveProject}
                                 />
                             )}

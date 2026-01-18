@@ -225,6 +225,29 @@ if (preg_match('#^(/api)?/history$#', $path) && $method === 'GET') {
     exit;
 }
 
+// Stock Routes (v6 Enterprise)
+require_once 'StockController.php';
+
+if (preg_match('#^(/api)?/stocks$#', $path)) {
+    $controller = new StockController();
+    if ($method === 'GET') {
+        $controller->index();
+    } elseif ($method === 'POST') {
+        $controller->create();
+    }
+    exit;
+}
+if (preg_match('#^(/api)?/stocks/([^/]+)$#', $path, $matches) && $method === 'PUT') {
+    $controller = new StockController();
+    $controller->update($matches[2]);
+    exit;
+}
+if (preg_match('#^(/api)?/stocks/([^/]+)/assign$#', $path, $matches) && $method === 'POST') {
+    $controller = new StockController();
+    $controller->assign($matches[2]);
+    exit;
+}
+
 // Backup & Restore Routes
 require_once 'BackupController.php';
 

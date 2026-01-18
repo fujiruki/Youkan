@@ -84,7 +84,7 @@ export const EstimatedTimeInput: React.FC<Props> = ({ value, onChange, className
                 <div className="flex items-center gap-2">
                     <Clock size={16} className="text-slate-400" />
                     <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                        制作目安 (Weight)
+                        目安 (Weight)
                     </span>
                 </div>
 

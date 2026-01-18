@@ -2,6 +2,19 @@ export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'exec
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 
+// --- JBWOS Enterprise Types ---
+export type StockStatus = 'open' | 'assigned' | 'archived';
+
+export interface StockJob {
+    id: string;
+    title: string;
+    projectId?: string; // Link to projects.id (Deliverable ID)
+    estimatedMinutes: number;
+    dueDate?: string | null;
+    status: StockStatus;
+    createdAt: number;
+}
+
 export type JudgableItem = Item; // Alias for compatibility
 
 export interface Item {

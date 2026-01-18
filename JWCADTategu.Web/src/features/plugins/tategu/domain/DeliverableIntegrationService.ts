@@ -75,12 +75,18 @@ export const DeliverableIntegrationService = {
                         await db.doors.update(door.id, { deliverableId: newDeliverableId });
                         console.log(`Created deliverable ${newDeliverableId} for door ${door.tag}`);
                     }
+
+                    // [JBWOS Enterprise] Stock (Shop Floor) への追加
+                    // 直接Inboxのタスクにするのではなく、未割当ジョブとしてプールする
+                    const deliverableForTask = { ...deliverableData, id: newDeliverableId } as Deliverable;
+                    import('../../manufacturing/StockIntegrationService').then(({ syncStockFromDeliverable }) => {
+                        syncStockFromDeliverable(deliverableForTask, project.name);
+                    });
                 }
             }
         } catch (error) {
             console.error('Failed to sync deliverable:', error);
-            // 同期エラーはユーザーに通知するか、ログに出して処理を継続する
-            // オフライン環境などでは失敗する前提
+            // 同期エラーについてはログのみで継続
         }
     }
 };

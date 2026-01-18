@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Door, db } from '../../../../db/db';
-import { Inbox, Hand, Flame, Snowflake, Box, CheckCircle2, Plus, ChevronDown, Package } from 'lucide-react';
+import { Inbox, Hand, Flame, Snowflake, Box, CheckCircle2, Plus, ChevronDown, Package, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GenericItemModal } from './GenericItemModal';
 
@@ -10,9 +10,11 @@ interface DecisionBoardProps {
 }
 
 type BucketType = 'inbox' | 'waiting' | 'ready' | 'pending';
+type ViewMode = 'card' | 'list';
 
 export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitchToExternal }) => {
     const [doors, setDoors] = useState<Door[]>([]);
+    const [viewMode, setViewMode] = useState<ViewMode>('list'); // Default to list for density
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
     const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
 
@@ -128,39 +130,89 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
         }
     };
 
-    const renderCard = (item: Door) => (
-        <div
-            key={item.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, item)}
-            className="bg-slate-800 p-2 rounded-md border border-slate-700 shadow-sm hover:border-emerald-500/50 cursor-grab active:cursor-grabbing mb-2 group flex gap-2"
-        >
-            {/* [NEW] Thumbnail */}
-            {item.thumbnail ? (
-                <div className="w-10 h-10 bg-slate-900 rounded flex-shrink-0 overflow-hidden border border-slate-700">
-                    <img src={item.thumbnail} className="w-full h-full object-contain" alt="" />
-                </div>
-            ) : (
-                <div className="w-10 h-10 bg-slate-900 rounded flex-shrink-0 flex items-center justify-center text-slate-700">
-                    {item.category === 'door' ? <Box size={16} /> : <Package size={16} />}
-                </div>
-            )}
-
-            <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-0.5">
-                    <span className="font-bold text-slate-200 text-sm truncate">{item.name}</span>
-                    <span className="text-xs text-slate-500 font-mono ml-1">{item.tag}</span>
-                </div>
-
-                {/* Buffers */}
-                <div className="flex gap-2 items-center">
-                    {item.roughTiming && (
-                        <div className="text-[9px] bg-slate-700 px-1 rounded text-slate-400">
-                            {item.roughTiming === 'early_month' ? '上旬' : item.roughTiming === 'mid_month' ? '中旬' : item.roughTiming === 'late_month' ? '下旬' : '未定'}
-                        </div>
+    const renderCard = (item: Door) => {
+        if (viewMode === 'list') {
+            return (
+                <div
+                    key={item.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item)}
+                    className="group flex items-center justify-between px-3 py-1 bg-slate-800/50 hover:bg-slate-700 border-b border-slate-700/50 cursor-grab active:cursor-grabbing text-sm"
+                >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <div className={`w-1.5 h-1.5 rounded-full ${item.category === 'door' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                        <span className="truncate text-slate-300 font-medium group-hover:text-white transition-colors">
+                            {item.name}
+                        </span>
+                    </div>
+                    {item.count > 1 && (
+                        <span className="text-xs bg-slate-900/50 px-1.5 py-0.5 rounded text-slate-400">
+                            x{item.count}
+                        </span>
                     )}
-                    {item.waitingReason && (
-                        <div className="text-[10px] text-amber-500/80 truncate max-w-[80px]">Wait: {item.waitingReason}</div>
+                </div>
+            );
+        }
+
+        return (
+            <div
+                key={item.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, item)}
+                className="bg-slate-800 p-2 rounded-md border border-slate-700 shadow-sm hover:border-emerald-500/50 cursor-grab active:cursor-grabbing mb-2 group flex gap-2"
+            >
+                {item.thumbnail ? (
+                    <div className="w-10 h-10 bg-slate-900 rounded flex-shrink-0 overflow-hidden border border-slate-700">
+                        <img src={item.thumbnail} className="w-full h-full object-contain" alt="" />
+                    </div>
+                ) : (
+                    <div className="w-10 h-10 bg-slate-900 rounded flex-shrink-0 flex items-center justify-center text-slate-700">
+                        {item.category === 'door' ? <Box size={16} /> : <Package size={16} />}
+                    </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-0.5">
+                        <span className="font-bold text-sm text-slate-200 truncate pr-1">{item.name}</span>
+                        {item.count > 1 && <span className="text-xs px-1 rounded bg-slate-900 text-slate-400">x{item.count}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span className="font-mono bg-slate-900 px-1 rounded">{item.tag}</span>
+                        <span>{item.dimensions.width}×{item.dimensions.height}</span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderBucket = (title: string, type: BucketType | 'done', items: Door[], className: string) => (
+        <div
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, type)}
+            className={clsx(
+                "flex flex-col rounded-lg border-2 border-transparent transition-colors duration-200 min-w-[250px]",
+                className,
+                draggedItem && "hover:border-emerald-500/30"
+            )}
+        >
+            <div className="p-3 border-b border-white/5 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-2">
+                    {getBucketIcon(type)}
+                    <h3 className="font-bold text-slate-300">{title}</h3>
+                    <span className="bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">{items.length}</span>
+                </div>
+            </div>
+            <div className="flex-1 p-2 overflow-y-auto">
+                <div className={clsx(
+                    viewMode === 'list' && "grid grid-cols-1 xl:grid-cols-2 gap-2",
+                    viewMode === 'card' && "flex flex-col gap-2"
+                )}>
+                    {items.length === 0 ? (
+                        <div className="h-24 flex items-center justify-center text-slate-600 border-2 border-dashed border-slate-700/50 rounded-lg text-sm italic">
+                            No Items
+                        </div>
+                    ) : (
+                        items.map(item => renderCard(item))
                     )}
                 </div>
             </div>
@@ -168,7 +220,7 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
     );
 
     return (
-        <div className="h-full flex flex-col bg-slate-950 text-slate-200 p-4 relative overflow-hidden">
+        <div className="h-full flex flex-col bg-slate-950 text-slate-200">
             {/* Flash Message */}
             {flashMessage && (
                 <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2 font-bold backdrop-blur animate-in fade-in slide-in-from-top-4">
@@ -178,15 +230,39 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
             )}
 
             {/* Header */}
-            <div className="flex justify-between items-center mb-4 shrink-0">
-                <div>
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <span className="text-2xl">⚡</span>
-                        Decision Board
+            <div className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+                        Global Decision Board
                     </h2>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex bg-slate-800 rounded p-1 border border-slate-700">
+                        <button
+                            onClick={() => setViewMode('card')}
+                            className={clsx(
+                                "p-1.5 rounded transition-colors",
+                                viewMode === 'card' ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+                            )}
+                            title="Card View"
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={clsx(
+                                "p-1.5 rounded transition-colors",
+                                viewMode === 'list' ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+                            )}
+                            title="List View"
+                        >
+                            <ListIcon size={18} />
+                        </button>
+                    </div>
                 </div>
+
                 <div className="flex items-center gap-3">
-                    {/* [NEW] Create Button */}
+                    {/* Create Button */}
                     <div className="relative">
                         <button
                             onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
@@ -217,95 +293,25 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
                         onClick={onSwitchToExternal}
                         className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 px-3 py-1.5 rounded border border-slate-700 transition-colors"
                     >
-                        対外説明モードへ (External View)
+                        対外説明モードへ
                     </button>
                 </div>
             </div>
 
-            {/* Board Area - Fixed Layout with Flex % */}
-            <div className="flex-1 flex gap-2 overflow-hidden pb-2">
-
-                {/* 1. Inbox (25%) */}
-                <div
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, 'inbox')}
-                    className="flex-[25] bg-slate-900/50 rounded-lg p-2 flex flex-col border border-slate-800 min-w-0"
-                >
-                    <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-800 mb-2">
-                        {getBucketIcon('inbox')}
-                        <span className="font-bold text-slate-400 text-sm">Inbox ({inboxItems.length})</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-700">
-                        {inboxItems.map(renderCard)}
-                    </div>
-                </div>
-
-                {/* 2. Waiting (15%) */}
-                <div
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, 'waiting')}
-                    className="flex-[15] bg-slate-900/50 rounded-lg p-2 flex flex-col border border-slate-800 min-w-0"
-                >
-                    <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-800 mb-2">
-                        {getBucketIcon('waiting')}
-                        <span className="font-bold text-amber-500/80 text-sm">Wait ({waitingItems.length})</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-700">
-                        {waitingItems.map(renderCard)}
-                    </div>
-                </div>
-
-                {/* 3. Ready (25%) */}
-                <div
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, 'ready')}
-                    className={clsx(
-                        "flex-[25] rounded-lg p-2 flex flex-col border transition-all min-w-0",
-                        readyItems.length > 0 ? "bg-emerald-900/10 border-emerald-500/30" : "bg-slate-900/50 border-slate-800"
-                    )}
-                >
-                    <div className="flex items-center gap-2 px-2 py-2 border-b border-white/5 mb-2">
-                        {getBucketIcon('ready')}
-                        <span className="font-bold text-emerald-400 text-sm">Ready ({readyItems.length}/2)</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-700">
-                        {readyItems.map(renderCard)}
-                    </div>
-                </div>
-
-                {/* 4. Pending (15%) */}
-                <div
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, 'pending')}
-                    className="flex-[15] bg-slate-900/30 rounded-lg p-2 flex flex-col border border-slate-800 min-w-0"
-                >
-                    <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-800 mb-2">
-                        {getBucketIcon('pending')}
-                        <span className="font-bold text-blue-400/80 text-sm">Pending ({pendingItems.length})</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-700">
-                        {pendingItems.map(renderCard)}
-                    </div>
-                </div>
-
-                {/* 5. Done (20%) [NEW] */}
-                <div
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, 'done')}
-                    className="flex-[20] bg-slate-900/20 rounded-lg p-2 flex flex-col border border-slate-800 min-w-0 opacity-75 hover:opacity-100 transition-opacity"
-                >
-                    <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-800 mb-2">
-                        {getBucketIcon('done')}
-                        <span className="font-bold text-slate-500 text-sm">Done ({doneItems.length})</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-700">
-                        {doneItems.map(renderCard)}
-                    </div>
-                </div>
-
+            {/* Board Area */}
+            <div className="flex-1 flex gap-2 overflow-hidden p-4">
+                {renderBucket('Inbox', 'inbox', inboxItems, 'flex-[25] bg-slate-900/50')}
+                {renderBucket('Wait', 'waiting', waitingItems, 'flex-[15] bg-slate-900/50')}
+                {renderBucket(
+                    `Ready (${readyItems.length}/2)`,
+                    'ready',
+                    readyItems,
+                    clsx('flex-[25]', readyItems.length > 0 ? "bg-emerald-900/10 border-emerald-500/30" : "bg-slate-900/50 border-slate-800")
+                )}
+                {renderBucket('Pending', 'pending', pendingItems, 'flex-[15] bg-slate-900/50')}
+                {renderBucket('Done', 'done', doneItems, 'flex-[20] bg-slate-900/20 opacity-75 hover:opacity-100')}
             </div>
 
-            {/* Generic Item Modal [NEW] */}
             <GenericItemModal
                 isOpen={isGenericModalOpen}
                 onClose={() => setIsGenericModalOpen(false)}

@@ -105,6 +105,38 @@ function initDB($pdo) {
             id TEXT PRIMARY KEY,
             content TEXT NOT NULL,
             created_at INTEGER
+        )",
+        // [v6] Enterprise Features
+        "CREATE TABLE IF NOT EXISTS stocks (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            project_id TEXT,
+            estimated_minutes INTEGER DEFAULT 0,
+            due_date TEXT,
+            status TEXT DEFAULT 'open',
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            status TEXT DEFAULT 'active',
+            progress_rate INTEGER DEFAULT 0,
+            total_weight INTEGER DEFAULT 0,
+            current_weight INTEGER DEFAULT 0,
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS user_configs (
+            user_id TEXT PRIMARY KEY,
+            daily_capacity_minutes INTEGER DEFAULT 480,
+            work_cal_id TEXT,
+            private_cal_id TEXT
+        )",
+        "CREATE TABLE IF NOT EXISTS daily_volumes (
+            user_id TEXT,
+            date TEXT,
+            total_minutes INTEGER DEFAULT 0,
+            capacity_minutes INTEGER DEFAULT 480,
+            PRIMARY KEY (user_id, date)
         )"
     ];
 

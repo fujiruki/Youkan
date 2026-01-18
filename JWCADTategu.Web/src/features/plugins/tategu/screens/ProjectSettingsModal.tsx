@@ -10,15 +10,19 @@ interface ProjectSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (updatedProject: Project) => void;
+    onDeleteProject: (projectId: number) => void;
+    onArchiveProject: (projectId: number) => void;
 }
 
-type TabType = 'estimation' | 'dxf';
+type TabType = 'estimation' | 'dxf' | 'danger';
 
 export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
     project,
     isOpen,
     onClose,
-    onSave
+    onSave,
+    onDeleteProject,
+    onArchiveProject
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('estimation');
 
@@ -104,6 +108,17 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                         )}
                     >
                         DXFレイヤー
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('danger')}
+                        className={clsx(
+                            "px-4 py-3 font-medium transition-colors border-b-2",
+                            activeTab === 'danger'
+                                ? "text-red-400 border-red-500"
+                                : "text-slate-500 border-transparent hover:text-slate-300"
+                        )}
+                    >
+                        管理
                     </button>
                 </div>
 
@@ -311,6 +326,50 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                     placeholder="8-1"
                                     className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                                 />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'danger' && (
+                        <div className="space-y-6">
+                            <h3 className="text-lg font-bold text-white mb-4">プロジェクト管理・削除</h3>
+
+                            <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-5">
+                                <h4 className="text-amber-400 font-bold mb-2">アーカイブ</h4>
+                                <p className="text-sm text-amber-200/70 mb-4">
+                                    プロジェクトを一覧から非表示にします。<br />
+                                    データは保持され、検索でアクセス可能です。
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm('プロジェクトをアーカイブしますか？\nアーカイブされたプロジェクトは一覧から非表示になりますが、検索でアクセス可能です。')) {
+                                            if (project.id) onArchiveProject(project.id);
+                                        }
+                                    }}
+                                    className="px-4 py-2 border border-amber-500/50 text-amber-400 rounded hover:bg-amber-500/10 transition-colors"
+                                >
+                                    プロジェクトをアーカイブ
+                                </button>
+                            </div>
+
+                            <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-5">
+                                <h4 className="text-red-400 font-bold mb-2">プロジェクトの削除</h4>
+                                <p className="text-sm text-red-200/70 mb-4">
+                                    このプロジェクトと、含まれる全ての建具データ、見積り情報を完全に削除します。<br />
+                                    <span className="font-bold underline">この操作は取り消せません。</span>
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm('【警告】本当にプロジェクトを削除しますか？\nこの操作は取り消せません。')) {
+                                            if (project.id) onDeleteProject(project.id);
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-lg shadow-red-900/20"
+                                >
+                                    プロジェクトを完全に削除する
+                                </button>
                             </div>
                         </div>
                     )}

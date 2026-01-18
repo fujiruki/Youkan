@@ -20,7 +20,9 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
     }, []);
 
     const loadProjects = async () => {
-        const data = await db.projects.toArray();
+        const data = await db.projects
+            .filter(p => !p.isArchived)
+            .toArray();
         setProjects(data);
     };
 
