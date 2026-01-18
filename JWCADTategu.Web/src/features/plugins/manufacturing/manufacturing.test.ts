@@ -167,3 +167,77 @@ describe('Manufacturing Business Logic', () => {
         expect(deliverable.laborCost).toBeUndefined();
     });
 });
+
+describe('TaskGenerationService', () => {
+    beforeEach(() => {
+        mockFetch.mockReset();
+    });
+
+    it('製作時間がある場合は製作タスクを生成する', async () => {
+        const deliverable: Deliverable = {
+            ...mockDeliverable,
+            estimatedWorkMinutes: 480,
+            estimatedSiteMinutes: 0,
+            requiresSiteInstallation: false
+        };
+
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ id: 'task_1', title: `${deliverable.name} 製作` })
+        });
+
+        const { generateTasksFromDeliverable } = await import('./TaskGenerationService');
+        const tasks = await generateTasksFromDeliverable(deliverable, 'テストプロジェクト');
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(tasks).toHaveLength(1);
+    });
+
+    it('現場取付ありの場合は製作タスクと取付タスクを両方生成する', async () => {
+        const deliverable: Deliverable = {
+            ...mockDeliverable,
+            estimatedWorkMinutes: 480,
+            estimatedSiteMinutes: 120,
+            requiresSiteInstallation: true
+        };
+
+        mockFetch
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ id: 'task_1', title: `${deliverable.name} 製作` })
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ id: 'task_2', title: `${deliverable.name} 取付` })
+            });
+
+        const { generateTasksFromDeliverable } = await import('./TaskGenerationService');
+        const tasks = await generateTasksFromDeliverable(deliverable, 'テストプロジェクト');
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(tasks).toHaveLength(2);
+    });
+
+    it('時間からWeightを自動決定する（60分以下はLight）', async () => {
+        const deliverable: Deliverable = {
+            ...mockDeliverable,
+            estimatedWorkMinutes: 30,
+            estimatedSiteMinutes: 0,
+            requiresSiteInstallation: false
+        };
+
+        let capturedBody: any = null;
+        mockFetch.mockImplementation(async (_url, options) => {
+            capturedBody = JSON.parse(options?.body as string);
+            return {
+                ok: true,
+                json: async () => ({ id: 'task_1', ...capturedBody })
+            };
+        });
+
+        const { generateTasksFromDeliverable } = await import('./TaskGenerationService');
+        await generateTasksFromDeliverable(deliverable);
+
+        expect(capturedBody.weight).toBe(1); // Light
+    });
+});

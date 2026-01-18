@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { FieldNoteList } from './FieldNoteList';
 import { GenericItemModal } from './GenericItemModal'; // [NEW]
+import { DeliverableList } from '../../manufacturing/DeliverableList'; // [NEW] Manufacturing Plugin
 
 const DoorPreview: React.FC<{ door: Door }> = ({ door }) => (
     <div className="w-full h-32 bg-slate-900/50 rounded-md flex items-center justify-center overflow-hidden border border-slate-700/50 mb-3 relative group-hover:border-emerald-500/30 transition-colors">
@@ -58,7 +59,7 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
     // Restored State
     const [editTableName, setEditTableName] = useState(project.name);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const [activeTab, setActiveTab] = useState<'products' | 'notes'>('products');
+    const [activeTab, setActiveTab] = useState<'products' | 'notes' | 'deliverables'>('products');
 
     // UI Options
     const [showCost, setShowCost] = useState(false);
@@ -488,6 +489,16 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                     製作物リスト ({doors.length})
                 </button>
                 <button
+                    onClick={() => setActiveTab('deliverables')}
+                    className={clsx(
+                        "px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors",
+                        activeTab === 'deliverables' ? "border-purple-500 text-purple-400" : "border-transparent text-slate-500 hover:text-slate-300"
+                    )}
+                >
+                    <Box size={16} />
+                    成果物（Manifest）
+                </button>
+                <button
                     onClick={() => setActiveTab('notes')}
                     className={clsx(
                         "px-4 py-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors",
@@ -597,6 +608,16 @@ export const JoineryScheduleScreen: React.FC<{ project: Project; onBack: () => v
                             })}
                         </div>
                     </>
+                ) : activeTab === 'deliverables' ? (
+                    <div className="flex-1 overflow-auto pb-4 bg-slate-900/50 -mx-8 px-8 py-4 rounded-lg">
+                        {project.id && (
+                            <DeliverableList
+                                projectId={String(project.id)}
+                                projectTitle={project.name}
+                                onDeliverableChange={refreshDoors}
+                            />
+                        )}
+                    </div>
                 ) : (
                     <div className="flex-1 overflow-hidden pb-4">
                         {project.id && <FieldNoteList projectId={project.id!} />}

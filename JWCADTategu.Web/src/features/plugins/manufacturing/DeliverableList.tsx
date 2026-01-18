@@ -4,24 +4,27 @@
  * 成果物（Manifest）一覧表示・管理コンポーネント
  */
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Factory, MapPin, CheckCircle, Circle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Plus, Factory, MapPin, CheckCircle, Circle, Loader2, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { Deliverable, ProjectSummary } from './types';
 import { deliverableRepository } from './repository';
 import { DeliverableEditModal } from './DeliverableEditModal';
+import { generateTasksFromDeliverable } from './TaskGenerationService';
 import { cn } from '../../../lib/utils';
 
 interface DeliverableListProps {
     projectId: string;
+    projectTitle?: string;  // タスク生成時に使用
     onDeliverableChange?: () => void;
 }
 
-export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, onDeliverableChange }) => {
+export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, projectTitle, onDeliverableChange }) => {
     const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
     const [summary, setSummary] = useState<ProjectSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [editingDeliverable, setEditingDeliverable] = useState<Deliverable | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [showSummary, setShowSummary] = useState(true);
+    const [autoGenerateTasks, setAutoGenerateTasks] = useState(true); // タスク自動生成フラグ
 
     // 成果物一覧と集計を取得
     const loadData = async () => {
@@ -48,7 +51,7 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, onD
     const handleSave = async (deliverable: Deliverable) => {
         try {
             if (isCreating) {
-                await deliverableRepository.create({
+                const created = await deliverableRepository.create({
                     projectId,
                     name: deliverable.name,
                     type: deliverable.type,
@@ -61,6 +64,14 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, onD
                     requiresSiteInstallation: deliverable.requiresSiteInstallation,
                     memo: deliverable.memo
                 });
+
+                // 自動タスク生成
+                if (autoGenerateTasks && created) {
+                    const tasks = await generateTasksFromDeliverable(created, projectTitle);
+                    if (tasks.length > 0) {
+                        console.log(`[DeliverableList] Generated ${tasks.length} tasks for deliverable:`, created.name);
+                    }
+                }
             } else {
                 await deliverableRepository.update(deliverable.id, deliverable);
             }
@@ -137,6 +148,18 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, onD
                     成果物追加
                 </button>
             </div>
+
+            {/* タスク自動生成トグル */}
+            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                <input
+                    type="checkbox"
+                    checked={autoGenerateTasks}
+                    onChange={(e) => setAutoGenerateTasks(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-purple-500 focus:ring-purple-400"
+                />
+                <Zap size={14} className="text-amber-500" />
+                成果物追加時にJBWOSタスクを自動生成
+            </label>
 
             {/* Summary Panel */}
             {summary && summary.deliverableCount > 0 && (
