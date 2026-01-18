@@ -104,7 +104,9 @@ function App() {
     };
 
     // [NEW] Global Keyboard Shortcuts
+    // [NEW] Global Keyboard Shortcuts & Deep Linking
     useEffect(() => {
+        // Keyboard Shortcuts
         const handleKeyDown = (e: KeyboardEvent) => {
             // Ctrl+G: Navigate to GDB (JBWOS Board)
             if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
@@ -126,6 +128,43 @@ function App() {
             }
         };
         window.addEventListener('keydown', handleKeyDown);
+
+        // Deep Linking Check
+        const params = new URLSearchParams(window.location.search);
+        const doorIdParam = params.get('doorId');
+
+        if (doorIdParam) {
+            const doorId = parseInt(doorIdParam, 10);
+            if (!isNaN(doorId)) {
+                console.log('[App] Deep linking to door:', doorId);
+                // Async load inside effect
+                const load = async () => {
+                    try {
+                        const door = await db.doors.get(doorId);
+                        if (door) {
+                            setActiveDoor(door);
+
+                            // Load associated project to enable valid "Back" navigation
+                            if (door.projectId) {
+                                const project = await db.projects.get(door.projectId);
+                                if (project) {
+                                    setActiveProject(project);
+                                }
+                            }
+
+                            setCurrentView('editor');
+                        } else {
+                            console.warn('[App] Deep linked door not found:', doorId);
+                            // Fallback to JBWOS (default)
+                        }
+                    } catch (e) {
+                        console.error('[App] Failed to load deep link data:', e);
+                    }
+                };
+                load();
+            }
+        }
+
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
