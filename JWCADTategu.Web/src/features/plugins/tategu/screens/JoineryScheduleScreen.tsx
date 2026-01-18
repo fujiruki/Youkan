@@ -89,7 +89,13 @@ export const JoineryScheduleScreen: React.FC<{
             judgmentStatus: 'inbox'
         });
         const newDoor = await db.doors.get(id);
-        if (newDoor) onOpenDoor(newDoor);
+        if (newDoor) {
+            onOpenDoor(newDoor);
+            // [NEW] Sync to Manufacturing Plugin
+            import('../domain/DeliverableIntegrationService').then(({ DeliverableIntegrationService }) => {
+                DeliverableIntegrationService.syncDoorToDeliverable(newDoor, project);
+            });
+        }
         refreshDoors();
     };
 
@@ -99,8 +105,10 @@ export const JoineryScheduleScreen: React.FC<{
     };
 
     const handleSaveGeneric = async (item: Partial<Door> | Door) => {
+        let savedId: number;
         if (item.id) {
             await db.doors.update(item.id, item as any); // Cast for safety
+            savedId = item.id;
         } else {
             // New Item
             const nonDoors = doors.filter(d => d.category && d.category !== 'door');
@@ -109,15 +117,24 @@ export const JoineryScheduleScreen: React.FC<{
                 item.category === 'furniture' ? 'K' :
                     item.category === 'hardware' ? 'H' : 'M';
 
-            await db.doors.add({
+            savedId = await db.doors.add({
                 ...(item as Door),
                 projectId: project.id!,
                 tag: `${tagPrefix}-${nextIndex}`,
                 judgmentStatus: 'inbox',
                 createdAt: new Date(),
                 updatedAt: new Date()
+            }) as number;
+        }
+
+        // [NEW] Sync Generic Item
+        const savedItem = await db.doors.get(savedId);
+        if (savedItem) {
+            import('../domain/DeliverableIntegrationService').then(({ DeliverableIntegrationService }) => {
+                DeliverableIntegrationService.syncDoorToDeliverable(savedItem, project);
             });
         }
+
         setIsGenericModalOpen(false);
         refreshDoors();
     };
@@ -132,8 +149,15 @@ export const JoineryScheduleScreen: React.FC<{
 
     const handleDuplicate = async (e: React.MouseEvent, door: Door) => {
         e.stopPropagation();
-        const { id, ...rest } = door;
-        await db.doors.add({ ...rest, name: `${door.name} (Copy)`, createdAt: new Date() });
+        const { id, deliverableId, ...rest } = door; // Exclude deliverableId
+        const newId = await db.doors.add({ ...rest, name: `${door.name} (Copy)`, createdAt: new Date() });
+
+        const newDoor = await db.doors.get(newId);
+        if (newDoor) {
+            import('../domain/DeliverableIntegrationService').then(({ DeliverableIntegrationService }) => {
+                DeliverableIntegrationService.syncDoorToDeliverable(newDoor, project);
+            });
+        }
         refreshDoors();
     };
 
