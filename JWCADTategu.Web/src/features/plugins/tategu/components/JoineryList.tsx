@@ -4,9 +4,12 @@ import { calculateCost } from '../domain/EstimationService';
 import { Trash2, Copy, Plus, DollarSign, Box, ShoppingBag, Hexagon, Wrench } from 'lucide-react';
 import clsx from 'clsx';
 
+import { JoineryTab } from './JoineryTabs';
+
 interface JoineryListProps {
-    project: Project;
+    project?: Project; // Make optional if not used critically
     doors: Door[];
+    activeTab?: JoineryTab;
     searchQuery: string;
     showCost: boolean;
     onOpenDoor: (door: Door) => void;
@@ -94,7 +97,7 @@ export const JoineryList: React.FC<JoineryListProps> = ({
                 const isGeneric = door.category && door.category !== 'door';
                 const cost = isGeneric
                     ? (door.specs?.unitPrice || 0) * (door.count || 1)
-                    : (project.settings ? calculateCost(door.dimensions, project.settings).totalCost : 0) * (door.count || 1);
+                    : (project?.settings ? calculateCost(door.dimensions, project.settings).totalCost : 0) * (door.count || 1);
 
                 return (
                     <div

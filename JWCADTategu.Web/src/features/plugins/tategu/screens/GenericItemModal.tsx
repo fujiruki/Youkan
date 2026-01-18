@@ -7,7 +7,7 @@ interface GenericItemModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (item: Partial<Door>) => void;
-    item?: Door | null;
+    item?: Partial<Door> | null;
     projectId: number;
 }
 
@@ -25,12 +25,13 @@ export const GenericItemModal: React.FC<GenericItemModalProps> = ({ isOpen, onCl
     useEffect(() => {
         if (isOpen) {
             if (item) {
-                setName(item.name);
-                setCategory((item.category as any) || 'other');
-                setWidth(item.dimensions.width);
-                setHeight(item.dimensions.height);
-                setDepth(item.dimensions.depth);
-                setCount(item.count);
+                setName(item.name || '');
+                const cat = item.category as any;
+                setCategory(cat === 'frame' || cat === 'furniture' || cat === 'hardware' ? cat : 'other');
+                setWidth(item.dimensions?.width || 0);
+                setHeight(item.dimensions?.height || 0);
+                setDepth(item.dimensions?.depth || 0);
+                setCount(item.count || 1);
                 // For generic items, price might be stored differently in future, but for now we assume it's calculated or stored in a generic spec
                 // Let's assume genericSpecs has unit, and we use a simple calculation or field for price
                 setUnit(item.genericSpecs?.unit || '式');
