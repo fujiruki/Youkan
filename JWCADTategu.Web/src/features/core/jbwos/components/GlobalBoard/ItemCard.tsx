@@ -11,9 +11,10 @@ interface ItemCardProps {
     onClick?: (item: Item) => void;
     onRename?: (id: string, newTitle: string) => void;
     onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
+    isCompact?: boolean; // [NEW]
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onContextMenu }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onContextMenu, isCompact }) => {
     const {
         attributes,
         listeners,
@@ -77,11 +78,13 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
             {...attributes}
             {...listeners}
             className={cn(
-                "group relative flex items-start gap-2 px-3 py-1 mb-0.5 rounded-lg transition-all", // Clean layout
+                "group relative flex items-start gap-2 rounded-lg transition-all", // Clean layout
+                isCompact ? "px-2 py-0.5 mb-0" : "px-3 py-1 mb-0.5", // Compact Padding
                 "bg-white/60 dark:bg-slate-800/60 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
                 "border border-transparent hover:border-slate-100 dark:hover:border-slate-700", // Soft interactive border
                 item.interrupt && "bg-amber-50/80 dark:bg-amber-900/20",
-                "cursor-grab active:cursor-grabbing select-none text-[0.95em]",
+                "cursor-grab active:cursor-grabbing select-none",
+                isCompact ? "text-[0.8em]" : "text-[0.95em]",
                 isDragging && "opacity-50 z-50 ring-2 ring-indigo-400 bg-white shadow-lg"
             )}
             onClick={() => onClick?.(item)}
@@ -102,11 +105,25 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                             className="w-full bg-transparent border-b border-indigo-500 text-[1em] focus:outline-none p-0"
                         />
                     ) : (
-                        <span className="text-slate-700 dark:text-slate-200 font-medium line-clamp-2 leading-snug">
-                            {item.isProject && <Folder size={14} className="inline-block mr-1 text-slate-400 align-text-bottom" />}
+                        <span className={cn(
+                            "text-slate-700 dark:text-slate-200 font-medium leading-snug",
+                            isCompact ? "line-clamp-1" : "line-clamp-2"
+                        )}>
+                            {/* Project Badge for Compact Mode */}
+                            {isCompact && item.projectTitle && (
+                                <span className="inline-block bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1 rounded text-[0.85em] mr-1.5 align-baseline">
+                                    {item.projectTitle.slice(0, 3)}
+                                </span>
+                            )}
+
+                            {/* Folder Icon only if it IS a project (usually not in item buckets but safe to keep) */}
+                            {item.isProject && <Folder size={isCompact ? 12 : 14} className="inline-block mr-1 text-slate-400 align-text-bottom" />}
+
                             {item.title}
-                            {item.projectTitle && (
-                                <span className="ml-2 text-[0.9em] font-normal text-slate-400">
+
+                            {/* Full Project Title for Standard Mode */}
+                            {!isCompact && item.projectTitle && (
+                                <span className="ml-2 font-normal text-slate-400 text-[0.9em]">
                                     ({item.projectTitle})
                                 </span>
                             )}

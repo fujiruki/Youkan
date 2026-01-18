@@ -53,7 +53,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     );
 
     // --- View Mode ---
-    const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board'); // [NEW]
+    const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
+    // [NEW] Layout Mode for Board: 'standard' (Vertical) or 'panorama' (Grid)
+    const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>('standard');
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
@@ -285,6 +287,27 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                 CALENDAR
                             </button>
                         </div>
+
+                        {/* [NEW] Layout Switcher (Visible only in Board mode) */}
+                        {viewMode === 'board' && (
+                            <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
+                                <button
+                                    onClick={() => setLayoutMode('standard')}
+                                    className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                    title="Standard (Vertical)"
+                                >
+                                    Focus
+                                </button>
+                                <button
+                                    onClick={() => setLayoutMode('panorama')}
+                                    className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                    title="Panorama (Grid All)"
+                                >
+                                    Panorama
+                                </button>
+                            </div>
+                        )}
+
                         <button
                             onClick={() => setShowProjectDialog(true)}
                             className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2"
@@ -308,83 +331,110 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                     </button>
                 </div>
 
-                {/* Main Content (Vertical Stack as "Desk") */}
-                <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
+                {/* Main Content (Vertical Stack as "Desk" or Fluid Masonry) */}
+                <div className="flex-1 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
                     {viewMode === 'board' ? (
-                        <div className="max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6">
+                        <div className={layoutMode === 'panorama'
+                            ? "block columns-1 md:columns-2 xl:columns-3 2xl:columns-4 gap-4 p-4 h-full overflow-y-auto" // Panorama: Multi-column Fluid
+                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto" // Standard: Vertical
+                        }>
 
                             {/* 1. Active Shelf (Today's Judgment) */}
-                            <section>
-                                <BucketColumn
-                                    id="active"
-                                    title="【今日やるか決める (Inbox)】"
-                                    items={vm.gdbActive}
-                                    description="ここにあるものを今日やるか決める"
-                                    className="w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"
-                                    emptyMessage={<GentleMessage variant="inbox_clean" />}
-                                    onClickItem={(item) => setDetailItem(item)}
-                                    onContextMenu={handleContextMenu}
-                                    footer={
-                                        <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
-                                            <input
-                                                ref={inputRef}
-                                                type="text"
-                                                value={inputValue}
-                                                onChange={(e) => setInputValue(e.target.value)}
-                                                onKeyDown={handleInputKeyDown}
-                                                placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
-                                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
-                                            />
-                                        </form>
-                                    }
-                                />
+                            <section className={layoutMode === 'panorama'
+                                ? "mb-4 break-inside-avoid bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+                                : ""
+                            }>
+                                <div>
+                                    <BucketColumn
+                                        id="active"
+                                        title="【今日やるか決める (Inbox)】"
+                                        items={vm.gdbActive}
+                                        description="ここにあるものを今日やるか決める"
+                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
+                                        emptyMessage={<GentleMessage variant="inbox_clean" />}
+                                        onClickItem={(item) => setDetailItem(item)}
+                                        onContextMenu={handleContextMenu}
+                                        isCompact={layoutMode === 'panorama'}
+                                        footer={
+                                            <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+                                                <input
+                                                    ref={inputRef}
+                                                    type="text"
+                                                    value={inputValue}
+                                                    onChange={(e) => setInputValue(e.target.value)}
+                                                    onKeyDown={handleInputKeyDown}
+                                                    placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
+                                                />
+                                            </form>
+                                        }
+                                    />
+                                </div>
                             </section>
 
                             {/* 2. Preparation Shelf (The "Blurry") */}
-                            <section className="opacity-90">
-                                <BucketColumn
-                                    id="preparation"
-                                    title="【準備・出番待ち (Standby)】"
-                                    items={vm.gdbPreparation}
-                                    description="まだ約束しない。量感カレンダーへ。"
-                                    className="w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"
-                                    emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">備えなし</div>}
-                                    onClickItem={(item) => setDetailItem(item)}
-                                    onContextMenu={handleContextMenu}
-                                />
+                            <section className={layoutMode === 'panorama'
+                                ? "mb-4 break-inside-avoid bg-slate-100/80 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
+                                : "opacity-90"
+                            }>
+                                <div>
+                                    <BucketColumn
+                                        id="preparation"
+                                        title="【準備・出番待ち (Standby)】"
+                                        items={vm.gdbPreparation}
+                                        description="まだ約束しない。量感カレンダーへ。"
+                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
+                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">備えなし</div>}
+                                        onClickItem={(item) => setDetailItem(item)}
+                                        onContextMenu={handleContextMenu}
+                                        isCompact={layoutMode === 'panorama'}
+                                    />
+                                </div>
                             </section>
 
                             {/* 3. Intent Shelf (Nice to do) */}
-                            <section className="opacity-80">
-                                <BucketColumn
-                                    id="intent"
-                                    title="【いつかやれたら (Someday)】"
-                                    items={vm.gdbIntent}
-                                    description="期限も約束もない、溜めておく場所。"
-                                    className="w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"
-                                    emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">Intentなし</div>}
-                                    onClickItem={(item) => setDetailItem(item)}
-                                    // Context menu allows promote/delete? Yes.
-                                    onContextMenu={handleContextMenu}
-                                />
+                            <section className={layoutMode === 'panorama'
+                                ? "mb-4 break-inside-avoid bg-amber-50/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+                                : "opacity-80"
+                            }>
+                                <div>
+                                    <BucketColumn
+                                        id="intent"
+                                        title="【いつかやれたら (Someday)】"
+                                        items={vm.gdbIntent}
+                                        description="期限も約束もない、溜めておく場所。"
+                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
+                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">Intentなし</div>}
+                                        onClickItem={(item) => setDetailItem(item)}
+                                        // Context menu allows promote/delete? Yes.
+                                        onContextMenu={handleContextMenu}
+                                        isCompact={layoutMode === 'panorama'}
+                                    />
+                                </div>
                             </section>
 
                             {/* 4. Log (The "History") */}
-                            <section className="opacity-60 hover:opacity-100 transition-opacity pb-20">
-                                <BucketColumn
-                                    id="log"
-                                    title="【履歴】"
-                                    items={vm.gdbLog}
-                                    description="完了・断った記録。"
-                                    className="w-full border-t border-slate-200 dark:border-slate-800 pt-4"
-                                    emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
-                                    onContextMenu={handleContextMenu}
-                                />
+                            <section className={layoutMode === 'panorama'
+                                ? "mb-4 break-inside-avoid bg-slate-200/50 dark:bg-slate-800/30 rounded-lg border border-slate-300/50 dark:border-slate-700"
+                                : "opacity-60 hover:opacity-100 transition-opacity pb-20"
+                            }>
+                                <div>
+                                    <BucketColumn
+                                        id="log"
+                                        title="【履歴】"
+                                        items={vm.gdbLog}
+                                        description="完了・断った記録。"
+                                        className={layoutMode === 'panorama' ? "p-2" : "w-full border-t border-slate-200 dark:border-slate-800 pt-4"}
+                                        emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
+                                        onContextMenu={handleContextMenu}
+                                        isCompact={layoutMode === 'panorama'}
+                                    />
+                                </div>
                             </section>
 
                         </div>
                     ) : (
-                        <div className="h-full w-full">
+                        <div className="h-full w-full overflow-y-auto">
                             <QuantityCalendar
                                 items={[...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbIntent, ...vm.todayCommits, ...vm.todayCandidates]}
                                 onItemClick={(item) => setDetailItem(item)}
@@ -404,7 +454,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
             </div>
 
             <DragOverlay>
-                {activeItem ? <ItemCard item={activeItem} /> : null}
+                {activeItem ? <ItemCard item={activeItem} isCompact={layoutMode === 'panorama'} /> : null}
             </DragOverlay>
         </DndContext>
     );

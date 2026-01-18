@@ -17,6 +17,7 @@ interface BucketColumnProps {
     onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
     onClickItem?: (item: Item) => void; // [NEW]
     inputRef?: React.RefObject<HTMLInputElement>;
+    isCompact?: boolean; // [NEW] Super Compact Mode
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -29,7 +30,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     footer,
     onRenameItem,
     onContextMenu,
-    onClickItem // [NEW]
+    onClickItem, // [NEW]
+    isCompact = false, // [NEW]
 }) => {
     const MAX_VISIBLE = 5;
     const [expanded, setExpanded] = React.useState(false);
@@ -39,15 +41,25 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
         id: id,
     });
 
-    const visibleItems = expanded ? items : items.slice(0, MAX_VISIBLE);
+    const visibleItems = (expanded || isCompact) ? items : items.slice(0, MAX_VISIBLE);
     const hiddenCount = items.length - MAX_VISIBLE;
 
     return (
-        <div className={cn("flex flex-col h-full text-[1em]", className)}>
+        <div className={cn(
+            "flex flex-col text-[1em]", // Removed h-full for fluid layout
+            isCompact ? "gap-0.5" : "gap-0 h-full", // Keep h-full only for Standard mode
+            className
+        )}>
             {/* Header */}
-            <div className="flex items-baseline justify-between mb-1 px-1 shrink-0">
+            <div className={cn(
+                "flex items-baseline justify-between px-1 shrink-0",
+                isCompact ? "mb-0.5 py-1 min-h-[24px]" : "mb-1"
+            )}>
                 <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-slate-800 dark:text-slate-100 text-[1.1em]">{title}</h2>
+                    <h2 className={cn(
+                        "font-bold text-slate-800 dark:text-slate-100",
+                        isCompact ? "text-xs" : "text-[1.1em]"
+                    )}>{title}</h2>
                     {/* Count Badge REMOVED per spec to reduce pressure */}
                 </div>
                 {description && (
@@ -66,15 +78,18 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
             <div
                 ref={setNodeRef}
                 className={cn(
-                    "flex-1 rounded-xl p-1 transition-colors min-h-[100px]",
-                    // "overflow-y-auto" REMOVED per spec. Let it grow.
-                    "bg-slate-50/50 dark:bg-slate-900/20 box-border",
-                    "border-2 border-transparent",
+                    "flex-1 transition-colors min-h-[50px]",
+                    isCompact ? "rounded-md p-1 bg-slate-100/30 dark:bg-slate-900/10" : "rounded-xl p-1 bg-slate-50/50 dark:bg-slate-900/20",
+                    isCompact ? "" : "", // Removed overflow-y-auto for compact to let it grow in masonry
+                    "box-border border-2 border-transparent",
                     isOver && "border-amber-400/50 bg-amber-50/30 dark:border-amber-500/30"
                 )}
             >
                 {items.length === 0 && emptyMessage ? (
-                    <div className="flex flex-col items-center justify-center p-4 text-center text-slate-400 min-h-[100px]">
+                    <div className={cn(
+                        "flex flex-col items-center justify-center text-center text-slate-400",
+                        isCompact ? "p-2 text-[0.7em] min-h-[50px]" : "p-4 min-h-[100px]"
+                    )}>
                         {emptyMessage}
                     </div>
                 ) : (
@@ -91,12 +106,15 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                     onRename={onRenameItem}
                                     onContextMenu={onContextMenu}
                                     onClick={() => onClickItem?.(item)}
+                                    isCompact={isCompact}
                                 />
                             ))}
                         </SortableContext>
 
-                        {/* Expand Trigger (Quiet) */}
-                        {!expanded && hiddenCount > 0 && (
+                        {/* Expand Trigger (View All) - Only for Standard Mode or if we want to limit in Compact? */}
+                        {/* In Panorama/Compact, we usually want to scroll, so maybe 'expanded' logic is only for Standard? */}
+                        {/* Let's disable expansion limit in Compact mode to allow scrolling */}
+                        {!isCompact && !expanded && hiddenCount > 0 && (
                             <button
                                 onClick={() => setExpanded(true)}
                                 className="w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 py-2 mt-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -106,7 +124,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                         )}
 
                         {/* Collapse Trigger (Optional, for UX) */}
-                        {expanded && items.length > MAX_VISIBLE && (
+                        {!isCompact && expanded && items.length > MAX_VISIBLE && (
                             <button
                                 onClick={() => setExpanded(false)}
                                 className="w-full text-center text-xs text-slate-300 hover:text-slate-500 py-2 mt-2"
@@ -114,6 +132,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                 閉じる
                             </button>
                         )}
+
+                        {/* Compact Mode: Always show all (via overflow), no "more" button needed */}
                     </>
                 )}
             </div>

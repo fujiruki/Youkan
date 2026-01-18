@@ -39,12 +39,12 @@ if (Test-Path $deployTmp) { Remove-Item $deployTmp -Recurse -Force }
 New-Item -ItemType Directory -Path $deployTmp | Out-Null
 
 # Copy Backend PHP Files & .htaccess
-Get-ChildItem "backend" -Include "*.php", ".htaccess" -Recurse | ForEach-Object {
-    Copy-Item $_.FullName -Destination $deployTmp
-}
+# Copy Backend PHP Files & .htaccess (Preserving Directory Structure)
+Copy-Item -Path "backend\*" -Destination $deployTmp -Recurse -Force
 
 # Copy Frontend Assets (from JWCADTategu.Web/dist)
-Copy-Item -Path "JWCADTategu.Web/dist/*" -Destination $deployTmp -Recurse
+# Copy Frontend Assets (from JWCADTategu.Web/dist) - Exclude 'api' (mocks)
+Get-ChildItem "JWCADTategu.Web/dist" -Exclude "api" | Copy-Item -Destination $deployTmp -Recurse -Force
 
 # 3. Create Archive
 Write-Host "`n[3/4] Creating Archive ($archiveName)..." -ForegroundColor Yellow
