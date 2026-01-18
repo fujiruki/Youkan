@@ -11,6 +11,7 @@ import { CatalogScreen } from './features/plugins/tategu/catalog/CatalogScreen';
 import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
 import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
 import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
+import { CustomerList } from './features/plugins/customer'; // [NEW] Customer Plugin
 
 import { UndoProvider } from './features/core/jbwos/contexts/UndoContext';
 import { UndoToast } from './features/core/jbwos/components/UI/UndoToast';
@@ -20,7 +21,7 @@ import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history' | 'settings';
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history' | 'settings' | 'customers';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -197,13 +198,14 @@ const AppContent: React.FC<{
 
                         <DebugBanner />
                         {/* New JBWOS Header */}
-                        {(currentView === 'jbwos' || currentView === 'today' || currentView === 'history') && (
+                        {(currentView === 'jbwos' || currentView === 'today' || currentView === 'history' || currentView === 'customers') && (
                             <JBWOSHeader
-                                currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings'}
+                                currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings' | 'customers'}
                                 onNavigateToToday={() => setCurrentView('today')}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
                                 onNavigateToSettings={() => setCurrentView('settings')}
+                                onNavigateToCustomers={() => setCurrentView('customers')}
                             />
                         )}
 
@@ -275,6 +277,13 @@ const AppContent: React.FC<{
                             {currentView === 'settings' && (
                                 <div className="h-full w-full overflow-auto">
                                     <SettingsScreen />
+                                </div>
+                            )}
+
+                            {/* 9. Customer List (Customer Plugin) */}
+                            {currentView === 'customers' && (
+                                <div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-950">
+                                    <CustomerList />
                                 </div>
                             )}
                         </div>

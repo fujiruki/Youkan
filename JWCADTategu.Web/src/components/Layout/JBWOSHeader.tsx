@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Menu, HelpCircle, History, Settings } from 'lucide-react';
+import { Menu, HelpCircle, History, Settings, Users } from 'lucide-react';
 // import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 interface JBWOSHeaderProps {
-    currentView: 'jbwos' | 'today' | 'history' | 'settings';
+    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers';
     onNavigateToToday: () => void;
     onNavigateToHistory: () => void;
     onNavigateToProjects: () => void;
     onNavigateToSettings: () => void;
+    onNavigateToCustomers?: () => void;
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -16,7 +17,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToToday,
     onNavigateToHistory,
     onNavigateToProjects,
-    onNavigateToSettings
+    onNavigateToSettings,
+    onNavigateToCustomers
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -79,6 +81,18 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
                             {/* Menu Content */}
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-20 overflow-hidden">
+                                {onNavigateToCustomers && (
+                                    <button
+                                        onClick={() => {
+                                            onNavigateToCustomers();
+                                            setMenuOpen(false);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <Users size={16} />
+                                        顧客管理
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         onNavigateToHistory();

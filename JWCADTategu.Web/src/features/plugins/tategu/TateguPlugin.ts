@@ -18,7 +18,6 @@ const tateguCategories: ProjectCategory[] = [
         id: 'tategu-standard',
         name: '建具プロジェクト（標準）',
         icon: '🚪',
-        description: '新規建具の製作・取付プロジェクト',
         defaultTasks: [
             { title: '現地調査・採寸', estimatedMinutes: 120 },
             { title: '姿図作成', estimatedMinutes: 180 },
@@ -34,7 +33,6 @@ const tateguCategories: ProjectCategory[] = [
         id: 'tategu-renovation',
         name: '建具リフォーム',
         icon: '🔧',
-        description: '既存建具の修理・改修プロジェクト',
         defaultTasks: [
             { title: '現地調査', estimatedMinutes: 60 },
             { title: '見積書作成', estimatedMinutes: 30 },

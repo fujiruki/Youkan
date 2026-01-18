@@ -90,6 +90,7 @@ require_once 'DecisionController.php';
 require_once 'TodayController.php';
 require_once 'SideMemoController.php';
 require_once 'GdbController.php';
+require_once 'api/customers.php';
 
 $db = getDB();
 
@@ -116,6 +117,13 @@ if (preg_match('#^(/api)?/debug/logs#', $path)) {
 // Health Check Route
 if (preg_match('#^(/api)?/health$#', $path)) {
     require_once 'health.php';
+    exit;
+}
+
+// Customer Routes (Customer Plugin)
+if (preg_match('#^(/api)?/customers(?:/([^/]+))?$#', $path, $matches)) {
+    $customerId = $matches[2] ?? null;
+    handleCustomerRequest($db, $method, $customerId, $_GET, json_decode(file_get_contents('php://input'), true) ?? []);
     exit;
 }
 
