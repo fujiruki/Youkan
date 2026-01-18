@@ -25,7 +25,8 @@
     - [ ] **Infrastructure** <!-- id: 121 -->
         - [ ] Rename `JWCADTategu.Web` -> `JBWOS.Web` <!-- id: 1211 -->
     - [x] **Phase 1: Foundation & UI** <!-- id: 122 -->
-        - [ ] Holiday/Capacity Config (`Settings` module) <!-- id: 1221 -->
+        - [x] Holiday/Capacity Config (`Settings` module) - 基本機能完了 <!-- id: 1221 -->
+        - [ ] 祝日API連携・例外日設定（追加開発中）
         - [x] UI Component: `FutureBoard.tsx` (Flip/Transition) <!-- id: 1222 -->
         - [x] Start Transition from Today Screen <!-- id: 1223 -->
         - [x] Show Capacity Bar & Stock Pile (Real Data) <!-- id: 1224 -->
@@ -63,15 +64,15 @@
     - [ ] UI: Mobile Side Memo (Slide-out button) <!-- id: 1404 -->
 
 - [ ] **Maintenance: Logic Fixes & Tests** <!-- id: 150 -->
-    - [ ] **Today Screen Logic** <!-- id: 151 -->
-        - [ ] Fix: "Commit to Today" -> Close/Save behavior <!-- id: 1511 -->
-        - [ ] Fix: "Complete" button behavior (To GDB/Log/Return?) <!-- id: 1512 -->
-        - [ ] Fix: Today -> GDB -> Back navigation consistency <!-- id: 1513 -->
-        - [ ] **Add Tests**: Verify behavior for Commit/Complete/Navigation <!-- id: 1514 -->
-    - [ ] **Data Persistence** <!-- id: 152 -->
-        - [ ] Fix: Save on Close (Detail Modal) for all fields (Estimation, etc.) <!-- id: 1521 -->
-    - [ ] **Calendar Visualization** <!-- id: 153 -->
-        - [ ] Fix: Multi-day background color rendering <!-- id: 1531 -->
+    - [x] **Today Screen Logic** <!-- id: 151 --> ※ 2026-01-18 検証済み
+        - [x] Fix: "Commit to Today" -> Close/Save behavior <!-- id: 1511 -->
+        - [x] Fix: "Complete" button behavior (To GDB/Log/Return?) <!-- id: 1512 --> - Today画面に留まり次タスク切り替え
+        - [x] Fix: Today -> GDB -> Back navigation consistency <!-- id: 1513 --> - 状態保持を確認
+        - [x] **Add Tests**: Verify behavior for Commit/Complete/Navigation <!-- id: 1514 --> - ブラウザテスト実施
+    - [x] **Data Persistence** <!-- id: 152 -->
+        - [x] Fix: Save on Close (Detail Modal) for all fields (Estimation, etc.) <!-- id: 1521 -->
+    - [x] **Calendar Visualization** <!-- id: 153 -->
+        - [x] Fix: Multi-day background color rendering <!-- id: 1531 -->
 
 - [x] **ドキュメント整理・日本語化** <!-- id: 115 -->
     - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
