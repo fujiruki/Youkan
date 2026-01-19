@@ -1,22 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Door, db } from '../../../../db/db';
 import { Inbox, Hand, Flame, Snowflake, Box, CheckCircle2, Plus, ChevronDown, Package, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { GenericItemModal } from './GenericItemModal';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 interface DecisionBoardProps {
     projectId: number;
     onSwitchToExternal: () => void;
+    onOpenDoor: (door: Door) => void;
 }
 
 type BucketType = 'inbox' | 'waiting' | 'ready' | 'pending';
 type ViewMode = 'card' | 'list';
 
-export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitchToExternal }) => {
+export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitchToExternal, onOpenDoor }) => {
     const [doors, setDoors] = useState<Door[]>([]);
     const [viewMode, setViewMode] = useState<ViewMode>('list'); // Default to list for density
     const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
     const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Door } | null>(null);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<Door | null>(null);
+    const [relatedTaskCount, setRelatedTaskCount] = useState(0);
 
     // --- Data Loading ---
     const refresh = async () => {
@@ -27,6 +34,13 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
     useEffect(() => {
         refresh();
     }, [projectId]);
+
+    // Close context menu on global click
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     const [draggedItem, setDraggedItem] = useState<Door | null>(null);
     const [flashMessage, setFlashMessage] = useState<string | null>(null);
@@ -76,9 +90,55 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
         refresh();
     };
 
+    // --- Context Menu Logic ---
+    const handleContextMenu = (e: React.MouseEvent, item: Door) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            item
+        });
+    };
+
+    const handleDeleteClick = async () => {
+        if (!contextMenu) return;
+        const item = contextMenu.item;
+
+        // Count related tasks
+        // Assuming Task has doorId as added in schema v12
+        const count = await db.tasks.where('doorId').equals(item.id!).count();
+
+        setItemToDelete(item);
+        setRelatedTaskCount(count);
+        setDeleteModalOpen(true);
+        setContextMenu(null);
+    };
+
+    const handleConfirmDelete = async (deleteTasks: boolean) => {
+        if (!itemToDelete) return;
+
+        try {
+            // Delete Door
+            await db.doors.delete(itemToDelete.id!);
+
+            // Cascade Delete Tasks
+            if (deleteTasks) {
+                await db.tasks.where('doorId').equals(itemToDelete.id!).delete();
+            }
+
+            refresh();
+        } catch (error) {
+            console.error('Failed to delete item:', error);
+            alert('削除に失敗しました。');
+        } finally {
+            setDeleteModalOpen(false);
+            setItemToDelete(null);
+        }
+    };
+
     // --- Creation Logic (Duplicated from JoineryScheduleScreen for MVP) ---
     const handleCreateDoor = async () => {
-        await db.doors.add({
+        const id = await db.doors.add({
             projectId: projectId,
             name: '新規建具',
             count: 1,
@@ -91,6 +151,22 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
             updatedAt: new Date(),
             judgmentStatus: 'inbox'
         });
+
+        const newDoor = await db.doors.get(id);
+        if (newDoor) {
+            // Auto open editor
+            onOpenDoor(newDoor);
+
+            // Sync logic would be good here too if easy to import
+            import('../domain/DeliverableIntegrationService').then(({ DeliverableIntegrationService }) => {
+                // We need project object here for sync... but we only have ID.
+                // Fetch project first
+                db.projects.get(projectId).then(p => {
+                    if (p) DeliverableIntegrationService.syncDoorToDeliverable(newDoor, p);
+                });
+            });
+        }
+
         refresh();
         setIsCreateMenuOpen(false);
     };
@@ -137,7 +213,9 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
                     key={item.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, item)}
-                    className="group flex items-center justify-between px-3 py-1 bg-slate-800/50 hover:bg-slate-700 border-b border-slate-700/50 cursor-grab active:cursor-grabbing text-sm"
+                    onClick={() => onOpenDoor(item)}
+                    onContextMenu={(e) => handleContextMenu(e, item)}
+                    className="group flex items-center justify-between px-3 py-1 bg-slate-800/50 hover:bg-slate-700 border-b border-slate-700/50 cursor-pointer active:cursor-grabbing text-sm hover:border-emerald-500/30 transition-colors relative"
                 >
                     <div className="flex items-center gap-2 overflow-hidden">
                         <div className={`w-1.5 h-1.5 rounded-full ${item.category === 'door' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
@@ -159,7 +237,9 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
                 key={item.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
-                className="bg-slate-800 p-2 rounded-md border border-slate-700 shadow-sm hover:border-emerald-500/50 cursor-grab active:cursor-grabbing mb-2 group flex gap-2"
+                onClick={() => onOpenDoor(item)}
+                onContextMenu={(e) => handleContextMenu(e, item)}
+                className="bg-slate-800 p-2 rounded-md border border-slate-700 shadow-sm hover:border-emerald-500/50 cursor-pointer active:cursor-grabbing mb-2 group flex gap-2 transition-all relative"
             >
                 {item.thumbnail ? (
                     <div className="w-10 h-10 bg-slate-900 rounded flex-shrink-0 overflow-hidden border border-slate-700">
@@ -220,7 +300,7 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
     );
 
     return (
-        <div className="h-full flex flex-col bg-slate-950 text-slate-200">
+        <div className="h-full flex flex-col bg-slate-950 text-slate-200" onContextMenu={(e) => e.preventDefault()}>
             {/* Flash Message */}
             {flashMessage && (
                 <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-emerald-500/90 text-white px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2 font-bold backdrop-blur animate-in fade-in slide-in-from-top-4">
@@ -318,6 +398,49 @@ export const DecisionBoard: React.FC<DecisionBoardProps> = ({ projectId, onSwitc
                 onSave={handleSaveGeneric}
                 projectId={projectId}
             />
+
+            <DeleteConfirmModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={handleConfirmDelete}
+                itemName={itemToDelete?.name || ''}
+                relatedTaskCount={relatedTaskCount}
+            />
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div
+                    className="fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-[100] animate-in fade-in zoom-in-95 duration-100"
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                >
+                    <button
+                        onClick={() => {
+                            if (contextMenu.item.category !== 'door') {
+                                // For now, only generic items have edit modal potentially in this view?
+                                // Actually handleSaveGeneric supports creating but edit not wired for existing.
+                                // We can just open Door Editor for everything or alert.
+                                onOpenDoor(contextMenu.item); // Try opening editor
+                                setContextMenu(null);
+                            } else {
+                                onOpenDoor(contextMenu.item);
+                                setContextMenu(null);
+                            }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-slate-700 flex items-center gap-2 text-sm text-slate-200"
+                    >
+                        <Edit size={14} className="text-blue-400" />
+                        編集
+                    </button>
+                    <div className="h-px bg-slate-700 mx-1"></div>
+                    <button
+                        onClick={handleDeleteClick}
+                        className="w-full text-left px-4 py-2 hover:bg-red-500/20 flex items-center gap-2 text-sm text-red-400"
+                    >
+                        <Trash2 size={14} />
+                        削除
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

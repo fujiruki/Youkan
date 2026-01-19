@@ -15,7 +15,7 @@ type JoineryScheduleScreenProps = {
     onBack: () => void;
     onOpenDoor: (door: Door) => void;
     onDeleteProject: (id: number) => void;
-    onArchiveProject: () => void;
+    onArchiveProject: (id: number) => void;
     onUpdateProject: (p: Project) => void
 }
 
@@ -75,6 +75,7 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
                     <DecisionBoard
                         projectId={project.id!}
                         onSwitchToExternal={() => handleSwitchViewMode('external')}
+                        onOpenDoor={onOpenDoor}
                     />
                 </div>
 

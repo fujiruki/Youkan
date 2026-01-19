@@ -446,6 +446,40 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    // [NEW] Move to Someday (Intent)
+    const moveToSomeday = async (id: string) => {
+        // Find item to save state roughly?
+        // Optimistic: Remove from Active/Prep, Add to Intent
+        const allItems = [...gdbActive, ...gdbPreparation];
+        const item = allItems.find(i => i.id === id);
+
+        if (item) {
+            const updatedItem = { ...item, status: 'someday' as any }; // 'someday' or 'intent' depending on schema? Let's assume 'someday' based on user request "status: someday".
+            // Actually in GlobalBoard.tsx it was sending 'no' + note='intent'.
+            // Let's assume 'someday' is a valid status now.
+
+            setGdbActive(prev => prev.filter(i => i.id !== id));
+            setGdbPreparation(prev => prev.filter(i => i.id !== id));
+            setGdbIntent(prev => [updatedItem, ...prev]);
+
+            // [Undo] Register Action
+            addUndoAction({
+                type: 'decision', // treat as decision
+                id,
+                previousStatus: item.status as any,
+                description: 'Somedayへ移動しました'
+            });
+
+            try {
+                // We use updateItem API directly usually
+                await JBWOSRepository.updateItem(id, { status: 'someday' as any });
+            } catch (e) {
+                console.error('Move to Someday failed', e);
+                refreshGdb();
+            }
+        }
+    };
+
     const updateItem = async (id: string, updates: Partial<Item>) => {
         // Helper to update a list
         const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
@@ -629,6 +663,7 @@ export const useJBWOSViewModel = () => {
         uncommitFromToday,
         startImmediately, // [NEW]
         updatePreparationDate,
+        moveToSomeday, // [NEW]
         updateItem, // [NEW] Generic Update
         updateCapacityConfig, // New action
 

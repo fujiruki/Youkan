@@ -58,6 +58,7 @@ export interface Door {
 export interface Task {
     id?: number;
     projectId: number;
+    doorId?: number; // [NEW] Link to Door
     title: string;
     note?: string;
     startDate?: Date;
@@ -102,6 +103,16 @@ export class TateguDatabase extends Dexie {
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(12).stores({
+            projects: '++id, name, isArchived, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate', // [NEW] Added doorId
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt'
+        });
 
         this.version(11).stores({
             projects: '++id, name, isArchived, updatedAt',

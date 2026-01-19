@@ -203,7 +203,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                     >
                         {/* Header Area */}
                         <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
 
                                 {item.projectTitle && (
                                     <div

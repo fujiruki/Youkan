@@ -102,7 +102,11 @@ export const JoineryList: React.FC<JoineryListProps> = ({
                 return (
                     <div
                         key={door.id}
-                        onClick={() => isGeneric ? onGenericEdit(door) : onOpenDoor(door)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (isGeneric) onGenericEdit(door);
+                            else onOpenDoor(door);
+                        }}
                         className="bg-slate-900 rounded-xl border border-slate-800 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group flex flex-col p-4 relative"
                     >
                         <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 p-1 rounded backdrop-blur-sm">

@@ -154,7 +154,7 @@ export const EstimatedTimeInput: React.FC<Props> = ({ value, onChange, className
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="grid grid-cols-4 gap-2"
+                            className="grid grid-cols-2 sm:grid-cols-4 gap-2"
                         >
                             {hourOptions.map(opt => (
                                 <button

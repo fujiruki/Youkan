@@ -301,8 +301,8 @@ const AppContent: React.FC<{
                                     // But historically it meant dashboard. Let's point to ProjectList now.
                                     onBack={handleBackToProjectList}
                                     onOpenDoor={handleOpenDoor}
-                                    onDeleteProject={() => handleDeleteProject(activeProject.id!)} // [FIX] Connect handler
-                                    onArchiveProject={() => handleArchiveProject(activeProject.id!)}
+                                    onDeleteProject={handleDeleteProject}
+                                    onArchiveProject={handleArchiveProject}
                                     onUpdateProject={setActiveProject}
                                 />
                             )}
@@ -338,7 +338,7 @@ const AppContent: React.FC<{
                             {/* 8. Settings Screen */}
                             {currentView === 'settings' && (
                                 <div className="h-full w-full overflow-auto">
-                                    <SettingsScreen />
+                                    <SettingsScreen onBack={handleBackToDashboard} />
                                 </div>
                             )}
 

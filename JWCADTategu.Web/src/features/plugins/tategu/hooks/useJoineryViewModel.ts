@@ -79,9 +79,12 @@ export const useJoineryViewModel = (
             updatedAt: new Date(),
             judgmentStatus: 'inbox'
         });
+
         const newDoor = await db.doors.get(id);
         if (newDoor) {
-            onOpenDoor(newDoor);
+            // Slight delay to ensure UI stability before transition
+            setTimeout(() => onOpenDoor(newDoor), 50);
+
             // [NEW] Sync to Manufacturing Plugin
             import('../domain/DeliverableIntegrationService').then(({ DeliverableIntegrationService }) => {
                 DeliverableIntegrationService.syncDoorToDeliverable(newDoor, project);

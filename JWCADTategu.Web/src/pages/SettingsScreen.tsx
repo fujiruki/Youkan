@@ -1,11 +1,13 @@
-
 import React from 'react';
 import { useJBWOSViewModel } from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
 import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
 import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
-export const SettingsScreen: React.FC = () => {
+interface SettingsScreenProps {
+    onBack: () => void;
+}
+
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     const vm = useJBWOSViewModel();
 
     return (
@@ -14,9 +16,12 @@ export const SettingsScreen: React.FC = () => {
 
                 {/* Header */}
                 <div className="flex items-center gap-4">
-                    <Link to="/" className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                    <button
+                        onClick={onBack}
+                        className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    >
                         <ArrowLeft className="text-slate-600 dark:text-slate-300" />
-                    </Link>
+                    </button>
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                         設定 (Settings)
                     </h1>

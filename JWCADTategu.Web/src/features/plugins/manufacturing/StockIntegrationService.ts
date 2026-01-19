@@ -1,12 +1,6 @@
-/**
- * Manufacturing Plugin - Stock Integration Service (Enterprise v6)
- * 
- * 成果物（Deliverable）からJBWOS Stock（未割当ジョブ）を作成するサービス
- * JBWOS Enterpriseアーキテクチャに基づき、Inboxへの直接投入ではなく
- * Stockプールへの「一時保管」を行う。
- */
-
 import { Deliverable } from './types';
+import { JBWOSRepository } from '../../core/jbwos/repositories/JBWOSRepository';
+import { Item } from '../../core/jbwos/types';
 
 const API_BASE = '/api/stocks';
 
@@ -22,6 +16,7 @@ export interface StockItem {
 
 /**
  * 成果物からStockを作成
+ * [Updated] JBWOS Inboxへ直接タスクとして追加する (Stock API廃止/延期)
  */
 export async function syncStockFromDeliverable(
     deliverable: Deliverable,
@@ -32,64 +27,69 @@ export async function syncStockFromDeliverable(
 
     // 1. 製作 Job
     if (deliverable.estimatedWorkMinutes > 0) {
-        const stockData = {
-            id: crypto.randomUUID(),
-            title: `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 製作`,
-            project_id: deliverable.id, // Link to Deliverable ID
-            estimated_minutes: deliverable.estimatedWorkMinutes,
-            due_date: null, // 将来的にDeliverableの納期を使用
-            status: 'open',
-            created_at: now
-        };
+        const title = `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 製作`;
 
         try {
-            const response = await fetch(API_BASE, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(stockData) // PHP側はスネークケース期待、JSONデコード時に対応するか、キーを合わせる
+            // Create JBWOS Item directly
+            const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+                title: title,
+                status: 'inbox', // Direct to Inbox
+                category: 'work', // work category
+                type: 'generic',
+                weight: 1,
+                interrupt: false,
+                memo: `[Auto Generated]\nEstimated Work: ${deliverable.estimatedWorkMinutes} min\nSource: ${deliverable.name}`,
+                // Link to Deliverable? item.linkedItemId?
+                // For now just title is enough relation
+            };
+
+            const newId = await JBWOSRepository.createItem(newItem);
+            console.log('[StockIntegration] Created Inbox item:', newId, title);
+
+            // Pseudo Stock Item for return
+            createdStocks.push({
+                id: newId,
+                title: title,
+                projectId: deliverable.id,
+                estimatedMinutes: deliverable.estimatedWorkMinutes,
+                status: 'open',
+                createdAt: now
             });
 
-            if (response.ok) {
-                // PHPからのレスポンスにはIDが含まれているはず
-                const resJson = await response.json();
-                if (resJson.status === 'success') {
-                    createdStocks.push({
-                        ...stockData,
-                        id: resJson.id || stockData.id,
-                        projectId: stockData.project_id,
-                        estimatedMinutes: stockData.estimated_minutes,
-                        createdAt: stockData.created_at
-                    } as any);
-                }
-            } else {
-                console.error('Failed to create stock:', await response.text());
-            }
         } catch (e) {
-            console.error('Error creating stock:', e);
+            console.error('Error creating stock item:', e);
         }
     }
 
     // 2. 取付 Job (Optional)
     if (deliverable.requiresSiteInstallation && deliverable.estimatedSiteMinutes > 0) {
-        const stockData = {
-            id: crypto.randomUUID(),
-            title: `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 取付`,
-            project_id: deliverable.id,
-            estimated_minutes: deliverable.estimatedSiteMinutes,
-            due_date: null,
-            status: 'open',
-            created_at: now
-        };
+        const title = `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 取付`;
 
         try {
-            await fetch(API_BASE, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(stockData)
+            const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+                title: title,
+                status: 'inbox',
+                category: 'site',
+                type: 'generic',
+                weight: 1,
+                interrupt: false,
+                memo: `[Auto Generated]\nEstimated Site Work: ${deliverable.estimatedSiteMinutes} min`,
+            };
+
+            const newId = await JBWOSRepository.createItem(newItem);
+            console.log('[StockIntegration] Created Inbox item (Site):', newId, title);
+
+            createdStocks.push({
+                id: newId,
+                title: title,
+                projectId: deliverable.id,
+                estimatedMinutes: deliverable.estimatedSiteMinutes,
+                status: 'open',
+                createdAt: now
             });
-            createdStocks.push(stockData as any);
+
         } catch (e) {
-            console.error('Error creating site stock:', e);
+            console.error('Error creating site stock item:', e);
         }
     }
 

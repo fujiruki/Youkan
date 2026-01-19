@@ -57,6 +57,42 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     // [NEW] Layout Mode for Board: 'standard' (Vertical) or 'panorama' (Grid)
     const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>('standard');
 
+    // [NEW] Column Count for Panorama Mode
+    const [columnCount, setColumnCount] = useState<number>(() => {
+        try {
+            const saved = localStorage.getItem('jbwos_panorama_cols');
+            return saved ? parseInt(saved, 10) : 3; // Default to 3
+        } catch (e) { return 3; }
+    });
+
+    const handleColumnChange = (val: number) => {
+        setColumnCount(val);
+        localStorage.setItem('jbwos_panorama_cols', val.toString());
+    };
+
+    // Helper to generate dynamic column classes
+    // Tailwind needs full class names to be scannable, so we map them explictly.
+    const getColumnClass = (count: number) => {
+        switch (count) {
+            case 1: return "md:columns-1";
+            case 2: return "md:columns-2";
+            case 3: return "md:columns-3";
+            case 4: return "md:columns-4";
+            case 5: return "md:columns-5";
+            default: return "md:columns-3";
+        }
+    };
+
+    // --- Find Container Helper ---
+    const findContainer = (id: string) => {
+        if (['active', 'preparation', 'intent', 'log', 'life', 'history'].includes(id)) return id;
+        if (vm.gdbActive.find(i => i.id === id)) return 'active';
+        if (vm.gdbPreparation.find(i => i.id === id)) return 'preparation';
+        if (vm.gdbIntent.find(i => i.id === id)) return 'intent';
+        if (vm.gdbLog.find(i => i.id === id)) return 'log';
+        return null;
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
@@ -67,34 +103,44 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
         if (!over) return;
 
         const activeItemId = active.id as string;
-        const overContainerId = over.id as string;
+        const overId = over.id as string;
 
         // Calendar Drop Logic
-        if (typeof overContainerId === 'string' && overContainerId.startsWith('cal-day-')) {
-            const timestampMs = parseInt(overContainerId.replace('cal-day-', ''), 10);
+        if (typeof overId === 'string' && overId.startsWith('cal-day-')) {
+            const timestampMs = parseInt(overId.replace('cal-day-', ''), 10);
             if (!isNaN(timestampMs)) {
-                // Convert MS to Seconds for Backend
                 const prepDateSec = Math.floor(timestampMs / 1000);
                 await vm.updatePreparationDate(activeItemId, prepDateSec);
                 return;
             }
         }
 
+        // Resolve Container
+        const overContainerId = findContainer(overId);
+        const activeContainerId = findContainer(activeItemId);
+
+        // If dropped in same container, do nothing (sorting not implemented in VM yet)
+        if (overContainerId === activeContainerId) return;
+
         // Board Drop Logic
         if (overContainerId === 'preparation') {
             await vm.resolveDecision(activeItemId, 'hold', 'Dragged to Preparation');
         } else if (overContainerId === 'intent') {
-            await vm.resolveDecision(activeItemId, 'no', 'intent');
+            await vm.moveToSomeday(activeItemId);
         } else if (overContainerId === 'life') {
             await vm.resolveDecision(activeItemId, 'no', 'life');
         } else if (overContainerId === 'history') {
             await vm.resolveDecision(activeItemId, 'no', 'history');
         } else if (overContainerId === 'active') {
-            // Maybe return to inbox/active?
-            // Since active logic is "Inbox or RDD arrived", explicit move might mean setting RDD to now?
-            // For now, let's assume we can't easily drag BACK without explicit action.
+            // Return to Inbox?
+            // Only if coming from non-active
+            if (activeContainerId !== 'active') {
+                // Reuse returnToInbox or similar?
+                // For now, vm.updateItem(id, {status: 'inbox'})
+                await vm.updateItem(activeItemId, { status: 'inbox' });
+                vm.refresh();
+            }
         }
-        // Note: Moving back to Active from Preparation implies "re-evaluating". 
     };
 
     // --- Find Active Item Helper ---
@@ -290,21 +336,40 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
 
                         {/* [NEW] Layout Switcher (Visible only in Board mode) */}
                         {viewMode === 'board' && (
-                            <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
-                                <button
-                                    onClick={() => setLayoutMode('standard')}
-                                    className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
-                                    title="Standard (Vertical)"
-                                >
-                                    Focus
-                                </button>
-                                <button
-                                    onClick={() => setLayoutMode('panorama')}
-                                    className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
-                                    title="Panorama (Grid All)"
-                                >
-                                    Panorama
-                                </button>
+                            <div className="flex items-center gap-2">
+                                <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
+                                    <button
+                                        onClick={() => setLayoutMode('standard')}
+                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                        title="Standard (Vertical)"
+                                    >
+                                        Focus
+                                    </button>
+                                    <button
+                                        onClick={() => setLayoutMode('panorama')}
+                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                        title="Panorama (Grid All)"
+                                    >
+                                        Panorama
+                                    </button>
+                                </div>
+
+                                {/* [NEW] Density Slider (Only in Panorama) */}
+                                {layoutMode === 'panorama' && (
+                                    <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">
+                                        <span className="text-[10px] font-bold text-slate-400">密度</span>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="5"
+                                            value={columnCount}
+                                            onChange={(e) => handleColumnChange(Number(e.target.value))}
+                                            className="w-20 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                            title="列数を変更 (1-5)"
+                                        />
+                                        <span className="text-xs font-mono text-slate-500 w-3">{columnCount}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -335,8 +400,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                 <div className="flex-1 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
                     {viewMode === 'board' ? (
                         <div className={layoutMode === 'panorama'
-                            ? "block columns-1 md:columns-2 xl:columns-3 2xl:columns-4 gap-4 p-4 h-full overflow-y-auto" // Panorama: Multi-column Fluid
-                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto" // Standard: Vertical
+                            ? `block columns-1 ${getColumnClass(columnCount)} gap-4 p-4 h-full overflow-y-auto scrollbar-thin` // Dynamic Columns with custom scrollbar
+                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin" // Standard: Vertical
                         }>
 
                             {/* 1. Active Shelf (Today's Judgment) */}

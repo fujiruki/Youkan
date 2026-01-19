@@ -342,9 +342,15 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                 </p>
                                 <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('[ProjectSettingsModal] Archive requested for:', project.id);
                                         if (confirm('プロジェクトをアーカイブしますか？\nアーカイブされたプロジェクトは一覧から非表示になりますが、検索でアクセス可能です。')) {
-                                            if (project.id) onArchiveProject(project.id);
+                                            if (project.id) {
+                                                console.log('[ProjectSettingsModal] Executing archive...');
+                                                onArchiveProject(project.id);
+                                            }
                                         }
                                     }}
                                     className="px-4 py-2 border border-amber-500/50 text-amber-400 rounded hover:bg-amber-500/10 transition-colors"
@@ -361,9 +367,15 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                 </p>
                                 <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('[ProjectSettingsModal] Delete requested for:', project.id);
                                         if (confirm('【警告】本当にプロジェクトを削除しますか？\nこの操作は取り消せません。')) {
-                                            if (project.id) onDeleteProject(project.id);
+                                            if (project.id) {
+                                                console.log('[ProjectSettingsModal] Executing delete...');
+                                                onDeleteProject(project.id);
+                                            }
                                         }
                                     }}
                                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-lg shadow-red-900/20"
