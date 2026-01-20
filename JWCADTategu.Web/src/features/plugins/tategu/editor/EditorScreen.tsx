@@ -14,6 +14,7 @@ import { CatalogService } from '../domain/CatalogService';
 import { PhotoPanel } from './PhotoPanel';
 import { CatalogPicker } from './CatalogPicker';
 import { SchedulePanel } from './SchedulePanel'; // [NEW]
+import { syncDeliverableChanges } from '../../manufacturing/StockIntegrationService'; // [NEW] Sync Service
 import clsx from 'clsx';
 import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal, Download, Calendar } from 'lucide-react'; // [NEW] Calendar
 
@@ -92,6 +93,27 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                     specs: { ...door.specs, texture: textureSpecs },
                     updatedAt: new Date()
                 });
+
+                // [NEW] Sync changes to related JBWOS Tasks (Auto-save)
+                try {
+                    await syncDeliverableChanges(
+                        {
+                            id: String(door.id),
+                            projectId: String(door.projectId || ''),
+                            name: door.name,
+                            type: 'product',
+                            estimatedWorkMinutes: door.estimatedWorkMinutes || 0,
+                            estimatedSiteMinutes: door.estimatedSiteMinutes || 0,
+                            status: 'pending',
+                            requiresSiteInstallation: !!door.estimatedSiteMinutes,
+                            createdAt: door.createdAt.getTime(),
+                            updatedAt: Date.now()
+                        },
+                        project.name
+                    );
+                } catch (e) {
+                    console.error('[EditorScreen] Failed to auto-sync deliverable changes:', e);
+                }
             }
         }, 1000); // 1s Debounce
 
@@ -132,6 +154,28 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
         if (door.id) {
             await db.doors.update(door.id, finalDoor);
+
+            // [NEW] Sync changes to related JBWOS Tasks (Manufacturing Plugin)
+            // Convert Door to Deliverable-like object for sync
+            try {
+                await syncDeliverableChanges(
+                    {
+                        id: String(door.id),
+                        projectId: String(door.projectId || ''),
+                        name: door.name,
+                        type: 'product',
+                        estimatedWorkMinutes: door.estimatedWorkMinutes || 0,
+                        estimatedSiteMinutes: door.estimatedSiteMinutes || 0,
+                        status: 'pending',
+                        requiresSiteInstallation: !!door.estimatedSiteMinutes,
+                        createdAt: door.createdAt.getTime(),
+                        updatedAt: Date.now()
+                    },
+                    project.name // Pass project title for task naming
+                );
+            } catch (e) {
+                console.error('[EditorScreen] Failed to sync deliverable changes:', e);
+            }
         }
 
         onBack();

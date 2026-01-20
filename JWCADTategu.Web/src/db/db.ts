@@ -45,6 +45,10 @@ export interface Door {
     // Manufacturing Plugin Integration [NEW]
     deliverableId?: string; // Links to Deliverable in Manufacturing Plugin
 
+    // [NEW] Estimated Time for Manufacturing/Site Work
+    estimatedWorkMinutes?: number;  // 製作見積時間（分）
+    estimatedSiteMinutes?: number;  // 現場見積時間（分）
+
     // Constitution Scheduler Fields
     judgmentStatus?: 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
     waitingReason?: string;

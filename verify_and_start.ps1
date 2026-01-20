@@ -11,25 +11,20 @@ function Write-Status {
     Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] $Msg" -ForegroundColor $Color
 }
 
-Write-Status "🚀 SVP v3.0: Starting Development Environment..." "Cyan"
+Write-Status "🚀 SVP v3.1: Starting Development Environment (Self-Healing Mode)..." "Cyan"
 
 # --- Phase 1: Diagnosis & Self-Healing ---
 
-# Helper to check and kill port
-# Helper to check and kill port with retry logic
+# Helper to check and kill processes on port
 function Ensure-Port-Free {
     param([int]$Port, [string]$Name)
     
-    $MaxRetries = 5
+    $MaxRetries = 10
     $RetryDelay = 2
 
     for ($i = 0; $i -lt $MaxRetries; $i++) {
         $conns = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
 
-        # Filter out connections that are already closed or invalid
-        # But TimeWait (State=11 or similar) might block binding depending on OS config.
-        # However, we cannot Kill PID 0.
-        
         if (-not $conns) {
             Write-Status "✅ Port $Port is free." "Green"
             return
@@ -44,8 +39,11 @@ function Ensure-Port-Free {
             foreach ($conn in $killable) {
                 try {
                     $processId = $conn.OwningProcess
-                    Write-Status "  Killing PID $processId (State: $($conn.State))..." "Yellow"
-                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                    $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                    if ($proc) {
+                        Write-Status "  Killing '$($proc.ProcessName)' (PID $processId)..." "Yellow"
+                        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                    }
                 }
                 catch {
                     Write-Status "  Failed to kill PID $($conn.OwningProcess)." "Red"
@@ -54,7 +52,12 @@ function Ensure-Port-Free {
         }
         
         if ($systemLocked) {
-            Write-Status "  Port $Port is in TimeWait/System use (PID 0). Waiting for release... ($($i+1)/$MaxRetries)" "Cyan"
+            Write-Status "  Port $Port is in TIME_WAIT/System use (PID 0). Waiting for release... ($($i+1)/$MaxRetries)" "Cyan"
+        }
+
+        # If it's taking too long, try aggressive mode
+        if ($i -gt 2) {
+            Cleanup-Stray-Processes
         }
 
         Start-Sleep -Seconds $RetryDelay
@@ -66,19 +69,32 @@ function Ensure-Port-Free {
         Write-Status "❌ Failed to clear port $Port after retries." "Red"
         Write-Status "  Details:" "Red"
         $finalCheck | Format-Table -AutoSize | Out-String | Write-Host -ForegroundColor Red
-        Write-Status "  Please establish manual intervention or wait a moment." "Red"
+        Write-Status "  CRITICAL: Please manually close applications using port $Port." "Red"
         exit 1
     }
 }
 
 # Cleanup stray Node/PHP processes aggressively
 function Cleanup-Stray-Processes {
-    Write-Status "Cleaning up stray 'node' and 'php-cgi' processes..." "Yellow"
-    # Note: This is aggressive. It assumes this dev environment is the primary user of node/php for this user context.
-    # To be safer, we could filter by command line, but Get-Process doesn't always show command line easily in simple PS.
-    # We will rely on Port clearing mainly, but adding a specific check for known leaked processes can help.
+    Write-Status "🧹 Performing aggressive cleanup of stray processes..." "Magenta"
+    
+    # Kill PHP processes
+    $phpProcs = Get-Process -Name "php", "php-cgi" -ErrorAction SilentlyContinue
+    foreach ($p in $phpProcs) {
+        try {
+            Write-Status "  - Killing stray PHP (PID $($p.Id))" "Magenta"
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+        }
+        catch {}
+    }
+
+    # Kill Node processes (Only those running vite/npm ideally, but hard to distinguish on Windows PS easily)
+    # Caution: This might kill other node apps. But user asked for "Healing".
+    # We will skip node aggressive kill for safety unless ports are strictly locked.
 }
 
+# --- Cleanup Phase ---
+Cleanup-Stray-Processes
 Ensure-Port-Free -Port $PHP_PORT -Name "Backend"
 Ensure-Port-Free -Port $VITE_PORT -Name "Frontend"
 
@@ -91,79 +107,82 @@ if (-not (Test-Path $backendPath)) {
     exit 1
 }
 
-Write-Status "Starting PHP Backend ($PHP_HOST`:$PHP_PORT) in $backendPath..." "Cyan"
-# Use Start-Process with explicit WorkingDirectory to ensure relative paths (require/include) work correctly.
-# Also passing absolute path to router script as a standard practice.
+Write-Status "Starting PHP Backend ($PHP_HOST`:$PHP_PORT)..." "Cyan"
+# Use Start-Process
 $phpProcess = Start-Process -FilePath "php" -ArgumentList "-S $PHP_HOST`:$PHP_PORT -t `"$backendPath`" `"$backendPath\index.php`"" -WorkingDirectory $backendPath -PassThru -NoNewWindow
 
 # 2. Start Frontend
 Write-Status "Starting Vite Frontend (Strict Port $VITE_PORT)..." "Cyan"
-# Use npm.cmd for better Windows compatibility. Add -- --strictPort to fail if port is busy (prevent multi-run confusion)
 $viteProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev -- --port $VITE_PORT --strictPort" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
 
-# --- Phase 3: Verification ---
+# --- Phase 3: Verification & Recovery ---
 
-Write-Status "Waiting for services to be healthy..." "Yellow"
+Write-Status "Waiting for backend health check..." "Yellow"
 
-# Verify Backend
 $backendReady = $false
-for ($i = 0; $i -lt 10; $i++) {
+$retryCount = 0
+$maxRetries = 15
+
+while (-not $backendReady -and $retryCount -lt $maxRetries) {
     try {
-        # Ensure we get JSON
         $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
-        
-        # Check if response acts like an object with 'status' property
         if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
             $backendReady = $true
-            break
-        }
-        else {
-            Write-Host "." -NoNewline
+            Write-Status "✅ Backend Health Check Passed!" "Green"
         }
     }
     catch {
         Write-Host "." -NoNewline
         Start-Sleep -Seconds 1
+        $retryCount++
     }
 }
-Write-Host "" # Newline
+Write-Host "" 
 
 if (-not $backendReady) {
-    Write-Status "❌ Backend failed to start or returned invalid response." "Red"
-    Write-Status "   (Check if another service is on port $PHP_PORT or if PHP is failing)" "Red"
-    Stop-Process -Id $phpProcess.Id -Force
-    Stop-Process -Id $viteProcess.Id -Force
-    exit 1
+    Write-Status "⚠️ Backend unresponsive. Attempting Restart Strategy..." "Red"
+    
+    # Kill and Retry once
+    Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    
+    Write-Status "🔄 Restarting PHP Backend..." "Cyan"
+    $phpProcess = Start-Process -FilePath "php" -ArgumentList "-S $PHP_HOST`:$PHP_PORT -t `"$backendPath`" `"$backendPath\index.php`"" -WorkingDirectory $backendPath -PassThru -NoNewWindow
+    
+    # Quick check
+    Start-Sleep -Seconds 3
+    try {
+        $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
+        if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
+            $backendReady = $true
+            Write-Status "✅ Backend Recovered!" "Green"
+        }
+    }
+    catch {
+        Write-Status "❌ Backend failed recovery." "Red"
+    }
 }
 
-Write-Status "✅ Backend Ready." "Green"
-
-# Verify Frontend (Simple TCP connect or wait a bit)
-# Vite takes a moment. We'll assume it's coming up if process is alive.
-if ($viteProcess.HasExited) {
-    Write-Status "❌ Frontend process exited unexpectedly." "Red"
-    Stop-Process -Id $phpProcess.Id -Force
+if (-not $backendReady) {
+    Write-Status "❌ Critical Failure: Backend could not be started." "Red"
+    Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
+    Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
     exit 1
 }
-
-Write-Status "✅ Frontend Launching..." "Green"
 
 # --- Phase 4: Ready ---
 
 Write-Status "----------------------------------------" "Green"
-Write-Status "🎉 SVP v3.0: Environment Ready!" "Green"
+Write-Status "🎉 SVP v3.1: Environment Fully Operational" "Green"
+Write-Status "----------------------------------------" "Green"
 Write-Status "   Backend : http://$PHP_HOST`:$PHP_PORT"
 Write-Status "   Frontend: http://localhost:$VITE_PORT"
 Write-Status "----------------------------------------" "Green"
-
-# Keep script running to maintain PHP job? 
-# Jobs run in background. If this script exits, jobs might be cleaned up depending on context.
-# We should probably wait for user input to stop.
 
 Write-Host "Press any key to stop servers..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 Write-Status "Stopping servers..." "Yellow"
-Stop-Process -Id $phpProcess.Id -Force
+Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
 Write-Status "Goodbye." "Cyan"

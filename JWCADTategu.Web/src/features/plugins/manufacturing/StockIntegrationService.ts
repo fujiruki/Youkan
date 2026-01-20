@@ -37,8 +37,8 @@ export async function syncStockFromDeliverable(
                 weight: 1,
                 interrupt: false,
                 memo: `[Auto Generated]\nEstimated Work: ${deliverable.estimatedWorkMinutes} min\nSource: ${deliverable.name}`,
-                // Link to Deliverable? item.linkedItemId?
-                // For now just title is enough relation
+                // Link to Deliverable
+                doorId: String(deliverable.id)
             };
 
             const newId = await JBWOSRepository.createItem(newItem);
@@ -72,6 +72,7 @@ export async function syncStockFromDeliverable(
                 weight: 1,
                 interrupt: false,
                 memo: `[Auto Generated]\nEstimated Site Work: ${deliverable.estimatedSiteMinutes} min`,
+                doorId: String(deliverable.id)
             };
 
             const newId = await JBWOSRepository.createItem(newItem);
@@ -92,4 +93,85 @@ export async function syncStockFromDeliverable(
     }
 
     return createdStocks;
+}
+
+/**
+ * [NEW] Sync updates from Door (Deliverable) to JBWOS Tasks
+ */
+export async function syncDeliverableChanges(
+    deliverable: Deliverable,
+    projectTitle?: string
+): Promise<void> {
+    try {
+        // 1. Find existing tasks linked to this door
+        // We assume we stored doorId as string in the Item
+        console.log(`[StockIntegration] Syncing Door ID: ${deliverable.id}, Name: ${deliverable.name}, Proj: ${projectTitle}`);
+        const relatedItems = await JBWOSRepository.getItemsBySourceId(String(deliverable.id));
+        console.log(`[StockIntegration] Found ${relatedItems.length} related items.`);
+
+        if (relatedItems.length === 0) {
+            console.log('[StockIntegration] No related items found. Auto-creating tasks (Branch B).');
+            // Auto-create tasks because they are missing (First Save or deleted)
+            await syncStockFromDeliverable(deliverable, projectTitle);
+            return;
+        }
+
+        // 2. Update each related item (Branch A)
+        for (const item of relatedItems) {
+            const updates: Partial<Item> = {};
+            let hasChanges = false;
+
+            console.log(`[StockIntegration] Check Item ${item.id} (${item.title}), Category: ${item.category}`);
+
+            // Name Sync Logic
+            // We usually append "製作" or "取付". We should preserve the suffix if possible.
+            // Heuristic: Replace the *start* of the title if it matches the old name?
+            // Safer: Re-generate title based on logic?
+            // "Project: DoorName 製作"
+
+            // Simple Logic: If item is 'work' category, assume it's "Manufacturing"
+            // If we want exact title sync, we need to know the pattern.
+            // For now, let's just update the "Base Name" part or Append?
+            // Actually, simplest is to Re-generate the title exactly as we create it.
+            if (item.category === 'work') {
+                const newTitle = `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 製作`;
+                console.log(`[StockIntegration] Title Check: Cur='${item.title}' New='${newTitle}'`);
+                if (item.title !== newTitle) {
+                    updates.title = newTitle;
+                    hasChanges = true;
+                }
+
+                // Estimate Sync
+                if (deliverable.estimatedWorkMinutes > 0 && item.estimatedMinutes !== deliverable.estimatedWorkMinutes) {
+                    updates.estimatedMinutes = deliverable.estimatedWorkMinutes;
+                    hasChanges = true;
+                }
+            } else if (item.category === 'site') {
+                const newTitle = `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 取付`;
+                if (item.title !== newTitle) {
+                    updates.title = newTitle;
+                    hasChanges = true;
+                }
+                if (deliverable.estimatedSiteMinutes > 0 && item.estimatedMinutes !== deliverable.estimatedSiteMinutes) {
+                    updates.estimatedMinutes = deliverable.estimatedSiteMinutes;
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges) {
+                console.log(`[Sync] Updating Item ${item.id}`, updates);
+                try {
+                    await JBWOSRepository.updateItemGeneric(item.id, updates);
+                    console.log(`[Sync] Update Success`);
+                } catch (err) {
+                    console.error(`[Sync] Update Failed`, err);
+                }
+            } else {
+                console.log(`[Sync] No changes detected for Item ${item.id}`);
+            }
+        }
+
+    } catch (e) {
+        console.error('[StockIntegration] Failed to sync deliverable changes:', e);
+    }
 }

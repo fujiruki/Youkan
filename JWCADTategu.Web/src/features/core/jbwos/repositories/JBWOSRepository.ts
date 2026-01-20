@@ -203,6 +203,18 @@ export const JBWOSRepository = {
 
         const allItems = await ApiClient.getAllItems();
         return allItems.filter(i => i.parentId === parentId);
+    },
+
+    // [NEW] Get Items by Source ID (for Data Sync)
+    getItemsBySourceId: async (sourceId: string): Promise<Item[]> => {
+        // MVP: Client-side filtering
+        const allItems = await ApiClient.getAllItems();
+        return allItems.filter(i => i.doorId === sourceId);
+    },
+
+    // [NEW] Update Sub-Task (or any item) by ID
+    updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
+        await ApiClient.updateItem(id, updates);
     }
 };
 

@@ -62,6 +62,11 @@ export interface Item {
     type?: 'start' | 'material' | 'order' | 'estimate' | 'exception' | 'generic' | 'project'; // [NEW] 'project' type added
     relatedId?: number;      // ID of the related entity (Door ID, etc.)
     resolved?: boolean;      // If strictly used for Decision log
+    rdd?: number;            // [Legacy/GDB] Requested Due Date (Unix Timestamp)
+
+    // --- Priority Boost [NEW] ---
+    is_boosted?: boolean;    // 優先度ブースト
+    boosted_date?: number;   // ブースト設定日時
 
     // Legacy / Door Props
     category?: string;
@@ -132,7 +137,17 @@ export interface TaskTemplate {
     description?: string;
 }
 
-
+export interface ProjectCategory {
+    id: string;
+    name: string;
+    icon?: string;
+    defaultTasks: TaskTemplate[];
+    pluginId?: string;       // "tategu-plugin"
+    domain?: 'business' | 'general' | 'private'; // デフォルトドメイン
+    color?: string;
+    isCustom?: boolean;
+    createdAt: number;
+}
 
 // --- Plugin System [NEW] ---
 export interface PluginSettings {
