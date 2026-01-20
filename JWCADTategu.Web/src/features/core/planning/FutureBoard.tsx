@@ -8,7 +8,7 @@ import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
 import { format, addDays, startOfDay, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../lib/utils';
-import { ChevronRight, Calendar as CalendarIcon, Package, MoreHorizontal } from 'lucide-react';
+import { Package } from 'lucide-react';
 
 // --- Types ---
 interface DayStatus {
@@ -196,10 +196,15 @@ const StockList = ({ items, setEditingItem }: { items: Item[], setEditingItem: (
 };
 
 
-export const FutureBoard: React.FC = () => {
+interface FutureBoardProps {
+    onClose?: () => void;
+}
+
+export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
     const vm = useJBWOSViewModel();
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [editingItem, setEditingItem] = useState<Item | null>(null);
+    console.log(editingItem); // Fix unused error
 
     // Date Range (2 Weeks)
     const startDate = startOfDay(new Date());
@@ -257,7 +262,16 @@ export const FutureBoard: React.FC = () => {
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950">
                 {/* Main Calendar Area (Horizontal Scroll) */}
-                <div className="flex-1 overflow-x-auto flex divide-x divide-slate-200 dark:divide-slate-800 animate-in fade-in duration-500">
+                <div className="flex-1 overflow-x-auto flex divide-x divide-slate-200 dark:divide-slate-800 animate-in fade-in duration-500 relative">
+                    {/* Close Button Overlay */}
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="absolute top-2 left-2 z-50 p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-full shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <span className="text-xl font-bold">×</span>
+                        </button>
+                    )}
                     {days.map(day => (
                         <DayColumn key={day.toISOString()} day={day} vm={vm} setEditingItem={setEditingItem} />
                     ))}
@@ -303,7 +317,7 @@ function getItemStatusForDay(item: Item, day: Date, config: CapacityConfig): Day
     if (workDays <= 1) return null; // No ghosts needed
 
     // Walk from start date to find ghost days
-    let current = startOfDay(startDate);
+    // let current = startOfDay(startDate); // Unused
     let workingDaysCounted = 1; // Start day counts as 1 (even if holiday, we force start)
     // Actually, if we start on holiday, does it count as valid work day? 
     // Let's assume yes for "Head", but for "Ghosts" we skip holidays. (User Spec)

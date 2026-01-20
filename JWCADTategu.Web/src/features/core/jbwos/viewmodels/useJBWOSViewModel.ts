@@ -755,6 +755,7 @@ export const useJBWOSViewModel = () => {
         startImmediately, // [NEW]
         updatePreparationDate,
         moveToSomeday, // [NEW]
+        toggleHoliday, // [NEW] Exported
         updateItem, // [NEW] Generic Update
         updateCapacityConfig, // New action
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { format, parse, isValid, addDays, nextDay } from 'date-fns';
+import { format, parse, isValid, addDays } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
 
