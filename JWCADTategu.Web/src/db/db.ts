@@ -96,6 +96,12 @@ export interface DoorPhoto {
     createdAt: Date;
 }
 
+export interface Settings {
+    id: string; // key, e.g., 'capacity_config'
+    value: any;
+    updatedAt: number;
+}
+
 export class TateguDatabase extends Dexie {
     projects!: Table<Project>;
     doors!: Table<Door>;
@@ -103,17 +109,29 @@ export class TateguDatabase extends Dexie {
     doorPhotos!: Table<DoorPhoto>;
     tasks!: Table<Task>;
     fieldNotes!: Table<FieldNote>;
-    items!: Table<Item>; // [NEW] JBWOS Items
+    items!: Table<Item>;
+    settings!: Table<Settings>; // [NEW]
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(13).stores({
+            projects: '++id, name, isArchived, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id' // [NEW] Key-value store for settings
+        });
 
         this.version(12).stores({
             projects: '++id, name, isArchived, updatedAt',
             doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
             doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, doorId, status, startDate, dueDate', // [NEW] Added doorId
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
             fieldNotes: '++id, projectId, createdAt',
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt'
         });

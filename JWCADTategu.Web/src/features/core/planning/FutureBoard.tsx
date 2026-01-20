@@ -1,23 +1,50 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useJBWOSViewModel } from '../jbwos/viewmodels/useJBWOSViewModel';
-import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
-import { format, addDays, isSameDay } from 'date-fns';
-import { ja } from 'date-fns/locale';
-import { ArrowLeft, Coffee, Grid, GripVertical, ArrowRight, Folder } from 'lucide-react';
-import { DndContext, DragEndEvent, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, DragStartEvent, useDroppable, rectIntersection, MeasuringStrategy } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import React, { useState, useMemo } from 'react';
+import { DndContext, useDroppable, DragOverlay, useSensors, useSensor, PointerSensor } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Item } from '../jbwos/types';
+import { useJBWOSViewModel } from '../jbwos/viewmodels/useJBWOSViewModel';
+import { Item, CapacityConfig } from '../jbwos/types';
+import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
+import { format, addDays, startOfDay, isSameDay } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { cn } from '../../../lib/utils';
-import { DecisionDetailModal } from '../jbwos/components/Modal/DecisionDetailModal';
-import { ManufacturingBus } from '../jbwos/logic/ManufacturingBus';
-import { ExternalSource, ExternalItem } from '../jbwos/types';
+import { ChevronRight, Calendar as CalendarIcon, Package, MoreHorizontal } from 'lucide-react';
 
-interface FutureBoardProps {
-    onClose: () => void;
+// --- Types ---
+interface DayStatus {
+    type: 'head' | 'ghost';
+    daysLeft: number; // 0=Due Today
+    item: Item;
 }
 
+// --- Components ---
+const DraggableItem = ({ item, isGhost, isOverlay, ...props }: any) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: item.id,
+        data: { item }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...props}>
+            <ItemCard
+                item={item}
+                type="plan"
+                isGhost={isGhost}
+                isDragging={isDragging}
+                listeners={listeners}
+                attributes={attributes}
+            />
+        </div>
+    );
+};
+
+// Item Card Component
 const ItemCard = ({ item, type, isGhost, isDragging, style, listeners, attributes, daysLeft, onClick }: {
     item: Item;
     type: 'stock' | 'plan';
@@ -29,167 +56,50 @@ const ItemCard = ({ item, type, isGhost, isDragging, style, listeners, attribute
     daysLeft?: number;
     onClick?: (item: Item) => void;
 }) => {
-    const isDraft = !item.due_date || (!item.work_days && !item.estimatedMinutes);
-
     return (
         <div
+            className={cn(
+                "group relative bg-white dark:bg-slate-800 rounded-lg p-2.5 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-all cursor-grab active:cursor-grabbing",
+                isGhost && "opacity-50 grayscale border-dashed",
+                isDragging && "shadow-xl ring-2 ring-primary rotate-2 z-50 opacity-90",
+                type === 'stock' && "hover:border-l-4 hover:border-l-indigo-500"
+            )}
             style={style}
-            {...attributes}
             {...listeners}
-            onClick={() => !isDragging && !isGhost && onClick && onClick(item)}
-            className={cn(
-                "p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700 transition-colors group flex flex-col gap-1 relative overflow-hidden",
-                // Hover effect only if not dragging
-                !isDragging && "hover:border-amber-400",
-                type === 'plan' && !isGhost ? 'border-l-4 border-l-amber-400' : '',
-                isGhost ? 'bg-slate-50 dark:bg-slate-800/50 border-dashed' : 'cursor-move',
-                type === 'stock' && isDraft ? 'border-dashed border-slate-300' : ''
-            )}
-        >
-            <div className="flex items-center gap-2">
-                {!isGhost && <GripVertical size={14} className="text-slate-300 flex-shrink-0" />}
-                <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate leading-tight flex items-center gap-1">
-                        {item.isProject && <Folder size={12} className="text-blue-500 fill-blue-100 dark:fill-blue-900/30" />}
-                        {item.title}
-                        {isGhost && <span className="text-[10px] text-slate-400 ml-1">(続く)</span>}
-                    </div>
-                </div>
-                {type === 'stock' && isDraft && <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="詳細未定" />}
-            </div>
-
-            <div className="flex justify-between items-center text-[10px] text-slate-400 pl-5">
-                <span className={cn(item.due_date ? "text-slate-500" : "text-slate-300")}>
-                    {item.due_date ? `〆${format(new Date(item.due_date), 'M/d', { locale: ja })}` : '未定'}
-                </span>
-                <span className="flex items-center gap-1">
-                    {item.estimatedMinutes ? `${item.estimatedMinutes}m` : item.work_days ? `${item.work_days}d` : '-'}
-                    {item.work_days && item.work_days > 1 && (
-                        <span className="flex items-center gap-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1 rounded-sm">
-                            {isGhost ? `残り${daysLeft}日` : `${item.work_days}日`}
-                            <ArrowRight size={8} />
-                        </span>
-                    )}
-                </span>
-            </div>
-        </div>
-    );
-}
-
-// [NEW] External Item Card
-const ExternalItemCard = ({ item, isDragging, listeners, attributes }: { item: ExternalItem, isDragging?: boolean, listeners?: any, attributes?: any }) => {
-    return (
-        <div
             {...attributes}
-            {...listeners}
-            className={cn(
-                "p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-md shadow-sm border border-indigo-200 dark:border-indigo-800 transition-colors group flex flex-col gap-1 relative overflow-hidden",
-                !isDragging && "hover:border-indigo-400 cursor-grab",
-                isDragging && "opacity-50"
-            )}
+            onClick={() => onClick?.(item)}
         >
-            <div className="flex items-center gap-2">
-                <GripVertical size={14} className="text-indigo-300 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate leading-tight">
-                        {item.title}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">{item.description}</div>
-                </div>
+            <div className="flex justify-between items-start gap-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 line-clamp-2">
+                    {item.title}
+                </span>
+                {daysLeft !== undefined && (
+                    <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap",
+                        daysLeft < 0 ? "bg-red-100 text-red-600" :
+                            daysLeft === 0 ? "bg-amber-100 text-amber-600" :
+                                "bg-slate-100 text-slate-500"
+                    )}>
+                        {daysLeft < 0 ? `${Math.abs(daysLeft)}日遅れ` :
+                            daysLeft === 0 ? "今日" :
+                                `あと${daysLeft}日`}
+                    </span>
+                )}
             </div>
+
+            {(item.estimatedMinutes || item.work_days) && (
+                <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                        <Package size={10} />
+                        {item.estimatedMinutes ? `${item.estimatedMinutes}min` : `${item.work_days}日`}
+                    </span>
+                </div>
+            )}
         </div>
     );
 };
 
-// [NEW] Sortable Wrapper for External Item
-const SortableExternalItem = ({ item }: { item: ExternalItem }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: `external-${item.sourceId}-${item.id}`,
-        data: { type: 'external', item }
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : 1,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style}>
-            <ExternalItemCard item={item} isDragging={isDragging} listeners={listeners} attributes={attributes} />
-        </div>
-    );
-};
-
-const SortableItem = ({ item, type, isGhost, daysLeft, containerId, onClick }: { item: Item; type: 'stock' | 'plan'; isGhost?: boolean; daysLeft?: number; containerId?: string; onClick?: (item: Item) => void }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-        id: isGhost ? `${item.id}-ghost-${daysLeft}` : item.id,
-        data: { type, item, isGhost, containerId }
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : isGhost ? 0.6 : 1,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style}>
-            <ItemCard
-                item={item}
-                type={type}
-                isGhost={isGhost}
-                daysLeft={daysLeft}
-                listeners={listeners}
-                attributes={attributes}
-                onClick={onClick}
-                isDragging={isDragging}
-            />
-        </div>
-    );
-};
-
-// Helper: Logic to determine if item occupies a day (Working Days only)
-const getItemStatusForDay = (item: Item, day: Date, capacityConfig: any): { type: 'head' | 'ghost', daysLeft: number } | null => {
-    if (!item.prep_date) return null;
-
-    const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0);
-    const itemDate = new Date(item.prep_date * 1000);
-    itemDate.setHours(0, 0, 0, 0);
-
-    // If current day is before start date, irrelevant
-    if (dayStart < itemDate) return null;
-
-    const isStartDay = isSameDay(itemDate, dayStart);
-    const duration = item.work_days || 1;
-
-    if (isStartDay) {
-        return { type: 'head', daysLeft: duration - 1 };
-    }
-
-    // For ghost days, if the current day is a holiday, it's a gap.
-    if (isHoliday(dayStart, capacityConfig)) {
-        return null;
-    }
-
-    // Calculate how many *working days* have passed from itemDate (inclusive) to dayStart (exclusive).
-    let workingDaysPassed = 0;
-    let iter = new Date(itemDate);
-
-    while (iter < dayStart) {
-        if (!isHoliday(iter, capacityConfig)) {
-            workingDaysPassed++;
-        }
-        iter = addDays(iter, 1);
-    }
-
-    if (workingDaysPassed < duration) {
-        return { type: 'ghost', daysLeft: duration - 1 - workingDaysPassed };
-    }
-
-    return null;
-};
-
+// Day Column
 const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditingItem: (item: Item | null) => void }) => {
     const dayTs = Math.floor(day.getTime() / 1000);
     const isHolidayDay = isHoliday(day, vm.capacityConfig);
@@ -199,6 +109,10 @@ const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditing
     // Find Items for this day
     const dayItems: { item: Item, status: 'head' | 'ghost', daysLeft: number }[] = [];
 
+    // Simple Logic: Iterate active/prep items and check if their "schedule" lands here
+    // For MVP Board, we rely on 'prep_date' mainly.
+    // And 'work_days' to project ghosts.
+
     vm.gdbPreparation.forEach((item: Item) => {
         const status = getItemStatusForDay(item, day, vm.capacityConfig);
         if (status) {
@@ -206,61 +120,53 @@ const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditing
         }
     });
 
-    const plannedMins = dayItems.reduce((acc, { item }) => acc + (item.estimatedMinutes || 0), 0);
-    const loadPercent = Math.min(100, (plannedMins / (capacity || 1)) * 100);
-
-    const { setNodeRef: setDayRef, isOver } = useDroppable({
+    const { setNodeRef, isOver } = useDroppable({
         id: `day-${dayTs}`,
-        data: { type: 'day-container', date: day }
+        data: { date: dayTs }
     });
 
     return (
         <div
-            ref={setDayRef}
+            ref={setNodeRef}
             className={cn(
-                "w-64 flex flex-col rounded-xl overflow-hidden shadow-sm border-t-4 transition-colors",
-                isHolidayDay ? "bg-slate-100 dark:bg-slate-800/50 border-red-300" : "bg-white dark:bg-slate-800 border-transparent",
-                isHolidayDay ? "opacity-90" : "",
-                isOver ? "bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-400 border-indigo-400" : ""
+                "flex-none w-64 flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/30 border-r border-slate-200 dark:border-slate-800",
+                isHolidayDay && "bg-red-50/30 dark:bg-red-900/10",
+                isOver && "bg-indigo-50 dark:bg-indigo-900/20"
             )}
         >
-            <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
-                <div className="flex justify-between items-center mb-1">
-                    <span className={cn("font-bold text-sm", isHolidayDay ? "text-red-500" : "text-slate-700 dark:text-slate-200")}>
-                        {dayLabel}
-                    </span>
-                    {isHolidayDay && <Coffee size={14} className="text-red-400" />}
+            {/* Header */}
+            <div
+                className={cn(
+                    "p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors",
+                    isHolidayDay ? "text-red-500" : "text-slate-700 dark:text-slate-300"
+                )}
+                onClick={() => vm.toggleHoliday(day)}
+                title="クリックで休日切り替え"
+            >
+                <div>
+                    <span className="font-bold text-lg">{dayLabel}</span>
+                    <div className="text-[10px] opacity-70 mt-0.5">
+                        {isHolidayDay ? "休日 (Holiday)" : `稼働: ${Math.floor(capacity / 60)}h ${capacity % 60}m`}
+                    </div>
                 </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                        className={cn("h-full rounded-full", loadPercent > 100 ? "bg-red-500" : "bg-green-400")}
-                        style={{ width: `${loadPercent}%` }}
-                    />
-                </div>
-                <div className="text-[10px] text-right text-slate-400 mt-1">
-                    use: {plannedMins}m / cap: {capacity}m
-                </div>
+                {isHolidayDay && <div className="text-[10px] border border-red-200 rounded px-1">OFF</div>}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50/50 dark:bg-slate-900/30">
-                <SortableContext items={dayItems.filter(i => i.status === 'head').map(i => i.item.id)} strategy={verticalListSortingStrategy}>
-                    {dayItems.map(({ item, status, daysLeft }) => (
-                        <SortableItem
-                            key={`${item.id}-${dayTs}`}
+            {/* List */}
+            <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[100px]">
+                {dayItems.map(({ item, status, daysLeft }) => (
+                    <div key={`${item.id}-${dayTs}`} onClick={() => setEditingItem(item)}>
+                        <ItemCard
                             item={item}
                             type="plan"
                             isGhost={status === 'ghost'}
                             daysLeft={daysLeft}
-                            containerId={`day-${dayTs}`}
-                            onClick={setEditingItem}
                         />
-                    ))}
-                </SortableContext>
+                    </div>
+                ))}
                 {dayItems.length === 0 && !isHolidayDay && (
-                    <div className="text-center py-10 opacity-20 hover:opacity-100 transition-opacity">
-                        <div className="text-xs text-slate-400 border-2 border-dashed border-slate-300 rounded-lg p-2 mx-4">
-                            ドロップして配置
-                        </div>
+                    <div className="h-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center text-slate-300 text-xs">
+                        Drop Here
                     </div>
                 )}
             </div>
@@ -268,281 +174,173 @@ const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditing
     );
 };
 
-export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
-    const vm = useJBWOSViewModel();
-    const [startDate] = useState<Date>(addDays(new Date(), 1)); // Start from Tomorrow
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const [editingItem, setEditingItem] = useState<Item | null>(null);
-
-    // [NEW] External Sources State
-    const [externalSources, setExternalSources] = useState<ExternalSource[]>([]);
-
-    // Load External Sources
-    React.useEffect(() => {
-        const load = async () => {
-            console.log('[FutureBoard] Loading external sources...');
-            const sources = await ManufacturingBus.getSources();
-            console.log('[FutureBoard] Loaded sources:', sources);
-            setExternalSources(sources);
-        };
-        load();
-    }, []);
-
-    // Dnd Sensors
-    const sensors = useSensors(
-        useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
-    );
-
-    // Days Generation (7 Days)
-    const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
-
-    // Stock List Logic
-    const { setNodeRef: setStockListRef } = useDroppable({ id: 'stock-list', data: { type: 'stock-container' } });
-
-    // Filter Stock Items (Inbox + Unscheduled Preparation)
-    const rawStockItems = [
-        ...vm.gdbActive.filter(i => i.status === 'inbox'),
-        ...vm.gdbPreparation.filter(i => !i.prep_date && i.status !== 'decision_hold')
-    ].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-
-    // Split into 2 Stages
-    const unorganizedItems = rawStockItems.filter(i => !i.due_date && (!i.estimatedMinutes && !i.work_days));
-    const standbyItems = rawStockItems.filter(i => i.due_date || (i.estimatedMinutes || i.work_days));
-
-    // [NEW] External Items Flattened for DragOverlay
-    const allExternalItems = externalSources.flatMap(s => s.items);
-
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-    };
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        setActiveId(null);
-
-        if (!over) {
-            return;
-        }
-
-        const activeItemObj = active.data.current?.item as Item;
-        const isExternal = active.data.current?.type === 'external';
-
-        if (!activeItemObj && !isExternal) {
-            return;
-        }
-
-        // Drop on Stock
-        if (over.id === 'stock-list' || over.data.current?.type === 'stock-container') {
-            if (isExternal) {
-                // External items cannot be dropped on stock list yet
-                return;
-            }
-            vm.updatePreparationDate(activeItemObj.id, null);
-            return;
-        }
-
-        // Identify Target Container ID
-        let targetId = over.id as string;
-
-        // If dropped on an item, look up its containerId
-        if (over.data.current?.containerId) {
-            targetId = over.data.current.containerId;
-        }
-
-        // Drop on Day Column (id is timestamp string or date string)
-        // We used `day-${ts}` as ID
-        if (typeof targetId === 'string' && targetId.startsWith('day-')) {
-            const ts = parseInt(targetId.replace('day-', ''), 10);
-            if (!isNaN(ts)) {
-                // Check if it's an External Item
-                if (isExternal) {
-                    const extItem = active.data.current?.item as ExternalItem;
-                    // Import!
-                    vm.importFromPlugin(extItem.sourceId, extItem.id, ts);
-
-                } else {
-                    // Normal Item Move
-                    if (activeItemObj) {
-                        console.log('[FutureBoard] Moving internal item:', activeItemObj.title, 'to date:', new Date(ts));
-                        vm.updatePreparationDate(activeItemObj.id, ts);
-                    }
-                }
-            } else {
-                console.error('[FutureBoard] Invalid timestamp parsed:', targetId);
-            }
-        }
-    };
-
-    const activeItem = activeId ? [...rawStockItems, ...vm.gdbPreparation, ...vm.gdbActive].find(i => i.id === activeId) : null;
-    const activeExternalItem = activeId && activeId.startsWith('external-')
-        ? allExternalItems.find(i => `external-${i.sourceId}-${i.id}` === activeId)
-        : null;
+// Stock List (Unscheduled)
+const StockList = ({ items, setEditingItem }: { items: Item[], setEditingItem: (item: Item | null) => void }) => {
+    const { setNodeRef } = useDroppable({ id: 'stock' });
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-100 dark:bg-slate-900 z-50 flex flex-col overflow-hidden"
-        >
-            <DndContext
-                sensors={sensors}
-                collisionDetection={rectIntersection}
-                measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-            >
-                {/* Header */}
-                <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm z-10 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full">
-                            <ArrowLeft className="text-slate-500" />
-                        </button>
-                        <div>
-                            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                <Grid className="text-indigo-500" size={20} />
-                                フューチャーボード (週間)
-                            </h1>
-                            <p className="text-xs text-slate-500">週間の流れをデザインする</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 flex overflow-hidden">
-                    {/* Left: Stock (2-Stage: Unorganized & Standby) */}
-                    <div className="w-64 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-                        <div ref={setStockListRef} id="stock-list" className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-                            {/* Section 1: Unorganized (Draft) */}
-                            <div className="mb-6">
-                                <div className="px-2 pb-2 flex items-center justify-between border-b border-red-100 dark:border-red-900/30 mb-2">
-                                    <span className="text-xs font-bold text-red-500 flex items-center gap-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 blinking-dot"></div>
-                                        未整理 (Inbox)
-                                    </span>
-                                    <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 px-1.5 py-0.5 rounded-md">{unorganizedItems.length}</span>
-                                </div>
-                                <SortableContext items={unorganizedItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-2 min-h-[50px]">
-                                        {unorganizedItems.map(item => (
-                                            <SortableItem key={item.id} item={item} type="stock" onClick={setEditingItem} />
-                                        ))}
-                                        {unorganizedItems.length === 0 && (
-                                            <div className="text-[10px] text-center text-slate-400 py-4 border border-dashed border-slate-200 dark:border-slate-800 rounded">
-                                                未整理なし
-                                            </div>
-                                        )}
-                                    </div>
-                                </SortableContext>
-                            </div>
-
-                            {/* Section 2: Standby (Ready) */}
-                            <div>
-                                <div className="px-2 pb-2 flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/30 mb-2">
-                                    <span className="text-xs font-bold text-indigo-500 flex items-center gap-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                                        スタンバイ (Stock)
-                                    </span>
-                                    <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-1.5 py-0.5 rounded-md">{standbyItems.length}</span>
-                                </div>
-                                <SortableContext items={standbyItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-2 min-h-[50px]">
-                                        {standbyItems.map(item => (
-                                            <SortableItem key={item.id} item={item} type="stock" onClick={setEditingItem} />
-                                        ))}
-                                        {standbyItems.length === 0 && (
-                                            <div className="text-[10px] text-center text-slate-400 py-8 opacity-50">
-                                                スタンバイなし<br />カレンダーへ配置可能
-                                            </div>
-                                        )}
-                                    </div>
-                                </SortableContext>
-                            </div>
-
-                            {rawStockItems.length === 0 && <div className="text-xs text-center text-slate-400 mt-10">Inboxは空です<br />すべて片付きました🎉</div>}
-
-                            {/* [NEW] Section 3: External Sources */}
-                            {externalSources.map(source => (
-                                <div key={source.id} className="mt-8">
-                                    <div className="px-2 pb-2 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 mb-2">
-                                        <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                                            <span>{source.icon || '📦'}</span>
-                                            {source.name}
-                                        </span>
-                                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">{source.items.length}</span>
-                                    </div>
-                                    <SortableContext items={source.items.map(i => `external-${source.id}-${i.id}`)} strategy={verticalListSortingStrategy}>
-                                        <div className="space-y-2 min-h-[50px]">
-                                            {source.items.map(item => (
-                                                <SortableExternalItem key={item.id} item={item} />
-                                            ))}
-                                            {source.items.length === 0 && (
-                                                <div className="text-[10px] text-center text-slate-400 py-4 opacity-50">
-                                                    アイテムなし
-                                                </div>
-                                            )}
-                                        </div>
-                                    </SortableContext>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Right: Week Columns */}
-                    <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-200 dark:bg-slate-900">
-                        <div className="flex h-full p-4 gap-4 min-w-max">
-                            {days.map((day) => (
-                                <DayColumn key={day.getTime()} day={day} vm={vm} setEditingItem={setEditingItem} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <DragOverlay>
-                    {activeItem ? (
-                        <div className="opacity-90 cursor-grabbing pointer-events-none w-64">
-                            <ItemCard
-                                item={activeItem}
-                                type="plan" // Use plan type for cleaner look or match activeItem.type logic?
-                                // Actually, activeItem data should have type. 
-                                // But here we just want it to look like a card.
-                                // 'plan' type usually means with left border. 
-                                // 'stock' means simple.
-                                // Let's guess type based on where it came from?
-                                // active.data.current.type might be available but we don't have it easily here.
-                                // Let's just use 'plan' style for dragging as it's the "card" look.
-                                isGhost={false}
-                                isDragging={true}
-                            />
-                        </div>
-                    ) : null}
-                    {activeExternalItem ? (
-                        <div className="opacity-90 cursor-grabbing pointer-events-none w-64">
-                            <ExternalItemCard item={activeExternalItem} isDragging={true} />
-                        </div>
-                    ) : null}
-                </DragOverlay>
-            </DndContext>
-
-            {/* Grooming Modal */}
-            <DecisionDetailModal
-                item={editingItem}
-                onClose={() => setEditingItem(null)}
-                onDecision={(id, decision, note) => {
-                    vm.resolveDecision(id, decision, note);
-                    setEditingItem(null);
-                }}
-                onDelete={(id) => {
-                    vm.deleteItem(id);
-                    setEditingItem(null);
-                }}
-                onUpdate={async (id, updates) => {
-                    await vm.updateItem(id, updates);
-                }}
-                onCreateSubTask={vm.createSubTask}
-                onGetSubTasks={vm.getSubTasks}
-                yesButtonLabel="今日やる"
-            />
-        </motion.div>
+        <div className="w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shadow-xl z-20">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                <Package size={18} />
+                <span>未定・Inbox ({items.length})</span>
+            </div>
+            <div ref={setNodeRef} className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50 dark:bg-slate-950/50">
+                <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                    {items.map(item => (
+                        <DraggableItem key={item.id} item={item} onClick={setEditingItem} />
+                    ))}
+                </SortableContext>
+            </div>
+        </div>
     );
 };
+
+
+export const FutureBoard: React.FC = () => {
+    const vm = useJBWOSViewModel();
+    const [draggingId, setDraggingId] = useState<string | null>(null);
+    const [editingItem, setEditingItem] = useState<Item | null>(null);
+
+    // Date Range (2 Weeks)
+    const startDate = startOfDay(new Date());
+    const days = useMemo(() => Array.from({ length: 14 }).map((_, i) => addDays(startDate, i)), [startDate]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    );
+
+    // Separate Items
+    // For Board, we mainly care about "Preparation" items that have 'prep_date'.
+    // If 'prep_date' is null, they go to Stock.
+    // If 'prep_date' is set, they go to Calendar.
+    // Also include 'active' items in Stock? Yes.
+
+    // items with prep_date
+    // const scheduledItems = vm.gdbPreparation.filter(i => i.prep_date); 
+    // Wait, prep_date is number (timestamp in seconds).
+
+    // stock items: active + preparation (no date) + intent?
+    const stockItems = [
+        ...vm.gdbActive,
+        ...vm.gdbPreparation.filter(i => !i.prep_date),
+        // ...vm.gdbIntent // Intent is too far? Maybe keep in backlog.
+    ];
+
+    const handleDragStart = (event: any) => {
+        setDraggingId(event.active.id);
+    };
+
+    const handleDragEnd = (event: any) => {
+        const { active, over } = event;
+        setDraggingId(null);
+        if (!over) return;
+
+        const itemId = active.id;
+        const overId = over.id; // 'stock' or 'day-TIMESTAMP'
+
+        if (overId === 'stock') {
+            vm.updatePreparationDate(itemId, null);
+        } else if (typeof overId === 'string' && overId.startsWith('day-')) {
+            const ts = parseInt(overId.replace('day-', ''), 10);
+            if (!isNaN(ts)) {
+                vm.updatePreparationDate(itemId, ts);
+            }
+        }
+    };
+
+    const activeItem = useMemo(() =>
+        stockItems.find(i => i.id === draggingId) ||
+        vm.gdbPreparation.find(i => i.id === draggingId),
+        [draggingId, stockItems, vm.gdbPreparation]);
+
+    return (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950">
+                {/* Main Calendar Area (Horizontal Scroll) */}
+                <div className="flex-1 overflow-x-auto flex divide-x divide-slate-200 dark:divide-slate-800 animate-in fade-in duration-500">
+                    {days.map(day => (
+                        <DayColumn key={day.toISOString()} day={day} vm={vm} setEditingItem={setEditingItem} />
+                    ))}
+                </div>
+
+                {/* Right Side Stock */}
+                <StockList items={stockItems} setEditingItem={setEditingItem} />
+            </div>
+
+            <DragOverlay>
+                {activeItem ? (
+                    <ItemCard item={activeItem} type="plan" isDragging style={{ cursor: 'grabbing' }} />
+                ) : null}
+            </DragOverlay>
+        </DndContext>
+    );
+};
+
+// --- Logic Helpers ---
+
+// Calculate Item Status for a specific day (Head, Ghost, or None)
+// This logic needs to be sophisticated to handle holidays.
+function getItemStatusForDay(item: Item, day: Date, config: CapacityConfig): DayStatus | null {
+    if (!item.prep_date) return null;
+
+    // Start Date (Preparation Date)
+    const startDate = new Date(item.prep_date * 1000);
+
+    // If this day is BEFORE start date, null.
+    if (day < startOfDay(startDate)) return null;
+
+    // Check if it is the Start Day
+    // [FIX] Even if the start day is a holiday, we display the Head there (it's the target).
+    if (isSameDay(day, startDate)) {
+        // Warning if holiday? Maybe UI can show constraint violation later.
+        return { type: 'head', daysLeft: 0, item };
+    }
+
+    // Ghosts Calculation (Working Days)
+    // If item needs 3 days. Day 1 (Start) is Head. Day 2, 3 are Ghosts.
+    // Only count working days.
+    const workDays = item.work_days || 1;
+    if (workDays <= 1) return null; // No ghosts needed
+
+    // Walk from start date to find ghost days
+    let current = startOfDay(startDate);
+    let workingDaysCounted = 1; // Start day counts as 1 (even if holiday, we force start)
+    // Actually, if we start on holiday, does it count as valid work day? 
+    // Let's assume yes for "Head", but for "Ghosts" we skip holidays. (User Spec)
+
+    // Optimization: We only need to check if 'day' is one of the ghost days.
+    // Iterating 14 days is cheap.
+
+    // Loop until we reach 'day' or 'workDays' count.
+    // We are looking for: Is 'day' the 2nd, 3rd... working day?
+
+    // However, since we are inside `map(days)`, we are called for EACH day.
+    // Better to pre-calc range?
+    // For now, simple loop is fine.
+
+    // Start walker from startDate + 1 day
+    let walker = addDays(startDate, 1);
+
+    while (workingDaysCounted < workDays) {
+        // Is walker a holiday?
+        const walkerIsHoliday = isHoliday(walker, config);
+
+        if (!walkerIsHoliday) {
+            workingDaysCounted++;
+            if (isSameDay(walker, day)) {
+                return { type: 'ghost', daysLeft: workDays - workingDaysCounted, item };
+            }
+        } else {
+            // It's holiday, skip (ghost stretches)
+            // But do we show ghost on holiday? 
+            // "Holiday -> Ghost jumps over". So NO ghost on holiday.
+        }
+
+        // Safety break
+        if (walker > addDays(startDate, 30)) break;
+
+        walker = addDays(walker, 1);
+    }
+
+    return null;
+}

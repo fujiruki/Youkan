@@ -215,6 +215,22 @@ export const JBWOSRepository = {
     // [NEW] Update Sub-Task (or any item) by ID
     updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
         await ApiClient.updateItem(id, updates);
+    },
+
+    // 8. Settings (Capacity Config) [NEW]
+    getCapacityConfig: async (): Promise<any | null> => {
+        // Use 'any' to avoid strict type dependency if not imported, 
+        // but ideally we import CapacityConfig. For now, rely on caller casting.
+        const record = await db.settings.get('capacity_config');
+        return record ? record.value : null;
+    },
+
+    saveCapacityConfig: async (config: any): Promise<void> => {
+        await db.settings.put({
+            id: 'capacity_config',
+            value: config,
+            updatedAt: Date.now()
+        });
     }
 };
 

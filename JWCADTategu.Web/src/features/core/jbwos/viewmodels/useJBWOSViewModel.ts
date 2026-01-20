@@ -3,12 +3,13 @@ import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { Item, SideMemo, CapacityConfig } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
+import { getDailyCapacity, isHoliday } from '../logic/capacity';
 
 
 export const useJBWOSViewModel = () => {
     // Phase 2: Dumb UI ViewModel (Server is the Brain)
 
-    // Phase 2: Dumb UI ViewModel (Server is the Brain)\n
+    // Phase 2: Dumb UI ViewModel (Server is the Brain)
 
     // --- State (Aligned with v3.1 Zones) ---
     // GDB Shelf
@@ -33,12 +34,20 @@ export const useJBWOSViewModel = () => {
     const refreshGdb = useCallback(async () => {
         try {
             const shelf = await JBWOSRepository.getGdbShelf();
-            setGdbActive(shelf.active || []);
-            setGdbPreparation(shelf.preparation || []); // Migrated from hold
-            setGdbIntent(shelf.intent || []); // [NEW]
-            setGdbLog(shelf.log || []);
+            console.log('[ViewModel] Fetched GDB Shelf:', shelf); // [DEBUG]
+            if (!shelf) throw new Error('Shelf is null');
+
+            setGdbActive((Array.isArray(shelf.active) ? shelf.active : []).filter(Boolean));
+            setGdbPreparation((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean)); // Migrated from hold
+            setGdbIntent((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean)); // [NEW]
+            setGdbLog((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
         } catch (e) {
             console.error('Failed to fetch GDB:', e);
+            // Fallback to clear
+            setGdbActive([]);
+            setGdbPreparation([]);
+            setGdbIntent([]);
+            setGdbLog([]);
         }
     }, []);
 
@@ -62,11 +71,80 @@ export const useJBWOSViewModel = () => {
         }
     }, []);
 
+    // --- Capacity & Holiday ---
+    const [capacityConfig, setCapacityConfig] = useState<CapacityConfig>({
+        defaultDailyMinutes: 480,
+        holidays: [{ type: 'weekly', value: '0' }], // Default Sunday
+        exceptions: {}
+    });
+    // const capacityConfig = { defaultDailyMinutes: 480, holidays: [], exceptions: {} }; // Mock for safe render
+
+    const refreshCapacityConfig = useCallback(async () => {
+        try {
+            const config = await JBWOSRepository.getCapacityConfig();
+            if (config) {
+                setCapacityConfig(config);
+            }
+        } catch (e) {
+            console.error('Failed to load Capacity Config:', e);
+        }
+    }, []);
+
+    const updateCapacityConfig = async (newConfig: CapacityConfig) => {
+        // Optimistic
+        setCapacityConfig(newConfig);
+        try {
+            await JBWOSRepository.saveCapacityConfig(newConfig);
+        } catch (e) {
+            console.error('Failed to save Capacity Config:', e);
+        }
+    };
+
+    // [NEW] Toggle Holiday Logic (Expert Meeting Spec)
+    // [NEW] Toggle Holiday Logic (Expert Meeting Spec)
+    const toggleHoliday = async (date: Date) => {
+        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentCapacity = getDailyCapacity(date, capacityConfig);
+        const isCurrentlyHoliday = currentCapacity === 0;
+
+        let newExceptions = { ...capacityConfig.exceptions };
+
+        if (isCurrentlyHoliday) {
+            // Holiday -> Work Day (Override)
+            // If it was an explicit exception (0), remove it to restore default.
+            // If it is a weekly holiday, we must Add exception (>0).
+            const isWeekly = isHoliday(date, { ...capacityConfig, exceptions: {} }); // Check base rule
+
+            if (newExceptions[dateStr] === 0) {
+                // It was manually set to holiday. Just remove exception to restore base rule.
+                delete newExceptions[dateStr];
+                // But if base rule makes it holiday (e.g. Sunday), removing exception 0 leaves it as holiday.
+                // We want to force it WORK.
+                if (isWeekly) {
+                    newExceptions[dateStr] = capacityConfig.defaultDailyMinutes; // Force Work
+                }
+            } else if (isWeekly) {
+                // It is holiday by weekly rule. Add exception to Work.
+                newExceptions[dateStr] = capacityConfig.defaultDailyMinutes;
+            }
+            // If neither (it was 0 by some other magic?), set to default.
+        } else {
+            // Work Day -> Holiday
+            // Simply add exception = 0
+            newExceptions[dateStr] = 0;
+        }
+
+        const newConfig = { ...capacityConfig, exceptions: newExceptions };
+        await updateCapacityConfig(newConfig);
+    };
+
     const refreshAll = useCallback(() => {
         refreshGdb();
         refreshToday();
         refreshMemos();
-    }, [refreshGdb, refreshToday, refreshMemos]);
+        refreshMemos();
+        refreshCapacityConfig();
+    }, [refreshGdb, refreshToday, refreshMemos, refreshCapacityConfig]);
 
     // Initial Load & Global Refresh Listener
     useEffect(() => {
@@ -504,18 +582,11 @@ export const useJBWOSViewModel = () => {
         }
     };
 
-    // --- Capacity & Holiday ---
-    const [capacityConfig, setCapacityConfig] = useState<CapacityConfig>({
-        defaultDailyMinutes: 480,
-        holidays: [{ type: 'weekly', value: '0' }], // Default Sunday
-        exceptions: {}
-    });
 
-    const updateCapacityConfig = async (newConfig: CapacityConfig) => {
-        setCapacityConfig(newConfig);
-        // Persist to Settings API (Future)
-        // For now, local state only or mock persistence
-    };
+
+
+
+    // ... (rest of the file) ...
 
     // [NEW] Sub-Task Actions
     const createSubTask = async (parentId: string, title: string, initialDueDate?: string, domain: 'business' | 'general' | 'private' = 'general'): Promise<string | undefined> => { // [FIX] Added initialDueDate & domain
