@@ -28,9 +28,10 @@ import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog'; // [NEW]
 
 interface GlobalBoardProps {
     onClose?: () => void;
+    initialLayoutMode?: 'standard' | 'panorama'; // [NEW]
 }
 
-export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
+export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode }) => {
     const vm = useJBWOSViewModel();
     const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -55,7 +56,21 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
     // --- View Mode ---
     const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
     // [NEW] Layout Mode for Board: 'standard' (Vertical) or 'panorama' (Grid)
-    const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>('standard');
+    const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>(initialLayoutMode || 'standard');
+
+    // [NEW] URL Synchronization
+    const switchLayoutMode = (mode: 'standard' | 'panorama') => {
+        setLayoutMode(mode);
+        // Update URL strictly - Assuming base is important? 
+        // Or just replace path suffix?
+        // Let's just push strictly as requested: /JBWOS/Panorama or /JBWOS/Focus
+        // Caution: This might affect if we are at root /. 
+        // User requested: /JBWOS/Panorama
+        // We should check if we are in dev/prod.
+        // Simple pushState for now.
+        const path = mode === 'panorama' ? '/JBWOS/Panorama' : '/JBWOS/Focus';
+        window.history.pushState({ layoutMode: mode }, '', path);
+    };
 
     // [NEW] Column Count for Panorama Mode
     const [columnCount, setColumnCount] = useState<number>(() => {
@@ -339,14 +354,14 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                             <div className="flex items-center gap-2">
                                 <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
                                     <button
-                                        onClick={() => setLayoutMode('standard')}
+                                        onClick={() => switchLayoutMode('standard')}
                                         className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
                                         title="Standard (Vertical)"
                                     >
                                         Focus
                                     </button>
                                     <button
-                                        onClick={() => setLayoutMode('panorama')}
+                                        onClick={() => switchLayoutMode('panorama')}
                                         className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
                                         title="Panorama (Grid All)"
                                     >
@@ -420,6 +435,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                         onClickItem={(item) => setDetailItem(item)}
                                         onContextMenu={handleContextMenu}
                                         isCompact={layoutMode === 'panorama'}
+                                        onCreateSubTask={vm.createSubTask} // [NEW]
                                         footer={
                                             <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                                                 <input
@@ -453,6 +469,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                         onClickItem={(item) => setDetailItem(item)}
                                         onContextMenu={handleContextMenu}
                                         isCompact={layoutMode === 'panorama'}
+                                        onCreateSubTask={vm.createSubTask} // [NEW]
                                     />
                                 </div>
                             </section>
@@ -474,6 +491,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose }) => {
                                         // Context menu allows promote/delete? Yes.
                                         onContextMenu={handleContextMenu}
                                         isCompact={layoutMode === 'panorama'}
+                                        onCreateSubTask={vm.createSubTask} // [NEW]
                                     />
                                 </div>
                             </section>

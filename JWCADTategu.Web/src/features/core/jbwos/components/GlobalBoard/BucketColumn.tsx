@@ -16,6 +16,7 @@ interface BucketColumnProps {
     onRenameItem?: (id: string, newTitle: string) => void;
     onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
     onClickItem?: (item: Item) => void; // [NEW]
+    onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
     inputRef?: React.RefObject<HTMLInputElement>;
     isCompact?: boolean; // [NEW] Super Compact Mode
 }
@@ -31,6 +32,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     onRenameItem,
     onContextMenu,
     onClickItem, // [NEW]
+    onCreateSubTask, // [NEW]
     isCompact = false, // [NEW]
 }) => {
     const MAX_VISIBLE = 5;
@@ -43,6 +45,44 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
 
     const visibleItems = (expanded || isCompact) ? items : items.slice(0, MAX_VISIBLE);
     const hiddenCount = items.length - MAX_VISIBLE;
+
+    // [NEW] Hierarchical Sorting Helper
+    const sortItemsHierarchically = (allItems: Item[]) => {
+        const itemMap = new Map<string, Item>();
+        const childrenMap = new Map<string, Item[]>();
+        const roots: Item[] = [];
+
+        // 1. Build Maps
+        allItems.forEach(item => {
+            itemMap.set(item.id, item);
+            if (item.parentId && allItems.find(p => p.id === item.parentId)) {
+                if (!childrenMap.has(item.parentId)) childrenMap.set(item.parentId, []);
+                childrenMap.get(item.parentId)!.push(item);
+            } else {
+                roots.push(item);
+            }
+        });
+
+        // 2. Flatten safely (Recursive)
+        const result: { item: Item; depth: number }[] = [];
+        const processItem = (item: Item, depth: number) => {
+            result.push({ item, depth });
+            const children = childrenMap.get(item.id) || [];
+            children.forEach(child => processItem(child, depth + 1));
+        };
+
+        roots.forEach(root => processItem(root, 0));
+        return result;
+    };
+
+    // Use hierarchical sort mainly for Panorama/Compact mode, 
+    // or always if we want hierarchy in standard view too.
+    // User requested specifically for Panorama ("Panorama Hierarchy").
+    // Let's apply it generally for now as it's cleaner, or strictly if isCompact.
+    // Given "Focus" view might rely on strict date ordering, maybe only for isCompact?
+    // Let's try applying to visibleItems.
+
+    const sortedHierarchy = React.useMemo(() => sortItemsHierarchically(visibleItems), [visibleItems]);
 
     return (
         <div className={cn(
@@ -96,10 +136,10 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                     <>
                         <SortableContext
                             id={id}
-                            items={visibleItems.map(i => i.id)}
+                            items={sortedHierarchy.map(x => x.item.id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {visibleItems.map(item => (
+                            {sortedHierarchy.map(({ item, depth }) => (
                                 <ItemCard
                                     key={item.id}
                                     item={item}
@@ -107,6 +147,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                     onContextMenu={onContextMenu}
                                     onClick={() => onClickItem?.(item)}
                                     isCompact={isCompact}
+                                    depth={depth} // [NEW] Pass depth
+                                    onCreateSubTask={onCreateSubTask} // [NEW] Connect function
                                 />
                             ))}
                         </SortableContext>

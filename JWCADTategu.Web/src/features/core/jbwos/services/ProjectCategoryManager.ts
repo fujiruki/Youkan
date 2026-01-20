@@ -28,6 +28,7 @@ export class ProjectCategoryManager {
                 name: '一般プロジェクト',
                 icon: '📋',
                 defaultTasks: [],
+                domain: 'general',
                 isCustom: false,
                 createdAt: Date.now()
             }
@@ -66,6 +67,7 @@ export class ProjectCategoryManager {
         const categoriesWithPlugin = categories.map(c => ({
             ...c,
             pluginId,
+            domain: c.domain || 'business', // Plugin defaults to business unless specified
             isCustom: false
         }));
 

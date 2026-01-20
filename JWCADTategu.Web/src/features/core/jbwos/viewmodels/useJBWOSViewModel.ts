@@ -518,7 +518,7 @@ export const useJBWOSViewModel = () => {
     };
 
     // [NEW] Sub-Task Actions
-    const createSubTask = async (parentId: string, title: string, initialDueDate?: string): Promise<string | undefined> => { // [FIX] Added initialDueDate
+    const createSubTask = async (parentId: string, title: string, initialDueDate?: string, domain: 'business' | 'general' | 'private' = 'general'): Promise<string | undefined> => { // [FIX] Added initialDueDate & domain
         if (!title.trim()) return;
 
         // Uses the same create logic but with parentId
@@ -531,7 +531,8 @@ export const useJBWOSViewModel = () => {
             weight: 1,
             interrupt: false,
             category: 'subtask',
-            type: 'generic'
+            type: 'generic',
+            domain // [NEW] Link domain
         };
 
         try {
@@ -592,12 +593,31 @@ export const useJBWOSViewModel = () => {
 
     // [NEW] Project Creation
     const createProject = async (project: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'>, defaultTasks: any[]) => {
-        // Create project
-        const projectId = await JBWOSRepository.createItem(project);
+        // Resolve Domain based on Category if not provided
+        let domain = project.domain;
+        if (!domain && project.projectCategory) {
+            // In a real app, we'd fetch the category. For now, we assume caller or default.
+            // But actually, we can check basic logic:
+            // If category is 'general', domain='general'.
+            // If caller passed domain, use it.
+            if (!domain) domain = 'general'; // Fallback
+        }
+
+        // Create project item
+        const projectItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+            ...project,
+            type: 'project',     // Explicitly set type as project
+            isProject: true,     // Flag
+            domain: domain || 'general',
+            status: 'inbox'      // Default to inbox
+        };
+
+        const projectId = await JBWOSRepository.createItem(projectItem);
 
         // Create default tasks as subtasks
         for (const task of defaultTasks) {
-            await createSubTask(projectId, task.title);
+            // Inherit domain from project
+            await createSubTask(projectId, task.title, undefined, domain);
         }
 
         refreshAll();

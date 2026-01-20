@@ -2,8 +2,6 @@ import { Deliverable } from './types';
 import { JBWOSRepository } from '../../core/jbwos/repositories/JBWOSRepository';
 import { Item } from '../../core/jbwos/types';
 
-const API_BASE = '/api/stocks';
-
 export interface StockItem {
     id: string;
     title: string;

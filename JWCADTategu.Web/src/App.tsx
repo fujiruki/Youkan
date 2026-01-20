@@ -29,6 +29,29 @@ function App() {
     const [activeProject, setActiveProject] = useState<Project | null>(null);
     const [activeDoor, setActiveDoor] = useState<Door | null>(null);
 
+    // [NEW] URL Routing State
+    const [initialDashboardLayout, setInitialDashboardLayout] = useState<'standard' | 'panorama'>('standard');
+
+    // [NEW] URL Router Effect (Run Once)
+    useEffect(() => {
+        const path = window.location.pathname.toLowerCase();
+
+        // JBWOS Routing
+        // /JBWOS/Panorama -> jbwos + panorama
+        // /JBWOS/Focus    -> jbwos + standard
+
+        if (path.includes('/jbwos/panorama')) {
+            console.log('[Router] Detected Panorama URL');
+            setCurrentView('jbwos');
+            setInitialDashboardLayout('panorama');
+        } else if (path.includes('/jbwos/focus')) {
+            console.log('[Router] Detected Focus URL');
+            setCurrentView('jbwos');
+            setInitialDashboardLayout('standard');
+        }
+        // Else default to what's in useState or other logic (e.g. Deep linking below)
+    }, []);
+
     // --- Navigation Handlers ---
 
     // 1. To Project List (External View)
@@ -203,6 +226,7 @@ function App() {
                 handleDeleteProject={handleDeleteProject}
                 handleArchiveProject={handleArchiveProject}
                 setActiveProject={setActiveProject}
+                initialDashboardLayout={initialDashboardLayout} // [NEW]
             />
         </ToastProvider>
     );
@@ -223,6 +247,7 @@ const AppContent: React.FC<{
     handleDeleteProject: (id: number) => Promise<void>;
     handleArchiveProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
+    initialDashboardLayout: 'standard' | 'panorama'; // [NEW]
 }> = ({
     currentView,
     setCurrentView,
@@ -236,7 +261,8 @@ const AppContent: React.FC<{
     handleBackToSchedule,
     handleDeleteProject,
     handleArchiveProject,
-    setActiveProject
+    setActiveProject,
+    initialDashboardLayout // [NEW]
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
 
@@ -281,7 +307,10 @@ const AppContent: React.FC<{
                             {/* 0. JBWOS (MVP) - MAIN DASHBOARD */}
                             {(currentView === 'jbwos' || currentView === 'dashboard') && (
                                 <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
-                                    <JbwosBoard onClose={handleNavigateToProjects} />
+                                    <JbwosBoard
+                                        onClose={handleNavigateToProjects}
+                                        initialLayoutMode={initialDashboardLayout} // [NEW]
+                                    />
                                 </div>
                             )}
 

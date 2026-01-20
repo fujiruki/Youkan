@@ -44,7 +44,9 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 status: 'inbox',
                 due_date: dueDate || undefined,
                 weight: 1,
-                interrupt: false
+                interrupt: false,
+                domain: selectedCategory?.domain, // [NEW] Inherit domain
+                pluginId: selectedCategory?.pluginId // [NEW] Inherit pluginId
             };
 
             const defaultTasks = useTemplate && selectedCategory

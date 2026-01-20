@@ -44,6 +44,10 @@ export interface Item {
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
 
+    // --- Business Context [NEW] ---
+    domain?: 'business' | 'general' | 'private'; // 業務区分
+    pluginId?: string;       // 作成元プラグインID
+
     // --- Delegation (外注) [NEW] ---
     assignedTo?: string;     // 外注先の担当者ID
     delegation?: DelegationInfo; // 外注詳細情報
@@ -55,17 +59,9 @@ export interface Item {
     updatedAt: number;
 
     // --- Decision Layer Integration [NEW] ---
-    type?: 'start' | 'material' | 'order' | 'estimate' | 'exception' | 'generic'; // Decision Type
+    type?: 'start' | 'material' | 'order' | 'estimate' | 'exception' | 'generic' | 'project'; // [NEW] 'project' type added
     relatedId?: number;      // ID of the related entity (Door ID, etc.)
     resolved?: boolean;      // If strictly used for Decision log
-
-    // Virtual Props (Computed)
-    rdd?: number;            // Recommended Decision Date
-    isOverdue?: boolean;
-
-    // --- Intent Boost (Today Only) [NEW] ---
-    is_boosted?: boolean;    // "今日だけ前に出す"
-    boosted_date?: number;   // Boosted Date (for auto-reset check)
 
     // Legacy / Door Props
     category?: string;
@@ -136,16 +132,7 @@ export interface TaskTemplate {
     description?: string;
 }
 
-export interface ProjectCategory {
-    id: string;
-    name: string;            // "建具プロジェクト"
-    icon?: string;           // "🚪"
-    defaultTasks: TaskTemplate[];
-    pluginId?: string;       // "tategu-plugin"
-    color?: string;          // カテゴリーの色
-    isCustom?: boolean;      // ユーザーが作成したカスタム分類
-    createdAt: number;
-}
+
 
 // --- Plugin System [NEW] ---
 export interface PluginSettings {
