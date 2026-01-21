@@ -25,7 +25,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     const [menuOpen, setMenuOpen] = useState(false);
 
     return (
-        <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md overflow-hidden shrink-0 w-full">
+        <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md shrink-0 w-full relative">
             {/* Left: App Name */}
             <div className="flex items-center gap-2 md:gap-3 shrink-1 min-w-0">
                 <button
