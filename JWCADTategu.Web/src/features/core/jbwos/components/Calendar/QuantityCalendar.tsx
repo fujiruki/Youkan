@@ -44,6 +44,8 @@ const parseDateString = (dateStr: string | undefined | null) => {
 interface Props {
     items: Item[];
     onItemClick: (item: Item) => void;
+    capacityConfig: any; // Using any for now to match project types, should be CapacityConfig
+    onToggleHoliday: (date: Date) => void;
 }
 
 // [NEW] Pressure Line Type
@@ -54,7 +56,7 @@ interface PressureConnection {
     color: string;
 }
 
-export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
+export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick, capacityConfig, onToggleHoliday }) => {
     const today = getStartOfToday();
 
     // [NEW] Signs List Modal State (Now Double Click)
@@ -111,7 +113,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
     const heatMap = useMemo(() => {
         const map = new Map<string, number>();
-        const config = DEFAULT_CAPACITY_CONFIG; // Use local default config
+        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG; // Use prop or fallback
 
         items.forEach(item => {
             // 1. Due Date: Add moderate heat
@@ -164,7 +166,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
     // [MODIFIED] Signs Map (ALL related items for cell click) - Due + Prep (Working Days Only)
     const signsMap = useMemo(() => {
         const map = new Map<string, Item[]>();
-        const config = DEFAULT_CAPACITY_CONFIG;
+        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
 
         items.forEach(item => {
             // 1. Due Date
@@ -271,62 +273,26 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
         }
     };
 
+    // [NEW] Context Menu
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, date: Date } | null>(null);
+
+    const handleContextMenu = (e: React.MouseEvent, date: Date) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, date });
+    };
+
     // [NEW] Clear selection on background click
     const handleBackgroundClick = () => {
         // Only clear if directly clicking the container or empty space
-        // (Event propagation from cell stops this if handled there, but we want empty CELLS to clear too?)
-        // User said: "Clicking empty cell deselects".
-        // If we click a cell with NO signs, handleCellAction returns early.
-        // So clicking an empty cell will bubble up to this handler.
         setPressureConnections([]);
         setFlashingItemIds(new Set());
+        setContextMenu(null); // Close context menu
     };
 
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative" ref={containerRef}>
-            {/* DEBUG OVERLAY */}
-            <div className="fixed bottom-0 left-0 right-0 h-48 bg-black/80 text-white p-4 overflow-auto z-[9999] text-xs font-mono">
-                <h3 className="font-bold border-b border-gray-600 mb-2">Debug Info (v3.1)</h3>
-                {items.filter(i => i.title.includes('木組み') || i.title.includes('Coaster')).map(item => {
-                    const prepDate = item.prep_date ? new Date(item.prep_date * 1000) : null;
-                    const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0;
-                    const rawWorkDays = item.work_days;
-                    const effectiveWorkDays = (Number(rawWorkDays) > 1) ? Number(rawWorkDays) : (estimatedDays || 1);
-
-                    // Re-calculate dates for this item to show what SHOULD be painted
-                    const dates = [];
-                    if (prepDate) {
-                        let count = 0;
-                        let current = new Date(prepDate);
-                        let safety = 0;
-                        const config = DEFAULT_CAPACITY_CONFIG;
-
-                        while (count < effectiveWorkDays && safety < 30) {
-                            safety++;
-                            if (!isHoliday(current, config)) {
-                                dates.push(current.toDateString());
-                                count++;
-                            }
-                            // Important: Match the logic in heatMap (Backward iteration)
-                            current.setDate(current.getDate() - 1);
-                        }
-                    }
-
-                    return (
-                        <div key={item.id} className="mb-2 border-b border-gray-700 pb-1">
-                            <div className="text-emerald-400 font-bold">{item.title}</div>
-                            <div>ID: {item.id}</div>
-                            <div>Prep: {prepDate?.toLocaleString()}</div>
-                            <div>
-                                WorkDays (Effective): <span className="text-amber-400 font-bold">{effectiveWorkDays}</span>
-                                <span className="text-gray-400 ml-2">(Raw: {rawWorkDays || 'null'}, Est: {item.estimatedMinutes || 0}m → {estimatedDays}d)</span>
-                            </div>
-                            <div>Calculated Dates: {dates.join(', ')}</div>
-                        </div>
-                    );
-                })}
-            </div>
+            {/* DEBUG OVERLAY REMOVED */}
 
             {/* SVG Overlay Layer */}
             <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
@@ -387,6 +353,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                     className={`min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group ${isFirstOfMonth ? 'border-t-2 border-t-slate-400 dark:border-t-slate-600' : ''
                                         }`}
                                 >
+
                                     <CalendarCell
                                         date={date}
                                         items={dayItems}
@@ -400,6 +367,8 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                                         onHoverChange={(isHovering) => setHoveredDate(isHovering ? date : null)}
                                         onItemClick={onItemClick}
                                         onCellAction={handleCellAction}
+                                        onContextMenu={handleContextMenu}
+                                        isHoliday={isHoliday(date, capacityConfig || DEFAULT_CAPACITY_CONFIG)}
                                     />
                                 </div>
                             );
@@ -477,6 +446,40 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick }) => {
                     </div>
                 </div>
             )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div
+                    className="fixed z-[250] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                        <div className="text-xs font-bold text-slate-500">
+                            {contextMenu.date.toLocaleDateString()}
+                        </div>
+                    </div>
+                    <button
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                        onClick={() => {
+                            onToggleHoliday(contextMenu.date);
+                            setContextMenu(null);
+                        }}
+                    >
+                        {isHoliday(contextMenu.date, capacityConfig || DEFAULT_CAPACITY_CONFIG) ? (
+                            <>
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                稼働日に設定
+                            </>
+                        ) : (
+                            <>
+                                <span className="w-2 h-2 rounded-full bg-red-500" />
+                                休日に設定
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -529,7 +532,9 @@ const CalendarCell: React.FC<{
     onHoverChange: (isHovering: boolean) => void; // [NEW]
     onItemClick: (item: Item) => void;
     onCellAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
-}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, flashingItemIds, isHovered, onHoverChange, onItemClick, onCellAction }) => {
+    onContextMenu: (e: React.MouseEvent, date: Date) => void;
+    isHoliday: boolean;
+}> = ({ date, items, allSigns, isToday, isFirstOfMonth, isSunday, bgIntensity, flashingItemIds, isHovered, onHoverChange, onItemClick, onCellAction, onContextMenu, isHoliday }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: `cal-day-${date.getTime()}`,
         data: { date: date.getTime() }
@@ -575,9 +580,10 @@ const CalendarCell: React.FC<{
     return (
         <div
             ref={setNodeRef}
-            className={`w-full h-full p-1 flex flex-col relative transition-colors ${isOver ? 'bg-amber-100 dark:bg-amber-900/50' : ''}`}
+            className={`w-full h-full p-1 flex flex-col relative transition-colors ${isOver ? 'bg-amber-100 dark:bg-amber-900/50' : isHoliday ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
+            onContextMenu={(e) => onContextMenu(e, date)}
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
@@ -601,8 +607,9 @@ const CalendarCell: React.FC<{
 
             {/* Date Number with Month Label (1st only) */}
             <div className={`text-xs font-mono mb-1 z-10 relative flex items-start justify-between ${isToday ? 'font-bold text-blue-600' :
-                isSunday ? 'text-rose-400/70 font-medium' :
-                    'text-slate-400'
+                isHoliday ? 'text-red-500 font-medium' :
+                    isSunday ? 'text-rose-400/70 font-medium' :
+                        'text-slate-400'
                 }`}>
                 <div className="flex flex-col items-start">
                     {isFirstOfMonth && (

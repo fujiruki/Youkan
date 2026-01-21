@@ -10,6 +10,7 @@ import { CatalogScreen } from './features/plugins/tategu/catalog/CatalogScreen';
 
 import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
 import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
+import { FutureBoard } from './features/core/planning/FutureBoard'; // [NEW]
 import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
 import { CustomerList } from './features/plugins/customer'; // [NEW] Customer Plugin
 
@@ -21,7 +22,7 @@ import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'history' | 'settings' | 'customers';
+type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -285,7 +286,7 @@ const AppContent: React.FC<{
 
                         <DebugBanner />
                         {/* New JBWOS Header */}
-                        {(currentView === 'jbwos' || currentView === 'today' || currentView === 'history' || currentView === 'customers') && (
+                        {(currentView === 'jbwos' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers') && (
                             <JBWOSHeader
                                 currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings' | 'customers'}
                                 onNavigateToToday={() => setCurrentView('today')}
@@ -293,6 +294,7 @@ const AppContent: React.FC<{
                                 onNavigateToProjects={handleNavigateToProjects}
                                 onNavigateToSettings={() => setCurrentView('settings')}
                                 onNavigateToCustomers={() => setCurrentView('customers')}
+                                onNavigateToPlanning={() => setCurrentView('planning')}
                             />
                         )}
 
@@ -356,7 +358,17 @@ const AppContent: React.FC<{
 
                             {/* 6. Today Screen (Execution) */}
                             {currentView === 'today' && (
-                                <TodayScreen onBack={() => setCurrentView('jbwos')} />
+                                <TodayScreen
+                                    onBack={() => setCurrentView('jbwos')}
+                                    onNavigateToPlanning={() => setCurrentView('planning')} // [NEW]
+                                />
+                            )}
+
+                            {/* 6.5 Planning (Future Board) */}
+                            {currentView === 'planning' && (
+                                <FutureBoard
+                                    onClose={() => setCurrentView('jbwos')} // Back to JBWOS
+                                />
                             )}
 
                             {/* 7. History Screen */}

@@ -23,6 +23,7 @@ interface SideCalendarPanelProps {
     selectedDate: Date | null;
     onSelectDate: (date: Date) => void;
     prepDate?: Date | null; // For the "My Deadline" marker
+    targetMode?: 'due' | 'my' | null; // [NEW] Controls visual feedback
     className?: string;
 }
 
@@ -32,6 +33,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     selectedDate,
     onSelectDate,
     prepDate,
+    targetMode = 'due',
     className
 }) => {
     const monthStart = startOfMonth(currentDate);
@@ -73,8 +75,20 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         }
     };
 
+    // [NEW] Visual Theme based on Target Mode
+    const headerColorClass = targetMode === 'my'
+        ? "text-indigo-600 dark:text-indigo-400"
+        : "text-slate-700 dark:text-slate-300";
+
+    const borderColorClass = targetMode === 'my'
+        ? "border-indigo-200 dark:border-indigo-800"
+        : "border-slate-100 dark:border-slate-800";
+
+    const labelText = targetMode === 'my' ? "My期限を選択中" : "納期を選択中";
+    const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
+
     return (
-        <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20", className)}>
+        <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
             {/* Header */}
             <div className="flex items-center justify-between p-2">
                 <button
@@ -84,8 +98,13 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </button>
-                <div className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                    {format(currentDate, 'yyyy年 M月', { locale: ja })}
+                <div className="flex flex-col items-center">
+                    <div className={cn("font-bold text-sm", headerColorClass)}>
+                        {format(currentDate, 'yyyy年 M月', { locale: ja })}
+                    </div>
+                    <div className={cn("text-[10px] font-bold tracking-wider uppercase transition-colors", labelColor)}>
+                        {labelText}
+                    </div>
                 </div>
                 <button
                     className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-500"
@@ -97,7 +116,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
             </div>
 
             {/* Week Days */}
-            <div className="grid grid-cols-7 text-center text-xs text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div className={cn("grid grid-cols-7 text-center text-xs font-bold border-b pb-2", borderColorClass, "text-slate-400")}>
                 {weekDays.map((d, i) => (
                     <div key={i} className={cn("py-1", i >= 5 && "text-red-400")}>{d}</div>
                 ))}
@@ -118,17 +137,20 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                             className={cn(
                                 "relative flex flex-col items-center justify-center rounded-md text-sm p-1 transition-colors outline-none focus:ring-2 focus:ring-indigo-400 focus:z-10",
                                 !isCurrentMonth ? "text-slate-300 dark:text-slate-600 opacity-50" : "text-slate-700 dark:text-slate-200",
-                                isSelected && "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md",
+
+                                // Selection Styles (Priority)
+                                isSelected && "bg-red-500 text-white hover:bg-red-600 shadow-md", // Official Due Date is Red
+                                isPrep && !isSelected && "ring-2 ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 font-bold", // My Date Ring
+
                                 !isSelected && "hover:bg-slate-100 dark:hover:bg-slate-800",
                                 _isToday && !isSelected && "bg-amber-50 dark:bg-amber-900/20 font-bold border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400",
-                                isPrep && !isSelected && "ring-1 ring-blue-400 bg-blue-50 dark:bg-blue-900/20"
                             )}
                             tabIndex={0}
                         >
                             <span>{format(day, 'd')}</span>
                             {/* Optional Markers */}
                             <div className="flex gap-0.5 mt-1 h-1">
-                                {isPrep && <div className="w-1 h-1 rounded-full bg-blue-500" title="マイ期限" />}
+                                {isPrep && <div className="w-1 h-1 rounded-full bg-indigo-500" title="マイ期限" />}
                             </div>
                         </button>
                     );
@@ -136,7 +158,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
             </div>
 
             {/* Quick Actions Footer */}
-            <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <div className={cn("p-2 border-t bg-slate-50 dark:bg-slate-900/50", borderColorClass)}>
                 <div className="flex flex-wrap gap-2 justify-center">
                     <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('today')}>今日</button>
                     <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('tomorrow')}>明日</button>

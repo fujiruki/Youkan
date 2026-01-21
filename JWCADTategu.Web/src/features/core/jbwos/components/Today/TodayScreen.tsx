@@ -6,12 +6,12 @@ import { CheckCircle2, AlertCircle, ArrowDownCircle, PauseCircle, PlayCircle, Cl
 import { LifeChecklist } from './LifeChecklist';
 import { GentleReliefModal } from './GentleReliefModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal'; // [NEW] (Unified)
-import { FutureBoard } from '../../../planning/FutureBoard';
-import { AnimatePresence } from 'framer-motion';
+
 import { Item } from '../../types';
 
-interface Props {
-    onBack: () => void;
+interface TodayScreenProps {
+    onBack?: () => void;
+    onNavigateToPlanning?: () => void; // [NEW]
 }
 
 const TimeProgressBar: React.FC = () => {
@@ -65,10 +65,10 @@ const TimeProgressBar: React.FC = () => {
     );
 };
 
-export const TodayScreen: React.FC<Props> = ({ onBack }) => {
+export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPlanning }) => {
     // [NEW] Selected Candidate for Detail Modal
     const [candidateDetailItem, setCandidateDetailItem] = useState<Item | null>(null);
-    const [showPlanning, setShowPlanning] = useState(false);
+    // const [showPlanning, setShowPlanning] = useState(false); // [DEPRECATED] using global routing
     const {
         todayCandidates,
         todayCommits,
@@ -197,7 +197,7 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
 
                 <div className="flex justify-end -mt-0 mb-4">
                     <button
-                        onClick={() => setShowPlanning(true)}
+                        onClick={onNavigateToPlanning}
                         className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1"
                     >
                         <span>🌅</span> 明日の計画
@@ -518,11 +518,6 @@ export const TodayScreen: React.FC<Props> = ({ onBack }) => {
                 <LifeChecklist />
             </div>
 
-            <AnimatePresence>
-                {showPlanning && (
-                    <FutureBoard onClose={() => setShowPlanning(false)} />
-                )}
-            </AnimatePresence>
         </div >
     );
 };

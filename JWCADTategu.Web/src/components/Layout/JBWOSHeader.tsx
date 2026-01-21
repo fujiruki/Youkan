@@ -10,6 +10,7 @@ interface JBWOSHeaderProps {
     onNavigateToProjects: () => void;
     onNavigateToSettings: () => void;
     onNavigateToCustomers?: () => void;
+    onNavigateToPlanning?: () => void; // [NEW]
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -18,7 +19,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToHistory,
     onNavigateToProjects,
     onNavigateToSettings,
-    onNavigateToCustomers
+    onNavigateToCustomers,
+    onNavigateToPlanning // [NEW]
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,6 +61,15 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         }`}
                 >
                     Today
+                </button>
+
+                {/* Plan Button */}
+                <button
+                    onClick={onNavigateToPlanning}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-sm text-slate-200 transition-all shadow-sm"
+                    title="明日の計画"
+                >
+                    Plan
                 </button>
 
                 {/* Menu Dropdown */}

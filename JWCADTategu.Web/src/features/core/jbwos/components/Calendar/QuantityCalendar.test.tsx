@@ -65,7 +65,7 @@ describe('QuantityCalendar Visualization', () => {
             work_days: 2
         });
 
-        render(<QuantityCalendar items={[item]} onItemClick={mockOnItemClick} />);
+        render(<QuantityCalendar items={[item]} onItemClick={mockOnItemClick} capacityConfig={{}} onToggleHoliday={vi.fn()} />);
 
         // Check that only ONE chip exists (the Due Date chip)
         const chips = screen.queryAllByText('Test Task');
@@ -116,7 +116,7 @@ describe('QuantityCalendar Visualization', () => {
             estimatedMinutes: 3 * 7 * 60 // 3 days
         });
 
-        render(<QuantityCalendar items={[item]} onItemClick={mockOnItemClick} />);
+        render(<QuantityCalendar items={[item]} onItemClick={mockOnItemClick} capacityConfig={{}} onToggleHoliday={vi.fn()} />);
 
         // Find Debug Info Block
         // We look for text "Calculated Dates:"

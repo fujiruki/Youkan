@@ -44,6 +44,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
     // [NEW] Calendar State
     const [viewMonth, setViewMonth] = React.useState<Date>(new Date());
+    const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due'); // Default to 'due'
+
 
     // [NEW] Load Sub-tasks & Optimistic Defaults
     React.useEffect(() => {
@@ -343,6 +345,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             if (onUpdate) await onUpdate(item.id, updates);
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
+                                                        onFocus={() => setActiveDateInput('due')} // [NEW] Focus Tracking
                                                         autoFocus={initialFocus === 'date' || !dueDate} // Auto focus if newly opened as waiting
                                                     />
                                                     {/* Mobile Quick Actions (Below Input) */}
@@ -393,7 +396,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
                                                 }}
-                                                className="bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-400 w-full transition-colors"
+                                                onFocus={() => setActiveDateInput('my')} // [NEW] Focus Tracking
+                                                className={cn(
+                                                    "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 w-full transition-colors",
+                                                    activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
+                                                )}
                                             />
                                         </div>
                                     </div>
@@ -532,13 +539,26 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     selectedDate={dueDate ? new Date(dueDate) : null}
                                     onSelectDate={async (d) => {
                                         const val = format(d, 'yyyy-MM-dd');
-                                        setDueDate(val);
-                                        setDueStatus('confirmed');
-                                        const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
-                                        if (onUpdate) await onUpdate(item.id, updates);
-                                        else await ApiClient.updateItem(item.id, updates);
+
+                                        if (activeDateInput === 'my') {
+                                            // Update My Limit (Prep Date)
+                                            setPrepDate(val);
+                                            const dateObj = new Date(val);
+                                            const timestamp = Math.floor(dateObj.getTime() / 1000);
+                                            const updates = { prep_date: timestamp };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        } else {
+                                            // Update Official Due Date (Default)
+                                            setDueDate(val);
+                                            setDueStatus('confirmed');
+                                            const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        }
                                     }}
                                     prepDate={prepDate ? new Date(prepDate) : null}
+                                    targetMode={activeDateInput} // [NEW] Visual Feedback
                                 />
                             </div>
                         </div>

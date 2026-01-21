@@ -8,13 +8,15 @@ interface SmartDateInputProps {
     onChange: (date: Date | null) => void;
     className?: string;
     autoFocus?: boolean;
+    onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void; // [NEW]
 }
 
 export const SmartDateInput: React.FC<SmartDateInputProps> = ({
     value,
     onChange,
     className,
-    autoFocus
+    autoFocus,
+    onFocus
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
@@ -117,6 +119,7 @@ export const SmartDateInput: React.FC<SmartDateInputProps> = ({
                 onFocus={(e) => {
                     setIsFocused(true);
                     e.target.select();
+                    onFocus?.(e); // [NEW] Chain parent handler
                 }}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
