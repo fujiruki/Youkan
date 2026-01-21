@@ -16,7 +16,7 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { BookOpen, AlertCircle } from 'lucide-react';
+import { BookOpen, AlertCircle, X } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu'; // [NEW]
@@ -331,10 +331,11 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
                 {/* Header */}
-                <div className="flex-none flex items-center justify-between px-6 py-3 bg-slate-100/50 dark:bg-slate-950/50 border-b border-white/10 shrink-0 z-10">
+                <div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-950/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">
                     <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <span>⚡ Today's Decision</span>
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-4">
+                        <span className="hidden md:inline">⚡ Today's Decision</span>
+                        <span className="md:hidden">⚡</span>
+                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2 md:ml-4">
                             <button
                                 onClick={() => setViewMode('board')}
                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-600 shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -408,8 +409,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                             <button onClick={vm.clearError} className="font-bold ml-2">×</button>
                         </div>
                     )}
-                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded text-xs font-bold">
-                        CLOSE
+                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded text-xs font-bold hover:bg-slate-300 transition-colors">
+                        <span className="hidden md:inline">CLOSE</span>
+                        <span className="md:hidden"><X size={18} /></span>
                     </button>
                 </div>
 
