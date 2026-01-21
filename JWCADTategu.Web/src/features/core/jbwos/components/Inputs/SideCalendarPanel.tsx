@@ -88,14 +88,18 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
 
-    // [NEW] Volume Color Logic
+    // [NEW] Volume Color Logic (Matches QuantityCalendar: Amber Gradient)
     const getVolumeColor = (dateStr: string, isSelected: boolean) => {
         if (isSelected) return ""; // Selection overrides heatmap
-        const mins = dailyVolumes[dateStr] || 0;
-        if (mins === 0) return "";
-        if (mins < 240) return "bg-lime-100/50 dark:bg-lime-900/20"; // < 4h (Light)
-        if (mins < 480) return "bg-orange-100/60 dark:bg-orange-900/30"; // < 8h (Medium)
-        return "bg-red-100/70 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-medium"; // >= 8h (Heavy)
+        const vol = dailyVolumes[dateStr] || 0;
+        if (vol === 0) return "";
+
+        // QuantityCalendar logic approx: Opacity = min(vol * 15, 60)%
+        if (vol < 1) return "bg-amber-500/10 dark:bg-amber-400/10";
+        if (vol < 2) return "bg-amber-500/25 dark:bg-amber-400/20";
+        if (vol < 3) return "bg-amber-500/40 dark:bg-amber-400/30";
+        if (vol < 4) return "bg-amber-500/50 dark:bg-amber-400/40";
+        return "bg-amber-500/60 dark:bg-amber-400/50"; // Max intensity
     };
 
     return (
