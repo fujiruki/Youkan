@@ -34,7 +34,7 @@ class CalendarController {
         // Fetch simplified item objects
         $sql = "
             SELECT 
-                id, title, due_date, prep_date, work_days, estimatedMinutes
+                id, title, due_date, prep_date, work_days, estimated_minutes AS estimatedMinutes
             FROM items 
             WHERE 
                 (
