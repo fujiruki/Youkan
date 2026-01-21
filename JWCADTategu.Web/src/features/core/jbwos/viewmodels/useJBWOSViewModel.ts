@@ -165,9 +165,19 @@ export const useJBWOSViewModel = () => {
     const { addUndoAction } = useUndo();
 
     // 1. Decision (Yes/No/Hold)
-    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => {
+    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
         // Optimistic Update: Remove from Active immediate
         setGdbActive(prev => prev.filter(i => i.id !== id));
+
+        // [New] Apply updates optimistically if provided
+        if (updates) {
+            // We can't easily update the item inside "removed from active", 
+            // but we should ensure the backend gets it. 
+            // Ideally we shouldn't rely on `updateItem` call separately if we can batch.
+            // But for now, we will call updateItem BEFORE resolve if strictly needed, 
+            // OR let the repository handle it. 
+            // Since JBWOSRepository.resolveDecision might not take updates, we call updateItem first.
+        }
 
         // [Undo] Register Action
         addUndoAction({
@@ -178,6 +188,11 @@ export const useJBWOSViewModel = () => {
         });
 
         try {
+            // [FIX] Apply updates FIRST to ensure consistency
+            if (updates && Object.keys(updates).length > 0) {
+                await JBWOSRepository.updateItem(id, updates);
+            }
+
             await JBWOSRepository.resolveDecision(id, decision, note);
             // On success, background refresh to sync (e.g. move to Today Candidate)
             refreshAll();

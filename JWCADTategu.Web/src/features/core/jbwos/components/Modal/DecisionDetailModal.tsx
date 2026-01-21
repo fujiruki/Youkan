@@ -288,18 +288,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
 
                             {/* LEFT COLUMN: Inputs & Calendar */}
-                            <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800">
-                                {/* Top: Inputs Section */}
-                                <div className="p-5 pb-2 space-y-5 flex-none">
+                            {/* LEFT COLUMN: Inputs & Calendar */}
+                            <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800 h-full">
 
-                                    {/* Date Inputs Grid */}
-                                    <div className="grid grid-cols-1 gap-4">
+                                {/* Top: Inputs Section (Compact) */}
+                                <div className="p-3 pb-1 flex-none border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
                                         {/* Due Date */}
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                                    <div className="w-1 h-3 bg-red-400 rounded-full"></div>
-                                                    納期 (事実)
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <div className="w-1 h-2.5 bg-red-400 rounded-full"></div>
+                                                    納期
                                                 </span>
                                                 <button
                                                     onClick={async () => {
@@ -307,14 +308,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         const todayStr = format(new Date(), 'yyyy-MM-dd');
                                                         const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || todayStr);
                                                         setDueStatus(newStatus);
-                                                        if (newStatus === 'confirmed' && !dueDate) setDueDate(todayStr);
+                                                        if (newStatus === 'confirmed' && !dueDate) setDueDate(todayStr); // Only auto-set if empty
                                                         const updates: Partial<Item> = { due_status: newStatus, due_date: newDateVal };
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
                                                     }}
-                                                    className="text-[10px] text-slate-400 hover:text-indigo-500 underline"
+                                                    className="text-[10px] text-slate-300 hover:text-indigo-500 underline"
                                                 >
-                                                    {dueStatus === 'waiting_external' ? '日付指定' : '未定に戻す'}
+                                                    {dueStatus === 'waiting_external' ? '設定' : '未定'}
                                                 </button>
                                             </div>
                                             {dueStatus === 'waiting_external' ? (
@@ -327,9 +328,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
                                                     }}
-                                                    className="bg-slate-50 dark:bg-slate-800/50 rounded px-3 py-2 text-sm text-slate-400 font-medium border border-dashed border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+                                                    className="bg-slate-50 dark:bg-slate-800/50 rounded px-2 py-1.5 text-xs text-slate-400 font-medium border border-dashed border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-colors text-center"
                                                 >
-                                                    未記入 (タップして入力)
+                                                    未記入
                                                 </div>
                                             ) : (
                                                 <div className="relative group">
@@ -346,6 +347,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             }}
                                                             onFocus={() => setActiveDateInput('due')}
                                                             autoFocus={initialFocus === 'date' || !dueDate}
+                                                            className="text-xs py-1"
                                                         />
                                                     </div>
                                                     <div className="md:hidden">
@@ -361,7 +363,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
                                                             onFocus={() => setActiveDateInput('due')}
-                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm"
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs"
                                                         />
                                                     </div>
                                                 </div>
@@ -369,10 +371,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         </div>
 
                                         {/* My Date */}
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                                <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
-                                                マイ期限
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                                <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
+                                                My期限
                                             </span>
                                             <div className="relative group/mydate">
                                                 <div className="hidden md:block">
@@ -389,10 +391,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
                                                         onFocus={() => setActiveDateInput('my')}
-                                                        placeholder="マイ期限 (クリックして入力)"
+                                                        placeholder="目標日..."
                                                         className={cn(
-                                                            "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
-                                                            activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-2 focus:ring-indigo-400"
+                                                            "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
+                                                            activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-1 focus:ring-indigo-400"
                                                         )}
                                                     />
                                                 </div>
@@ -411,57 +413,18 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         }}
                                                         onFocus={() => setActiveDateInput('my')}
                                                         className={cn(
-                                                            "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 w-full transition-colors",
-                                                            activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
+                                                            "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 w-full transition-colors",
+                                                            activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
                                                         )}
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Boost & Note */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-4 py-1 opacity-80 hover:opacity-100 transition-opacity">
-                                            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
-                                            <button
-                                                onClick={async () => {
-                                                    const newBoostState = !item.is_boosted;
-                                                    const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
-                                                    if (onUpdate) await onUpdate(item.id, updates);
-                                                    else await ApiClient.updateItem(item.id, updates);
-                                                }}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-colors border",
-                                                    item.is_boosted
-                                                        ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                        : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
-                                                )}
-                                            >
-                                                <span className={cn("w-2 h-2 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
-                                                今日だけ前に出す (Boost)
-                                            </button>
-                                            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
-                                        </div>
-
-                                        <div className="relative">
-                                            <textarea
-                                                value={note}
-                                                onChange={(e) => setNote(e.target.value)}
-                                                onBlur={async () => {
-                                                    const updates = { memo: note };
-                                                    if (onUpdate) await onUpdate(item.id, updates);
-                                                    else await ApiClient.updateItem(item.id, updates);
-                                                }}
-                                                placeholder="メモ・条件・懸念点など..."
-                                                className="w-full text-sm bg-transparent border-none p-0 focus:ring-0 resize-none min-h-[40px] text-slate-700 dark:text-slate-300 placeholder:text-slate-300"
-                                            />
-                                        </div>
-                                    </div>
                                 </div>
 
-                                {/* Bottom: Calendar (Desktop Only, fills remaining space) */}
-                                <div className="flex-1 min-h-0 hidden md:flex border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex-col overflow-y-auto">
+                                {/* Middle: Calendar (Fills remaining space) */}
+                                <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
                                         currentDate={viewMonth}
                                         onMonthChange={setViewMonth}
@@ -486,6 +449,45 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         targetMode={activeDateInput}
                                     />
+                                </div>
+
+                                {/* Bottom: Boost & Note (Moved here) */}
+                                <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
+                                    {/* Boost Button Line */}
+                                    <div className="flex justify-center">
+                                        <button
+                                            onClick={async () => {
+                                                const newBoostState = !item.is_boosted;
+                                                const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }}
+                                            className={cn(
+                                                "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
+                                                item.is_boosted
+                                                    ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                                            )}
+                                        >
+                                            <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
+                                            今日だけ前に出す (Boost)
+                                        </button>
+                                    </div>
+
+                                    {/* Memo Input */}
+                                    <div className="relative">
+                                        <textarea
+                                            value={note}
+                                            onChange={(e) => setNote(e.target.value)}
+                                            onBlur={async () => {
+                                                const updates = { memo: note };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }}
+                                            placeholder="メモ・条件・懸念点..."
+                                            className="w-full text-xs bg-slate-50 dark:bg-slate-800/30 rounded p-2 border-none focus:ring-1 focus:ring-indigo-300 resize-none min-h-[50px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 transition-all focus:min-h-[80px]"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

@@ -303,18 +303,22 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                 onClose={handleCloseModal}
                 onOpenItem={handleOpenItem}
                 onOpenParent={handleOpenParent} // [NEW]
-                onDecision={async (id, decision, note) => {
+                onDecision={async (id, decision, note, updates) => {
                     // [NEW] Custom Routing for "Not This Time" (No)
                     if (decision === 'no' && (note === 'intent' || note === 'life')) {
+                        // Apply pending updates first
+                        if (updates && Object.keys(updates).length > 0) {
+                            await vm.updateItem(id, updates);
+                        }
                         // Move to Intent or Life (Status Update)
                         await ApiClient.updateItem(id, { status: note as any });
                         vm.refresh();
                     } else if (decision === 'no' && note === 'history') {
                         // Log to History (Standard Reject)
-                        await vm.resolveDecision(id, 'no');
+                        await vm.resolveDecision(id, 'no', undefined, updates);
                     } else {
                         // Standard Yes/Hold
-                        await vm.resolveDecision(id, decision, note);
+                        await vm.resolveDecision(id, decision, note, updates);
                     }
                     setDetailItem(null);
                     setInitialFocus(undefined);

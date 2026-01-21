@@ -84,46 +84,46 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         ? "border-indigo-200 dark:border-indigo-800"
         : "border-slate-100 dark:border-slate-800";
 
-    const labelText = targetMode === 'my' ? "My期限を選択中" : "納期を選択中";
     const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
 
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
-            {/* Header */}
-            <div className="flex items-center justify-between p-2">
+            {/* Header (Compact) */}
+            <div className="flex items-center justify-between px-1 py-1 bg-slate-100/50 dark:bg-slate-800/50">
                 <button
-                    className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-500"
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
                     onClick={handlePrevMonth}
                     tabIndex={-1}
                 >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3 w-3" />
                 </button>
-                <div className="flex flex-col items-center">
-                    <div className={cn("font-bold text-sm", headerColorClass)}>
+                <div className="flex items-baseline gap-2">
+                    <span className={cn("font-bold text-sm leading-none", headerColorClass)}>
                         {format(currentDate, 'yyyy年 M月', { locale: ja })}
-                    </div>
-                    <div className={cn("text-[10px] font-bold tracking-wider uppercase transition-colors", labelColor)}>
-                        {labelText}
-                    </div>
+                    </span>
+                    {/* Minimal Label incorporated in header line */}
+                    <span className={cn("text-[10px] font-bold tracking-tight opacity-80", labelColor)}>
+                        {targetMode === 'my' ? '(My期限)' : '(納期)'}
+                    </span>
                 </div>
                 <button
-                    className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-500"
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
                     onClick={handleNextMonth}
                     tabIndex={-1}
                 >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3 w-3" />
                 </button>
             </div>
 
-            {/* Week Days */}
-            <div className={cn("grid grid-cols-7 text-center text-xs font-bold border-b pb-2", borderColorClass, "text-slate-400")}>
+            {/* Week Days (Super Compact) */}
+            <div className={cn("grid grid-cols-7 text-center text-[10px] font-bold border-b bg-white dark:bg-slate-900", borderColorClass, "text-slate-400")}>
                 {weekDays.map((d, i) => (
-                    <div key={i} className={cn("py-1", i >= 5 && "text-red-400")}>{d}</div>
+                    <div key={i} className={cn("py-0.5", i >= 5 && "text-red-400")}>{d}</div>
                 ))}
             </div>
 
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 flex-1 auto-rows-fr gap-1 p-2 overflow-y-auto">
+            {/* Calendar Grid (Compact) */}
+            <div className="grid grid-cols-7 flex-1 auto-rows-fr gap-px bg-slate-200 dark:bg-slate-800 p-px overflow-y-auto">
                 {calendarDays.map((day, idx) => {
                     const isCurrentMonth = isSameMonth(day, monthStart);
                     const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -135,36 +135,38 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                             key={idx}
                             onClick={() => onSelectDate(day)}
                             className={cn(
-                                "relative flex flex-col items-center justify-center rounded-md text-sm p-1 transition-colors outline-none focus:ring-2 focus:ring-indigo-400 focus:z-10",
-                                !isCurrentMonth ? "text-slate-300 dark:text-slate-600 opacity-50" : "text-slate-700 dark:text-slate-200",
+                                "relative flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-xs transition-colors outline-none focus:ring-1 focus:ring-indigo-400 focus:z-10",
+                                !isCurrentMonth ? "text-slate-300 dark:text-slate-700 bg-slate-50 dark:bg-slate-950" : "text-slate-700 dark:text-slate-200",
 
-                                // Selection Styles (Priority)
-                                isSelected && "bg-red-500 text-white hover:bg-red-600 shadow-md", // Official Due Date is Red
-                                isPrep && !isSelected && "ring-2 ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 font-bold", // My Date Ring
+                                // Selection Styles
+                                isSelected && "bg-red-500 text-white hover:bg-red-600 font-bold",
+                                isPrep && !isSelected && "ring-1 ring-inset ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 font-bold text-indigo-700 dark:text-indigo-300",
 
                                 !isSelected && "hover:bg-slate-100 dark:hover:bg-slate-800",
-                                _isToday && !isSelected && "bg-amber-50 dark:bg-amber-900/20 font-bold border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400",
+                                _isToday && !isSelected && "bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 font-bold",
                             )}
                             tabIndex={0}
                         >
                             <span>{format(day, 'd')}</span>
-                            {/* Optional Markers */}
-                            <div className="flex gap-0.5 mt-1 h-1">
-                                {isPrep && <div className="w-1 h-1 rounded-full bg-indigo-500" title="マイ期限" />}
-                            </div>
                         </button>
                     );
                 })}
             </div>
 
-            {/* Quick Actions Footer */}
-            <div className={cn("p-2 border-t bg-slate-50 dark:bg-slate-900/50", borderColorClass)}>
-                <div className="flex flex-wrap gap-2 justify-center">
-                    <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('today')}>今日</button>
-                    <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('tomorrow')}>明日</button>
-                    <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('next_mon')}>来週月</button>
-                    <button className="h-7 px-3 text-xs font-medium border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-colors" onClick={() => quickSelect('next_fri')}>次の金</button>
-                </div>
+            {/* Quick Actions (Compact) */}
+            <div className={cn("p-1 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t", borderColorClass)}>
+                {['today:今日', 'tomorrow:明日', 'next_mon:来週月', 'next_fri:次の金'].map(opt => {
+                    const [key, label] = opt.split(':');
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => quickSelect(key as any)}
+                            className="px-2 py-0.5 text-[10px] border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-colors"
+                        >
+                            {label}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );
