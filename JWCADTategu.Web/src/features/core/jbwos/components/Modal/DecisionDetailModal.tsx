@@ -4,15 +4,14 @@ import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
-import { format, addDays } from 'date-fns';
-import { EstimatedTimeInput } from '../Today/EstimatedTimeInput';
+import { format } from 'date-fns';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
 
 interface DecisionDetailModalProps {
     item: Item | null;
     onClose: () => void;
-    onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => void;
+    onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => void;
     onDelete: (id: string) => void;
     onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
     onCreateSubTask?: (parentId: string, title: string, initialDueDate?: string) => Promise<string | undefined>; // [FIX] Added initialDueDate
@@ -142,8 +141,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
-    // [NEW] Unified Save Helper
-    const saveChanges = async () => {
+    // [NEW] Unified Save Helper -> Returns pending updates instead of calling API immediately
+    const getPendingChanges = () => {
         const updates: Partial<Item> = {};
 
         // Work Days
@@ -173,8 +172,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             updates.due_status = dueStatus; // If date changed, likely status is confirmed
         }
 
+        return updates;
+    };
+
+    const saveChanges = async () => {
+        const updates = getPendingChanges();
         if (Object.keys(updates).length > 0) {
-            console.log('Saving changes before close/decision:', updates);
+            console.log('Saving changes before close:', updates);
             if (onUpdate) {
                 await onUpdate(item.id, updates);
             } else {
@@ -191,12 +195,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
     // [NEW] Helper to save work_days before decision
     const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
-        await saveChanges();
-        onDecision(item.id, decision, note);
+        const updates = getPendingChanges();
+        console.log('Resolving decision with atomic updates:', updates);
+        // Pass updates to onDecision to handle them atomically or strictly sequentially
+        onDecision(item.id, decision, note, updates);
     };
-
-    // Save note on standard decision?
-    // For now, note is passed when button is clicked.
 
     return (
         <AnimatePresence>
@@ -281,16 +284,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                             </div>
                         </div>
 
-                        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
-                            {/* LEFT: Main Content Form */}
-                            <div className="flex-1 px-5 py-4 space-y-5 overflow-y-auto min-h-0"> {/* Scrollable form area */}
+                        {/* Main Content Area (2-Column Layout) */}
+                        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
 
-                                {/* Schedule & Volume Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* LEFT COLUMN: Inputs & Calendar */}
+                            <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800">
+                                {/* Top: Inputs Section */}
+                                <div className="p-5 pb-2 space-y-5 flex-none">
 
-                                    {/* Left Col: Schedule */}
-                                    <div className="space-y-4">
-                                        {/* 1. Due Date */}
+                                    {/* Date Inputs Grid */}
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {/* Due Date */}
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -307,17 +311,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         const updates: Partial<Item> = { due_status: newStatus, due_date: newDateVal };
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
-
-                                                        // Focus smart input if confirmed
-                                                        // We can't easily auto-focus component ref here without forwarding, 
-                                                        // but SmartInput has autoFocus prop.
                                                     }}
                                                     className="text-[10px] text-slate-400 hover:text-indigo-500 underline"
                                                 >
                                                     {dueStatus === 'waiting_external' ? '日付指定' : '未定に戻す'}
                                                 </button>
                                             </div>
-                                            {/* Date Input Area (Responsive) */}
                                             {dueStatus === 'waiting_external' ? (
                                                 <div
                                                     onClick={async () => {
@@ -334,7 +333,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 </div>
                                             ) : (
                                                 <div className="relative group">
-                                                    {/* Desktop: Smart Input */}
                                                     <div className="hidden md:block">
                                                         <SmartDateInput
                                                             value={dueDate ? new Date(dueDate) : null}
@@ -350,8 +348,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             autoFocus={initialFocus === 'date' || !dueDate}
                                                         />
                                                     </div>
-
-                                                    {/* Mobile: Native Date Input */}
                                                     <div className="md:hidden">
                                                         <input
                                                             type="date"
@@ -368,44 +364,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm"
                                                         />
                                                     </div>
-
-                                                    {/* Mobile Quick Actions (Due Date) */}
-                                                    <div className="flex md:hidden items-center gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
-                                                        {[
-                                                            { label: '今日', diff: 0 },
-                                                            { label: '明日', diff: 1 },
-                                                            { label: '来週', diff: 7 }
-                                                        ].map(action => (
-                                                            <button
-                                                                key={action.label}
-                                                                onClick={() => {
-                                                                    const d = addDays(new Date(), action.diff);
-                                                                    const val = format(d, 'yyyy-MM-dd');
-                                                                    setDueDate(val);
-                                                                    setDueStatus('confirmed');
-                                                                    const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
-                                                                    if (onUpdate) onUpdate(item.id, updates);
-                                                                    else ApiClient.updateItem(item.id, updates);
-                                                                }}
-                                                                className="flex-none px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
-                                                            >
-                                                                {action.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* 2. Prep Date */}
+                                        {/* My Date */}
                                         <div className="flex flex-col gap-1">
                                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                                 <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
                                                 マイ期限
                                             </span>
-                                            {/* My Date: Split for Desktop/Mobile */}
                                             <div className="relative group/mydate">
-                                                {/* Desktop: Smart Input (No Native Picker) */}
                                                 <div className="hidden md:block">
                                                     <SmartDateInput
                                                         value={prepDate ? new Date(prepDate) : null}
@@ -413,7 +382,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             const val = d ? format(d, 'yyyy-MM-dd') : '';
                                                             setPrepDate(val);
                                                             if (d) setViewMonth(d);
-                                                            // Auto-save logic
                                                             const dateObj = new Date(val);
                                                             const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
                                                             const updates = { prep_date: timestamp };
@@ -428,16 +396,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         )}
                                                     />
                                                 </div>
-
-                                                {/* Mobile: Native Date Input */}
                                                 <div className="md:hidden">
                                                     <input
-                                                        data-testid="prep-date-input-mobile"
                                                         type="date"
                                                         value={prepDate}
                                                         onChange={async (e) => {
                                                             const val = e.target.value;
-                                                            setPrepDate(val); // Local update
+                                                            setPrepDate(val);
                                                             const dateObj = new Date(val);
                                                             const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
                                                             const updates = { prep_date: timestamp };
@@ -452,98 +417,171 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     />
                                                 </div>
                                             </div>
-                                            {/* Mobile Quick Actions (My Date) */}
-                                            <div className="flex md:hidden items-center gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
-                                                {[
-                                                    { label: '今日', diff: 0 },
-                                                    { label: '明日', diff: 1 }
-                                                ].map(action => (
-                                                    <button
-                                                        key={action.label}
-                                                        onClick={async () => {
-                                                            const d = addDays(new Date(), action.diff);
-                                                            const val = format(d, 'yyyy-MM-dd');
-                                                            setPrepDate(val);
-                                                            const dateObj = new Date(val);
-                                                            const timestamp = Math.floor(dateObj.getTime() / 1000);
-                                                            const updates = { prep_date: timestamp };
-                                                            if (onUpdate) await onUpdate(item.id, updates);
-                                                            else await ApiClient.updateItem(item.id, updates);
-                                                        }}
-                                                        className="flex-none px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
-                                                    >
-                                                        {action.label}
-                                                    </button>
-                                                ))}
-                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Right Col: Volume (Estimated Time) */}
-                                    <div className="space-y-1">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                            <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
-                                            目安時間
-                                        </span>
-                                        <div className="bg-slate-50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
-                                            <EstimatedTimeInput
-                                                value={estimatedMinutes}
-                                                onChange={(val) => setEstimatedMinutes(val)}
-                                                className="w-full"
+                                    {/* Boost & Note */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-4 py-1 opacity-80 hover:opacity-100 transition-opacity">
+                                            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
+                                            <button
+                                                onClick={async () => {
+                                                    const newBoostState = !item.is_boosted;
+                                                    const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-colors border",
+                                                    item.is_boosted
+                                                        ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                        : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                                                )}
+                                            >
+                                                <span className={cn("w-2 h-2 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
+                                                今日だけ前に出す (Boost)
+                                            </button>
+                                            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
+                                        </div>
+
+                                        <div className="relative">
+                                            <textarea
+                                                value={note}
+                                                onChange={(e) => setNote(e.target.value)}
+                                                onBlur={async () => {
+                                                    const updates = { memo: note };
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
+                                                }}
+                                                placeholder="メモ・条件・懸念点など..."
+                                                className="w-full text-sm bg-transparent border-none p-0 focus:ring-0 resize-none min-h-[40px] text-slate-700 dark:text-slate-300 placeholder:text-slate-300"
                                             />
                                         </div>
                                     </div>
-
                                 </div>
 
-                                {/* Divider with Boost */}
-                                <div className="flex items-center gap-4 py-2 opacity-80 hover:opacity-100 transition-opacity">
-                                    <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={async () => {
-                                                const newBoostState = !item.is_boosted;
-                                                const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                {/* Bottom: Calendar (Desktop Only, fills remaining space) */}
+                                <div className="flex-1 min-h-0 hidden md:flex border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex-col overflow-y-auto">
+                                    <SideCalendarPanel
+                                        currentDate={viewMonth}
+                                        onMonthChange={setViewMonth}
+                                        selectedDate={dueDate ? new Date(dueDate) : null}
+                                        onSelectDate={async (d) => {
+                                            const val = format(d, 'yyyy-MM-dd');
+                                            if (activeDateInput === 'my') {
+                                                setPrepDate(val);
+                                                const dateObj = new Date(val);
+                                                const timestamp = Math.floor(dateObj.getTime() / 1000);
+                                                const updates = { prep_date: timestamp };
                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                 else await ApiClient.updateItem(item.id, updates);
-                                            }}
-                                            className={cn(
-                                                "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-colors border",
-                                                item.is_boosted
-                                                    ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                    : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
-                                            )}
-                                        >
-                                            <span className={cn("w-2 h-2 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
-                                            今日だけ前に出す (Boost)
-                                        </button>
-                                    </div>
-                                    <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
-                                </div>
-
-                                {/* Note Input (Compact) */}
-                                <div className="relative">
-                                    <textarea
-                                        value={note}
-                                        onChange={(e) => setNote(e.target.value)}
-                                        onBlur={async () => {
-                                            const updates = { memo: note };
-                                            if (onUpdate) await onUpdate(item.id, updates);
-                                            else await ApiClient.updateItem(item.id, updates);
+                                            } else {
+                                                setDueDate(val);
+                                                setDueStatus('confirmed');
+                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }
                                         }}
-                                        placeholder="メモ・条件・懸念点など..."
-                                        className="w-full text-sm bg-transparent border-none p-0 focus:ring-0 resize-none min-h-[60px] text-slate-700 dark:text-slate-300 placeholder:text-slate-300"
+                                        prepDate={prepDate ? new Date(prepDate) : null}
+                                        targetMode={activeDateInput}
                                     />
-                                    {/* Bottom Border fake */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-px bg-slate-100 dark:bg-slate-800"></div>
+                                </div>
+                            </div>
+
+                            {/* RIGHT COLUMN: Estimated Time & Subtasks */}
+                            <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
+
+                                {/* Estimated Time Preset Grid */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                            <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
+                                            目安時間 (Estimate)
+                                        </span>
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                            {estimatedMinutes > 0 ? (estimatedMinutes >= 60 ? `${(estimatedMinutes / 60).toFixed(1)}h` : `${estimatedMinutes}m`) : '-'}
+                                        </span>
+                                    </div>
+
+                                    {/* New Graphical Presets (8 items) */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { label: '0.5h', val: 30, desc: '30分', icon: '⚡' },
+                                            { label: '1h', val: 60, desc: '1時間', icon: '☕' },
+                                            { label: '2h', val: 120, desc: '午前/午後', icon: '🏃' },
+                                            { label: '4h', val: 240, desc: '半日', icon: '🌓' },
+                                            { label: '8h', val: 480, desc: '1日', icon: '🌕' },
+                                            { label: '1.5日', val: 720, desc: '残業含む', icon: '📅' },
+                                            { label: '2日', val: 960, desc: 'じっくり', icon: '🗓️' },
+                                            { label: '3日', val: 1440, desc: '長丁場', icon: '🏗️' },
+                                        ].map(preset => {
+                                            const isActive = estimatedMinutes === preset.val;
+                                            return (
+                                                <button
+                                                    key={preset.label}
+                                                    onClick={() => setEstimatedMinutes(preset.val)}
+                                                    className={cn(
+                                                        "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",
+                                                        isActive
+                                                            ? "bg-amber-50 border-amber-300 shadow-md shadow-amber-100 dark:bg-amber-900/40 dark:border-amber-700 dark:shadow-none"
+                                                            : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:shadow-sm dark:bg-slate-800/50 dark:border-slate-700 dark:hover:bg-slate-800"
+                                                    )}
+                                                >
+                                                    {/* Icon Box */}
+                                                    <div className={cn(
+                                                        "flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors",
+                                                        isActive
+                                                            ? "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
+                                                            : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-indigo-500 dark:bg-slate-700 dark:text-slate-400"
+                                                    )}>
+                                                        {preset.icon}
+                                                    </div>
+
+                                                    {/* Text Info */}
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        <span className={cn(
+                                                            "text-sm font-bold leading-none",
+                                                            isActive ? "text-amber-900 dark:text-amber-100" : "text-slate-700 dark:text-slate-200 group-hover:text-indigo-700"
+                                                        )}>
+                                                            {preset.label}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-medium group-hover:text-indigo-400 dark:text-slate-500">
+                                                            {preset.desc}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Checkmark for Active */}
+                                                    {isActive && (
+                                                        <div className="absolute top-2 right-2 text-amber-500 dark:text-amber-400">
+                                                            <div className="w-2 h-2 rounded-full bg-current" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {/* Manual Input (Subtle) */}
+                                    <div className="flex items-center justify-end gap-2 pt-2">
+                                        <span className="text-[10px] text-slate-400">微調整:</span>
+                                        <input
+                                            type="number"
+                                            value={estimatedMinutes / 60}
+                                            onChange={e => setEstimatedMinutes(Number(e.target.value) * 60)}
+                                            className="w-12 bg-transparent border-b border-slate-200 text-right text-xs font-mono focus:outline-none focus:border-amber-400 transition-colors"
+                                            placeholder="0"
+                                        />
+                                        <span className="text-[10px] text-slate-400">h</span>
+                                    </div>
                                 </div>
 
-                                {/* Sub-Tasks Section (Project Mode) */}
+                                {/* Sub-Tasks Section (Project Mode) - Moved to Right Column */}
                                 {isProject && (
-                                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                                         <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">
                                             <Folder size={12} className="text-blue-400" />
-                                            サブタスク (Project)
+                                            サブタスク (Project Check)
                                         </div>
 
                                         {/* List */}
@@ -556,8 +594,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 >
                                                     <CheckSquare size={14} className="text-slate-300" />
                                                     <span className="text-xs font-medium text-slate-700 dark:text-slate-200 flex-1">{sub.title}</span>
-
-                                                    {/* [NEW] Estimated Days Display */}
                                                     {sub.work_days !== undefined && sub.work_days > 0 && (
                                                         <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                                                             {Number(sub.work_days).toFixed(1)}日
@@ -576,8 +612,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 onKeyDown={async e => {
                                                     if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
                                                         e.preventDefault();
-                                                        // Call create with parentId
-                                                        // [FIX] Pass parent's due_date (item.due_date) for inheritance
                                                         const newId = await onCreateSubTask?.(item.id, newSubTaskTitle, item.due_date || undefined);
                                                         if (newId) {
                                                             setNewSubTaskTitle('');
@@ -603,37 +637,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         </div>
                                     </div>
                                 )}
-                            </div> {/* End Left Pane */}
 
-                            {/* RIGHT: Side Calendar Panel */}
-                            <div className="w-[320px] hidden md:flex border-l border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex-col overflow-y-auto">
-                                <SideCalendarPanel
-                                    currentDate={viewMonth}
-                                    onMonthChange={setViewMonth}
-                                    selectedDate={dueDate ? new Date(dueDate) : null}
-                                    onSelectDate={async (d) => {
-                                        const val = format(d, 'yyyy-MM-dd');
-
-                                        if (activeDateInput === 'my') {
-                                            // Update My Limit (Prep Date)
-                                            setPrepDate(val);
-                                            const dateObj = new Date(val);
-                                            const timestamp = Math.floor(dateObj.getTime() / 1000);
-                                            const updates = { prep_date: timestamp };
-                                            if (onUpdate) await onUpdate(item.id, updates);
-                                            else await ApiClient.updateItem(item.id, updates);
-                                        } else {
-                                            // Update Official Due Date (Default)
-                                            setDueDate(val);
-                                            setDueStatus('confirmed');
-                                            const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
-                                            if (onUpdate) await onUpdate(item.id, updates);
-                                            else await ApiClient.updateItem(item.id, updates);
-                                        }
-                                    }}
-                                    prepDate={prepDate ? new Date(prepDate) : null}
-                                    targetMode={activeDateInput} // [NEW] Visual Feedback
-                                />
                             </div>
                         </div>
 
