@@ -4,15 +4,20 @@ import { useDroppable } from '@dnd-kit/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isHoliday } from '../../logic/capacity';
 
-// Default config for visualization logic (Standard Weekend Holidays)
-const DEFAULT_CAPACITY_CONFIG: any = { // Changed to 'any' as CapacityConfig type is removed
-    holidays: [
-        { type: 'weekly', value: '0' }, // Sunday
-        { type: 'weekly', value: '6' }  // Saturday
-    ],
-    defaultDailyMinutes: 480, // 8 hours
-    exceptions: {}
-};
+import { calculateDailyVolume, DEFAULT_CAPACITY_CONFIG } from '../../logic/volumeCalculator';
+
+// ... (other imports)
+
+// REMOVED local DEFAULT_CAPACITY_CONFIG definition
+
+// ...
+
+// Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
+// [REFACTOR] Use shared logic
+const heatMap = useMemo(() => {
+    const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
+    return calculateDailyVolume(items, config);
+}, [items, capacityConfig]);
 
 // --- Date Helpers ---
 const getStartOfToday = () => {
