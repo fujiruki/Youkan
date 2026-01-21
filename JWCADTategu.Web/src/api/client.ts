@@ -213,7 +213,7 @@ export class ApiClient {
     }
 
     // --- Calendar Load API ---
-    public static async getCalendarLoad(year: number, month: number): Promise<{ [date: string]: number }> {
+    public static async getCalendarLoad(year: number, month: number): Promise<any[]> {
         return this.request('GET', `/calendar/load?year=${year}&month=${month}`);
     }
 
