@@ -262,6 +262,15 @@ if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
     exit;
 }
 
+// Calendar Routes (Load/Heatmap)
+require_once 'CalendarController.php';
+
+if (preg_match('#^(/api)?/calendar/load$#', $path) && $method === 'GET') {
+    $controller = new CalendarController($db);
+    echo json_encode($controller->getLoad($_GET));
+    exit;
+}
+
 // Item Routes (Legacy & General CRUD)
 try {
     if (preg_match('#^(/api)?/items$#', $path)) {

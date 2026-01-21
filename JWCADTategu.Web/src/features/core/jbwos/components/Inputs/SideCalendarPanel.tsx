@@ -24,6 +24,7 @@ interface SideCalendarPanelProps {
     onSelectDate: (date: Date) => void;
     prepDate?: Date | null; // For the "My Deadline" marker
     targetMode?: 'due' | 'my' | null; // [NEW] Controls visual feedback
+    dailyVolumes?: { [date: string]: number }; // [NEW] Heatmap data (date string -> minutes)
     className?: string;
 }
 
@@ -34,6 +35,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     onSelectDate,
     prepDate,
     targetMode = 'due',
+    dailyVolumes = {},
     className
 }) => {
     const monthStart = startOfMonth(currentDate);

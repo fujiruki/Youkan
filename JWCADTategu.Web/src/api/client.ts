@@ -212,6 +212,11 @@ export class ApiClient {
         return this.request('GET', '/gdb');
     }
 
+    // --- Calendar Load API ---
+    public static async getCalendarLoad(year: number, month: number): Promise<{ [date: string]: number }> {
+        return this.request('GET', `/calendar/load?year=${year}&month=${month}`);
+    }
+
     // --- Phase 2: Side Memo API ---
     public static async getMemos(): Promise<any[]> {
         return this.request('GET', '/memos');
