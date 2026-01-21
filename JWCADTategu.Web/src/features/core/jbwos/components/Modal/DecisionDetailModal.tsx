@@ -317,6 +317,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     {dueStatus === 'waiting_external' ? '日付指定' : '未定に戻す'}
                                                 </button>
                                             </div>
+                                            {/* Date Input Area (Responsive) */}
                                             {dueStatus === 'waiting_external' ? (
                                                 <div
                                                     onClick={async () => {
@@ -333,22 +334,42 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 </div>
                                             ) : (
                                                 <div className="relative group">
-                                                    <SmartDateInput
-                                                        value={dueDate ? new Date(dueDate) : null}
-                                                        onChange={async (d) => {
-                                                            const val = d ? format(d, 'yyyy-MM-dd') : '';
-                                                            setDueDate(val);
-                                                            // Sync Calendar View if needed
-                                                            if (d) setViewMonth(d);
+                                                    {/* Desktop: Smart Input */}
+                                                    <div className="hidden md:block">
+                                                        <SmartDateInput
+                                                            value={dueDate ? new Date(dueDate) : null}
+                                                            onChange={async (d) => {
+                                                                const val = d ? format(d, 'yyyy-MM-dd') : '';
+                                                                setDueDate(val);
+                                                                if (d) setViewMonth(d);
+                                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                                else await ApiClient.updateItem(item.id, updates);
+                                                            }}
+                                                            onFocus={() => setActiveDateInput('due')}
+                                                            autoFocus={initialFocus === 'date' || !dueDate}
+                                                        />
+                                                    </div>
 
-                                                            const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
-                                                            if (onUpdate) await onUpdate(item.id, updates);
-                                                            else await ApiClient.updateItem(item.id, updates);
-                                                        }}
-                                                        onFocus={() => setActiveDateInput('due')} // [NEW] Focus Tracking
-                                                        autoFocus={initialFocus === 'date' || !dueDate} // Auto focus if newly opened as waiting
-                                                    />
-                                                    {/* Mobile Quick Actions (Below Input) */}
+                                                    {/* Mobile: Native Date Input */}
+                                                    <div className="md:hidden">
+                                                        <input
+                                                            type="date"
+                                                            value={dueDate}
+                                                            onChange={async (e) => {
+                                                                const val = e.target.value;
+                                                                setDueDate(val);
+                                                                if (val) setViewMonth(new Date(val));
+                                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                                else await ApiClient.updateItem(item.id, updates);
+                                                            }}
+                                                            onFocus={() => setActiveDateInput('due')}
+                                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-3 py-2 text-sm"
+                                                        />
+                                                    </div>
+
+                                                    {/* Mobile Quick Actions (Due Date) */}
                                                     <div className="flex md:hidden items-center gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
                                                         {[
                                                             { label: '今日', diff: 0 },
@@ -362,7 +383,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                     const val = format(d, 'yyyy-MM-dd');
                                                                     setDueDate(val);
                                                                     setDueStatus('confirmed');
-                                                                    // Immediate update
                                                                     const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
                                                                     if (onUpdate) onUpdate(item.id, updates);
                                                                     else ApiClient.updateItem(item.id, updates);
@@ -396,12 +416,36 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
                                                 }}
-                                                onFocus={() => setActiveDateInput('my')} // [NEW] Focus Tracking
+                                                onFocus={() => setActiveDateInput('my')}
                                                 className={cn(
                                                     "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 w-full transition-colors",
                                                     activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
                                                 )}
                                             />
+                                            {/* Mobile Quick Actions (My Date) */}
+                                            <div className="flex md:hidden items-center gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
+                                                {[
+                                                    { label: '今日', diff: 0 },
+                                                    { label: '明日', diff: 1 }
+                                                ].map(action => (
+                                                    <button
+                                                        key={action.label}
+                                                        onClick={async () => {
+                                                            const d = addDays(new Date(), action.diff);
+                                                            const val = format(d, 'yyyy-MM-dd');
+                                                            setPrepDate(val);
+                                                            const dateObj = new Date(val);
+                                                            const timestamp = Math.floor(dateObj.getTime() / 1000);
+                                                            const updates = { prep_date: timestamp };
+                                                            if (onUpdate) await onUpdate(item.id, updates);
+                                                            else await ApiClient.updateItem(item.id, updates);
+                                                        }}
+                                                        className="flex-none px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+                                                    >
+                                                        {action.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
 

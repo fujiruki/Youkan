@@ -21,8 +21,8 @@ export const SideMemoPanel: React.FC<SideMemoPanelProps> = ({ memos, onAdd, onDe
         const checkMobile = () => {
             const mobile = window.innerWidth < 768;
             setIsMobile(mobile);
-            if (mobile) setIsOpen(false); // Default closed on mobile
-            else setIsOpen(true); // Default open on desktop
+            // Always default to closed initially, user opens it when needed
+            setIsOpen(false);
         };
 
         checkMobile();

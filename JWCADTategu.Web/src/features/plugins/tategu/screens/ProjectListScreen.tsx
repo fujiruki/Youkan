@@ -80,6 +80,11 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                                 className="flex-1 border border-slate-300 rounded px-3 py-2"
                                 placeholder="e.g. K邸新築工事"
                                 autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleCreateProject();
+                                    }
+                                }}
                             />
                             <button onClick={handleCreateProject} className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
                                 Create

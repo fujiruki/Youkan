@@ -282,7 +282,7 @@ const AppContent: React.FC<{
         return (
             <>
                 <UndoProvider>
-                    <div className="h-screen w-screen bg-slate-950 text-slate-200 font-sans flex flex-col">
+                    <div className="h-screen w-full bg-slate-950 text-slate-200 font-sans flex flex-col">
 
                         <DebugBanner />
                         {/* New JBWOS Header */}
