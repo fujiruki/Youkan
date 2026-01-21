@@ -16,7 +16,7 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { BookOpen, AlertCircle, X } from 'lucide-react';
+import { BookOpen, AlertCircle, X, LayoutGrid, LayoutList } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu'; // [NEW]
@@ -352,26 +352,29 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
                         {/* [NEW] Layout Switcher (Visible only in Board mode) */}
                         {/* [NEW] Layout Switcher (Visible only in Board mode) */}
+                        {/* [NEW] Layout Switcher (Visible on Mobile too) */}
                         {viewMode === 'board' && (
-                            <div className="hidden md:flex items-center gap-2">
+                            <div className="flex items-center gap-1 md:gap-2">
                                 <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
                                     <button
                                         onClick={() => switchLayoutMode('standard')}
-                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
                                         title="Standard (Vertical)"
                                     >
-                                        Focus
+                                        <LayoutList size={14} className="md:hidden" />
+                                        <span className="hidden md:inline">Focus</span>
                                     </button>
                                     <button
                                         onClick={() => switchLayoutMode('panorama')}
-                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
+                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
                                         title="Panorama (Grid All)"
                                     >
-                                        Panorama
+                                        <LayoutGrid size={14} className="md:hidden" />
+                                        <span className="hidden md:inline">Panorama</span>
                                     </button>
                                 </div>
 
-                                {/* [NEW] Density Slider (Only in Panorama) */}
+                                {/* [NEW] Density Slider (Only in Panorama - Desktop Only for now?) User requested mobile density too? Maybe auto-dense on mobile. */}
                                 {layoutMode === 'panorama' && (
                                     <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">
                                         <span className="text-[10px] font-bold text-slate-400">密度</span>
@@ -419,13 +422,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                 <div className="flex-1 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
                     {viewMode === 'board' ? (
                         <div className={layoutMode === 'panorama'
-                            ? `block columns-1 ${getColumnClass(columnCount)} gap-4 p-4 h-full overflow-y-auto scrollbar-thin` // Dynamic Columns with custom scrollbar
-                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin" // Standard: Vertical
+                            ? `block columns-1 ${getColumnClass(columnCount)} gap-2 md:gap-4 p-1 md:p-4 h-full overflow-y-auto scrollbar-thin` // Reduced gap/padding for mobile
+                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin"
                         }>
 
                             {/* 1. Active Shelf (Today's Judgment) */}
                             <section className={layoutMode === 'panorama'
-                                ? "mb-4 break-inside-avoid bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+                                ? "mb-2 break-inside-avoid bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" // Dense: rounded-sm, mb-2
                                 : ""
                             }>
                                 <div>
