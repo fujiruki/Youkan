@@ -16,6 +16,7 @@ import {
 import { ja } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
+import { getVolumeColorClass } from '../../logic/volumeCalculator';
 
 interface SideCalendarPanelProps {
     currentDate: Date; // The visible month
@@ -24,7 +25,7 @@ interface SideCalendarPanelProps {
     onSelectDate: (date: Date) => void;
     prepDate?: Date | null; // For the "My Deadline" marker
     targetMode?: 'due' | 'my' | null; // [NEW] Controls visual feedback
-    dailyVolumes?: { [date: string]: number }; // [NEW] Heatmap data (date string -> minutes)
+    dailyVolumes?: Map<string, number>; // [MODIFIED] Use Map to match shared logic
     className?: string;
 }
 
@@ -35,7 +36,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     onSelectDate,
     prepDate,
     targetMode = 'due',
-    dailyVolumes = {},
+    dailyVolumes = new Map(),
     className
 }) => {
     const monthStart = startOfMonth(currentDate);
@@ -88,20 +89,6 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
 
-    // [NEW] Volume Color Logic (Matches QuantityCalendar: Amber Gradient)
-    const getVolumeColor = (dateStr: string, isSelected: boolean) => {
-        if (isSelected) return ""; // Selection overrides heatmap
-        const vol = dailyVolumes[dateStr] || 0;
-        if (vol === 0) return "";
-
-        // QuantityCalendar logic approx: Opacity = min(vol * 15, 60)%
-        if (vol < 1) return "bg-amber-500/10 dark:bg-amber-400/10";
-        if (vol < 2) return "bg-amber-500/25 dark:bg-amber-400/20";
-        if (vol < 3) return "bg-amber-500/40 dark:bg-amber-400/30";
-        if (vol < 4) return "bg-amber-500/50 dark:bg-amber-400/40";
-        return "bg-amber-500/60 dark:bg-amber-400/50"; // Max intensity
-    };
-
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
             {/* Header (Compact) */}
@@ -146,7 +133,13 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     const isPrep = prepDate && isSameDay(day, prepDate);
                     const _isToday = isToday(day);
 
-                    const volumeClass = isCurrentMonth ? getVolumeColor(format(day, 'yyyy-MM-dd'), !!isSelected) : "";
+                    // [MODIFIED] Use Shared Logic & Key
+                    // calculateDailyVolume uses toDateString() as key ("Wed Jan 21 2026")
+                    const dateKey = day.toDateString();
+                    const volume = dailyVolumes.get(dateKey) || 0;
+
+                    // QuantityCalendar logic (shared): returns Tailwind class string
+                    const volumeClass = (isCurrentMonth && !isSelected) ? getVolumeColorClass(volume) : "";
 
                     return (
                         <button
