@@ -5,16 +5,16 @@ import { DxfLayerConfig } from '../features/plugins/tategu/domain/DxfConfig';
 import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
 import { Item } from '../features/core/jbwos/types'; // [NEW]
 
-export interface Project {
-    id?: number;
-    name: string;
-    client?: string;
-    settings?: EstimationSettings;
-    dxfLayerConfig?: DxfLayerConfig;
-    isArchived?: boolean; // [NEW]
-    viewMode?: 'internal' | 'external'; // [NEW]
-    updatedAt: Date;
-    createdAt: Date;
+id ?: number;
+name: string;
+client ?: string;
+settings ?: EstimationSettings;
+dxfLayerConfig ?: DxfLayerConfig;
+isArchived ?: boolean; // [NEW]
+viewMode ?: 'internal' | 'external'; // [NEW]
+judgmentStatus ?: 'inbox' | 'decision_hold' | 'someday' | 'active'; // [NEW] For GDB persistence
+updatedAt: Date;
+createdAt: Date;
 }
 
 export interface Door {
@@ -110,10 +110,51 @@ export class TateguDatabase extends Dexie {
     tasks!: Table<Task>;
     fieldNotes!: Table<FieldNote>;
     items!: Table<Item>;
-    settings!: Table<Settings>; // [NEW]
+    settings!: Table<Settings>;
+    deliverables!: Table<Deliverable>;
 
     constructor() {
         super('JWCADTateguDB');
+
+        this.version(16).stores({
+            projects: '++id, name, isArchived, judgmentStatus, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id',
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt' // Schema stays same, fields added to objects
+        });
+
+        this.version(15).stores({
+            projects: '++id, name, isArchived, judgmentStatus, updatedAt',
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id',
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt' // [NEW]
+        });
+
+        this.version(14).stores({
+            projects: '++id, name, isArchived, judgmentStatus, updatedAt', // [NEW] Added judgmentStatus
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id'
+        }).upgrade(async tx => {
+            // Initialize judgmentStatus for existing projects
+            await tx.table('projects').toCollection().modify(p => {
+                p.judgmentStatus = 'inbox';
+            });
+        });
 
         this.version(13).stores({
             projects: '++id, name, isArchived, updatedAt',
