@@ -350,8 +350,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                         </div>
 
                         {/* [NEW] Layout Switcher (Visible only in Board mode) */}
+                        {/* [NEW] Layout Switcher (Visible only in Board mode) */}
                         {viewMode === 'board' && (
-                            <div className="flex items-center gap-2">
+                            <div className="hidden md:flex items-center gap-2">
                                 <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
                                     <button
                                         onClick={() => switchLayoutMode('standard')}
@@ -390,12 +391,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
                         <button
                             onClick={() => setShowProjectDialog(true)}
-                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2"
+                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2 whitespace-nowrap"
                             title="新規プロジェクト作成"
                         >
-                            + プロジェクト
+                            <span className="hidden md:inline">+ プロジェクト</span>
+                            <span className="md:hidden">+</span>
                         </button>
-                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 rounded-full" title="Help">
+                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 rounded-full hidden md:block" title="Help">
                             <BookOpen size={18} className="text-slate-400" />
                         </button>
                     </div>
