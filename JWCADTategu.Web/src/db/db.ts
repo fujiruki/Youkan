@@ -3,7 +3,7 @@ import { DoorDimensions } from '../features/plugins/tategu/domain/DoorDimensions
 import { EstimationSettings } from '../features/plugins/tategu/domain/EstimationSettings';
 import { DxfLayerConfig } from '../features/plugins/tategu/domain/DxfConfig';
 import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
-import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
+
 import { Item } from '../features/core/jbwos/types'; // [NEW]
 import { Deliverable } from '../features/plugins/manufacturing/types'; // [NEW]
 

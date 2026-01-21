@@ -257,7 +257,7 @@ export const JBWOSRepository = {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
-                let status = 'inbox';
+                // let status = 'inbox'; // Unused
                 return; // Assume updateItem handled the data change or View Model handles it.
             }
         }
