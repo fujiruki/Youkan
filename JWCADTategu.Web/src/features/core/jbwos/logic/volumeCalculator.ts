@@ -1,5 +1,5 @@
-import { Item } from '../../types';
-import { isHoliday } from '../../logic/capacity';
+import { Item } from '../types';
+import { isHoliday } from './capacity';
 
 // Default config matched with QuantityCalendar
 export const DEFAULT_CAPACITY_CONFIG: any = {
