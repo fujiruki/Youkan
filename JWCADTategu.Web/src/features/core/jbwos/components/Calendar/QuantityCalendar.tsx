@@ -12,12 +12,7 @@ import { calculateDailyVolume, DEFAULT_CAPACITY_CONFIG } from '../../logic/volum
 
 // ...
 
-// Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
-// [REFACTOR] Use shared logic
-const heatMap = useMemo(() => {
-    const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
-    return calculateDailyVolume(items, config);
-}, [items, capacityConfig]);
+
 
 // --- Date Helpers ---
 const getStartOfToday = () => {
@@ -116,57 +111,12 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick, capacity
     }, [items]);
 
     // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
+    // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
+    // [REFACTOR] Use shared logic from volumeCalculator
     const heatMap = useMemo(() => {
-        const map = new Map<string, number>();
-        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG; // Use prop or fallback
-
-        items.forEach(item => {
-            // 1. Due Date: Add moderate heat
-            if (item.due_date) {
-                const d = parseDateString(item.due_date);
-                if (d) {
-                    const key = d.toDateString();
-                    map.set(key, (map.get(key) || 0) + 1.0);
-                }
-            }
-            // 2. Prep Date Span: Add heat for work_days range (Working Days Only)
-            if (item.prep_date) {
-                const prepDate = new Date(item.prep_date * 1000);
-                // Fallback: If work_days is 1 (default) or missing, try to use estimatedMinutes
-                const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0; // 7h * 60m = 420m
-                const workDays = (item.work_days && item.work_days > 1) ? item.work_days : (estimatedDays || 1);
-
-                let count = 0;
-                let current = new Date(prepDate);
-                // Safety break to prevent infinite loop
-                let safety = 0;
-
-                while (count < workDays && safety < 30) {
-                    safety++;
-
-                    // Check if current is holiday
-                    // Note: isHoliday expects Date object.
-                    // If prep_date itself is a holiday, do we count it?
-                    // Spec: "StartDate is Prep Date". If Prep Date is holiday, we might start from NEXT work day?
-                    // But current logic is: If today is work day, paint it.
-                    // If Prep Date is Holiday, the loop checks isHoliday(current). It returns true.
-                    // So we do NOT paint it, and do NOT increment count.
-                    // Loop continues to next day. Correct.
-                    if (!isHoliday(current, config)) {
-                        const key = current.toDateString();
-                        map.set(key, (map.get(key) || 0) + 1.0);
-                        count++;
-                    }
-
-                    // Move to previous day (Backwards)
-                    // Spec: "Prep Date" is the TARGET completion date.
-                    // "2/4までの3日間" -> 2/2, 2/3, 2/4.
-                    current.setDate(current.getDate() - 1);
-                }
-            }
-        });
-        return map;
-    }, [items]);
+        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
+        return calculateDailyVolume(items, config);
+    }, [items, capacityConfig]);
 
     // [MODIFIED] Signs Map (ALL related items for cell click) - Due + Prep (Working Days Only)
     const signsMap = useMemo(() => {
