@@ -39,14 +39,17 @@ export const JBWOSRepository = {
 
     // 2. Add Item (To API)
     addItemToInbox: async (title: string): Promise<string> => {
-        // ID generation handles by Server or Client? Client UUID is safer for offline-first future.
         const id = uuidv4();
         const newItem: Partial<JudgableItem> = {
             id,
             title,
             status: 'inbox'
         };
-        await ApiClient.createItem(newItem);
+        try {
+            await ApiClient.createItem(newItem);
+        } catch (e) {
+            console.warn('Failed to create Item via API:', e);
+        }
         return id;
     },
 
@@ -65,7 +68,11 @@ export const JBWOSRepository = {
         }
 
         // Handled by API
-        await ApiClient.updateItem(id, { status });
+        try {
+            await ApiClient.updateItem(id, { status });
+        } catch (e) {
+            console.warn('Failed to update status via API:', e);
+        }
     },
 
     // 4. Update Title
@@ -82,7 +89,11 @@ export const JBWOSRepository = {
             }
         }
 
-        await ApiClient.updateItem(id, { title });
+        try {
+            await ApiClient.updateItem(id, { title });
+        } catch (e) {
+            console.warn('Failed to update title via API:', e);
+        }
     },
 
     // 5. Interrupt
@@ -96,15 +107,17 @@ export const JBWOSRepository = {
             return;
         }
 
-        // API doesn't have specific endpoint, use update
-        await ApiClient.updateItem(id, {
-            status: 'inbox',
-            interrupt: true as any // Cast for API compatibility
-        });
+        try {
+            await ApiClient.updateItem(id, {
+                status: 'inbox',
+                interrupt: true as any // Cast for API compatibility
+            });
+        } catch (e) {
+            console.warn('Failed to markAsInterrupt via API:', e);
+        }
     },
 
-    // 6. Delete (Hard Delete or Archive?)
-    // Request is "Delete", let's use Archive for safety but rename wrapper to deleteItem to match User intent in VM.
+    // 6. Delete
     deleteItem: async (id: string): Promise<void> => {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
@@ -113,12 +126,14 @@ export const JBWOSRepository = {
                 return;
             }
         }
-        // API: Call delete endpoint if exists, or use destroy logic
-        // For MVP 3.1, let's assume we want to remove it.
-        await ApiClient.deleteItem(id);
+        try {
+            await ApiClient.deleteItem(id);
+        } catch (e) {
+            console.warn('Failed to deleteItem via API:', e);
+        }
     },
 
-    // 7. Archive (Logical Delete - Keep for reference)
+    // 7. Archive
     archiveItem: async (id: string): Promise<void> => {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
@@ -130,8 +145,11 @@ export const JBWOSRepository = {
                 return;
             }
         }
-        // API Logical Delete (Update status)
-        await ApiClient.updateItem(id, { status: 'archive' });
+        try {
+            await ApiClient.updateItem(id, { status: 'archive' });
+        } catch (e) {
+            console.warn('Failed to archiveItem via API:', e);
+        }
     },
 
     // --- Phase 2: Backend Intelligence Methods ---
@@ -157,8 +175,8 @@ export const JBWOSRepository = {
                 id: `project-${p.id}`,
                 title: `📁 ${p.name}`, // Add icon to distinguish
                 status: (p.judgmentStatus || 'inbox') as JudgmentStatus, // [FIX] Use persisted status
-                updatedAt: p.updatedAt.getTime(),
-                createdAt: p.createdAt.getTime(),
+                updatedAt: new Date(p.updatedAt).getTime(),
+                createdAt: new Date(p.createdAt).getTime(),
                 category: 'project',
                 type: 'project',
                 isProject: true
@@ -168,11 +186,10 @@ export const JBWOSRepository = {
             const deliverables = await db.deliverables.toArray();
             const deliverableItems = await Promise.all(deliverables.map(d => convertDeliverableToItem(d)));
 
-            // [Migration/Fallback] If Door has no Deliverable, allow it for now?
-            // Ideally assume all Doors have Deliverables. For now, fetch Doors without DeliverableID?
-            // Actually, we should just show Deliverables.
-            // But legacy Doors might not have Deliverables yet.
-            // Let's migrate legacy doors on the fly if needed, or just show them if no deliverable.
+            // [Migration/Fallback]
+            // For older Doors that don't have Deliverable synced yet, you might want to show them.
+            // But if we want to move to Deliverable-centric, maybe skip legacy doors or migrate them on start?
+            // For now, let's include legacy doors to avoid data "disappearing"
             const legacyDoors = await db.doors.filter(d => !d.deliverableId).toArray();
             const legacyDoorItems = await Promise.all(legacyDoors.map(d => convertDoorToItem(d)));
 
@@ -190,18 +207,29 @@ export const JBWOSRepository = {
             log: [...(apiShelf.history || []), ...localItems.filter(i => i.status === 'done' || i.status === 'archive' || i.status === 'decision_rejected')] // Mapping 'history' key from API to 'log' key in Frontend
         };
 
-        // Sort each bucket by updatedAt desc (or RDD for Active? Keep simple for now)
-        mergedShelf.active.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        mergedShelf.preparation.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        mergedShelf.intent.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        mergedShelf.log.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        // Sort each bucket by updatedAt desc
+        const sortFn = (a: JudgableItem, b: JudgableItem) => (b.updatedAt || 0) - (a.updatedAt || 0);
+        mergedShelf.active.sort(sortFn);
+        mergedShelf.preparation.sort(sortFn);
+        mergedShelf.intent.sort(sortFn);
+        mergedShelf.log.sort(sortFn);
 
         return mergedShelf;
     },
 
     // Today View
     getTodayView: async () => {
-        return ApiClient.getTodayView();
+        try {
+            return await ApiClient.getTodayView();
+        } catch (e) {
+            console.warn('Failed to fetch Today View from API, falling back to local:', e);
+            // Fallback: Fetch local items that might be 'today' (For MVP, return empty or implement local logic)
+            return {
+                morning: [],
+                afternoon: [],
+                evening: []
+            };
+        }
     },
 
     // Decision Logic
@@ -215,10 +243,6 @@ export const JBWOSRepository = {
                 if (decision === 'no' && note === 'someday') status = 'someday'; // or 'intent'
                 if (decision === 'no' && note === 'archive') status = 'archive'; // if mapped
 
-                // Map GDB semantics to Schema semantics
-                // GDB uses 'someday'? Schema uses 'someday' or 'intent'? 
-                // VM sends 'no' with note='intent' or 'someday'.
-                // Let's assume note is the status key if 'no'.
                 if (decision === 'no' && (note === 'intent' || note === 'someday')) {
                     status = 'someday' as any;
                 }
@@ -233,49 +257,65 @@ export const JBWOSRepository = {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
-                // Logic duplicated from updateItem? Or just allow updateItem to handle it?
-                // VM calls updateItem THEN resolveDecision usually.
-                // But resolveDecision is also called for sorting.
-                // Minimal implementation: Update status.
                 let status = 'inbox';
-                if (decision === 'hold') status = 'decision_hold';
-                if (decision === 'no') status = 'inbox'; // Logic depends on note
-                // For now, let updateItem handle main status changes if VM does so.
-                // But VM relies on resolveDecision API often.
-                // Let's rely on ApiClient normally, but for Local we must Implement here.
-                // Simpler: Just allow fallthrough to ApiClient? No, API doesn't know local IDs.
-                // So we MUST implement local logic.
-
-                // However, VM implementation:
-                // await updateItem(id, updates);
-                // await resolveDecision(id, decision, note);
-
-                // If we implement updateItem correctly, maybe we don't need full logic here?
-                // But resolveDecision is semantically "Done with Inbox".
-                // For Local Items, updateItem is enough IF VM uses it.
-                return; // Assume updateItem handled the data change.
+                return; // Assume updateItem handled the data change or View Model handles it.
             }
         }
 
-        return ApiClient.resolveDecision(id, decision, note);
+        try {
+            return await ApiClient.resolveDecision(id, decision, note);
+        } catch (e) {
+            console.warn('Failed to resolveDecision via API:', e);
+        }
     },
 
     // Today Logic
     commitToToday: async (id: string) => {
-        return ApiClient.commitToToday(id);
+        try {
+            return await ApiClient.commitToToday(id);
+        } catch (e) { console.warn(e); }
     },
     startExecution: async (id: string) => {
-        return ApiClient.startExecution(id);
+        try {
+            return await ApiClient.startExecution(id);
+        } catch (e) { console.warn(e); }
     },
     completeItem: async (id: string) => {
-        return ApiClient.completeItem(id);
+        try {
+            return await ApiClient.completeItem(id);
+        } catch (e) { console.warn(e); }
     },
 
     // Side Memo Logic
-    getMemos: async () => ApiClient.getMemos(),
-    createMemo: async (content: string) => ApiClient.createMemo(content),
-    deleteMemo: async (id: string) => ApiClient.deleteMemo(id),
-    moveMemoToInbox: async (id: string) => ApiClient.moveMemoToInbox(id),
+    getMemos: async () => {
+        try {
+            return await ApiClient.getMemos();
+        } catch (e) {
+            console.warn('Failed to fetch Memos from API:', e);
+            return [];
+        }
+    },
+    createMemo: async (content: string) => {
+        try {
+            return await ApiClient.createMemo(content);
+        } catch (e) {
+            console.warn('Failed to create Memo via API:', e);
+        }
+    },
+    deleteMemo: async (id: string) => {
+        try {
+            return await ApiClient.deleteMemo(id);
+        } catch (e) {
+            console.warn('Failed to delete Memo via API:', e);
+        }
+    },
+    moveMemoToInbox: async (id: string) => {
+        try {
+            return await ApiClient.moveMemoToInbox(id);
+        } catch (e) {
+            console.warn('Failed to move Memo via API:', e);
+        }
+    },
 
     // Generic Update (For flexibility)
     updateItem: async (id: string, data: Partial<Item>) => {
@@ -298,85 +338,83 @@ export const JBWOSRepository = {
         // [Hybrid] Handle Deliverable ID
         if (id.startsWith('deliverable-')) {
             const deliverableId = id.replace('deliverable-', '');
-            // Update Deliverable
             const updates: any = {};
             if (data.status) updates.judgmentStatus = data.status;
             if (data.title) updates.name = data.title;
-            if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes; // Fix: manHours -> estimatedMinutes
-            if (data.due_date !== undefined) {
-                // Convert string "YYYY-MM-DD" to Date
-                updates.dueDate = data.due_date ? new Date(data.due_date) : undefined;
-            }
+            if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes;
 
-            updates.updatedAt = new Date();
+            updates.updatedAt = new Date(); // number in Dexie, but Date object is auto-converted by Dexie usually? No, defined as number.
+            // Wait, if defined as number in types, passing Date object might be issue.
+            // Let's use Date.now() to be safe.
+            updates.updatedAt = Date.now();
+
             await db.deliverables.update(deliverableId, updates);
             return;
         }
 
-        // [Legacy] Handle Local Door ID (Keep for backward compat)
+        // [Legacy] Handle Local Door ID
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
                 const updates: any = {};
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
-                if (data.prep_date !== undefined) updates.prep_date = data.prep_date; // Allow null
-                // ... other fields
-                updates.updatedAt = new Date();
+                if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
+
+                updates.updatedAt = new Date(); // Legacy might expect Date object.
                 await db.doors.update(doorId, updates);
                 return;
             }
         }
 
-        return ApiClient.updateItem(id, data);
+        try {
+            return await ApiClient.updateItem(id, data);
+        } catch (e) {
+            console.warn('Failed to update Item via API:', e);
+        }
     },
 
-    // [NEW] Create Item (Generic)
     createItem: async (item: Partial<Item>): Promise<string> => {
-        // Use ApiClient to create item.
-        // If ApiClient.createItem returns void, we might need to adjust or rely on the ID we passed if generated.
-        // Actually ApiClient.createItem definition says: async createItem(item: Partial<Item>): Promise<void>
-        // But usually we want to return the ID. Repository.addItemToInbox generates it.
-        // Let's assume the ID is passed in the item object or we generate it if missing.
         if (!item.id) {
             item.id = uuidv4();
         }
-        await ApiClient.createItem(item);
+        try {
+            await ApiClient.createItem(item);
+        } catch (e) {
+            console.warn('Failed to create Item via API:', e);
+        }
         return item.id!;
     },
 
-    // [NEW] Get Sub-Tasks
     getSubTasks: async (parentId: string): Promise<Item[]> => {
-        // API doesn't have explicit getSubTasks yet? 
-        // We can use getAllItems and filter, or assume ApiClient has ability.
-        // For Hybrid/Local, we need to check DB if items are stored there?
-        // Wait, JBWOSRepository.getItemsByStatus fetches from API + Local.
-        // Currently Sub-tasks are likely on Server (API).
-        // Let's assume we fetch all and filter for MVP, or add query logic.
-        // Since we don't have a specific endpoint, efficiently we should query by parentId.
-        // If API doesn't support it, we must fetch all.
-        // However, `getItemsByStatus` implementation suggests `ApiClient.getAllItems()` exists.
-
-        const allItems = await ApiClient.getAllItems();
-        return allItems.filter(i => i.parentId === parentId);
+        try {
+            const allItems = await ApiClient.getAllItems();
+            return allItems.filter(i => i.parentId === parentId);
+        } catch (e) {
+            console.warn('Failed to fetch SubTasks from API:', e);
+            return [];
+        }
     },
 
-    // [NEW] Get Items by Source ID (for Data Sync)
     getItemsBySourceId: async (sourceId: string): Promise<Item[]> => {
-        // MVP: Client-side filtering
-        const allItems = await ApiClient.getAllItems();
-        return allItems.filter(i => i.doorId === sourceId);
+        try {
+            const allItems = await ApiClient.getAllItems();
+            return allItems.filter(i => i.doorId === sourceId);
+        } catch (e) {
+            console.warn('Failed to fetch ItemsBySourceId from API:', e);
+            return [];
+        }
     },
 
-    // [NEW] Update Sub-Task (or any item) by ID
     updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
-        await ApiClient.updateItem(id, updates);
+        try {
+            await ApiClient.updateItem(id, updates);
+        } catch (e) {
+            console.warn('Failed to updateItemGeneric via API:', e);
+        }
     },
 
-    // 8. Settings (Capacity Config) [NEW]
     getCapacityConfig: async (): Promise<any | null> => {
-        // Use 'any' to avoid strict type dependency if not imported, 
-        // but ideally we import CapacityConfig. For now, rely on caller casting.
         const record = await db.settings.get('capacity_config');
         return record ? record.value : null;
     },
@@ -401,7 +439,7 @@ async function convertDoorToItem(door: Door): Promise<Item> {
         id: `door-${door.id}`,
         title: door.name,
         status: door.judgmentStatus || 'inbox',
-        statusUpdatedAt: door.updatedAt.getTime(),
+        statusUpdatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
         interrupt: false,
         weight: door.weight || 1,
         projectId: project?.name,
@@ -410,8 +448,8 @@ async function convertDoorToItem(door: Door): Promise<Item> {
         category: door.category || 'door',
         type: 'start',
         thumbnail: door.thumbnail,
-        createdAt: door.createdAt.getTime(),
-        updatedAt: door.updatedAt.getTime(),
+        createdAt: new Date(door.createdAt).getTime(), // Robust conversion
+        updatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
         memo: door.tag + (project ? ` @${project.name}` : '')
     };
 }
@@ -422,28 +460,29 @@ async function convertDeliverableToItem(deliverable: Deliverable): Promise<Item>
         project = await db.projects.get(deliverable.projectId);
     }
 
+    // Deliverable timestamps are definitely numbers in Types, but robust check doesn't hurt.
+    const createdAt = typeof deliverable.createdAt === 'number' ? deliverable.createdAt : new Date(deliverable.createdAt).getTime();
+    const updatedAt = typeof deliverable.updatedAt === 'number' ? deliverable.updatedAt : new Date(deliverable.updatedAt).getTime();
+    const statusUpdatedAt = deliverable.statusUpdatedAt
+        ? (typeof deliverable.statusUpdatedAt === 'number' ? deliverable.statusUpdatedAt : new Date(deliverable.statusUpdatedAt).getTime())
+        : updatedAt;
+
     return {
         id: `deliverable-${deliverable.id}`,
         title: deliverable.name,
-        status: (deliverable.judgmentStatus || 'inbox') as JudgmentStatus,
-        statusUpdatedAt: deliverable.updatedAt.getTime(),
+        status: (deliverable.status || 'inbox') as JudgmentStatus,
+        statusUpdatedAt: statusUpdatedAt,
         interrupt: false,
-        weight: 1, // Todo: Add weight to Deliverable
+        weight: 1,
         projectId: project?.name,
-        // waitingReason: deliverable.waitingReason,
-        doorId: deliverable.id, // Source ID
-        category: 'production', // Generic production
+        doorId: deliverable.id,
+        category: 'production',
         type: 'start',
-        // thumbnail? Link to Door thumbnail if exists? 
-        // We might need to fetch linked Door to get thumbnail.
-        // const door = await db.doors.where('deliverableId').equals(deliverable.id).first();
-        // thumbnail: door?.thumbnail,
-        createdAt: deliverable.createdAt.getTime(),
-        createdAt: deliverable.createdAt.getTime(),
-        updatedAt: deliverable.updatedAt.getTime(),
-        estimatedMinutes: deliverable.estimatedWorkMinutes, // [FIX] manHours -> estimatedMinutes
-        due_date: deliverable.dueDate ? deliverable.dueDate.toISOString().split('T')[0] : undefined, // [FIX] Date -> YYYY-MM-DD
-        due_status: undefined, // Optional
-        memo: deliverable.description + (project ? ` @${project.name}` : '')
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        estimatedMinutes: deliverable.estimatedWorkMinutes,
+        due_date: undefined,
+        due_status: undefined,
+        memo: (deliverable.description || '') + (project ? ` @${project.name}` : '')
     };
 }

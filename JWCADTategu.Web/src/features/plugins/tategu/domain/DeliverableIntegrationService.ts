@@ -34,24 +34,35 @@ export const DeliverableIntegrationService = {
         // 原価: EstimationServiceのtotalCostは全数量（count）分の合計
         const totalMaterialCost = estimation.totalCost;
 
-        // 労務費: 仮に時間単価 3000円 とするなら
+        // 労務費: 仮に時間単価 3000円 (Default) or Project setting
+        // TODO: Fetch from Project Settings if available (e.g. project.defaultLaborRate)
         const laborRate = 3000;
         const totalLaborCost = Math.floor(manHoursPerItem * door.count * laborRate);
+
+        // その他経費: 材料費の10% (仮)
+        const otherCost = Math.floor(totalMaterialCost * 0.1);
 
         const deliverableData: any = {
             projectId: String(project.id),
             name: door.name,
             type: 'product', // 建具は製品
-            estimatedWorkMinutes: totalWorkMinutes,
-            estimatedSiteMinutes: 0, // 現場時間は建具情報にはないため0（別途Deliverable側で修正可能）
+
+            // Cost Details [NEW]
+            laborRate: laborRate,
             materialCost: totalMaterialCost,
-            laborCost: totalLaborCost,
-            outsourceCost: 0,
+            otherCost: otherCost,
+            cost: totalMaterialCost + totalLaborCost + otherCost,
+            price: estimation.unitPrice || 0, // 売価 (Correction: unitPrice from EstimationResult)
+
+            // Time Management [NEW]
+            estimatedWorkMinutes: totalWorkMinutes,
+            estimatedSiteMinutes: 0, // Default 0
+            actualWorkMinutes: 0,    // Default 0
 
             // 必須プロパティ
-            requiresSiteInstallation: false, // 建具データからは現場取付要否は不明だが、通常は取付あり？ いったんfalseで、ユーザーに後で変えてもらう
+            requiresSiteInstallation: false,
 
-            status: 'pending', // TODO: Doorのstatusと連動させる？
+            status: 'pending',
             pluginData: {
                 sourcePlugin: 'tategu',
                 doorId: door.id,

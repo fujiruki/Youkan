@@ -1,6 +1,6 @@
 param (
     [string]$PHP_HOST = "127.0.0.1",
-    [int]$PHP_PORT = 8000,
+    [int]$PHP_PORT = 8005,
     [int]$VITE_PORT = 5173
 )
 
@@ -11,7 +11,7 @@ function Write-Status {
     Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] $Msg" -ForegroundColor $Color
 }
 
-Write-Status "🚀 SVP v3.1: Starting Development Environment (Self-Healing Mode)..." "Cyan"
+Write-Status "🚀 SVP v3.1: 開発環境を起動します（自己修復モード）..." "Cyan"
 
 # --- Phase 1: Diagnosis & Self-Healing ---
 
@@ -87,10 +87,6 @@ function Cleanup-Stray-Processes {
         }
         catch {}
     }
-
-    # Kill Node processes (Only those running vite/npm ideally, but hard to distinguish on Windows PS easily)
-    # Caution: This might kill other node apps. But user asked for "Healing".
-    # We will skip node aggressive kill for safety unless ports are strictly locked.
 }
 
 # --- Cleanup Phase ---
@@ -99,25 +95,76 @@ Ensure-Port-Free -Port $PHP_PORT -Name "Backend"
 Ensure-Port-Free -Port $VITE_PORT -Name "Frontend"
 
 # --- Phase 2: Launch ---
-
-# 1. Start Backend
 $backendPath = Join-Path $PSScriptRoot "backend"
 if (-not (Test-Path $backendPath)) {
     Write-Status "❌ Backend directory not found at $backendPath" "Red"
     exit 1
 }
 
-Write-Status "Starting PHP Backend ($PHP_HOST`:$PHP_PORT)..." "Cyan"
-# Use Start-Process
-$phpProcess = Start-Process -FilePath "php" -ArgumentList "-S $PHP_HOST`:$PHP_PORT -t `"$backendPath`" `"$backendPath\index.php`"" -WorkingDirectory $backendPath -PassThru -NoNewWindow
+# 1. Start Backend
+# Check for existing PHP
+$phpProcess = Get-Process php -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$PHP_HOST*" } | Select-Object -First 1
+
+if ($phpProcess) {
+    Write-Status "✅ PHP Backendは既に実行中です (PID: $($phpProcess.Id))" "Green"
+}
+else {
+    Write-Status "🐘 PHP Backendを起動しています (Port $PHP_PORT)..." "Cyan"
+    $phpArgList = "-S $PHP_HOST`:$PHP_PORT -t `"$backendPath`" `"$backendPath\index.php`""
+    $phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgList -WorkingDirectory $backendPath -NoNewWindow -PassThru
+    Start-Sleep -Seconds 2
+
+    if ($phpProcess.HasExited) {
+        Write-Status "❌ PHPの起動に失敗しました。" "Red"
+        exit 1
+    }
+    Write-Status "✅ PHP Backendを開始しました (PID: $($phpProcess.Id))" "Green"
+}
 
 # 2. Start Frontend
-Write-Status "Starting Vite Frontend (Strict Port $VITE_PORT)..." "Cyan"
-$viteProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev -- --port $VITE_PORT --strictPort" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
+Write-Status "⚡ Vite Frontendを起動しています..." "Cyan"
+    
+$npmCmd = "npm.cmd"
+
+# Start Vite in background
+$viteProcess = Start-Process -FilePath $npmCmd -ArgumentList "run dev -- --port $VITE_PORT --strictPort" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
+    
+# Wait for Vite to initialize
+Write-Status "Viteの起動待機中 (Port $VITE_PORT)..." "Cyan"
+
+$frontendReady = $false
+$retryCount = 0
+$maxRetries = 30 
+
+while (-not $frontendReady -and $retryCount -lt $maxRetries) {
+    $tcp = Test-NetConnection -ComputerName "localhost" -Port $VITE_PORT -InformationLevel Quiet
+    if ($tcp) {
+        $frontendReady = $true
+        Write-Status "✅ Vite Frontend (Port $VITE_PORT) 接続確認" "Green"
+    }
+    else {
+        Start-Sleep -Seconds 1
+        $retryCount++
+    }
+}
+
+if ($viteProcess.HasExited) {
+    Write-Status "❌ Viteの起動に失敗しました。`n   トラブルシュート: 手動で 'npm run dev' を実行してエラーを確認してください。" "Red"
+    # Cleanup PHP since we failed
+    Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+if (-not $frontendReady) {
+    Write-Status "⚠️ Viteの起動に時間がかかっています。ブラウザが接続できない可能性があります。" "Yellow"
+}
+else {
+    Write-Status "✅ Vite Frontendを開始しました (PID: $($viteProcess.Id))" "Green"
+}
 
 # --- Phase 3: Verification & Recovery ---
 
-Write-Status "Waiting for backend health check..." "Yellow"
+Write-Status "バックエンドのヘルスチェックを待機中..." "Yellow"
 
 $backendReady = $false
 $retryCount = 0
@@ -128,7 +175,7 @@ while (-not $backendReady -and $retryCount -lt $maxRetries) {
         $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
         if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
             $backendReady = $true
-            Write-Status "✅ Backend Health Check Passed!" "Green"
+            Write-Status "✅ Backendヘルスチェック成功!" "Green"
         }
     }
     catch {
@@ -173,16 +220,20 @@ if (-not $backendReady) {
 # --- Phase 4: Ready ---
 
 Write-Status "----------------------------------------" "Green"
-Write-Status "🎉 SVP v3.1: Environment Fully Operational" "Green"
+Write-Status "🎉 SVP v3.1: 開発環境が正常に起動しました" "Green"
 Write-Status "----------------------------------------" "Green"
 Write-Status "   Backend : http://$PHP_HOST`:$PHP_PORT"
 Write-Status "   Frontend: http://localhost:$VITE_PORT"
 Write-Status "----------------------------------------" "Green"
+    
+# Ensure browser open
+Write-Status "🌍 ブラウザを起動しています (http://localhost:$VITE_PORT)..." "Cyan"
+Start-Process "http://localhost:$VITE_PORT"
 
-Write-Host "Press any key to stop servers..."
+Write-Host "サーバーを停止するには何かキーを押してください..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
-Write-Status "Stopping servers..." "Yellow"
+Write-Status "サーバーを停止しています..." "Yellow"
 Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
-Write-Status "Goodbye." "Cyan"
+Write-Status "Server stopped." "Cyan"

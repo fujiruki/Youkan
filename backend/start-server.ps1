@@ -24,6 +24,6 @@ if ($netstat) {
 }
 
 # 3. Start Server
-$cmd = "php -S $ServerHost`:$Port -t ."
+$cmd = "php -S $ServerHost`:$Port -t `"$PSScriptRoot`" `"$PSScriptRoot\index.php`""
 Write-Host "Running: $cmd" -ForegroundColor Gray
 Invoke-Expression $cmd

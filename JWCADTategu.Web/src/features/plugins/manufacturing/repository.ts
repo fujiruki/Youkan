@@ -1,83 +1,114 @@
-/**
- * Manufacturing Plugin - Repository
- * 
- * 成果物（Deliverable）のCRUD操作を提供するリポジトリ
- */
-
+import { db } from '../../../db/db';
 import {
     Deliverable,
     DeliverableCreateRequest,
     DeliverableUpdateRequest,
     ProjectSummary
 } from './types';
-
-const API_BASE = '/api/deliverables';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * 成果物リポジトリ
+ * 成果物リポジトリ (Local Dexie Implementation)
  */
 export const deliverableRepository = {
     /**
      * プロジェクトの成果物一覧を取得
      */
     async getByProject(projectId: string): Promise<Deliverable[]> {
-        const response = await fetch(`${API_BASE}?projectId=${projectId}`);
-        if (!response.ok) throw new Error('Failed to fetch deliverables');
-        return response.json();
+        return await db.deliverables
+            .where('projectId').equals(projectId)
+            .toArray();
     },
 
     /**
      * 成果物を取得
      */
     async getById(id: string): Promise<Deliverable | null> {
-        const response = await fetch(`${API_BASE}/${id}`);
-        if (response.status === 404) return null;
-        if (!response.ok) throw new Error('Failed to fetch deliverable');
-        return response.json();
+        return (await db.deliverables.get(id)) || null;
     },
 
     /**
      * 成果物を作成
      */
     async create(data: DeliverableCreateRequest): Promise<Deliverable> {
-        const response = await fetch(API_BASE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error('Failed to create deliverable');
-        return response.json();
+        const id = uuidv4();
+        const now = Date.now();
+
+        const newDeliverable: Deliverable = {
+            id,
+            ...data,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        await db.deliverables.add(newDeliverable);
+        return newDeliverable;
     },
 
     /**
      * 成果物を更新
      */
     async update(id: string, data: DeliverableUpdateRequest): Promise<Deliverable> {
-        const response = await fetch(`${API_BASE}/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error('Failed to update deliverable');
-        return response.json();
+        const existing = await db.deliverables.get(id);
+        if (!existing) throw new Error(`Deliverable ${id} not found`);
+
+        const updated: Deliverable = {
+            ...existing,
+            ...data,
+            updatedAt: Date.now()
+        };
+
+        await db.deliverables.put(updated);
+        return updated;
     },
 
     /**
      * 成果物を削除
      */
     async delete(id: string): Promise<void> {
-        const response = await fetch(`${API_BASE}/${id}`, {
-            method: 'DELETE'
-        });
-        if (!response.ok) throw new Error('Failed to delete deliverable');
+        await db.deliverables.delete(id);
     },
 
     /**
      * プロジェクトの集計情報を取得
      */
     async getProjectSummary(projectId: string): Promise<ProjectSummary> {
-        const response = await fetch(`${API_BASE}/summary/${projectId}`);
-        if (!response.ok) throw new Error('Failed to fetch project summary');
-        return response.json();
+        const deliverables = await this.getByProject(projectId);
+
+        const summary: ProjectSummary = {
+            projectId,
+            totalEstimatedWorkMinutes: 0,
+            totalActualWorkMinutes: 0,
+            totalEstimatedSiteMinutes: 0,
+            totalActualSiteMinutes: 0,
+            totalMaterialCost: 0,
+            totalLaborCost: 0,
+            totalOutsourceCost: 0,
+            deliverableCount: deliverables.length,
+            completedCount: 0,
+            inProgressCount: 0,
+            pendingCount: 0
+        };
+
+        for (const d of deliverables) {
+            summary.totalEstimatedWorkMinutes += d.estimatedWorkMinutes || 0;
+            summary.totalActualWorkMinutes += d.actualWorkMinutes || 0;
+            summary.totalEstimatedSiteMinutes += d.estimatedSiteMinutes || 0;
+            summary.totalActualSiteMinutes += d.actualSiteMinutes || 0;
+
+            summary.totalMaterialCost += d.materialCost || 0;
+            summary.totalLaborCost += d.laborCost || 0;
+            summary.totalOutsourceCost += d.outsourceCost || 0;
+
+            if (d.status === 'completed') {
+                summary.completedCount++;
+            } else if (d.status === 'in_progress') {
+                summary.inProgressCount++;
+            } else {
+                summary.pendingCount++;
+            }
+        }
+
+        return summary;
     }
 };

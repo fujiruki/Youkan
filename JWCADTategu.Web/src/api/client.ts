@@ -53,7 +53,7 @@ export class ApiClient {
         console.groupEnd();
     }
 
-    private static async request<T>(method: string, path: string, body?: any): Promise<T> {
+    private static async request<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
@@ -119,7 +119,7 @@ export class ApiClient {
             }, true);
 
             // Call global error handler if registered
-            if (this.errorHandler && error instanceof Error) {
+            if (this.errorHandler && error instanceof Error && !silent) {
                 this.errorHandler(error, method, path);
             }
 
@@ -150,7 +150,7 @@ export class ApiClient {
 
     // --- Phase 2: Today API ---
     public static async getTodayView(): Promise<any> { // Replace 'any' with proper type later
-        return this.request('GET', '/today');
+        return this.request('GET', '/today', undefined, true);
     }
 
     public static async commitToToday(id: string): Promise<{ success: boolean }> {
@@ -209,7 +209,7 @@ export class ApiClient {
 
     // --- Phase 2: GDB API ---
     public static async getGdbShelf(): Promise<any> { // Replace 'any' with proper type
-        return this.request('GET', '/gdb');
+        return this.request('GET', '/gdb', undefined, true);
     }
 
     // --- Calendar Load API ---
@@ -219,7 +219,7 @@ export class ApiClient {
 
     // --- Phase 2: Side Memo API ---
     public static async getMemos(): Promise<any[]> {
-        return this.request('GET', '/memos');
+        return this.request('GET', '/memos', undefined, true);
     }
 
     public static async createMemo(content: string): Promise<{ id: string; content: string }> {
@@ -236,6 +236,6 @@ export class ApiClient {
 
     // --- System API ---
     public static async getHealth(): Promise<any> {
-        return this.request('GET', '/health');
+        return this.request('GET', '/health', undefined, true);
     }
 }

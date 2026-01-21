@@ -128,56 +128,68 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
                                     <Factory size={12} className="inline mr-1" />
-                                    作業時間
+                                    製作時間 (見積 / 実績)
                                 </label>
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={form.estimatedWorkMinutes ? Math.round(form.estimatedWorkMinutes / 60 * 100) / 100 : ''}
-                                                onChange={(e) => {
-                                                    const h = parseFloat(e.target.value) || 0;
-                                                    handleChange('estimatedWorkMinutes', Math.round(h * 60));
-                                                }}
-                                                className="w-full pl-3 pr-6 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                                placeholder="0.0"
-                                            />
-                                            <span className="absolute right-2 top-2 text-xs text-slate-400">h</span>
-                                        </div>
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="number"
+                                            value={form.estimatedWorkMinutes || ''}
+                                            onChange={(e) => handleChange('estimatedWorkMinutes', parseInt(e.target.value) || 0)}
+                                            className="w-full pl-2 pr-8 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                            placeholder="見積"
+                                        />
+                                        <span className="absolute right-2 top-2 text-xs text-slate-400">分</span>
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                value={form.estimatedWorkMinutes}
-                                                onChange={(e) => handleChange('estimatedWorkMinutes', parseInt(e.target.value) || 0)}
-                                                className="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                                placeholder="0"
-                                            />
-                                            <span className="absolute right-2 top-2 text-xs text-slate-400">min</span>
-                                        </div>
+                                    <span className="text-slate-300">/</span>
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="number"
+                                            value={form.actualWorkMinutes || ''}
+                                            onChange={(e) => handleChange('actualWorkMinutes', parseInt(e.target.value) || 0)}
+                                            className="w-full pl-2 pr-8 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+                                            placeholder="実績"
+                                        />
+                                        <span className="absolute right-2 top-2 text-xs text-slate-400">分</span>
                                     </div>
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
                                     <MapPin size={12} className="inline mr-1" />
-                                    現場時間（分）
+                                    現場時間 (見積 / 実績)
                                 </label>
-                                <input
-                                    type="number"
-                                    value={form.estimatedSiteMinutes}
-                                    onChange={(e) => handleChange('estimatedSiteMinutes', parseInt(e.target.value) || 0)}
-                                    disabled={!form.requiresSiteInstallation}
-                                    className={cn(
-                                        "w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400",
-                                        form.requiresSiteInstallation
-                                            ? "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
-                                            : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                                    )}
-                                />
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="number"
+                                            value={form.estimatedSiteMinutes || ''}
+                                            onChange={(e) => handleChange('estimatedSiteMinutes', parseInt(e.target.value) || 0)}
+                                            disabled={!form.requiresSiteInstallation}
+                                            className={cn(
+                                                "w-full pl-2 pr-8 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400",
+                                                form.requiresSiteInstallation ? "bg-slate-50 dark:bg-slate-800/50 border-slate-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                                            )}
+                                            placeholder="見積"
+                                        />
+                                        <span className="absolute right-2 top-2 text-xs text-slate-400">分</span>
+                                    </div>
+                                    <span className="text-slate-300">/</span>
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="number"
+                                            value={form.actualSiteMinutes || ''}
+                                            onChange={(e) => handleChange('actualSiteMinutes', parseInt(e.target.value) || 0)}
+                                            disabled={!form.requiresSiteInstallation}
+                                            className={cn(
+                                                "w-full pl-2 pr-8 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400",
+                                                form.requiresSiteInstallation ? "bg-slate-50 dark:bg-slate-800/50 border-slate-200" : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                                            )}
+                                            placeholder="実績"
+                                        />
+                                        <span className="absolute right-2 top-2 text-xs text-slate-400">分</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -194,11 +206,28 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                             </span>
                         </label>
 
-                        {/* 原価入力 */}
+                        {/* 原価入力 (Enhanced) */}
                         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
                             <label className="block text-xs font-bold text-slate-500 mb-2">
-                                原価（任意・アバウト入力OK）
+                                原価詳細
                             </label>
+                            <div className="grid grid-cols-2 gap-3 mb-2">
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-1">労務単価 (円/h)</label>
+                                    <input
+                                        type="number"
+                                        value={form.laborRate ?? ''}
+                                        onChange={(e) => handleChange('laborRate', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                        placeholder="例: 3000"
+                                        className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                    />
+                                </div>
+                                <div className="flex items-end pb-2">
+                                    <span className="text-xs text-slate-500">
+                                        × 作業時間 = 概算労務費: ¥{Math.floor((form.laborRate || 0) * (form.estimatedWorkMinutes || 0) / 60).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className="block text-xs text-slate-400 mb-1">材料費</label>
@@ -209,19 +238,14 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                                         placeholder="例: 50000"
                                         className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
                                     />
-                                    {isNew && (
-                                        <p className="text-[10px] text-slate-400 mt-1">
-                                            自動算出: ¥{(deliverable.materialCost || 0).toLocaleString()}
-                                        </p>
-                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-xs text-slate-400 mb-1">労務費</label>
+                                    <label className="block text-xs text-slate-400 mb-1">その他経費</label>
                                     <input
                                         type="number"
-                                        value={form.laborCost ?? ''}
-                                        onChange={(e) => handleChange('laborCost', e.target.value ? parseFloat(e.target.value) : undefined)}
-                                        placeholder="例: 30000"
+                                        value={form.otherCost ?? ''}
+                                        onChange={(e) => handleChange('otherCost', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                        placeholder="例: 5000"
                                         className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
                                     />
                                 </div>
@@ -254,18 +278,32 @@ export const DeliverableEditModal: React.FC<DeliverableEditModalProps> = ({
                             </select>
                         </div>
 
-                        {/* メモ */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">
-                                メモ
-                            </label>
-                            <textarea
-                                value={form.memo ?? ''}
-                                onChange={(e) => handleChange('memo', e.target.value)}
-                                rows={2}
-                                placeholder="備考など..."
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
-                            />
+                        {/* 説明・メモ */}
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    説明 (対外)
+                                </label>
+                                <textarea
+                                    value={form.description ?? ''}
+                                    onChange={(e) => handleChange('description', e.target.value)}
+                                    rows={2}
+                                    placeholder="見積書に記載される説明文..."
+                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    社内メモ
+                                </label>
+                                <textarea
+                                    value={form.note ?? form.memo ?? ''}
+                                    onChange={(e) => handleChange('note', e.target.value)}
+                                    rows={2}
+                                    placeholder="社内共有事項、注意点など..."
+                                    className="w-full px-3 py-2 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+                                />
+                            </div>
                         </div>
                     </div>
 

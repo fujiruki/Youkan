@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, Project } from '../../../../db/db';
 import { Plus, ArrowRight, FileText, Edit2 } from 'lucide-react';
+import { JBWOSRepository } from '../../../core/jbwos/repositories/JBWOSRepository';
 
 interface ProjectListScreenProps {
     onSelectProject: (projectId: number) => void;
@@ -28,14 +29,33 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 
     const handleCreateProject = async () => {
         if (!newProjectName.trim()) return;
-        await db.projects.add({
-            name: newProjectName,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
-        setNewProjectName('');
-        setIsCreating(false);
-        loadProjects();
+
+        try {
+            // 1. Create Project
+            const projectId = await db.projects.add({
+                name: newProjectName,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            // 2. Auto-generate "Estimate Creation" Task
+            await JBWOSRepository.createItem({
+                title: '見積作成',
+                status: 'inbox',
+                projectId: newProjectName, // Link by Name (Legacy/Current JBWOS behavior)
+                parentId: `project-${projectId}`, // Link by ID (Hierarchical behavior)
+                category: 'project_task',
+                type: 'start',
+                memo: '自動生成タスク: プロジェクト作成時に追加'
+            });
+
+            setNewProjectName('');
+            setIsCreating(false);
+            loadProjects();
+        } catch (error) {
+            console.error('Failed to create project or initial task:', error);
+            // Ideally show a toast here
+        }
     };
 
     return (

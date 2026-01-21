@@ -29,10 +29,21 @@ set_exception_handler(function($e) {
 });
 
 // 2. CORS & Headers
-header("Access-Control-Allow-Origin: *");
+// Handle CORS
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Max-Age: 86400');    // cache for 1 day
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, X-AI-Debug-Secret");
 header("Content-Type: application/json; charset=UTF-8");
+
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/php_errors.log');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
@@ -64,6 +75,11 @@ if (isset($_SERVER['PATH_INFO'])) {
         $path = substr($uri, strlen($scriptDir));
     } 
     else {
+        $path = $uri;
+    }
+
+    // Special fix for CLI Server routing where SCRIPT_NAME == URI (e.g. on Windows with Unicode paths)
+    if (php_sapi_name() === 'cli-server' && ($path === '/' || $path === '') && $uri !== '/') {
         $path = $uri;
     }
 }

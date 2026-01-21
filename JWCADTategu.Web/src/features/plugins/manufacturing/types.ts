@@ -37,22 +37,27 @@ export interface Deliverable {
     actualSiteMinutes?: number;     // 実績現場時間
 
     // 原価（任意・アバウト入力OK）
+    laborRate?: number;             // [NEW] 労務単価
     materialCost?: number;          // 材料費
-    laborCost?: number;             // 労務費
-    outsourceCost?: number;         // 外注費
-
-    // ステータス
-    status: DeliverableStatus;
-
-    // 現場取付フラグ
-    requiresSiteInstallation: boolean;
-
-    // プラグイン拡張用（Tategu Pluginなど）
-    pluginId?: string;              // 拡張プラグインID
-    pluginData?: Record<string, unknown>;
+    laborCost?: number;             // 労務費 (Total)
+    otherCost?: number;             // [NEW] その他経費
+    outsourceCost?: number;         // 外注費 (Legacy? Keep for compatibility or alias to otherCost)
 
     // メタデータ
-    memo?: string;
+    description?: string;           // [NEW] 公開説明
+    note?: string;                  // [NEW] 社内メモ
+    memo?: string;                  // [Legacy] -> map to note
+
+    photos?: string[];              // [NEW] 完成写真 (Blob IDs)
+
+    // 必須プロパティ
+    status: DeliverableStatus;      // [NEW] ステータス
+    requiresSiteInstallation: boolean;
+
+    statusUpdatedAt?: number;       // ステータス変更日時
+
+    pluginData?: Record<string, any>; // 他プラグイン連携用データ
+
     createdAt: number;
     updatedAt: number;
 }
