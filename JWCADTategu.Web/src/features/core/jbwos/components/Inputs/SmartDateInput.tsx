@@ -8,7 +8,8 @@ interface SmartDateInputProps {
     onChange: (date: Date | null) => void;
     className?: string;
     autoFocus?: boolean;
-    onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void; // [NEW]
+    onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void; // [NEW] Chain parent handler
+    placeholder?: string; // [NEW] Added placeholder support
 }
 
 export const SmartDateInput: React.FC<SmartDateInputProps> = ({
@@ -16,7 +17,8 @@ export const SmartDateInput: React.FC<SmartDateInputProps> = ({
     onChange,
     className,
     autoFocus,
-    onFocus
+    onFocus,
+    placeholder
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
@@ -123,7 +125,7 @@ export const SmartDateInput: React.FC<SmartDateInputProps> = ({
                 }}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
-                placeholder="YYYY/MM/DD or 'tomorrow'"
+                placeholder={placeholder || "YYYY/MM/DD or 'tomorrow'"}
                 autoFocus={autoFocus}
                 // Tailwind styling matching standard Input component
                 className="flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 pl-9 text-sm font-bold text-slate-800 dark:text-slate-200 shadow-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 transition-all font-mono"
