@@ -403,25 +403,55 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 <div className="w-1 h-3 bg-indigo-400 rounded-full"></div>
                                                 マイ期限
                                             </span>
-                                            <input
-                                                data-testid="prep-date-input"
-                                                type="date"
-                                                value={prepDate}
-                                                onChange={async (e) => {
-                                                    const val = e.target.value;
-                                                    setPrepDate(val); // Local update
-                                                    const dateObj = new Date(val);
-                                                    const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
-                                                    const updates = { prep_date: timestamp };
-                                                    if (onUpdate) await onUpdate(item.id, updates);
-                                                    else await ApiClient.updateItem(item.id, updates);
-                                                }}
-                                                onFocus={() => setActiveDateInput('my')}
-                                                className={cn(
-                                                    "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 w-full transition-colors",
-                                                    activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
-                                                )}
-                                            />
+                                            {/* My Date: Split for Desktop/Mobile */}
+                                            <div className="relative group/mydate">
+                                                {/* Desktop: Smart Input (No Native Picker) */}
+                                                <div className="hidden md:block">
+                                                    <SmartDateInput
+                                                        value={prepDate ? new Date(prepDate) : null}
+                                                        onChange={async (d) => {
+                                                            const val = d ? format(d, 'yyyy-MM-dd') : '';
+                                                            setPrepDate(val);
+                                                            if (d) setViewMonth(d);
+                                                            // Auto-save logic
+                                                            const dateObj = new Date(val);
+                                                            const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
+                                                            const updates = { prep_date: timestamp };
+                                                            if (onUpdate) await onUpdate(item.id, updates);
+                                                            else await ApiClient.updateItem(item.id, updates);
+                                                        }}
+                                                        onFocus={() => setActiveDateInput('my')}
+                                                        placeholder="マイ期限 (クリックして入力)"
+                                                        className={cn(
+                                                            "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
+                                                            activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-2 focus:ring-indigo-400"
+                                                        )}
+                                                    />
+                                                </div>
+
+                                                {/* Mobile: Native Date Input */}
+                                                <div className="md:hidden">
+                                                    <input
+                                                        data-testid="prep-date-input-mobile"
+                                                        type="date"
+                                                        value={prepDate}
+                                                        onChange={async (e) => {
+                                                            const val = e.target.value;
+                                                            setPrepDate(val); // Local update
+                                                            const dateObj = new Date(val);
+                                                            const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
+                                                            const updates = { prep_date: timestamp };
+                                                            if (onUpdate) await onUpdate(item.id, updates);
+                                                            else await ApiClient.updateItem(item.id, updates);
+                                                        }}
+                                                        onFocus={() => setActiveDateInput('my')}
+                                                        className={cn(
+                                                            "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 w-full transition-colors",
+                                                            activeDateInput === 'my' ? "ring-2 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
                                             {/* Mobile Quick Actions (My Date) */}
                                             <div className="flex md:hidden items-center gap-2 mt-2 overflow-x-auto pb-1 no-scrollbar">
                                                 {[
