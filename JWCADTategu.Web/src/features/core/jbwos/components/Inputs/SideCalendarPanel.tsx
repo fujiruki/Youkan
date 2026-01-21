@@ -88,6 +88,16 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
 
+    // [NEW] Volume Color Logic
+    const getVolumeColor = (dateStr: string, isSelected: boolean) => {
+        if (isSelected) return ""; // Selection overrides heatmap
+        const mins = dailyVolumes[dateStr] || 0;
+        if (mins === 0) return "";
+        if (mins < 240) return "bg-lime-100/50 dark:bg-lime-900/20"; // < 4h (Light)
+        if (mins < 480) return "bg-orange-100/60 dark:bg-orange-900/30"; // < 8h (Medium)
+        return "bg-red-100/70 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-medium"; // >= 8h (Heavy)
+    };
+
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
             {/* Header (Compact) */}
@@ -132,6 +142,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     const isPrep = prepDate && isSameDay(day, prepDate);
                     const _isToday = isToday(day);
 
+                    const volumeClass = isCurrentMonth ? getVolumeColor(format(day, 'yyyy-MM-dd'), !!isSelected) : "";
+
                     return (
                         <button
                             key={idx}
@@ -139,6 +151,9 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                             className={cn(
                                 "relative flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-xs transition-colors outline-none focus:ring-1 focus:ring-indigo-400 focus:z-10",
                                 !isCurrentMonth ? "text-slate-300 dark:text-slate-700 bg-slate-50 dark:bg-slate-950" : "text-slate-700 dark:text-slate-200",
+
+                                // Heatmap Base
+                                volumeClass,
 
                                 // Selection Styles
                                 isSelected && "bg-red-500 text-white hover:bg-red-600 font-bold",
