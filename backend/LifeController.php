@@ -47,7 +47,7 @@ class LifeController {
      * 実行ブロック開始 (POST /api/execution/{id}/start)
      */
     public function startExecution($id) {
-        // Log "Start" event to daily_logs
+        $this->updateItemStatus($id, 'execution_in_progress');
         return $this->logExecutionEvent($id, 'start');
     }
 
@@ -55,9 +55,13 @@ class LifeController {
      * 実行ブロック中断/完了 (POST /api/execution/{id}/pause)
      */
     public function pauseExecution($id) {
-        // Log "Pause" event
-        // Calculate duration? For MVP, just log the timestamp.
+        $this->updateItemStatus($id, 'execution_paused');
         return $this->logExecutionEvent($id, 'pause');
+    }
+
+    private function updateItemStatus($id, $status) {
+        $stmt = $this->pdo->prepare("UPDATE items SET status = :status, updated_at = :now WHERE id = :id");
+        $stmt->execute([':status' => $status, ':now' => time(), ':id' => $id]);
     }
 
     private function logExecutionEvent($itemId, $action) {
