@@ -7,6 +7,7 @@ import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
+import { calculateDailyVolume } from '../../logic/volumeCalculator';
 
 interface DecisionDetailModalProps {
     item: Item | null;
@@ -44,6 +45,26 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     // [NEW] Calendar State
     const [viewMonth, setViewMonth] = React.useState<Date>(new Date());
     const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due'); // Default to 'due'
+    const [dailyVolumes, setDailyVolumes] = React.useState<Map<string, number>>(new Map()); // [NEW] Heatmap Data
+
+    // [NEW] Fetch Heatmap Data when viewMonth changes
+    React.useEffect(() => {
+        const fetchLoad = async () => {
+            try {
+                const year = viewMonth.getFullYear();
+                const month = viewMonth.getMonth() + 1;
+                // Currently getCalendarLoad returns Promise<any[]> (Item objects with prep/due dates)
+                const items = await ApiClient.getCalendarLoad(year, month);
+
+                // Calculate volume using shared logic
+                const volMap = calculateDailyVolume(items);
+                setDailyVolumes(volMap);
+            } catch (e) {
+                console.error("Failed to load calendar volume:", e);
+            }
+        };
+        fetchLoad();
+    }, [viewMonth]);
 
 
     // [NEW] Load Sub-tasks & Optimistic Defaults
@@ -448,6 +469,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         }}
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         targetMode={activeDateInput}
+                                        dailyVolumes={dailyVolumes} // [NEW] Pass heatmap data
                                     />
                                 </div>
 
