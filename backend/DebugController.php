@@ -30,7 +30,7 @@ class DebugController {
             $this->listTenants();
         }
         // /debug/migrate/:version - マイグレーション実行 (例: v7)
-        elseif (preg_match('#^/migrate/(v[0-9]+)$#', $subPath, $matches) && $method === 'GET') {
+        elseif (preg_match('#^/migrate/(v[0-9]+)$#', $path, $matches) && $method === 'GET') {
             $this->migrate($matches[1]);
         }
         else {
