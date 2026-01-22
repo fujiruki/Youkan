@@ -9,9 +9,6 @@ const getApiBase = () => {
     if (import.meta.env.DEV) return '/api';
 
     // Production: Calculate path to index.php valid from anywhere
-    // If loc is .../index.php/today, we want .../index.php
-    // If loc is .../TateguDesignStudio/, we want .../TateguDesignStudio/index.php
-
     const pathname = window.location.pathname;
 
     // Case 1: Already inside index.php
@@ -19,9 +16,30 @@ const getApiBase = () => {
         return pathname.split('/index.php')[0] + '/index.php';
     }
 
-    // Case 2: At Root (index.html), so index.php is sibling
+    // Case 2: SPA Route (e.g. /UserList, /projects/123)
+    // We need to strip the app route to get the root path where index.php resides.
+    let root = pathname;
+
+    // List of known top-level routes to strip
+    const appRoutes = [
+        '/userlist', '/projects', '/doors', '/schedule',
+        '/jbwos', '/today', '/history', '/settings',
+        '/customers', '/items', '/catalog', '/planning', '/manual'
+    ];
+
+    for (const route of appRoutes) {
+        const lowerRoot = root.toLowerCase();
+        // Check if path contains the route
+        const index = lowerRoot.indexOf(route);
+        if (index !== -1) {
+            // Cut off from the route onwards
+            root = root.substring(0, index);
+            break;
+        }
+    }
+
     // Remove trailing slash if exists
-    const root = pathname.replace(/\/$/, '');
+    root = root.replace(/\/$/, '');
     return `${root}/index.php`;
 };
 
