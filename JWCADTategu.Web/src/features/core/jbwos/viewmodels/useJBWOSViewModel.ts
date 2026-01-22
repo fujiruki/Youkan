@@ -1,9 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
+import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
 import { Item, SideMemo, CapacityConfig } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
+
+const getUseCloud = () => {
+    return localStorage.getItem('JBWOS_USE_CLOUD') === 'true';
+};
+
+// Simple Repository Proxy/Factory
+const getRepository = () => {
+    return getUseCloud() ? CloudJBWOSRepository : JBWOSRepository;
+};
 
 
 export const useJBWOSViewModel = () => {
@@ -33,7 +43,7 @@ export const useJBWOSViewModel = () => {
     // --- Data Fetching ---
     const refreshGdb = useCallback(async () => {
         try {
-            const shelf = await JBWOSRepository.getGdbShelf();
+            const shelf = await getRepository().getGdbShelf();
             console.log('[ViewModel] Fetched GDB Shelf:', shelf); // [DEBUG]
             if (!shelf) throw new Error('Shelf is null');
 
@@ -53,7 +63,7 @@ export const useJBWOSViewModel = () => {
 
     const refreshToday = useCallback(async () => {
         try {
-            const today = await JBWOSRepository.getTodayView();
+            const today = await getRepository().getTodayView();
             setTodayCommits(today.commits || []);
             setExecutionItem(today.execution || null);
             setTodayCandidates(today.candidates || []);
@@ -64,7 +74,7 @@ export const useJBWOSViewModel = () => {
 
     const refreshMemos = useCallback(async () => {
         try {
-            const data = await JBWOSRepository.getMemos();
+            const data = await getRepository().getMemos();
             setMemos(data);
         } catch (e) {
             console.error('Failed to fetch Memos:', e);
@@ -81,7 +91,7 @@ export const useJBWOSViewModel = () => {
 
     const refreshCapacityConfig = useCallback(async () => {
         try {
-            const config = await JBWOSRepository.getCapacityConfig();
+            const config = await getRepository().getCapacityConfig();
             if (config) {
                 setCapacityConfig(config);
             }
@@ -94,7 +104,7 @@ export const useJBWOSViewModel = () => {
         // Optimistic
         setCapacityConfig(newConfig);
         try {
-            await JBWOSRepository.saveCapacityConfig(newConfig);
+            await getRepository().saveCapacityConfig(newConfig);
         } catch (e) {
             console.error('Failed to save Capacity Config:', e);
         }
@@ -190,10 +200,10 @@ export const useJBWOSViewModel = () => {
         try {
             // [FIX] Apply updates FIRST to ensure consistency
             if (updates && Object.keys(updates).length > 0) {
-                await JBWOSRepository.updateItem(id, updates);
+                await getRepository().updateItem(id, updates);
             }
 
-            await JBWOSRepository.resolveDecision(id, decision, note);
+            await getRepository().resolveDecision(id, decision, note);
             // On success, background refresh to sync (e.g. move to Today Candidate)
             refreshAll();
         } catch (e) {
@@ -227,7 +237,7 @@ export const useJBWOSViewModel = () => {
         });
 
         try {
-            const res = await JBWOSRepository.commitToToday(id);
+            const res = await getRepository().commitToToday(id);
             // If server rejects (e.g. race condition), it throws or returns error
             if ((res as any).error) {
                 throw new Error((res as any).error);
@@ -259,7 +269,7 @@ export const useJBWOSViewModel = () => {
         });
 
         try {
-            await JBWOSRepository.completeItem(id);
+            await getRepository().completeItem(id);
             // refreshToday(); // Removed to prevent flicker/stale overwrite
         } catch (e) {
             console.error('Complete failed:', e);
@@ -271,14 +281,14 @@ export const useJBWOSViewModel = () => {
     // 3. Side Actions (Throw In / Memo)
     const addSideMemo = async (content: string) => {
         // Optimistic add? - Skip for now, fast enough usually.
-        await JBWOSRepository.createMemo(content);
+        await getRepository().createMemo(content);
         refreshMemos();
     };
 
     const deleteSideMemo = async (id: string) => {
         setMemos(prev => prev.filter(m => m.id !== id));
         // Todo: Undo implementation for Memo
-        await JBWOSRepository.deleteMemo(id);
+        await getRepository().deleteMemo(id);
     };
 
     const memoToInbox = async (id: string) => {
@@ -286,7 +296,7 @@ export const useJBWOSViewModel = () => {
 
         // [Undo] Not implemented yet for Memo transfer
 
-        await JBWOSRepository.moveMemoToInbox(id);
+        await getRepository().moveMemoToInbox(id);
         refreshGdb(); // Will appear in Inbox
     };
 
@@ -307,7 +317,7 @@ export const useJBWOSViewModel = () => {
         setTodayCommits(prev => prev.filter(i => i.id !== id));    // [FIX] Remove from Today Commits
 
         try {
-            await JBWOSRepository.deleteItem(id);
+            await getRepository().deleteItem(id);
         } catch (e) {
             console.error('Delete item failed', e);
             refreshGdb();
@@ -334,7 +344,7 @@ export const useJBWOSViewModel = () => {
         });
 
         try {
-            await JBWOSRepository.updateItem(id, { status: 'inbox', is_boosted: false }); // Reset boost too
+            await getRepository().updateItem(id, { status: 'inbox', is_boosted: false }); // Reset boost too
             // refreshGdb(); // It goes to Inbox
             // refreshToday(); // Removed to prevent flicker
         } catch (e) {
@@ -358,7 +368,7 @@ export const useJBWOSViewModel = () => {
 
         try {
             // Server-side: Start Execution (implicitly makes it active/top)
-            await JBWOSRepository.startExecution(id);
+            await getRepository().startExecution(id);
             refreshToday();
         } catch (e) {
             console.error('Prioritize failed', e);
@@ -384,7 +394,7 @@ export const useJBWOSViewModel = () => {
 
         try {
             // Update status to 'ready' (Candidate)
-            await JBWOSRepository.updateItem(id, { status: 'ready' });
+            await getRepository().updateItem(id, { status: 'ready' });
             // refreshToday(); // Removed
         } catch (e) {
             console.error('Uncommit failed', e);
@@ -421,8 +431,8 @@ export const useJBWOSViewModel = () => {
             // Assuming startExecution handles implicitly or we call both.
             // Safer to call both or use a specialized endpoint if exists.
             // For now: Commit then Start.
-            await JBWOSRepository.commitToToday(id);
-            await JBWOSRepository.startExecution(id);
+            await getRepository().commitToToday(id);
+            await getRepository().startExecution(id);
             refreshToday();
         } catch (e) {
             console.error('Start Immediately failed', e);
@@ -438,7 +448,7 @@ export const useJBWOSViewModel = () => {
         setTodayCandidates(prev => prev.map(i => i.id === id ? { ...i, title: newTitle } : i));
 
         try {
-            await JBWOSRepository.updateItem(id, { title: newTitle });
+            await getRepository().updateItem(id, { title: newTitle });
         } catch (e) {
             console.error('Update Title failed', e);
             refreshToday();
@@ -474,7 +484,7 @@ export const useJBWOSViewModel = () => {
         // The problem is likely `refreshGdb()` takes time or returns old data (race).
 
         // So:
-        const id = await JBWOSRepository.addItemToInbox(title);
+        const id = await getRepository().addItemToInbox(title);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -531,7 +541,7 @@ export const useJBWOSViewModel = () => {
         }
 
         try {
-            await JBWOSRepository.updateItem(id, { prep_date: date, status: newStatus as any });
+            await getRepository().updateItem(id, { prep_date: date, status: newStatus as any });
             // refreshGdb(); // Keep optimistic
         } catch (e) {
             console.error('Update Prep Date failed', e);
@@ -565,7 +575,7 @@ export const useJBWOSViewModel = () => {
 
             try {
                 // We use updateItem API directly usually
-                await JBWOSRepository.updateItem(id, { status: 'someday' as any });
+                await getRepository().updateItem(id, { status: 'someday' as any });
             } catch (e) {
                 console.error('Move to Someday failed', e);
                 refreshGdb();
@@ -590,7 +600,7 @@ export const useJBWOSViewModel = () => {
         }
 
         try {
-            await JBWOSRepository.updateItem(id, updates);
+            await getRepository().updateItem(id, updates);
         } catch (e) {
             console.error('Failed to update item:', e);
             // Optionally revert here, but for MVP keep simple
@@ -622,7 +632,7 @@ export const useJBWOSViewModel = () => {
         };
 
         try {
-            const id = await JBWOSRepository.createItem(newItem);
+            const id = await getRepository().createItem(newItem);
             // Trigger global refresh so all views update
             window.dispatchEvent(new Event('jbwos-data-changed'));
             return id;
@@ -633,7 +643,7 @@ export const useJBWOSViewModel = () => {
 
     // [NEW] Get Sub-Tasks (Directly from Repo for now, often used in Modal)
     const getSubTasks = useCallback(async (parentId: string) => {
-        return await JBWOSRepository.getSubTasks(parentId);
+        return await getRepository().getSubTasks(parentId);
     }, []);
 
     // [NEW] Delegation Actions
@@ -698,7 +708,7 @@ export const useJBWOSViewModel = () => {
             status: 'inbox'      // Default to inbox
         };
 
-        const projectId = await JBWOSRepository.createItem(projectItem);
+        const projectId = await getRepository().createItem(projectItem);
 
         // Create default tasks as subtasks
         for (const task of defaultTasks) {
@@ -736,7 +746,7 @@ export const useJBWOSViewModel = () => {
         };
 
         try {
-            await JBWOSRepository.createItem(newItem);
+            await getRepository().createItem(newItem);
             refreshAll(); // Refresh to show new item
             console.log('Import successful', item.title);
         } catch (e) {

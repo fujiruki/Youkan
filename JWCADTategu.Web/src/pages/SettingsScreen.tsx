@@ -28,6 +28,31 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                     </h1>
                 </div>
 
+                {/* Cloud Mode Toggle */}
+                <section>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">
+                        データソース設定
+                    </h2>
+                    <div className="flex items-center space-x-3 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <input
+                            type="checkbox"
+                            id="useCloud"
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                            defaultChecked={localStorage.getItem('JBWOS_USE_CLOUD') === 'true'}
+                            onChange={(e) => {
+                                localStorage.setItem('JBWOS_USE_CLOUD', e.target.checked ? 'true' : 'false');
+                                window.location.reload();
+                            }}
+                        />
+                        <label htmlFor="useCloud" className="text-slate-700 dark:text-slate-300 font-medium">
+                            Cloud APIを使用する (Check to use Server Mode)
+                        </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 ml-1">
+                        ※ 切り替え後、ページがリロードされます。Migrationが完了していることを確認してください。
+                    </p>
+                </section>
+
                 {/* Migration Section (Cloud v7) */}
                 <section>
                     <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">

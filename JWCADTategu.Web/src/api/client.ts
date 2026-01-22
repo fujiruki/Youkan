@@ -53,10 +53,16 @@ export class ApiClient {
         console.groupEnd();
     }
 
-    private static async request<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
+    public static async request<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
+
+        // [New] Auth Injection
+        const token = localStorage.getItem('jbwos_token'); // Simple retrieval or use AuthService
+        if (token) {
+            (headers as any)['Authorization'] = `Bearer ${token}`;
+        }
 
         // Server compatibility: Use X-HTTP-Method-Override for PUT/DELETE
         let actualMethod = method;
