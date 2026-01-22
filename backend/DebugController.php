@@ -29,13 +29,63 @@ class DebugController {
         elseif (preg_match('#^/tenants$#', $path) && $method === 'GET') {
             $this->listTenants();
         }
-        // /debug/logs - システムログ（従来の機能）
-        elseif (preg_match('#^/logs$#', $path) && $method === 'GET') {
-            $this->getLogs();
+        // /debug/migrate/:version - マイグレーション実行 (例: v7)
+        elseif (preg_match('#^/migrate/(v[0-9]+)$#', $subPath, $matches) && $method === 'GET') {
+            $this->migrate($matches[1]);
         }
         else {
             http_response_code(404);
             echo json_encode(['error' => 'Debug endpoint not found']);
+        }
+    }
+
+    /**
+     * マイグレーション実行
+     * @param string $version 'v7', 'v11' など
+     */
+    private function migrate($version) {
+        $filename = "migrate_{$version}_cloud_tables.php";
+        
+        // バージョンごとのファイル名マッピング（安全のため）
+        $map = [
+            'v7' => 'migrate_v7_cloud_tables.php',
+            'v9' => 'migrate_v9_security_logs.php',
+            'v11' => 'migrate_v11_manufacturing.php',
+        ];
+
+        if (!isset($map[$version])) {
+            http_response_code(400);
+            echo json_encode(['error' => "Unknown migration version: $version"]);
+            return;
+        }
+
+        $file = __DIR__ . '/' . $map[$version];
+        if (!file_exists($file)) {
+            http_response_code(500);
+            echo json_encode(['error' => "Migration file not found: {$map[$version]}"]);
+            return;
+        }
+
+        // 実行ログをキャプチャするためにバッファリング
+        ob_start();
+        try {
+            // 変数スコープを分離するためにクロージャで実行したいが、
+            // ファイルがグローバルスコープを想定しているかもしれないので直接include
+            include $file;
+            $output = ob_get_clean();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => "Migration $version executed.",
+                'output' => $output
+            ]);
+        } catch (Exception $e) {
+            $output = ob_get_clean();
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Migration failed: ' . $e->getMessage(),
+                'output' => $output
+            ]);
         }
     }
 
