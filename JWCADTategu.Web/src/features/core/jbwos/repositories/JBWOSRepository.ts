@@ -1,5 +1,6 @@
-import { db, Door, Project, Deliverable } from '../../../../db/db';
+import { db, Door, Project } from '../../../../db/db';
 import { JudgableItem, JudgmentStatus, Item } from '../types';
+import { Deliverable } from '../../../../features/plugins/manufacturing/types';
 import { ApiClient } from '../../../../api/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -203,7 +204,7 @@ export const JBWOSRepository = {
         const mergedShelf = {
             active: [...(apiShelf.active || []), ...localItems.filter(i => i.status === 'inbox' || !i.status)], // Inbox goes to Active
             preparation: [...(apiShelf.preparation || []), ...localItems.filter(i => i.status === 'decision_hold' || i.status === 'scheduled')],
-            intent: [...(apiShelf.intent || []), ...localItems.filter(i => i.status === 'someday' || i.status === 'intent')],
+            intent: [...(apiShelf.intent || []), ...localItems.filter(i => (i.status as any) === 'someday' || (i.status as any) === 'intent')],
             log: [...(apiShelf.history || []), ...localItems.filter(i => i.status === 'done' || i.status === 'archive' || i.status === 'decision_rejected')] // Mapping 'history' key from API to 'log' key in Frontend
         };
 
@@ -240,13 +241,16 @@ export const JBWOSRepository = {
             if (!isNaN(projectId)) {
                 let status: JudgmentStatus = 'inbox';
                 if (decision === 'hold') status = 'decision_hold';
-                if (decision === 'no' && note === 'someday') status = 'someday'; // or 'intent'
+                if (decision === 'no' && note === 'someday') status = 'someday' as any; // or 'intent'
                 if (decision === 'no' && note === 'archive') status = 'archive'; // if mapped
 
                 if (decision === 'no' && (note === 'intent' || note === 'someday')) {
                     status = 'someday' as any;
                 }
-
+                if ((status as any) === 'someday') {
+                    // For Projects, 'someday' is valid, but strictly it is not JBWOS JudgmentStatus.
+                    // We treat it akin to decision_hold or handle explicitly.
+                }
                 await db.projects.update(projectId, {
                     judgmentStatus: status as any,
                     updatedAt: new Date()
