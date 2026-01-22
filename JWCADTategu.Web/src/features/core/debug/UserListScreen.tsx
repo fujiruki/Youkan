@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RefreshCw, Users, AlertTriangle } from 'lucide-react';
+import { Trash2, RefreshCw, Users, AlertTriangle, Key } from 'lucide-react';
 import { ApiClient } from '../../../api/client';
 
 interface User {
@@ -15,6 +15,8 @@ export const UserListScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [resetUserId, setResetUserId] = useState<string | null>(null);
+    const [newPassword, setNewPassword] = useState('');
 
     const loadUsers = async () => {
         setIsLoading(true);
@@ -42,6 +44,24 @@ export const UserListScreen: React.FC = () => {
             alert('削除に失敗しました: ' + e.message);
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const handlePasswordReset = async (userId: string) => {
+        if (!newPassword || newPassword.length < 4) {
+            alert('パスワードは4文字以上で入力してください');
+            return;
+        }
+
+        try {
+            await ApiClient.request('PUT', `/debug/users/${userId}/password`, {
+                newPassword: newPassword
+            });
+            alert('パスワードを更新しました');
+            setResetUserId(null);
+            setNewPassword('');
+        } catch (e: any) {
+            alert('パスワード更新に失敗しました: ' + e.message);
         }
     };
 
@@ -107,37 +127,81 @@ export const UserListScreen: React.FC = () => {
                     ) : (
                         <div className="divide-y divide-slate-100 dark:divide-slate-700">
                             {users.map(user => (
-                                <div
-                                    key={user.id}
-                                    className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                                >
-                                    <div className="flex-1">
+                                <div key={user.id} className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-slate-900 dark:text-white">
+                                                    {user.display_name || '(名前なし)'}
+                                                </span>
+                                                <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded">
+                                                    {user.id}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                                {user.email}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-1 flex gap-4">
+                                                <span>作成: {user.created_at}</span>
+                                                {user.memberships && (
+                                                    <span>テナント: {user.memberships}</span>
+                                                )}
+                                            </div>
+                                        </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="font-medium text-slate-900 dark:text-white">
-                                                {user.display_name || '(名前なし)'}
-                                            </span>
-                                            <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded">
-                                                {user.id}
-                                            </span>
-                                        </div>
-                                        <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                            {user.email}
-                                        </div>
-                                        <div className="text-xs text-slate-400 mt-1 flex gap-4">
-                                            <span>作成: {user.created_at}</span>
-                                            {user.memberships && (
-                                                <span>テナント: {user.memberships}</span>
-                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    setResetUserId(resetUserId === user.id ? null : user.id);
+                                                    setNewPassword('');
+                                                }}
+                                                className={`p-2 rounded-lg transition-colors ${resetUserId === user.id
+                                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                                                        : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                                    }`}
+                                                title="パスワードリセット"
+                                            >
+                                                <Key size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(user.id, user.display_name)}
+                                                disabled={deletingId === user.id}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                                title="削除"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(user.id, user.display_name)}
-                                        disabled={deletingId === user.id}
-                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
-                                        title="削除"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+
+                                    {/* Password Reset Form */}
+                                    {resetUserId === user.id && (
+                                        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    placeholder="新しいパスワード（4文字以上）"
+                                                    className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                                <button
+                                                    onClick={() => handlePasswordReset(user.id)}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                >
+                                                    更新
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setResetUserId(null);
+                                                        setNewPassword('');
+                                                    }}
+                                                    className="px-3 py-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm rounded-lg transition-colors"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

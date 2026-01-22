@@ -17,6 +17,10 @@ class DebugController {
         if (preg_match('#^/users$#', $path) && $method === 'GET') {
             $this->listUsers();
         }
+        // /debug/users/:id/password - パスワードリセット
+        elseif (preg_match('#^/users/([^/]+)/password$#', $path, $matches) && $method === 'PUT') {
+            $this->resetPassword($matches[1]);
+        }
         // /debug/users/:id - ユーザー削除
         elseif (preg_match('#^/users/([^/]+)$#', $path, $matches) && $method === 'DELETE') {
             $this->deleteUser($matches[1]);
@@ -45,6 +49,7 @@ class DebugController {
                     u.id,
                     u.email,
                     u.display_name,
+                    u.password_hash,
                     u.created_at,
                     GROUP_CONCAT(m.tenant_id || ':' || m.role, ', ') as memberships
                 FROM users u
@@ -96,6 +101,40 @@ class DebugController {
             $this->pdo->rollBack();
             http_response_code(500);
             echo json_encode(['error' => 'Failed to delete user: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * パスワードリセット
+     */
+    private function resetPassword($userId) {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (!$input || !isset($input['newPassword']) || strlen($input['newPassword']) < 4) {
+            http_response_code(400);
+            echo json_encode(['error' => 'newPassword is required (min 4 chars)']);
+            return;
+        }
+
+        try {
+            $newHash = password_hash($input['newPassword'], PASSWORD_DEFAULT);
+            
+            $stmt = $this->pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+            $stmt->execute([$newHash, $userId]);
+
+            if ($stmt->rowCount() === 0) {
+                http_response_code(404);
+                echo json_encode(['error' => 'User not found']);
+                return;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Password for user {$userId} has been reset"
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to reset password: ' . $e->getMessage()]);
         }
     }
 
