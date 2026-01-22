@@ -18,8 +18,8 @@ class LogController extends BaseController {
         $content = $data['content'] ?? ($data['id'] ?? 'Unknown Life Act');
 
         $stmt = $this->pdo->prepare("
-            INSERT INTO daily_logs (id, date, category, content, created_at, project_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO daily_logs (id, date, category, content, created_at, project_id, tenant_id, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         // Optional: Link life logs to a 'Life Project' if needed? For now, null or from input.
@@ -31,7 +31,9 @@ class LogController extends BaseController {
             $category,
             $content,
             $now,
-            $projectId
+            $projectId,
+            $this->currentTenantId,
+            $this->currentUserId
         ]);
 
         $this->sendJSON(['success' => true, 'id' => $uuid]);
@@ -58,18 +60,28 @@ class LogController extends BaseController {
         // Fetch title if item_id is present and content is missing
         $content = $data['content'] ?? null;
         if (!$content && $itemId) {
-            $stmt = $this->pdo->prepare("SELECT title FROM items WHERE id = ?");
-            $stmt->execute([$itemId]);
+            // Verify Item Ownership/Tenancy
+            $stmt = $this->pdo->prepare("SELECT title FROM items WHERE id = ? AND tenant_id = ?");
+            $stmt->execute([$itemId, $this->currentTenantId]);
             $title = $stmt->fetchColumn();
-            $content = $title ? "[Done] $title" : "Item execution";
+            
+            if (!$title) {
+                 // Item not found in tenant or at all.
+                 // We could error out, or just log as "Unknown Item" to avoid breakage?
+                 // Let's allow it but warn.
+                 $content = "Unknown Item Log";
+            } else {
+                 $content = "[Done] $title";
+            }
         }
 
         $stmt = $this->pdo->prepare("
             INSERT INTO daily_logs (
                 id, date, category, content, created_at, 
-                project_id, item_id, duration_minutes, gross_profit_share
+                project_id, item_id, duration_minutes, gross_profit_share,
+                tenant_id, created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -81,7 +93,9 @@ class LogController extends BaseController {
             $projectId,
             $itemId,
             $duration,
-            $profitShare
+            $profitShare,
+            $this->currentTenantId,
+            $this->currentUserId
         ]);
 
         $this->sendJSON(['success' => true, 'id' => $uuid]);

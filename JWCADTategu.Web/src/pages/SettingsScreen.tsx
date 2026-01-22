@@ -103,6 +103,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     </button>
                 </section>
 
+                {/* Master Management Section (Phase 4) */}
+                <section>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">
+                        マスタ管理
+                    </h2>
+                    <button
+                        onClick={() => window.alert('マスタ管理画面は「プロジェクト > 見積・売上」タブから利用できます。今後、設定画面からのアクセス機能を追加予定です。')}
+                        className="w-full flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900 rounded-lg text-amber-600 dark:text-amber-400 text-xl">
+                                📦
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                    材料・金物マスタ
+                                </h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    見積に使用する材料や金物を登録・管理
+                                </p>
+                            </div>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </section>
+
                 {/* Other Settings (Placeholder) */}
                 <section className="opacity-50 pointer-events-none">
                     <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">

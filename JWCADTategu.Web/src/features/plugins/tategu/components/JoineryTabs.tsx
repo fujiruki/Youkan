@@ -2,7 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { Search } from 'lucide-react';
 
-export type JoineryTab = 'products' | 'notes' | 'deliverables';
+export type JoineryTab = 'products' | 'notes' | 'deliverables' | 'documents';
 
 interface JoineryTabsProps {
     activeTab: JoineryTab;
@@ -48,6 +48,18 @@ export const JoineryTabs: React.FC<JoineryTabsProps> = ({
                     成果物（Manifest）
                     {activeTab === 'deliverables' && (
                         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" />
+                    )}
+                </button>
+                <button
+                    onClick={() => onTabChange('documents')}
+                    className={clsx(
+                        "pb-2 px-1 text-sm font-medium transition-colors relative",
+                        activeTab === 'documents' ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
+                    )}
+                >
+                    見積・売上
+                    {activeTab === 'documents' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
                     )}
                 </button>
                 <button

@@ -79,12 +79,31 @@ function App() {
                 setCurrentView('schedule');
             } else {
                 console.error('[App] Project not found for ID:', projectId);
-                alert('Project not found');
+                alert('プロジェクトが見つかりません');
             }
         } catch (error) {
             console.error('[App] Failed to open project:', error);
-            alert('Failed to open project');
+            alert('プロジェクトを開けませんでした');
         }
+    };
+
+    // 2.5. To Cloud Project (From ProjectRegistryScreen)
+    const handleOpenCloudProject = (projectId: string) => {
+        console.log('[App] Opening Cloud Project:', projectId);
+        // Create a minimal Project object for JoineryScheduleScreen
+        // Use the cloud ID as both:
+        // - id: Generate a numeric ID from the string for local compatibility
+        // - name: Store in a way we can retrieve (prefix with cloudId for now)
+        const numericId = parseInt(projectId.replace(/[^0-9]/g, '').slice(-9) || '1', 10) || Date.now();
+        const cloudProject: Project = {
+            id: numericId,
+            name: `[CLOUD:${projectId}]`, // Marker for cloud project
+            client: '',
+            updatedAt: new Date(),
+            createdAt: new Date()
+        };
+        setActiveProject(cloudProject);
+        setCurrentView('schedule');
     };
 
     // 3. To Editor (Directly from Global Board or Schedule)
@@ -229,6 +248,7 @@ function App() {
                         activeDoor={activeDoor}
                         handleNavigateToProjects={handleNavigateToProjects}
                         handleOpenProject={handleOpenProject}
+                        handleOpenCloudProject={handleOpenCloudProject}
                         handleOpenDoor={handleOpenDoor}
                         handleBackToDashboard={handleBackToDashboard}
                         handleBackToProjectList={handleBackToProjectList}
@@ -267,6 +287,7 @@ const AppContent: React.FC<{
     activeDoor: Door | null;
     handleNavigateToProjects: () => void;
     handleOpenProject: (id: number) => Promise<void>;
+    handleOpenCloudProject: (id: string) => void;
     handleOpenDoor: (door: Door) => void;
     handleBackToDashboard: () => void;
     handleBackToProjectList: () => void;
@@ -282,6 +303,7 @@ const AppContent: React.FC<{
     activeDoor,
     handleNavigateToProjects,
     handleOpenProject,
+    handleOpenCloudProject,
     handleOpenDoor,
     handleBackToDashboard,
     handleBackToProjectList,
@@ -347,10 +369,8 @@ const AppContent: React.FC<{
                             {currentView === 'projects' && (
                                 <ProjectRegistryScreen
                                     onSelect={(id) => {
-                                        // For now, just log or maybe open Edit?
-                                        // The modal handles edit. Selection might imply "Go to details".
-                                        console.log('Selected Project:', id);
-                                        // TODO: Navigate to Project Detail / Schedule (Backend version)
+                                        console.log('[App] Selected Cloud Project:', id);
+                                        handleOpenCloudProject(id);
                                     }}
                                     onBack={handleBackToDashboard}
                                 />

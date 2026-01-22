@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Door } from '../../../../db/db';
 import { Project } from '../../../../db/db';
 import { JoineryHeader } from '../components/JoineryHeader';
@@ -9,6 +9,9 @@ import { GenericItemModal } from './GenericItemModal';
 import { DeliverableList } from '../../manufacturing/DeliverableList';
 import { DecisionBoard } from './DecisionBoard';
 import { useJoineryViewModel } from '../hooks/useJoineryViewModel';
+import { DocumentList } from '../components/documents/DocumentList';
+import { DocumentEditor } from '../components/documents/DocumentEditor';
+import { Document } from '../domain/ManufacturingTypes';
 
 type JoineryScheduleScreenProps = {
     project: Project;
@@ -57,6 +60,16 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
         handleSaveSettings,
         handleExportDxf
     } = useJoineryViewModel(project, onUpdateProject, onOpenDoor);
+
+    // Document Editor State
+    const [isDocEditorOpen, setIsDocEditorOpen] = useState(false);
+    const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+    const [docEditorType, setDocEditorType] = useState<'estimate' | 'sales'>('estimate');
+
+    const handleSelectDocument = (doc: Document) => {
+        setEditingDocument(doc);
+        setIsDocEditorOpen(true);
+    };
 
     // Render
     if (viewMode === 'internal') {
@@ -123,6 +136,13 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
                                 projectId={String(project.id)}
                                 projectTitle={project.name}
                             />
+                        ) : activeTab === 'documents' ? (
+                            <div className="h-full p-4">
+                                <DocumentList
+                                    projectId={String(project.id)}
+                                    onSelectDocument={handleSelectDocument}
+                                />
+                            </div>
                         ) : (
                             <JoineryList
                                 doors={doors}
@@ -163,6 +183,15 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
                     category: 'other'
                 }}
                 projectId={project.id!}
+            />
+
+            {/* Document Editor (Full Screen) */}
+            <DocumentEditor
+                isOpen={isDocEditorOpen}
+                onClose={() => { setIsDocEditorOpen(false); setEditingDocument(null); }}
+                projectId={String(project.id)}
+                initialDocument={editingDocument}
+                initialType={docEditorType}
             />
         </div>
     );

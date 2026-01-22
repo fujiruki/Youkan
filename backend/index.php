@@ -183,6 +183,35 @@ if (preg_match('#^(/api)?/doors(?:/([^/]+))?$#', $path, $matches)) {
 }
 // ---------------------
 
+// Master Item Routes (Manufacturing Core v11)
+require_once 'MasterItemController.php';
+
+if (preg_match('#^(/api)?/masters(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new MasterItemController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
+// Document Routes (Manufacturing Core v11)
+require_once 'DocumentController.php';
+
+// /api/documents/{id}/action (e.g. convert)
+if (preg_match('#^(/api)?/documents/([^/]+)/convert$#', $path, $matches) && $method === 'POST') {
+    $controller = new DocumentController();
+    $_GET['action'] = 'convert'; // pass action via GET
+    $controller->handleRequest($method, $matches[2]);
+    exit;
+}
+
+// /api/documents
+if (preg_match('#^(/api)?/documents(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new DocumentController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
 // Deliverable Routes (Manufacturing Plugin)
 require_once 'api/deliverables.php';
 if (preg_match('#^(/api)?/deliverables(?:/summary/([^/]+))?$#', $path, $matches) && isset($matches[2])) {
@@ -332,35 +361,34 @@ if (preg_match('#^(/api)?/calendar/load$#', $path) && $method === 'GET') {
 }
 
 // Item Routes (Legacy & General CRUD)
-try {
-    if (preg_match('#^(/api)?/items$#', $path)) {
-        if ($method === 'GET') {
-            echo json_encode(ItemController::getAll($db));
-        } elseif ($method === 'POST') {
-            $data = json_decode(file_get_contents('php://input'), true);
-            echo json_encode(ItemController::create($db, $data));
-        }
-    }
-    elseif (preg_match('#^(/api)?/items/(.+)$#', $path, $matches) && $method === 'PUT') {
-        $data = json_decode(file_get_contents('php://input'), true);
-        echo json_encode(ItemController::update($db, $matches[2], $data));
-    }
-    elseif (preg_match('#^(/api)?/items/(.+)$#', $path, $matches) && $method === 'DELETE') {
-        echo json_encode(ItemController::delete($db, $matches[2]));
-    }
-    else {
-        http_response_code(404);
-        echo json_encode([
-            'error' => 'Not Found', 
-            'path' => $path,
-            '_debug' => [
-                'uri' => $uri ?? 'null',
-                'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'null',
-                'path_info' => $_SERVER['PATH_INFO'] ?? 'null'
-            ]
-        ]);
-    }
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+// Capacity Routes (Manager View - Quantity Only)
+if (preg_match('#^(/api)?/users/([^/]+)/capacity$#', $path, $matches) && $method === 'GET') {
+    // This requires ItemController for now, or a dedicated CapacityController could be better.
+    // For simplicity, let's route it to ItemController's new method getCapacity() (to be added)
+    // or handle it here if it's simple SQL.
+    // Let's add getCapacity to ItemController.
+    $controller = new ItemController();
+    $controller->getCapacity($matches[2]); // $userId
+    exit;
 }
+
+// Item Routes (Scoped & Secure)
+// New Logic: Instantiates ItemController extends BaseController
+if (preg_match('#^(/api)?/items(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new ItemController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
+// Fallback 404
+http_response_code(404);
+echo json_encode([
+    'error' => 'Not Found', 
+    'path' => $path,
+    '_debug' => [
+        'uri' => $uri ?? 'null',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'null',
+        'path_info' => $_SERVER['PATH_INFO'] ?? 'null'
+    ]
+]);

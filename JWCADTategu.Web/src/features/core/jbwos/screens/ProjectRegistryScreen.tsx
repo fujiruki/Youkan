@@ -33,7 +33,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; o
                         </button>
                         <div>
                             <h1 className="text-3xl font-light text-slate-800 dark:text-slate-100 tracking-tight">
-                                Project Registry
+                                プロジェクト一覧
                             </h1>
                             <p className="text-slate-500 dark:text-slate-400 mt-1">
                                 創造と収益の源泉（コンテキスト）を定義します
@@ -45,13 +45,13 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; o
                         className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
                     >
                         <Plus className="w-5 h-5" />
-                        <span>New Project</span>
+                        <span>新規プロジェクト</span>
                     </button>
                 </div>
 
                 {/* Grid */}
                 {loading && projects.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">Loading projects...</div>
+                    <div className="text-center py-20 text-slate-400">読み込み中...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {projects.map(project => (
@@ -104,7 +104,7 @@ const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: ()
                             <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
                         )}
                         <span className="text-xs uppercase font-bold tracking-wider text-slate-400">
-                            {project.client || 'Internal / Private'}
+                            {project.client || '自社・個人'}
                         </span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -123,14 +123,14 @@ const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: ()
 
                 <div className="flex items-center gap-4 mt-6 text-sm text-slate-500 dark:text-slate-400">
                     <div className="flex flex-col">
-                        <span className="text-xs text-slate-400">Target Profit</span>
+                        <span className="text-xs text-slate-400">目標粗利</span>
                         <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                             ¥{project.grossProfitTarget?.toLocaleString() ?? 0}
                         </span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xs text-slate-400">Status</span>
-                        <span className="capitalize">{project.judgmentStatus || 'Inbox'}</span>
+                        <span className="text-xs text-slate-400">状態</span>
+                        <span className="capitalize">{project.judgmentStatus || '未分類'}</span>
                     </div>
                 </div>
             </div>
@@ -169,14 +169,14 @@ const ProjectModal: React.FC<{
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-in">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                        {project ? 'Edit Project' : 'New Project'}
+                        {project ? 'プロジェクト編集' : '新規プロジェクト'}
                     </h2>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            Project Name
+                            プロジェクト名
                         </label>
                         <input
                             type="text"
@@ -184,26 +184,26 @@ const ProjectModal: React.FC<{
                             onChange={e => setName(e.target.value)}
                             required
                             className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="e.g. Modern Sliding Door"
+                            placeholder="例: 玄関ドア新規製作"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Client / Context
+                                顧客名 / 現場名
                             </label>
                             <input
                                 type="text"
                                 value={client}
                                 onChange={e => setClient(e.target.value)}
                                 className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                placeholder="e.g. Tanaka Residence"
+                                placeholder="例: 田中邸"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Target Gross Profit (¥)
+                                目標粗利 (円)
                             </label>
                             <input
                                 type="number"
@@ -216,7 +216,7 @@ const ProjectModal: React.FC<{
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Color Label
+                            カラーラベル
                         </label>
                         <div className="flex gap-2 flex-wrap">
                             {['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'].map(c => (
@@ -237,7 +237,7 @@ const ProjectModal: React.FC<{
                             onClick={onClose}
                             className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                         >
-                            Cancel
+                            キャンセル
                         </button>
                         <button
                             type="submit"
@@ -245,7 +245,7 @@ const ProjectModal: React.FC<{
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"
                         >
                             {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                            {project ? 'Save Changes' : 'Create Project'}
+                            {project ? '変更を保存' : '作成する'}
                         </button>
                     </div>
                 </form>

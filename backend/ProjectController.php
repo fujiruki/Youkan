@@ -65,12 +65,19 @@ class ProjectController extends BaseController {
         ");
 
         $now = time() * 1000; // JS timestamp
+        
+        // Handle Project Type (e.g. 'manufacturing')
+        $settings = $data['settings'] ?? [];
+        if (isset($data['type'])) {
+            $settings['type'] = $data['type']; // 'standard', 'manufacturing'
+        }
+        
         $params = [
             $id,
             $this->currentTenantId,
             $data['name'],
             $data['client'] ?? '',
-            is_array($data['settings'] ?? null) ? json_encode($data['settings']) : ($data['settings_json'] ?? '{}'),
+            json_encode($settings), // Store type in settings for now
             is_array($data['dxf_config'] ?? null) ? json_encode($data['dxf_config']) : ($data['dxf_config_json'] ?? '{}'),
             $data['view_mode'] ?? 'internal',
             $data['judgment_status'] ?? 'inbox',

@@ -7,6 +7,7 @@ class BaseController {
     protected $pdo;
     protected $currentUser;
     protected $currentTenantId;
+    protected $currentUserId; // Added for convenience
 
     public function __construct() {
         $this->pdo = getDB();
@@ -25,6 +26,7 @@ class BaseController {
 
         $this->currentUser = $payload;
         $this->currentTenantId = $payload['tenant_id'] ?? null;
+        $this->currentUserId = $payload['sub'] ?? null; // Set ID
 
         if (!$this->currentTenantId) {
             $this->sendError(403, 'No tenant context in token');

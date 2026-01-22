@@ -10,6 +10,7 @@ class HistoryController extends BaseController {
         $month = $_GET['month'] ?? date('Y-m'); // YYYY-MM
         
         // Sum duration by project
+        // [Security Rule] Tenant Scope + Permission (Project Public OR My Private)
         $sql = "
             SELECT 
                 l.project_id,
@@ -20,11 +21,13 @@ class HistoryController extends BaseController {
             FROM daily_logs l
             LEFT JOIN projects p ON l.project_id = p.id
             WHERE substr(l.date, 1, 7) = ?
+            AND l.tenant_id = ?
+            AND (l.project_id IS NOT NULL OR l.created_by = ?)
             GROUP BY l.project_id
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$month]);
+        $stmt->execute([$month, $this->currentTenantId, $this->currentUserId]);
         $summary = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $this->sendJSON([
@@ -38,14 +41,22 @@ class HistoryController extends BaseController {
         $this->authenticate();
         $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
         
+        // [Security Rule] Tenant Scope + Permission (Project Public OR My Private)
+        // Also join users table (if exists) or just show names? For now just raw data.
         $stmt = $this->pdo->prepare("
             SELECT l.*, p.name as project_name, p.color as project_color
             FROM daily_logs l
             LEFT JOIN projects p ON l.project_id = p.id
+            WHERE l.tenant_id = ?
+            AND (l.project_id IS NOT NULL OR l.created_by = ?)
             ORDER BY l.created_at DESC
             LIMIT ?
         ");
-        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+        
+        $stmt->bindValue(1, $this->currentTenantId, PDO::PARAM_STR);
+        $stmt->bindValue(2, $this->currentUserId, PDO::PARAM_STR);
+        $stmt->bindValue(3, $limit, PDO::PARAM_INT);
+        
         $stmt->execute();
         $this->sendJSON($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
