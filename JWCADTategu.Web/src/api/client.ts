@@ -24,7 +24,8 @@ const getApiBase = () => {
     const appRoutes = [
         '/userlist', '/projects', '/doors', '/schedule',
         '/jbwos', '/today', '/history', '/settings',
-        '/customers', '/items', '/catalog', '/planning', '/manual'
+        '/customers', '/items', '/catalog', '/planning', '/manual',
+        '/login', '/register' // Add auth related routes
     ];
 
     for (const route of appRoutes) {
