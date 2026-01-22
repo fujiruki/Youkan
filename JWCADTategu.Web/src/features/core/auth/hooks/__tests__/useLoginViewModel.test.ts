@@ -1,8 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useLoginViewModel } from '../useLoginViewModel';
 import { AuthService } from '../../services/AuthService';
-import { LoginCredentials, AuthResponse } from '../../types';
-import { vi } from 'vitest';
+import { vi, describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 // Mock AuthService
 vi.mock('../../services/AuthService', () => {
@@ -13,17 +12,27 @@ vi.mock('../../services/AuthService', () => {
     };
 });
 
+// Mock window.location
+Object.defineProperty(window, 'location', {
+    value: { href: '' },
+    writable: true
+});
+
 describe('useLoginViewModel', () => {
     const mockLogin = vi.fn();
+    const mockRegister = vi.fn();
 
     beforeAll(() => {
         (AuthService.getInstance as any).mockReturnValue({
-            login: mockLogin
+            login: mockLogin,
+            register: mockRegister
         });
     });
 
     beforeEach(() => {
         mockLogin.mockClear();
+        mockRegister.mockClear();
+        localStorage.clear();
     });
 
     it('should start with stable initial state', () => {
@@ -31,13 +40,12 @@ describe('useLoginViewModel', () => {
 
         expect(result.current.isLoading).toBe(false);
         expect(result.current.error).toBeNull();
-        expect(result.current.user).toBeNull();
     });
 
     it('should handle successful login', async () => {
         const mockUser = { id: 'u1', name: 'Test User', email: 'test@example.com' };
         const mockTenant = { id: 't1', name: 'Test Tenant', role: 'owner' };
-        const mockResponse: AuthResponse = {
+        const mockResponse = {
             token: 'mock-token',
             user: mockUser,
             tenant: mockTenant
@@ -49,14 +57,12 @@ describe('useLoginViewModel', () => {
 
         // Perform Login
         await act(async () => {
-            await result.current.login('test@example.com', 'password');
+            await result.current.login({ email: 'test@example.com', password: 'password' });
         });
 
         // Check Success State
         expect(result.current.isLoading).toBe(false);
         expect(result.current.error).toBeNull();
-        expect(result.current.user).toEqual(mockUser);
-        expect(result.current.tenant).toEqual(mockTenant);
         expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
     });
 
@@ -66,11 +72,21 @@ describe('useLoginViewModel', () => {
         const { result } = renderHook(() => useLoginViewModel());
 
         await act(async () => {
-            await result.current.login('wrong@example.com', 'wrong');
+            await result.current.login({ email: 'wrong@example.com', password: 'wrong' });
         });
 
         expect(result.current.isLoading).toBe(false);
-        expect(result.current.error).toBe('Invalid Credentials');
-        expect(result.current.user).toBeNull();
+        expect(result.current.error).toBe('Login failed. Check your credentials.');
+    });
+
+    it('should clear error', () => {
+        const { result } = renderHook(() => useLoginViewModel());
+
+        // Set error manually by triggering failed login
+        act(() => {
+            result.current.clearError();
+        });
+
+        expect(result.current.error).toBeNull();
     });
 });

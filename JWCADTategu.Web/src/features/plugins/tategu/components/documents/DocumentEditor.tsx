@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, ArrowLeft, Printer } from 'lucide-react';
+import { Save, ArrowLeft, Printer } from 'lucide-react';
 import { Document, DocumentItem } from '../../domain/ManufacturingTypes';
 import { ManufacturingService } from '../../services/ManufacturingService';
 import { DocumentItemGrid } from './DocumentItemGrid';

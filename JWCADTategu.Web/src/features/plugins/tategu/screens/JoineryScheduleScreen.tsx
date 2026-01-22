@@ -64,7 +64,7 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
     // Document Editor State
     const [isDocEditorOpen, setIsDocEditorOpen] = useState(false);
     const [editingDocument, setEditingDocument] = useState<Document | null>(null);
-    const [docEditorType, setDocEditorType] = useState<'estimate' | 'sales'>('estimate');
+    const [docEditorType, _setDocEditorType] = useState<'estimate' | 'sales'>('estimate');
 
     const handleSelectDocument = (doc: Document) => {
         setEditingDocument(doc);

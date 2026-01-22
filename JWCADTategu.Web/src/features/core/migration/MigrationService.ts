@@ -1,6 +1,5 @@
-import { db, Project, Door } from '../../../db/db';
+import { db } from '../../../db/db';
 import { AuthService } from '../auth/services/AuthService';
-import { ApiClient } from '../../../api/client';
 
 export interface MigrationProgress {
     total: number;
@@ -71,7 +70,7 @@ export class MigrationService {
                         name: p.name,
                         client: p.client || '',
                         settings: p.settings || {}, // Ensure JSON compatibility
-                        dxf_config: p.dxfConfig || {},
+                        dxf_config: p.dxfLayerConfig || {},
                         view_mode: p.viewMode || 'internal',
                         judgment_status: p.judgmentStatus || 'inbox',
                         is_archived: p.isArchived,
@@ -120,7 +119,7 @@ export class MigrationService {
                         name: d.name,
                         count: d.count,
                         tag: d.tag,
-                        thumbnail_url: d.thumbnailUrl,
+                        thumbnail_url: d.thumbnail,
                         status: d.status,
                         man_hours: d.manHours,
                         complexity: d.complexity,

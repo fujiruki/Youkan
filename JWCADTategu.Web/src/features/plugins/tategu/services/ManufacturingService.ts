@@ -1,5 +1,5 @@
 import { ApiClient } from '../../../../api/client';
-import { Document, DocumentItem, MasterItem, MasterCategory } from '../domain/ManufacturingTypes';
+import { Document, MasterItem, MasterCategory } from '../domain/ManufacturingTypes';
 
 export class ManufacturingService {
     // --- Master Items ---

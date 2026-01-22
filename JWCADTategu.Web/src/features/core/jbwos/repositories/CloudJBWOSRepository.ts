@@ -113,8 +113,7 @@ export const CloudJBWOSRepository = {
     getGdbShelf: async () => {
         // Re-use logic: fetch all, categorize.
         // Or use /api/gdb if available (it was dummy in LocalRepo)
-        const projects = await ApiClient.request<any[]>('GET', '/projects');
-        const doors = await ApiClient.request<any[]>('GET', '/doors');
+        // TODO: Implement full GDB shelf aggregation when API is ready
 
         // Transform and Merge
         // ... (Logic similar to getItemsByStatus but for all statuses)

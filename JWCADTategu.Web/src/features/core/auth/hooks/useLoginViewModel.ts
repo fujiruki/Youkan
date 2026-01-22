@@ -39,10 +39,13 @@ export const useLoginViewModel = () => {
         }
     };
 
+    const clearError = () => setError(null);
+
     return {
         isLoading,
         error,
         login,
-        register
+        register,
+        clearError
     };
 };

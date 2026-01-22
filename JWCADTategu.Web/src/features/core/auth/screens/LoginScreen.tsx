@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
 
 export const LoginScreen: React.FC = () => {
-    const { login, register, isLoading, error } = useLoginViewModel();
+    const { login, register, isLoading, error, clearError } = useLoginViewModel();
     const [isRegisterMode, setIsRegisterMode] = useState(false);
 
     // Form States
@@ -101,7 +101,7 @@ export const LoginScreen: React.FC = () => {
                         <button
                             onClick={() => {
                                 setIsRegisterMode(!isRegisterMode);
-                                setError(null);
+                                clearError();
                             }}
                             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium hover:underline"
                         >
