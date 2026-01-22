@@ -137,6 +137,101 @@ function initDB($pdo) {
             total_minutes INTEGER DEFAULT 0,
             capacity_minutes INTEGER DEFAULT 480,
             PRIMARY KEY (user_id, date)
+        )",
+        // [v7] Cloud & Multi-tenant Architecture
+        "CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT,
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS tenants (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            domain TEXT,
+            created_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS memberships (
+            user_id TEXT,
+            tenant_id TEXT,
+            role TEXT DEFAULT 'member',
+            PRIMARY KEY (user_id, tenant_id),
+            FOREIGN KEY(user_id) REFERENCES users(id),
+            FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+        )",
+        "CREATE TABLE IF NOT EXISTS api_tokens (
+            id TEXT PRIMARY KEY,
+            user_id TEXT,
+            token TEXT UNIQUE NOT NULL,
+            label TEXT,
+            created_at INTEGER,
+            last_used_at INTEGER,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )",
+        // Renamed/Replaced Projects Table handled by migration script, 
+        // but for fresh init we use the new schema.
+        // Note: 'projects' table definition here replaces the old v6 one if db is fresh.
+        "CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            client TEXT,
+            settings_json TEXT,
+            dxf_config_json TEXT,
+            view_mode TEXT DEFAULT 'internal',
+            judgment_status TEXT DEFAULT 'inbox',
+            is_archived INTEGER DEFAULT 0,
+            created_at INTEGER,
+            updated_at INTEGER,
+            FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+        )",
+        "CREATE TABLE IF NOT EXISTS doors (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            project_id TEXT,
+            deliverable_id TEXT,
+            tag TEXT,
+            name TEXT,
+            dimensions_json TEXT,
+            specs_json TEXT,
+            count INTEGER DEFAULT 1,
+            thumbnail_url TEXT,
+            status TEXT,
+            man_hours REAL,
+            complexity REAL,
+            start_date TEXT,
+            due_date TEXT,
+            category TEXT,
+            generic_specs_json TEXT,
+            judgment_status TEXT,
+            waiting_reason TEXT,
+            weight INTEGER,
+            rough_timing TEXT,
+            created_at INTEGER,
+            updated_at INTEGER,
+            FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+            FOREIGN KEY(project_id) REFERENCES projects(id)
+        )",
+        "CREATE TABLE IF NOT EXISTS deliverables (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            project_id TEXT,
+            linked_item_id TEXT,
+            name TEXT,
+            type TEXT,
+            status TEXT,
+            estimated_work_minutes INTEGER,
+            estimated_site_minutes INTEGER,
+            actual_work_minutes INTEGER,
+            actual_site_minutes INTEGER,
+            cost_json TEXT,
+            requires_site_installation INTEGER,
+            description TEXT,
+            note TEXT,
+            created_at INTEGER,
+            updated_at INTEGER,
+            FOREIGN KEY(tenant_id) REFERENCES tenants(id)
         )"
     ];
 

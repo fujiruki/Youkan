@@ -143,6 +143,46 @@ if (preg_match('#^(/api)?/customers(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// --- NEW V7 ROUTES ---
+
+// Auth Routes
+require_once 'AuthController.php';
+if (preg_match('#^(/api)?/auth(/.*)$#', $path, $matches)) {
+    $controller = new AuthController();
+    // Path passed to controller: /login, /me (without /api/auth)
+    $subPath = $matches[2]; 
+    $controller->handleRequest($method, $subPath);
+    exit;
+}
+
+// Integration Routes
+require_once 'IntegrationController.php';
+if (preg_match('#^(/api)?/integrations(/.*)$#', $path, $matches)) {
+    $controller = new IntegrationController();
+    $subPath = $matches[2];
+    $controller->handleRequest($method, $subPath);
+    exit;
+}
+
+// Project Routes (Cloud v7)
+require_once 'ProjectController.php';
+if (preg_match('#^(/api)?/projects(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new ProjectController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
+// Door Routes (Cloud v7)
+require_once 'DoorController.php';
+if (preg_match('#^(/api)?/doors(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new DoorController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+// ---------------------
+
 // Deliverable Routes (Manufacturing Plugin)
 require_once 'api/deliverables.php';
 if (preg_match('#^(/api)?/deliverables(?:/summary/([^/]+))?$#', $path, $matches) && isset($matches[2])) {

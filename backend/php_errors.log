@@ -1,0 +1,13 @@
+[22-Jan-2026 06:18:22 UTC] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\IntegrationController.php on line 53
+Stack trace:
+#0 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\IntegrationController.php(53): PDOStatement->execute()
+#1 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\IntegrationController.php(62): IntegrationController->authenticate()
+#2 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\IntegrationController.php(15): IntegrationController->createInboxItem()
+#3 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\index.php(163): IntegrationController->handleRequest()
+#4 {main}
+[22-Jan-2026 06:19:31 UTC] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\ProjectController.php on line 82
+Stack trace:
+#0 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\ProjectController.php(82): PDOStatement->execute()
+#1 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\ProjectController.php(17): ProjectController->create()
+#2 C:\Users\doorf\OneDrive\ドキュメント\プロジェクト\TateguDesignStudio\backend\index.php(172): ProjectController->handleRequest()
+#3 {main}

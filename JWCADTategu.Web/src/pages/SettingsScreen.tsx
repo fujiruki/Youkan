@@ -1,6 +1,7 @@
 import React from 'react';
 import { useJBWOSViewModel } from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
 import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
+import { MigrationWizard } from '../features/core/migration/MigrationWizard';
 import { ArrowLeft } from 'lucide-react';
 
 interface SettingsScreenProps {
@@ -26,6 +27,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                         設定 (Settings)
                     </h1>
                 </div>
+
+                {/* Migration Section (Cloud v7) */}
+                <section>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">
+                        データ移行
+                    </h2>
+                    <MigrationWizard />
+                </section>
 
                 {/* Holiday Config Section */}
                 <section>

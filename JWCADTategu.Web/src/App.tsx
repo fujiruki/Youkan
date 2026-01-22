@@ -22,6 +22,10 @@ import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
+// Auth Imports
+import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
+import { LoginScreen } from './features/core/auth/screens/LoginScreen';
+
 type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers';
 
 function App() {
@@ -213,25 +217,44 @@ function App() {
 
     return (
         <ToastProvider>
-            <AppContent
-                currentView={currentView}
-                setCurrentView={setCurrentView}
-                activeProject={activeProject}
-                activeDoor={activeDoor}
-                handleNavigateToProjects={handleNavigateToProjects}
-                handleOpenProject={handleOpenProject}
-                handleOpenDoor={handleOpenDoor}
-                handleBackToDashboard={handleBackToDashboard}
-                handleBackToProjectList={handleBackToProjectList}
-                handleBackToSchedule={handleBackToSchedule}
-                handleDeleteProject={handleDeleteProject}
-                handleArchiveProject={handleArchiveProject}
-                setActiveProject={setActiveProject}
-                initialDashboardLayout={initialDashboardLayout} // [NEW]
-            />
+            <AuthProvider>
+                <AuthGuard>
+                    <AppContent
+                        currentView={currentView}
+                        setCurrentView={setCurrentView}
+                        activeProject={activeProject}
+                        activeDoor={activeDoor}
+                        handleNavigateToProjects={handleNavigateToProjects}
+                        handleOpenProject={handleOpenProject}
+                        handleOpenDoor={handleOpenDoor}
+                        handleBackToDashboard={handleBackToDashboard}
+                        handleBackToProjectList={handleBackToProjectList}
+                        handleBackToSchedule={handleBackToSchedule}
+                        handleDeleteProject={handleDeleteProject}
+                        handleArchiveProject={handleArchiveProject}
+                        setActiveProject={setActiveProject}
+                        initialDashboardLayout={initialDashboardLayout} // [NEW]
+                    />
+                </AuthGuard>
+            </AuthProvider>
         </ToastProvider>
     );
 }
+
+// Helper to guard content
+const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    if (isLoading) {
+        return <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-white">Loading...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return <LoginScreen />;
+    }
+
+    return <>{children}</>;
+};
 
 // Separate component to access Toast context
 const AppContent: React.FC<{
