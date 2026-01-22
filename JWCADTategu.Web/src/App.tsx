@@ -244,7 +244,7 @@ function App() {
     return (
         <ToastProvider>
             <AuthProvider>
-                <AuthGuard>
+                <AuthGuard bypass={currentView === 'userlist'}>
                     <AppContent
                         currentView={currentView}
                         setCurrentView={setCurrentView}
@@ -269,8 +269,14 @@ function App() {
 }
 
 // Helper to guard content
-const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AuthGuard: React.FC<{ children: React.ReactNode; bypass?: boolean }> = ({ children, bypass }) => {
     const { isAuthenticated, isLoading } = useAuth();
+
+    // Debug or Public view bypass
+    if (bypass) {
+        return <>{children}</>;
+    }
+
 
     if (isLoading) {
         return <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-white">Loading...</div>;
