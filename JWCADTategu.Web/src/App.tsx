@@ -24,12 +24,13 @@ import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
+import { UserListScreen } from './features/core/debug/UserListScreen'; // [NEW] Debug
 
 // Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
 import { LoginScreen } from './features/core/auth/screens/LoginScreen';
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -56,6 +57,9 @@ function App() {
             console.log('[Router] Detected Focus URL');
             setCurrentView('jbwos');
             setInitialDashboardLayout('standard');
+        } else if (path.includes('/userlist')) {
+            console.log('[Router] Detected UserList URL');
+            setCurrentView('userlist');
         }
         // Else default to what's in useState or other logic (e.g. Deep linking below)
     }, []);
@@ -458,6 +462,11 @@ const AppContent: React.FC<{
                                 <div className="h-full w-full overflow-auto">
                                     <ManualScreen />
                                 </div>
+                            )}
+
+                            {/* 11. User List (Debug) */}
+                            {currentView === 'userlist' && (
+                                <UserListScreen />
                             )}
                         </div>
 

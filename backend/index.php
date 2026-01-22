@@ -118,15 +118,11 @@ if (($pos = strpos($path, '?')) !== false) {
     $path = substr($path, 0, $pos);
 }
 
-// Debug Routes
-if (preg_match('#^(/api)?/debug/logs#', $path)) {
-    $controller = new DebugController($db);
-    if ($method === 'GET') {
-        $controller->getLogs();
-    } else {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-    }
+// Debug Routes (開発用 - 本番では無効化すること)
+if (preg_match('#^(/api)?/debug(/.*)$#', $path, $matches)) {
+    $controller = new DebugController();
+    $subPath = $matches[2];
+    $controller->handleRequest($method, $subPath);
     exit;
 }
 
