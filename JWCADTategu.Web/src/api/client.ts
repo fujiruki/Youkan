@@ -6,6 +6,13 @@ import { JudgableItem } from '../features/core/jbwos/types';
 // Production uses index.php with PATH_INFO.
 // FIX: Use absolute path calculation to prevent 404 when app is at sub-path (e.g. /today)
 const getApiBase = () => {
+    // Debug Log
+    console.log('[ApiClient] Calculating Base URL', {
+        dev: import.meta.env.DEV,
+        pathname: window.location.pathname,
+        href: window.location.href
+    });
+
     if (import.meta.env.DEV) return '/api';
 
     // Production: Calculate path to index.php valid from anywhere
@@ -41,7 +48,10 @@ const getApiBase = () => {
 
     // Remove trailing slash if exists
     root = root.replace(/\/$/, '');
-    return `${root}/index.php`;
+
+    const result = `${root}/index.php`;
+    console.log('[ApiClient] Resolved Base URL:', result);
+    return result;
 };
 
 const API_BASE = getApiBase();
@@ -185,8 +195,6 @@ export class ApiClient {
     public static async completeItem(id: string): Promise<{ success: boolean }> {
         return this.request('POST', '/today/complete', { id });
     }
-
-
 
     // --- Phase 3: Life & Execution API ---
     public static async checkLife(id: string): Promise<{ success: boolean; id: string }> {
