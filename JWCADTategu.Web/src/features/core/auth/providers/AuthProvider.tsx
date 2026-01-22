@@ -6,6 +6,7 @@ interface AuthContextType {
     user: AuthUser | null;
     tenant: Tenant | null;
     isAuthenticated: boolean;
+    isLoading: boolean; // Added
     login: (user: AuthUser, tenant: Tenant, token: string) => void;
     logout: () => void;
     checkAuth: () => Promise<void>;
@@ -17,11 +18,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<AuthUser | null>(null);
     const [tenant, setTenant] = useState<Tenant | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // Initial true
 
     const checkAuth = async () => {
         const token = AuthService.getInstance().getToken();
         if (!token) {
             setIsAuthenticated(false);
+            setIsLoading(false);
             return;
         }
 
@@ -53,6 +56,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         } catch (e) {
             logout();
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -76,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     return (
-        <AuthContext.Provider value={{ user, tenant, isAuthenticated, login, logout, checkAuth }}>
+        <AuthContext.Provider value={{ user, tenant, isAuthenticated, isLoading, login, logout, checkAuth }}>
             {children}
         </AuthContext.Provider>
     );

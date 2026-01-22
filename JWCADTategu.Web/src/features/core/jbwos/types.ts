@@ -15,6 +15,21 @@ export interface StockJob {
     createdAt: number;
 }
 
+export interface Project {
+    id: string;
+    name: string;
+    client?: string;
+    settings?: any;
+    dxfConfig?: any;
+    viewMode: 'internal' | 'external' | 'mixed';
+    judgmentStatus: JudgmentStatus;
+    isArchived: boolean;
+    grossProfitTarget: number;
+    color?: string;
+    createdAt: number;
+    updatedAt: number;
+}
+
 export type JudgableItem = Item; // Alias for compatibility
 
 export interface Item {
@@ -95,6 +110,20 @@ export interface SideMemo {
     id: string;
     content: string;
     createdAt: number;
+}
+
+export interface DailyLog {
+    id: string;
+    date: string; // YYYY-MM-DD
+    category: string; // 'life', 'execution'
+    content: string;
+    createdAt: number;
+    projectId?: string;
+    itemId?: string;
+    durationMinutes?: number;
+    grossProfitShare?: number;
+    projectName?: string;
+    projectColor?: string;
 }
 
 // --- Holiday & Capacity Configuration ---

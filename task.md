@@ -53,8 +53,21 @@
         - [x] Update imports for Tategu Plugin <!-- id: 1335 -->
 
 - [ ] **Phase 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
-    - [ ] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
-    - [ ] **History画面作成**: 事実ログの表示 UI <!-- id: 112 -->
+    - [x] **Backend Implementation** <!-- id: 1101 -->
+        - [x] DB Migration (Projects, Logs, Items) <!-- id: 1102 -->
+        - [x] API: Projects (CRUD with Target/Color) <!-- id: 1103 -->
+        - [x] API: Logs (Life & Execution) <!-- id: 1104 -->
+        - [x] API: History (Summary & Timeline) <!-- id: 1105 -->
+    - [x] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
+    - [x] **History画面作成**: 事実ログの表示 UI <!-- id: 112 -->
+    - [x] **Project Registry画面作成**: プロジェクト管理 UI <!-- id: 113 -->
+    - [x] **起動スクリプトの修正**: verify_and_start.ps1の堅牢化
+    - [x] **Docs Restructuring**: ドキュメント整理とDOCS_OPS作成 <!-- id: 114 -->
+
+- [ ] **Phase 3.5: Security Hardening (Post-Review)** <!-- id: 120 -->
+    - [ ] **Backend Security**: ItemController/ProjectControllerのクエリスコープ修正 <!-- id: 1201 -->
+    - [ ] **Manager Capacity View**: 量感のみ取得するAPIの実装 <!-- id: 1202 -->
+    - [ ] **Security Verification**: アクセス権限の自動テスト <!-- id: 1203 -->
 
 - [ ] **Phase 4.5: Design & Story (User Nuance)** <!-- id: 140 -->
     - [ ] **AI Meeting**: Tomorrow Planning Story & User Flow <!-- id: 1401 -->

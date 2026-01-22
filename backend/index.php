@@ -258,26 +258,30 @@ if (preg_match('#^(/api)?/memo/([^/]+)/move-to-inbox$#', $path, $matches) && $me
 }
 
 // Life & Execution Routes (Phase 3)
-require_once 'LifeController.php';
+require_once 'LogController.php';
 
-if (preg_match('#^(/api)?/life/([^/]+)/check$#', $path, $matches) && $method === 'POST') {
-    $controller = new LifeController($db);
-    echo json_encode($controller->checkLife($matches[2]));
+if (preg_match('#^(/api)?/logs/life$#', $path) && $method === 'POST') {
+    $controller = new LogController();
+    $controller->createLifeLog();
     exit;
 }
-if (preg_match('#^(/api)?/execution/([^/]+)/start$#', $path, $matches) && $method === 'POST') {
-    $controller = new LifeController($db);
-    echo json_encode($controller->startExecution($matches[2]));
+if (preg_match('#^(/api)?/logs/execution$#', $path) && $method === 'POST') {
+    $controller = new LogController();
+    $controller->createExecutionLog();
     exit;
 }
-if (preg_match('#^(/api)?/execution/([^/]+)/pause$#', $path, $matches) && $method === 'POST') {
-    $controller = new LifeController($db);
-    echo json_encode($controller->pauseExecution($matches[2]));
+
+// History Routes
+require_once 'HistoryController.php';
+
+if (preg_match('#^(/api)?/history/summary$#', $path) && $method === 'GET') {
+    $controller = new HistoryController();
+    $controller->getSummary();
     exit;
 }
-if (preg_match('#^(/api)?/history$#', $path) && $method === 'GET') {
-    $controller = new LifeController($db);
-    echo json_encode($controller->getHistory());
+if (preg_match('#^(/api)?/history/timeline$#', $path) && $method === 'GET') {
+    $controller = new HistoryController();
+    $controller->getTimeline();
     exit;
 }
 

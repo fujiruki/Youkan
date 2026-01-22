@@ -12,6 +12,7 @@ import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalB
 import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
 import { FutureBoard } from './features/core/planning/FutureBoard'; // [NEW]
 import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
+import { ProjectRegistryScreen } from './features/core/jbwos/screens/ProjectRegistryScreen'; // [NEW] Project Registry
 import { CustomerList } from './features/plugins/customer'; // [NEW] Customer Plugin
 
 import { UndoProvider } from './features/core/jbwos/contexts/UndoContext';
@@ -22,11 +23,13 @@ import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 
+import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
+
 // Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
 import { LoginScreen } from './features/core/auth/screens/LoginScreen';
 
-type ViewState = 'dashboard' | 'projectList' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -61,7 +64,7 @@ function App() {
 
     // 1. To Project List (External View)
     const handleNavigateToProjects = () => {
-        setCurrentView('projectList');
+        setCurrentView('projects'); // Switched to New Project Registry
         setActiveProject(null);
     };
 
@@ -340,7 +343,20 @@ const AppContent: React.FC<{
                                 </div>
                             )}
 
-                            {/* 2. Project List (External View) */}
+                            {/* 1.5 Project Registry (New) */}
+                            {currentView === 'projects' && (
+                                <ProjectRegistryScreen
+                                    onSelect={(id) => {
+                                        // For now, just log or maybe open Edit?
+                                        // The modal handles edit. Selection might imply "Go to details".
+                                        console.log('Selected Project:', id);
+                                        // TODO: Navigate to Project Detail / Schedule (Backend version)
+                                    }}
+                                    onBack={handleBackToDashboard}
+                                />
+                            )}
+
+                            {/* 2. Project List (External View) - Legacy */}
                             {currentView === 'projectList' && (
                                 <ProjectListScreen
                                     onSelectProject={handleOpenProject}
@@ -403,7 +419,10 @@ const AppContent: React.FC<{
                             {/* 8. Settings Screen */}
                             {currentView === 'settings' && (
                                 <div className="h-full w-full overflow-auto">
-                                    <SettingsScreen onBack={handleBackToDashboard} />
+                                    <SettingsScreen
+                                        onBack={handleBackToDashboard}
+                                        onNavigateToManual={() => setCurrentView('manual')}
+                                    />
                                 </div>
                             )}
 
@@ -411,6 +430,13 @@ const AppContent: React.FC<{
                             {currentView === 'customers' && (
                                 <div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-950">
                                     <CustomerList />
+                                </div>
+                            )}
+
+                            {/* 10. Manual Screen */}
+                            {currentView === 'manual' && (
+                                <div className="h-full w-full overflow-auto">
+                                    <ManualScreen />
                                 </div>
                             )}
                         </div>

@@ -32,6 +32,7 @@ try {
         user_id TEXT,
         tenant_id TEXT,
         role TEXT DEFAULT 'member', -- owner, admin, member
+        joined_at TEXT, -- ISO8601 or SQLite datetime
         PRIMARY KEY (user_id, tenant_id),
         FOREIGN KEY(user_id) REFERENCES users(id),
         FOREIGN KEY(tenant_id) REFERENCES tenants(id)

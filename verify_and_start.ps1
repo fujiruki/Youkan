@@ -172,16 +172,27 @@ $maxRetries = 15
 
 while (-not $backendReady -and $retryCount -lt $maxRetries) {
     try {
-        $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
+        # Try API health endpoint first (routed via index.php)
+        $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/api/health" -Method Get -ErrorAction Stop
         if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
             $backendReady = $true
-            Write-Status "✅ Backendヘルスチェック成功!" "Green"
+            Write-Status "✅ Backendヘルスチェック成功! (/api/health)" "Green"
         }
     }
     catch {
-        Write-Host "." -NoNewline
-        Start-Sleep -Seconds 1
-        $retryCount++
+        # Fallback to direct file check if API fails
+        try {
+            $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
+            if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
+                $backendReady = $true
+                Write-Status "✅ Backendヘルスチェック成功! (/health.php)" "Green"
+            }
+        }
+        catch {
+            Write-Host "." -NoNewline
+            Start-Sleep -Seconds 1
+            $retryCount++
+        }
     }
 }
 Write-Host "" 
@@ -190,7 +201,9 @@ if (-not $backendReady) {
     Write-Status "⚠️ Backend unresponsive. Attempting Restart Strategy..." "Red"
     
     # Kill and Retry once
-    Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
+    if ($phpProcess -and $phpProcess.Id) {
+        Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     Start-Sleep -Seconds 2
     
     Write-Status "🔄 Restarting PHP Backend..." "Cyan"
@@ -199,7 +212,7 @@ if (-not $backendReady) {
     # Quick check
     Start-Sleep -Seconds 3
     try {
-        $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/health.php" -Method Get -ErrorAction Stop
+        $res = Invoke-RestMethod -Uri "http://$PHP_HOST`:$PHP_PORT/api/health" -Method Get -ErrorAction Stop
         if ($res -is [PSCustomObject] -and $res.status -eq "ok") {
             $backendReady = $true
             Write-Status "✅ Backend Recovered!" "Green"
@@ -212,8 +225,8 @@ if (-not $backendReady) {
 
 if (-not $backendReady) {
     Write-Status "❌ Critical Failure: Backend could not be started." "Red"
-    Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
-    Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
+    if ($phpProcess -and $phpProcess.Id) { Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue }
+    if ($viteProcess -and $viteProcess.Id) { Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue }
     exit 1
 }
 
@@ -234,6 +247,6 @@ Write-Host "サーバーを停止するには何かキーを押してくださ�
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 Write-Status "サーバーを停止しています..." "Yellow"
-Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue
-Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue
+if ($phpProcess -and $phpProcess.Id) { Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue }
+if ($viteProcess -and $viteProcess.Id) { Stop-Process -Id $viteProcess.Id -Force -ErrorAction SilentlyContinue }
 Write-Status "Server stopped." "Cyan"

@@ -59,8 +59,9 @@ class ProjectController extends BaseController {
         $stmt = $this->pdo->prepare("
             INSERT INTO projects (
                 id, tenant_id, name, client, settings_json, dxf_config_json,
-                view_mode, judgment_status, is_archived, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                view_mode, judgment_status, is_archived, gross_profit_target, color, 
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $now = time() * 1000; // JS timestamp
@@ -74,6 +75,8 @@ class ProjectController extends BaseController {
             $data['view_mode'] ?? 'internal',
             $data['judgment_status'] ?? 'inbox',
             isset($data['is_archived']) ? ($data['is_archived'] ? 1 : 0) : 0,
+            $data['gross_profit_target'] ?? 0,
+            $data['color'] ?? null,
             $data['created_at'] ?? $now,
             $now
         ];
@@ -98,7 +101,7 @@ class ProjectController extends BaseController {
 
         $fields = [];
         $params = [];
-        $allowed = ['name', 'client', 'view_mode', 'judgment_status', 'is_archived'];
+        $allowed = ['name', 'client', 'view_mode', 'judgment_status', 'is_archived', 'gross_profit_target', 'color'];
         
         foreach ($allowed as $field) {
             if (isset($data[$field])) {

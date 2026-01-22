@@ -1,0 +1,80 @@
+import { useState, useCallback } from 'react';
+import { Project } from '../types';
+import { ProjectService } from '../services/ProjectService';
+import { useToast } from '../../../../contexts/ToastContext';
+
+export const useProjectViewModel = () => {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { showToast } = useToast();
+
+    const fetchProjects = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await ProjectService.getAll();
+            setProjects(data);
+        } catch (err: any) {
+            setError(err.message);
+            showToast({ title: 'エラー', message: 'プロジェクトの取得に失敗しました', type: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    }, [showToast]);
+
+    const createProject = async (project: Partial<Project>) => {
+        setLoading(true);
+        try {
+            const newProject = await ProjectService.create(project);
+            showToast({ title: '成功', message: 'プロジェクトを作成しました', type: 'success' });
+            await fetchProjects();
+            return newProject;
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: err.message, type: 'error' });
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateProject = async (id: string, updates: Partial<Project>) => {
+        setLoading(true);
+        try {
+            await ProjectService.update(id, updates);
+            showToast({ title: '成功', message: 'プロジェクトを更新しました', type: 'success' });
+            await fetchProjects();
+            return true;
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: err.message, type: 'error' });
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteProject = async (id: string) => {
+        if (!window.confirm('本当にこのプロジェクトを削除しますか？')) return;
+
+        setLoading(true);
+        try {
+            await ProjectService.delete(id);
+            showToast({ title: '成功', message: 'プロジェクトを削除しました', type: 'success' });
+            await fetchProjects();
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: err.message, type: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return {
+        projects,
+        loading,
+        error,
+        fetchProjects,
+        createProject,
+        updateProject,
+        deleteProject
+    };
+};

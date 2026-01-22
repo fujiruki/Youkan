@@ -1,88 +1,118 @@
 import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
-import { useAuth } from '../providers/AuthProvider';
 
 export const LoginScreen: React.FC = () => {
-    const { login, isLoading, error } = useLoginViewModel();
-    const { login: globalLogin } = useAuth(); // Connect ViewModel to Global Context
+    const { login, register, isLoading, error } = useLoginViewModel();
+    const [isRegisterMode, setIsRegisterMode] = useState(false);
 
+    // Form States
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const success = await login(email, password);
-
-        if (success) {
-            // ViewModel's internal 'user' state is updated, but for global context we might pull from it
-            // Actually useLoginViewModel handles the service call and returns true.
-            // We can also let ViewModel call globalLogin if we passed it in, OR
-            // ViewModel exposes the user object which we can then push to global.
-            // Let's improve the flow: ViewModel handles logic, View connects results.
-            // Ideally ViewModel should return the User/Tenant on success to be cleaner.
-            // But standard MVVM ViewModel holds state.
-            // Let's reload page for simplicity? Or fetch user again.
-            // For now, reload to trigger AuthProvider checkAuth.
-            window.location.reload();
+        if (isRegisterMode) {
+            register({ name, email, password });
+        } else {
+            login({ email, password });
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
-                <h2 className="mb-6 text-2xl font-bold text-center text-gray-800">
-                    JBWOS Login
-                </h2>
-
-                {error && (
-                    <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block mb-2 text-sm font-bold text-gray-700" htmlFor="email">
-                            Email
-                        </label>
-                        <input
-                            id="email"
-                            type="email"
-                            className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
+                <div className="p-8">
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
+                            {isRegisterMode ? 'アカウント作成' : 'おかえりなさい'}
+                        </h1>
+                        <p className="text-slate-500 text-sm">
+                            {isRegisterMode ? 'Design Studioへようこそ' : 'Tategu Design Studioにログイン'}
+                        </p>
                     </div>
 
-                    <div className="mb-6">
-                        <label className="block mb-2 text-sm font-bold text-gray-700" htmlFor="password">
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            type="password"
-                            className="w-full px-3 py-2 mb-3 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm border border-red-200">
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="flex items-center justify-between">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {isRegisterMode && (
+                            <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    お名前
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="山田 太郎"
+                                />
+                            </div>
+                        )}
+
+                        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                メールアドレス
+                            </label>
+                            <input
+                                type="email"
+                                required
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                placeholder="name@example.com"
+                            />
+                        </div>
+
+                        <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                パスワード
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                            />
+                        </div>
+
                         <button
-                            className={`w-full px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             type="submit"
                             disabled={isLoading}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform active:scale-95"
                         >
-                            {isLoading ? 'Signing In...' : 'Sign In'}
+                            {isLoading ? '処理中...' : (isRegisterMode ? 'アカウントを作成' : 'ログイン')}
+                        </button>
+                    </form>
+
+                    <div className="mt-6 text-center">
+                        <button
+                            onClick={() => {
+                                setIsRegisterMode(!isRegisterMode);
+                                setError(null);
+                            }}
+                            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium hover:underline"
+                        >
+                            {isRegisterMode ? 'すでにアカウントをお持ちの方はこちら' : 'アカウントを新規作成する'}
                         </button>
                     </div>
-                </form>
-
-                <div className="mt-4 text-center text-xs text-gray-400">
-                    Secure Login &bull; Tategu Design Studio
                 </div>
+            </div>
+
+            <div className="fixed bottom-4 text-center w-full text-slate-400 text-xs">
+                &copy; 2026 Tategu Design Studio. All rights reserved.
             </div>
         </div>
     );
