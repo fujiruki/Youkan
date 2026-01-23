@@ -10,6 +10,24 @@ export interface Tenant {
     role: string;
 }
 
+export interface JbwosTenant extends Tenant {
+    // Basic Info
+    address?: string;
+    phone?: string;
+    invoiceNumber?: string; // T+13桁
+
+    // Commerce
+    bankInfo?: {
+        bankName: string;
+        accountType: string;
+        accountNumber: string;
+        accountHolder: string;
+    };
+
+    // Settings
+    closingDate?: number; // 締め日
+}
+
 export interface AuthResponse {
     token: string;
     user: AuthUser;

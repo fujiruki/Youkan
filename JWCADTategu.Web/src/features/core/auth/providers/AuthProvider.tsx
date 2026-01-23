@@ -29,28 +29,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         try {
-            // Verify token with backend /api/auth/me
-            const response = await fetch('/api/auth/me', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            // Use AuthService to get user info (handles correct API URL)
+            const authService = AuthService.getInstance();
+            const data = await authService.me();
 
-            if (response.ok) {
-                const data = await response.json();
-                // Backend /me returns { valid: true, user: { ...payload } }
-                // Payload has user and tenant info (see AuthController)
-                if (data.valid && data.user) {
-                    setUser({
-                        id: data.user.sub,
-                        name: data.user.name,
-                        email: data.user.email
-                    });
-                    setTenant({
-                        id: data.user.tenant_id,
-                        name: 'Current Tenant', // Payload might not have name if simple
-                        role: data.user.role
-                    });
-                    setIsAuthenticated(true);
-                }
+            if (data && data.user) {
+                setUser({
+                    id: data.user.id,
+                    name: data.user.name,
+                    email: data.user.email
+                });
+                setTenant(data.tenant || {
+                    id: 't-default',
+                    name: 'Default Tenant',
+                    role: 'editor'
+                });
+                setIsAuthenticated(true);
             } else {
                 logout();
             }

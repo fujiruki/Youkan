@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
 
 export const LoginScreen: React.FC = () => {
-    const { login, register, isLoading, error, clearError } = useLoginViewModel();
+    const { login, register, isLoading, error, clearError, debugLogin } = useLoginViewModel();
     const [isRegisterMode, setIsRegisterMode] = useState(false);
 
     // Form States
@@ -106,6 +106,17 @@ export const LoginScreen: React.FC = () => {
                             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium hover:underline"
                         >
                             {isRegisterMode ? 'すでにアカウントをお持ちの方はこちら' : 'アカウントを新規作成する'}
+                        </button>
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                        <button
+                            type="button"
+                            onClick={debugLogin}
+                            className="w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span className="p-1 bg-slate-100 dark:bg-slate-700 rounded">🛠</span>
+                            <span>Debug Login (Dev Mode)</span>
                         </button>
                     </div>
                 </div>
