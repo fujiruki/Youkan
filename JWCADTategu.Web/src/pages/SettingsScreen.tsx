@@ -21,6 +21,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
     const { tenant, user } = useAuth();
     const { logout } = useLoginViewModel();
     const [activeTab, setActiveTab] = useState<TabType>('company');
+    const [isLogoutConfirming, setIsLogoutConfirming] = useState(false);
 
     // Mock save handler
     const handleCompanySave = (updated: JbwosTenant) => {
@@ -233,26 +234,58 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                                 </h2>
                                 <button
                                     onClick={() => {
-                                        if (window.confirm('ログアウトしますか？')) {
-                                            logout();
-                                        }
+                                        if (isLogoutConfirming) return; // Prevent double trigger
+                                        setIsLogoutConfirming(true);
                                     }}
-                                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-red-200 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group shadow-sm"
+                                    className={`w-full flex flex-col p-4 bg-white dark:bg-slate-900 rounded-xl border transition-all shadow-sm
+                                        ${isLogoutConfirming
+                                            ? 'border-red-500 ring-2 ring-red-500/20 bg-red-50 dark:bg-red-900/10'
+                                            : 'border-red-200 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10'}`}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400">
-                                            <LogOut size={20} />
+                                    {!isLogoutConfirming ? (
+                                        <div className="w-full flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400">
+                                                    <LogOut size={20} />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                                        ログアウトする
+                                                    </h3>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                        アカウントからサインアウトし、ログイン画面に戻ります
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180 group-hover:text-red-400 transition-colors" />
                                         </div>
-                                        <div className="text-left">
-                                            <h3 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                                                ログアウトする
+                                    ) : (
+                                        <div className="w-full animate-in fade-in zoom-in-95 duration-200">
+                                            <h3 className="font-bold text-red-600 dark:text-red-400 mb-2 text-center">
+                                                本当にログアウトしますか？
                                             </h3>
-                                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                アカウントからサインアウトし、ログイン画面に戻ります
-                                            </p>
+                                            <div className="flex gap-3 justify-center mt-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsLogoutConfirming(false);
+                                                    }}
+                                                    className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded font-medium hover:opacity-80 transition-opacity"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        logout();
+                                                    }}
+                                                    className="px-6 py-2 bg-red-600 text-white rounded font-bold shadow-lg shadow-red-500/30 hover:bg-red-500 transition-colors"
+                                                >
+                                                    はい、ログアウトします
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180 group-hover:text-red-400 transition-colors" />
+                                    )}
                                 </button>
                             </section>
 
