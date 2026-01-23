@@ -46,6 +46,15 @@ export const JBWOSRepository = {
             title,
             status: 'inbox'
         };
+
+        // --- DEBUG BYPASS ---
+        const token = localStorage.getItem('jbwos_token');
+        if (token === 'mock-debug-token') {
+            console.log('JBWOSRepository: Debug Token detected. Skipping createItem API call.', newItem);
+            return id;
+        }
+        // ---------------------
+
         try {
             await ApiClient.createItem(newItem);
         } catch (e) {
@@ -163,7 +172,8 @@ export const JBWOSRepository = {
             const res = await ApiClient.getGdbShelf();
             if (res) apiShelf = res as any;
         } catch (e) {
-            console.error('Failed to fetch GDB from Server:', e);
+            // Suppress error in debug mode
+            console.warn('Failed to fetch GDB from Server (Running in Offline/Debug mode?):', e);
             // Non-blocking: continue to show local
         }
 
@@ -382,6 +392,15 @@ export const JBWOSRepository = {
         if (!item.id) {
             item.id = uuidv4();
         }
+
+        // --- DEBUG BYPASS ---
+        const token = localStorage.getItem('jbwos_token');
+        if (token === 'mock-debug-token') {
+            console.log('JBWOSRepository: Debug Token detected. Skipping createItem (Generic) API call.', item);
+            return item.id!;
+        }
+        // ---------------------
+
         try {
             await ApiClient.createItem(item);
         } catch (e) {

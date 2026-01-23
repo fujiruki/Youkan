@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { AuthService } from '../services/AuthService';
 import { LoginCredentials, RegisterCredentials } from '../types';
+import { useAuth } from '../providers/AuthProvider';
 
 export const useLoginViewModel = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { logout: authLogout } = useAuth(); // Get from AuthProvider
+
+    const logout = () => {
+        authLogout();
+        // Clear debug items just in case
+        localStorage.removeItem('jbwos_user');
+        localStorage.removeItem('jbwos_tenant');
+        window.location.reload();
+    };
 
     const login = async (creds: LoginCredentials) => {
         setIsLoading(true);
@@ -79,6 +89,7 @@ export const useLoginViewModel = () => {
         login,
         register,
         clearError,
-        debugLogin
+        debugLogin,
+        logout
     };
 };

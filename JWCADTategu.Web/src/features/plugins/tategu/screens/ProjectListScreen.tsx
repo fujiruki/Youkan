@@ -39,22 +39,28 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             });
 
             // 2. Auto-generate "Estimate Creation" Task
-            await JBWOSRepository.createItem({
-                title: '見積作成',
-                status: 'inbox',
-                projectId: newProjectName, // Link by Name (Legacy/Current JBWOS behavior)
-                parentId: `project-${projectId}`, // Link by ID (Hierarchical behavior)
-                category: 'project_task',
-                type: 'start',
-                memo: '自動生成タスク: プロジェクト作成時に追加'
-            });
+            try {
+                await JBWOSRepository.createItem({
+                    title: '見積作成',
+                    status: 'inbox',
+                    projectId: newProjectName, // Link by Name (Legacy/Current JBWOS behavior)
+                    parentId: `project-${projectId}`, // Link by ID (Hierarchical behavior)
+                    category: 'project_task',
+                    type: 'start',
+                    memo: '自動生成タスク: プロジェクト作成時に追加'
+                });
+            } catch (taskError) {
+                console.warn('Initial task creation failed (Offline/Debug mode?):', taskError);
+                // Continue execution even if task creation fails
+            }
 
             setNewProjectName('');
             setIsCreating(false);
             loadProjects();
         } catch (error) {
-            console.error('Failed to create project or initial task:', error);
+            console.error('Failed to create project:', error);
             // Ideally show a toast here
+            window.alert('Failed to create project: ' + error);
         }
     };
 

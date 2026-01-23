@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useJBWOSViewModel } from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
+import { useLoginViewModel } from '../features/core/auth/hooks/useLoginViewModel';
 import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
 import { MigrationWizard } from '../features/core/migration/MigrationWizard';
 import { CompanyProfileForm } from '../features/core/settings/components/CompanyProfileForm';
 import { MemberManagement } from '../features/core/settings/components/MemberManagement';
 import { useAuth } from '../features/core/auth/providers/AuthProvider';
 import { JbwosTenant } from '../features/core/auth/types';
-import { ArrowLeft, Building, Users, Settings, Smartphone } from 'lucide-react'; // Added icons
+import { ArrowLeft, Building, Users, Settings, Smartphone, LogOut } from 'lucide-react'; // Added icons
 
 interface SettingsScreenProps {
     onBack: () => void;
@@ -18,6 +19,7 @@ type TabType = 'company' | 'members' | 'system';
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigateToManual }) => {
     const vm = useJBWOSViewModel();
     const { tenant, user } = useAuth();
+    const { logout } = useLoginViewModel();
     const [activeTab, setActiveTab] = useState<TabType>('company');
 
     // Mock save handler
@@ -222,6 +224,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                                         <span>Dark Mode / Density Settings</span>
                                     </div>
                                 </div>
+                            </section>
+
+                            {/* Logout Section */}
+                            <section className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                                <h2 className="text-lg font-bold text-red-600 dark:text-red-400 mb-4 px-1">
+                                    ログアウト
+                                </h2>
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm('ログアウトしますか？')) {
+                                            logout();
+                                        }
+                                    }}
+                                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-red-200 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group shadow-sm"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400">
+                                            <LogOut size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                                ログアウトする
+                                            </h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                アカウントからサインアウトし、ログイン画面に戻ります
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180 group-hover:text-red-400 transition-colors" />
+                                </button>
                             </section>
 
                         </div>
