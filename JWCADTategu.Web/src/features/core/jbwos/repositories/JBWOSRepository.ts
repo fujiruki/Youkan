@@ -7,20 +7,16 @@ import { v4 as uuidv4 } from 'uuid';
 // src/features/jbwos/repositories/JBWOSRepository.ts
 
 export const JBWOSRepository = {
-    // Helper check
-    isDebug: () => localStorage.getItem('jbwos_token') === 'mock-debug-token',
-
     // 1. Fetch all items (Hybrid: API Items + Local Doors)
     getItemsByStatus: async (status: JudgmentStatus): Promise<JudgableItem[]> => {
         // A. Fetch Items from Server API
         let apiItems: JudgableItem[] = [];
-        if (!JBWOSRepository.isDebug()) {
-            try {
-                const allItems = await ApiClient.getAllItems();
-                apiItems = allItems.filter(i => i.status === status);
-            } catch (e) {
-                console.error('Failed to fetch from API:', e);
-            }
+        try {
+            const allItems = await ApiClient.getAllItems();
+            apiItems = allItems.filter(i => i.status === status);
+        } catch (e) {
+            console.error('Failed to fetch from API:', e);
+            // Fallback or empty? Empty for MVP to avoid mixed state confusion
         }
 
         // B. Fetch Doors from Local IndexedDB (Integration Logic)
