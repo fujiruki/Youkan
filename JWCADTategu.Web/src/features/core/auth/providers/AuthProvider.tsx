@@ -28,6 +28,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
+        // --- DEBUG BYPASS ---
+        if (token === 'mock-debug-token') {
+            console.log('AuthProvider: Debug Token detected. Bypassing API check.');
+            const storedUser = localStorage.getItem('jbwos_user');
+            const storedTenant = localStorage.getItem('jbwos_tenant');
+            if (storedUser && storedTenant) {
+                try {
+                    setUser(JSON.parse(storedUser));
+                    setTenant(JSON.parse(storedTenant));
+                    setIsAuthenticated(true);
+                } catch (e) {
+                    console.error('Failed to parse debug user data', e);
+                    logout();
+                }
+            } else {
+                logout();
+            }
+            setIsLoading(false);
+            return;
+        }
+        // ---------------------
+
         try {
             // Use AuthService to get user info (handles correct API URL)
             const authService = AuthService.getInstance();
