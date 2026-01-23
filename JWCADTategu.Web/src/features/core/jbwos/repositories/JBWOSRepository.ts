@@ -7,16 +7,20 @@ import { v4 as uuidv4 } from 'uuid';
 // src/features/jbwos/repositories/JBWOSRepository.ts
 
 export const JBWOSRepository = {
+    // Helper check
+    isDebug: () => localStorage.getItem('jbwos_token') === 'mock-debug-token',
+
     // 1. Fetch all items (Hybrid: API Items + Local Doors)
     getItemsByStatus: async (status: JudgmentStatus): Promise<JudgableItem[]> => {
         // A. Fetch Items from Server API
         let apiItems: JudgableItem[] = [];
-        try {
-            const allItems = await ApiClient.getAllItems();
-            apiItems = allItems.filter(i => i.status === status);
-        } catch (e) {
-            console.error('Failed to fetch from API:', e);
-            // Fallback or empty? Empty for MVP to avoid mixed state confusion
+        if (!JBWOSRepository.isDebug()) {
+            try {
+                const allItems = await ApiClient.getAllItems();
+                apiItems = allItems.filter(i => i.status === status);
+            } catch (e) {
+                console.error('Failed to fetch from API:', e);
+            }
         }
 
         // B. Fetch Doors from Local IndexedDB (Integration Logic)
@@ -34,26 +38,19 @@ export const JBWOSRepository = {
 
         // C. Merge and Sort
         const merged = [...apiItems, ...doorItems];
-        // Sort by statusUpdatedAt descending (newest first)
         return merged.sort((a, b) => (b.statusUpdatedAt || 0) - (a.statusUpdatedAt || 0));
     },
 
     // 2. Add Item (To API)
     addItemToInbox: async (title: string): Promise<string> => {
         const id = uuidv4();
+        if (JBWOSRepository.isDebug()) return id;
+
         const newItem: Partial<JudgableItem> = {
             id,
             title,
             status: 'inbox'
         };
-
-        // --- DEBUG BYPASS ---
-        const token = localStorage.getItem('jbwos_token');
-        if (token === 'mock-debug-token') {
-            console.log('JBWOSRepository: Debug Token detected. Skipping createItem API call.', newItem);
-            return id;
-        }
-        // ---------------------
 
         try {
             await ApiClient.createItem(newItem);
@@ -77,6 +74,8 @@ export const JBWOSRepository = {
             }
         }
 
+        if (JBWOSRepository.isDebug()) return;
+
         // Handled by API
         try {
             await ApiClient.updateItem(id, { status });
@@ -99,6 +98,8 @@ export const JBWOSRepository = {
             }
         }
 
+        if (JBWOSRepository.isDebug()) return;
+
         try {
             await ApiClient.updateItem(id, { title });
         } catch (e) {
@@ -116,6 +117,8 @@ export const JBWOSRepository = {
             });
             return;
         }
+
+        if (JBWOSRepository.isDebug()) return;
 
         try {
             await ApiClient.updateItem(id, {
@@ -136,6 +139,9 @@ export const JBWOSRepository = {
                 return;
             }
         }
+
+        if (JBWOSRepository.isDebug()) return;
+
         try {
             await ApiClient.deleteItem(id);
         } catch (e) {
@@ -155,6 +161,9 @@ export const JBWOSRepository = {
                 return;
             }
         }
+
+        if (JBWOSRepository.isDebug()) return;
+
         try {
             await ApiClient.updateItem(id, { status: 'archive' });
         } catch (e) {
@@ -168,13 +177,13 @@ export const JBWOSRepository = {
     getGdbShelf: async () => {
         // 1. Fetch Server Data
         let apiShelf = { active: [], preparation: [], intent: [], history: [] };
-        try {
-            const res = await ApiClient.getGdbShelf();
-            if (res) apiShelf = res as any;
-        } catch (e) {
-            // Suppress error in debug mode
-            console.warn('Failed to fetch GDB from Server (Running in Offline/Debug mode?):', e);
-            // Non-blocking: continue to show local
+        if (!JBWOSRepository.isDebug()) {
+            try {
+                const res = await ApiClient.getGdbShelf();
+                if (res) apiShelf = res as any;
+            } catch (e) {
+                console.warn('Failed to fetch GDB from Server:', e);
+            }
         }
 
         // 2. Fetch Local Data (Projects & Doors)
@@ -193,14 +202,11 @@ export const JBWOSRepository = {
                 isProject: true
             } as JudgableItem));
 
-            // B. Deliverables (Manufacturing Layer)
+            // B. Deliverables
             const deliverables = await db.deliverables.toArray();
             const deliverableItems = await Promise.all(deliverables.map(d => convertDeliverableToItem(d)));
 
             // [Migration/Fallback]
-            // For older Doors that don't have Deliverable synced yet, you might want to show them.
-            // But if we want to move to Deliverable-centric, maybe skip legacy doors or migrate them on start?
-            // For now, let's include legacy doors to avoid data "disappearing"
             const legacyDoors = await db.doors.filter(d => !d.deliverableId).toArray();
             const legacyDoorItems = await Promise.all(legacyDoors.map(d => convertDoorToItem(d)));
 
@@ -210,15 +216,13 @@ export const JBWOSRepository = {
         }
 
         // 3. Merge & Sort
-        // Strategy: Categorize local items into Shelf buckets
         const mergedShelf = {
-            active: [...(apiShelf.active || []), ...localItems.filter(i => i.status === 'inbox' || !i.status)], // Inbox goes to Active
+            active: [...(apiShelf.active || []), ...localItems.filter(i => i.status === 'inbox' || !i.status)],
             preparation: [...(apiShelf.preparation || []), ...localItems.filter(i => i.status === 'decision_hold' || i.status === 'scheduled')],
             intent: [...(apiShelf.intent || []), ...localItems.filter(i => (i.status as any) === 'someday' || (i.status as any) === 'intent')],
-            log: [...(apiShelf.history || []), ...localItems.filter(i => i.status === 'done' || i.status === 'archive' || i.status === 'decision_rejected')] // Mapping 'history' key from API to 'log' key in Frontend
+            log: [...(apiShelf.history || []), ...localItems.filter(i => i.status === 'done' || i.status === 'archive' || i.status === 'decision_rejected')]
         };
 
-        // Sort each bucket by updatedAt desc
         const sortFn = (a: JudgableItem, b: JudgableItem) => (b.updatedAt || 0) - (a.updatedAt || 0);
         mergedShelf.active.sort(sortFn);
         mergedShelf.preparation.sort(sortFn);
@@ -230,16 +234,14 @@ export const JBWOSRepository = {
 
     // Today View
     getTodayView: async () => {
+        if (JBWOSRepository.isDebug()) {
+            return { morning: [], afternoon: [], evening: [], candidates: [], commits: [], execution: null };
+        }
         try {
             return await ApiClient.getTodayView();
         } catch (e) {
-            console.warn('Failed to fetch Today View from API, falling back to local:', e);
-            // Fallback: Fetch local items that might be 'today' (For MVP, return empty or implement local logic)
-            return {
-                morning: [],
-                afternoon: [],
-                evening: []
-            };
+            console.warn('Failed to fetch Today View from API:', e);
+            return { morning: [], afternoon: [], evening: [] };
         }
     },
 
@@ -251,16 +253,8 @@ export const JBWOSRepository = {
             if (!isNaN(projectId)) {
                 let status: JudgmentStatus = 'inbox';
                 if (decision === 'hold') status = 'decision_hold';
-                if (decision === 'no' && note === 'someday') status = 'someday' as any; // or 'intent'
-                if (decision === 'no' && note === 'archive') status = 'archive'; // if mapped
-
-                if (decision === 'no' && (note === 'intent' || note === 'someday')) {
-                    status = 'someday' as any;
-                }
-                if ((status as any) === 'someday') {
-                    // For Projects, 'someday' is valid, but strictly it is not JBWOS JudgmentStatus.
-                    // We treat it akin to decision_hold or handle explicitly.
-                }
+                if (decision === 'no' && note === 'someday') status = 'someday' as any;
+                if (decision === 'no' && note === 'archive') status = 'archive';
                 await db.projects.update(projectId, {
                     judgmentStatus: status as any,
                     updatedAt: new Date()
@@ -268,13 +262,9 @@ export const JBWOSRepository = {
                 return;
             }
         }
-        if (id.startsWith('door-')) {
-            const doorId = parseInt(id.replace('door-', ''), 10);
-            if (!isNaN(doorId)) {
-                // let status = 'inbox'; // Unused
-                return; // Assume updateItem handled the data change or View Model handles it.
-            }
-        }
+        if (id.startsWith('door-')) return;
+
+        if (JBWOSRepository.isDebug()) return;
 
         try {
             return await ApiClient.resolveDecision(id, decision, note);
@@ -285,16 +275,19 @@ export const JBWOSRepository = {
 
     // Today Logic
     commitToToday: async (id: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.commitToToday(id);
         } catch (e) { console.warn(e); }
     },
     startExecution: async (id: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.startExecution(id);
         } catch (e) { console.warn(e); }
     },
     completeItem: async (id: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.completeItem(id);
         } catch (e) { console.warn(e); }
@@ -302,14 +295,15 @@ export const JBWOSRepository = {
 
     // Side Memo Logic
     getMemos: async () => {
+        if (JBWOSRepository.isDebug()) return [];
         try {
             return await ApiClient.getMemos();
         } catch (e) {
-            console.warn('Failed to fetch Memos from API:', e);
             return [];
         }
     },
     createMemo: async (content: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.createMemo(content);
         } catch (e) {
@@ -317,6 +311,7 @@ export const JBWOSRepository = {
         }
     },
     deleteMemo: async (id: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.deleteMemo(id);
         } catch (e) {
@@ -324,6 +319,7 @@ export const JBWOSRepository = {
         }
     },
     moveMemoToInbox: async (id: string) => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.moveMemoToInbox(id);
         } catch (e) {
@@ -337,13 +333,10 @@ export const JBWOSRepository = {
         if (id.startsWith('project-')) {
             const projectId = parseInt(id.replace('project-', ''), 10);
             if (!isNaN(projectId)) {
-                // Map Item fields to Project fields
                 const updates: any = {};
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
-
                 updates.updatedAt = new Date();
-
                 await db.projects.update(projectId, updates);
                 return;
             }
@@ -356,12 +349,7 @@ export const JBWOSRepository = {
             if (data.status) updates.judgmentStatus = data.status;
             if (data.title) updates.name = data.title;
             if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes;
-
-            updates.updatedAt = new Date(); // number in Dexie, but Date object is auto-converted by Dexie usually? No, defined as number.
-            // Wait, if defined as number in types, passing Date object might be issue.
-            // Let's use Date.now() to be safe.
             updates.updatedAt = Date.now();
-
             await db.deliverables.update(deliverableId, updates);
             return;
         }
@@ -374,12 +362,13 @@ export const JBWOSRepository = {
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
                 if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
-
-                updates.updatedAt = new Date(); // Legacy might expect Date object.
+                updates.updatedAt = new Date();
                 await db.doors.update(doorId, updates);
                 return;
             }
         }
+
+        if (JBWOSRepository.isDebug()) return;
 
         try {
             return await ApiClient.updateItem(id, data);
@@ -393,13 +382,7 @@ export const JBWOSRepository = {
             item.id = uuidv4();
         }
 
-        // --- DEBUG BYPASS ---
-        const token = localStorage.getItem('jbwos_token');
-        if (token === 'mock-debug-token') {
-            console.log('JBWOSRepository: Debug Token detected. Skipping createItem (Generic) API call.', item);
-            return item.id!;
-        }
-        // ---------------------
+        if (JBWOSRepository.isDebug()) return item.id!;
 
         try {
             await ApiClient.createItem(item);
@@ -410,26 +393,27 @@ export const JBWOSRepository = {
     },
 
     getSubTasks: async (parentId: string): Promise<Item[]> => {
+        if (JBWOSRepository.isDebug()) return [];
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.parentId === parentId);
         } catch (e) {
-            console.warn('Failed to fetch SubTasks from API:', e);
             return [];
         }
     },
 
     getItemsBySourceId: async (sourceId: string): Promise<Item[]> => {
+        if (JBWOSRepository.isDebug()) return [];
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.doorId === sourceId);
         } catch (e) {
-            console.warn('Failed to fetch ItemsBySourceId from API:', e);
             return [];
         }
     },
 
     updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
+        if (JBWOSRepository.isDebug()) return;
         try {
             await ApiClient.updateItem(id, updates);
         } catch (e) {
