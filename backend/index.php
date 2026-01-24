@@ -139,6 +139,12 @@ if (preg_match('#^(/api)?/customers(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// Migration Route (Temporary v7)
+if (preg_match('#^(/api)?/migrate$#', $path)) {
+    require_once 'migrate_v7.php';
+    exit;
+}
+
 // --- NEW V7 ROUTES ---
 
 // Auth Routes
