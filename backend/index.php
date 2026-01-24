@@ -354,9 +354,25 @@ if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
 // Calendar Routes (Load/Heatmap)
 require_once 'CalendarController.php';
 
-if (preg_match('#^(/api)?/calendar/load$#', $path) && $method === 'GET') {
+if (preg_match('#^(/api)?/calendar(/.*)?$#', $path, $matches)) {
     $controller = new CalendarController();
-    echo json_encode($controller->getLoad($_GET));
+    // Allow Controller to handle sub-paths via handleRequest
+    // Or map specifically:
+    $subPath = $matches[2] ?? '';
+    
+    if ($subPath === '/items' || strpos($subPath, '/items') === 0) {
+        $controller->handleRequest($method);
+        exit;
+    }
+    
+    if ($subPath === '/load' && $method === 'GET') {
+        echo json_encode($controller->getLoad($_GET));
+        exit;
+    }
+    
+    // Fallback or root /calendar
+    // Maybe handleRequest can handle others?
+    $controller->handleRequest($method); 
     exit;
 }
 
