@@ -46,6 +46,10 @@ interface Props {
     onItemClick: (item: Item) => void;
     capacityConfig: any; // Using any for now to match project types, should be CapacityConfig
     onToggleHoliday: (date: Date) => void;
+
+    // [NEW] External Volume Injection
+    externalVolumeMap?: Map<string, number>;
+    intensityScale?: number; // Factor to multiply volume by to get opacity % (max 60). Default 15.
 }
 
 // [NEW] Pressure Line Type
@@ -56,7 +60,14 @@ interface PressureConnection {
     color: string;
 }
 
-export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick, capacityConfig, onToggleHoliday }) => {
+export const QuantityCalendar: React.FC<Props> = ({
+    items,
+    onItemClick,
+    capacityConfig,
+    onToggleHoliday,
+    externalVolumeMap,
+    intensityScale = 15
+}) => {
     const today = getStartOfToday();
 
     // [NEW] Signs List Modal State (Now Double Click)
@@ -111,12 +122,12 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick, capacity
     }, [items]);
 
     // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
-    // Calculate Heatmap (Volume) - Due + Prep Span (Working Days Only)
-    // [REFACTOR] Use shared logic from volumeCalculator
+    // [REFACTOR] Use shared logic from volumeCalculator OR external map
     const heatMap = useMemo(() => {
+        if (externalVolumeMap) return externalVolumeMap;
         const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
         return calculateDailyVolume(items, config);
-    }, [items, capacityConfig]);
+    }, [items, capacityConfig, externalVolumeMap]);
 
     // [MODIFIED] Signs Map (ALL related items for cell click) - Due + Prep (Working Days Only)
     const signsMap = useMemo(() => {
@@ -299,7 +310,7 @@ export const QuantityCalendar: React.FC<Props> = ({ items, onItemClick, capacity
 
                             // Volume Heatmap from heatMap
                             const volume = heatMap.get(dateKey) || 0;
-                            const bgIntensity = Math.min(volume * 15, 60);
+                            const bgIntensity = Math.min(volume * intensityScale, 60);
 
                             return (
                                 <div
