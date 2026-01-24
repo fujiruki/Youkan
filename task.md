@@ -82,8 +82,9 @@
     - [x] **詳細設計**: ロジックとMVVM構成の定義 (`Detailed_Design_VolumeCalendar.md`)
     - [x] **Backend**: `memberships` テーブル拡張 (`is_core`, `capacity`) <!-- id: 161 -->
     - [x] **Backend**: `TenantController` API更新 (GET/PUT) <!-- id: 162 -->
+    - [x] **Backend**: `CalendarController` API拡張 (GET) <!-- id: 162.5 -->
     - [ ] **Frontend**: メンバー設定画面 (主力チェック・キャパ設定) <!-- id: 163 -->
-    - [ ] **Frontend Logic**: `AllocationCalculator` (TDD) <!-- id: 165 -->
+    - [x] **Frontend Logic**: `AllocationCalculator` (TDD) <!-- id: 165 -->
     - [ ] **Frontend UI**: `VolumeCalendar` 画面実装 (MVVM) <!-- id: 164 -->
 
 - [ ] **フェーズ 4.5: デザインと物語 (User Nuance)** <!-- id: 140 -->

@@ -34,7 +34,9 @@ import { LoginScreen } from './features/core/auth/screens/LoginScreen';
 import { RegistrationScreen } from './pages/RegistrationScreen';
 import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings';
+import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
+
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -369,6 +371,7 @@ const AppContent: React.FC<{
                                 onNavigateToCustomers={() => setCurrentView('customers')}
                                 onNavigateToPlanning={() => setCurrentView('planning')}
                                 onNavigateToCompanySettings={() => setCurrentView('companySettings')}
+                                onNavigateToCalendar={() => setCurrentView('calendar')}
                             />
                         )}
 
@@ -448,6 +451,14 @@ const AppContent: React.FC<{
                                     onNavigateToPlanning={() => setCurrentView('planning')} // [NEW]
                                 />
                             )}
+
+                            {/* 6.1 Volume Calendar (Workload Visualization) */}
+                            {currentView === 'calendar' && (
+                                <VolumeCalendarScreen
+                                    onNavigateHome={handleBackToDashboard}
+                                />
+                            )}
+
 
                             {/* 6.5 Planning (Future Board) */}
                             {currentView === 'planning' && (

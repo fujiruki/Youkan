@@ -12,6 +12,7 @@ interface JBWOSHeaderProps {
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void; // [NEW]
     onNavigateToCompanySettings?: () => void; // [NEW]
+    onNavigateToCalendar?: () => void; // [NEW]
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -22,7 +23,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToSettings,
     onNavigateToCustomers,
     onNavigateToPlanning, // [NEW]
-    onNavigateToCompanySettings
+    onNavigateToCompanySettings,
+    onNavigateToCalendar
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -73,6 +75,16 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 >
                     Plan
                 </button>
+
+                {onNavigateToCalendar && (
+                    <button
+                        onClick={onNavigateToCalendar}
+                        className="hidden md:block px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-sm text-slate-200 transition-all shadow-sm whitespace-nowrap"
+                        title="Volume Calendar"
+                    >
+                        Volume
+                    </button>
+                )}
 
                 {/* Menu Dropdown */}
                 <div className="relative">

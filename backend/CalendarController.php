@@ -109,4 +109,72 @@ class CalendarController extends BaseController {
 
         return $result;
     }
+    /**
+     * Get items for Volume Calendar (Range Query).
+     * Endpoint: /calendar/items
+     * Params: start_date, end_date, target_user_id (optional)
+     */
+    public function getItems($params) {
+        $this->authenticate();
+
+        $startDate = $params['start_date'] ?? date('Y-m-01');
+        $endDate = $params['end_date'] ?? date('Y-m-t');
+        $targetUserId = $params['target_user_id'] ?? $this->currentUserId;
+
+        // Fetch Logic using simple range
+        // Similar to getLoad but dynamic range
+        // Masking logic also applies.
+
+        $sql = "
+            SELECT 
+                id, tenant_id, title, due_date, estimated_minutes AS estimatedMinutes,
+                status, created_by
+            FROM items 
+            WHERE 
+                assigned_to = ?
+                AND due_date >= ? AND due_date <= ?
+                AND status NOT IN ('decision_rejected', 'archive', 'done')
+        ";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$targetUserId, $startDate, $endDate]);
+        $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $result = [];
+        foreach ($rawItems as $item) {
+             // Masking Logic (Simplified for now - reuse logic logic if possible)
+             // Determine visibility
+             $isVisible = false;
+             if ($this->currentUserId === $targetUserId) {
+                 $isVisible = true; // Viewing self
+             } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId) {
+                 $isVisible = true; // Same company
+             }
+
+             if ($isVisible) {
+                 $result[] = $item;
+             } else {
+                 $result[] = [
+                     'id' => $item['id'],
+                     'title' => '予定あり (Private)',
+                     'due_date' => $item['due_date'],
+                     'estimatedMinutes' => $item['estimatedMinutes'],
+                     'status' => $item['status'],
+                     'isMasked' => true
+                 ];
+             }
+        }
+
+        echo json_encode($result);
+    }
+
+    public function handleRequest($method, $id = null) {
+        $params = $_GET;
+        if (preg_match('#/items$#', $_SERVER['REQUEST_URI'])) {
+            $this->getItems($params);
+        } else {
+            // Default load
+            echo json_encode($this->getLoad($params));
+        }
+    }
 }
