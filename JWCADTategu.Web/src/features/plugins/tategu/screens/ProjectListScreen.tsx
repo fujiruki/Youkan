@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, Project } from '../../../../db/db';
+// import { db, Project } from '../../../../db/db';
 import { Plus, ArrowRight, FileText, Edit2, Building, Home } from 'lucide-react';
 // import { JBWOSRepository } from '../../../core/jbwos/repositories/JBWOSRepository';
 import { ApiClient } from '../../../../api/client';
