@@ -1,4 +1,4 @@
-import { JudgableItem } from '../features/core/jbwos/types';
+import { JudgableItem, Member } from '../features/core/jbwos/types';
 
 // src/api/client.ts
 
@@ -274,5 +274,19 @@ export class ApiClient {
     // --- System API ---
     public static async getHealth(): Promise<any> {
         return this.request('GET', '/health', undefined, true);
+    }
+
+    // --- Member Configuration API ---
+    public static async getMembers(): Promise<Member[]> {
+        return this.request('GET', '/members');
+    }
+
+    public static async updateMember(id: string, updates: Partial<Member>): Promise<{ success: boolean }> {
+        // Snake case conversion happens in backend or payload construction?
+        const payload: any = {};
+        if (updates.isCore !== undefined) payload.is_core = updates.isCore;
+        if (updates.dailyCapacityMinutes !== undefined) payload.daily_capacity_minutes = updates.dailyCapacityMinutes;
+
+        return this.request('PUT', `/members/${id}`, payload);
     }
 }

@@ -289,16 +289,17 @@ const AuthGuard: React.FC<{ children: React.ReactNode; bypass?: boolean }> = ({ 
     }
 
     if (!isAuthenticated) {
-        if (window.location.pathname === '/register') {
+        // [FIX] Support subdirectories by checking endsWith
+        if (window.location.pathname.endsWith('/register')) {
             return <RegistrationScreen />;
         }
-        if (window.location.pathname === '/logout') {
+        if (window.location.pathname.endsWith('/logout')) {
             return <LogoutScreen />;
         }
         return <LoginScreen />;
     }
 
-    if (window.location.pathname === '/logout') {
+    if (window.location.pathname.endsWith('/logout')) {
         return <LogoutScreen />;
     }
 

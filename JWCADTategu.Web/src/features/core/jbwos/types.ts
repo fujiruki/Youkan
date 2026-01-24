@@ -32,6 +32,15 @@ export interface Project {
 
 export type JudgableItem = Item; // Alias for compatibility
 
+export interface Member {
+    id: string; // membership_id
+    userId: string;
+    username: string;
+    role: string;
+    isCore: boolean;
+    dailyCapacityMinutes: number;
+}
+
 export interface Item {
     id: string;              // UUID
     title: string;           // 表示名

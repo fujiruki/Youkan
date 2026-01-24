@@ -145,6 +145,24 @@ if (preg_match('#^(/api)?/migrate$#', $path)) {
     exit;
 }
 
+// Members Route (MemberConfig)
+if (preg_match('#^(/api)?/members(?:/([^/]+))?$#', $path, $matches)) {
+    require_once 'MemberController.php';
+    $controller = new MemberController();
+    $id = $matches[2] ?? null;
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if ($method === 'GET' && !$id) {
+        $controller->index();
+    } elseif ($method === 'PUT' && $id) {
+        $controller->update($id, $input);
+    } else {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method Not Allowed']);
+    }
+    exit;
+}
+
 // --- NEW V7 ROUTES ---
 
 // Auth Routes

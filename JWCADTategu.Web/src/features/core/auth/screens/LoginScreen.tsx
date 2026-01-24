@@ -77,7 +77,7 @@ export const LoginScreen: React.FC = () => {
 
                     <div className="mt-6 text-center">
                         <button
-                            onClick={() => window.location.href = '/register'}
+                            onClick={() => window.location.href = './register'}
                             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium hover:underline"
                         >
                             アカウントを新規作成する

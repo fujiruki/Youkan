@@ -211,7 +211,7 @@ export const UserListScreen: React.FC = () => {
                 {/* Back Link */}
                 <div className="mt-6 text-center">
                     <a
-                        href="/"
+                        href="./"
                         className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:underline"
                     >
                         ← ダッシュボードに戻る

@@ -4,7 +4,7 @@ import { useLoginViewModel } from '../features/core/auth/hooks/useLoginViewModel
 import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
 import { MigrationWizard } from '../features/core/migration/MigrationWizard';
 import { CompanyProfileForm } from '../features/core/settings/components/CompanyProfileForm';
-import { MemberManagement } from '../features/core/settings/components/MemberManagement';
+import { MembersScreen } from '../features/core/jbwos/screens/MembersScreen';
 import { useAuth } from '../features/core/auth/providers/AuthProvider';
 import { JbwosTenant } from '../features/core/auth/types';
 import { ArrowLeft, Building, Users, Settings, Smartphone, LogOut, Package } from 'lucide-react'; // Added icons
@@ -126,7 +126,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     {/* Tab: Members */}
                     {activeTab === 'members' && user && (
                         <div className="animate-fade-in">
-                            <MemberManagement currentUser={user} />
+                            <MembersScreen />
                         </div>
                     )}
 
