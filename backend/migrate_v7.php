@@ -52,6 +52,15 @@ try {
         $db->exec("ALTER TABLE items ADD COLUMN meta TEXT DEFAULT NULL");
         echo " - Added meta column.\n";
     }
+
+    // 5.5 Add created_by if missing (Required for CalendarController)
+    try {
+        $db->query("SELECT created_by FROM items LIMIT 1");
+        echo " - created_by already exists.\n";
+    } catch (Exception $e) {
+        $db->exec("ALTER TABLE items ADD COLUMN created_by TEXT DEFAULT NULL");
+        echo " - Added created_by column.\n";
+    }
     
     // 6. Add is_core, daily_capacity_minutes to memberships if missing (Just in case)
     try {
