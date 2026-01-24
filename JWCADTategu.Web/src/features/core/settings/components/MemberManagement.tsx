@@ -1,73 +1,96 @@
 import React from 'react';
-import { AuthUser } from '../../auth/types';
+import { User, Shield, Briefcase } from 'lucide-react';
+// import { AuthUser } from '../../auth/types';
 
 interface MemberManagementProps {
-    currentUser: AuthUser;
-    members?: AuthUser[]; // 本来はMember型を作るべきだが今回はAuthUserで代用
+    currentUser: any; // Using any for loose coupling for now, or use AuthUser
 }
 
-export const MemberManagement: React.FC<MemberManagementProps> = ({ currentUser, members = [] }) => {
-    // 実際の実装ではAPIからメンバーリストを取得する
-    // ここではcurrentUserだけを表示する
-
-    const displayMembers = members.length > 0 ? members : [currentUser];
+export const MemberManagement: React.FC<MemberManagementProps> = ({ currentUser }) => {
+    // Mock members list based on current user (Real implementation would fetch from API)
+    const members = [
+        { id: currentUser.id, name: currentUser.name, email: currentUser.email, role: 'Admin', status: 'Active' },
+        { id: 'mock-user-2', name: '山田 太郎', email: 'taro@example.com', role: 'Member', status: 'Active' },
+        { id: 'mock-user-3', name: '佐藤 花子', email: 'hanako@example.com', role: 'Guest', status: 'Invited' },
+    ];
 
     return (
-        <div className="space-y-6 max-w-4xl">
-            <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
-                <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                    <div>
-                        <h3 className="text-lg leading-6 font-medium text-gray-900">メンバー管理 (Team Members)</h3>
-                        <p className="mt-1 max-w-2xl text-sm text-gray-500">このテナントに所属するメンバー一覧です。</p>
-                    </div>
-                    <button
-                        type="button"
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        onClick={() => alert('招待機能は未実装です')}
-                    >
-                        メンバーを招待 (Invite)
-                    </button>
+        <div className="space-y-6">
+            <header className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <UsersIcon />
+                        メンバー管理
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        現在 {members.length} 名のメンバーが所属しています。
+                    </p>
                 </div>
-                <ul className="divide-y divide-gray-200">
-                    {displayMembers.map((member) => (
-                        <li key={member.id}>
-                            <div className="px-4 py-4 sm:px-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <div className="flex-shrink-0">
-                                            <span className="inline-block h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                                                <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                                                </svg>
-                                            </span>
+                <button
+                    onClick={() => alert('招待機能は準備中です')}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 transition-colors shadow-sm"
+                >
+                    + メンバー招待
+                </button>
+            </header>
+
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                            <th className="p-4 text-sm font-semibold text-slate-600 dark:text-slate-400">名前</th>
+                            <th className="p-4 text-sm font-semibold text-slate-600 dark:text-slate-400">メールアドレス</th>
+                            <th className="p-4 text-sm font-semibold text-slate-600 dark:text-slate-400">権限</th>
+                            <th className="p-4 text-sm font-semibold text-slate-600 dark:text-slate-400">ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {members.map((member) => (
+                            <tr key={member.id} className="border-b border-slate-100 dark:border-slate-800/50 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                                            <User size={16} />
                                         </div>
-                                        <div className="ml-4">
-                                            <div className="text-sm font-medium text-indigo-600 truncate">{member.name}</div>
-                                            <div className="flex items-center text-sm text-gray-500">
-                                                <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                                                </svg>
-                                                {member.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex-shrink-0">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Active
+                                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                                            {member.name}
+                                            {member.id === currentUser.id && <span className="ml-2 text-xs text-blue-500 font-bold">(You)</span>}
                                         </span>
-                                        {member.id === currentUser.id && (
-                                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                You
-                                            </span>
-                                        )}
                                     </div>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                                </td>
+                                <td className="p-4 text-slate-600 dark:text-slate-400 font-mono text-sm">
+                                    {member.email}
+                                </td>
+                                <td className="p-4">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold
+                                        ${member.role === 'Admin' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}
+                                    `}>
+                                        {member.role === 'Admin' ? <Shield size={12} /> : <Briefcase size={12} />}
+                                        {member.role}
+                                    </span>
+                                </td>
+                                <td className="p-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-bold
+                                        ${member.status === 'Active' ? 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20' : 'text-slate-500 bg-slate-100'}
+                                    `}>
+                                        {member.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
 };
+
+// Helper component for icon
+const UsersIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+);

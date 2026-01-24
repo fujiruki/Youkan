@@ -15,6 +15,20 @@ class BaseController {
 
     protected function authenticate() {
         $token = JWTService::getBearerToken();
+
+        // [Debug Mode] Accept mock token for offline development
+        if ($token === 'mock-debug-token') {
+            $this->currentUser = [
+                'sub' => 1,
+                'name' => 'Debug User',
+                'tenant_id' => 1,
+                'role' => 'admin'
+            ];
+            $this->currentTenantId = 1;
+            $this->currentUserId = 1;
+            return;
+        }
+
         if (!$token) {
             $this->sendError(401, 'No token provided');
         }

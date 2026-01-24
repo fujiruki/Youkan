@@ -28,7 +28,7 @@ $serverPort = "8022"
 $remoteDir = "public_html/door-fujita.com/contents/TateguDesignStudio"  # <-- ここを変更
 
 # SSH秘密鍵のパス（プロジェクトルートからの相対パス）
-$sshKeyPath = "docs/AI_DEVELOP_RULES/UPLOAD/key-2025-11-29-07-10.pem"
+$sshKeyPath = "docs/01_RULES/UPLOAD/key-2025-11-29-07-10.pem"
 
 # フロントエンドのディレクトリ名（自動検出も可能）
 $frontendDir = "JWCADTategu.Web"  # <-- プロジェクトに合わせて変更

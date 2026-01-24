@@ -222,39 +222,33 @@ if (preg_match('#^(/api)?/deliverables(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
-// GDB Routes
+// ...
 if (preg_match('#^(/api)?/gdb$#', $path)) {
-    $controller = new GdbController($db);
+    $controller = new GdbController(); // Removed $db
     if ($method === 'GET') {
         echo json_encode($controller->getShelf());
     }
     exit;
 }
 
-// Decision Routes
-if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $path, $matches) && $method === 'POST') {
-    $controller = new DecisionController($db);
-    $data = json_decode(file_get_contents('php://input'), true);
-    echo json_encode($controller->resolve($matches[2], $data));
-    exit;
-}
+// ...
 
 // Today Routes
 if (preg_match('#^(/api)?/today$#', $path)) {
-    $controller = new TodayController($db);
+    $controller = new TodayController(); // Removed $db
     if ($method === 'GET') {
         echo json_encode($controller->getToday());
     }
     exit;
 }
 if (preg_match('#^(/api)?/today/commit$#', $path) && $method === 'POST') {
-    $controller = new TodayController($db);
+    $controller = new TodayController(); // Removed $db
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->commit($data['id']));
     exit;
 }
 if (preg_match('#^(/api)?/today/complete$#', $path) && $method === 'POST') {
-    $controller = new TodayController($db);
+    $controller = new TodayController(); // Removed $db
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->complete($data['id']));
     exit;

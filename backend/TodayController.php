@@ -1,21 +1,24 @@
 <?php
 // backend/TodayController.php
 
+require_once 'BaseController.php';
 require_once 'EventService.php';
 
-class TodayController {
-    private $pdo;
+class TodayController extends BaseController {
     private $eventService;
 
-    public function __construct($pdo) {
-        $this->pdo = $pdo;
-        $this->eventService = new EventService($pdo);
+    public function __construct() {
+        parent::__construct();
+        $this->eventService = new EventService($this->pdo);
     }
 
     /**
      * Get Today's View (Commit + Execution + Life).
      */
     public function getToday() {
+        $this->authenticate();
+        $tenantId = $this->currentTenantId;
+
         // [New] Auto-reset "Intent Boost" items from previous days
         $this->resetExpiredBoosts();
 
@@ -24,49 +27,42 @@ class TodayController {
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE items.status = 'today_commit' 
+            WHERE items.tenant_id = ? AND items.status = 'today_commit' 
             ORDER BY items.sort_order ASC
         ";
-        $commits = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlCommits)->fetchAll(PDO::FETCH_ASSOC));
+        $stmtCommits = $this->pdo->prepare($sqlCommits);
+        $stmtCommits->execute([$tenantId]);
+        $commits = array_map([$this, 'mapRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
-        // Rule: Only ONE active execution displayed, but we return all logic-wise active ones, 
-        // frontend or this API should filter.
-        // As per spec: "Only 1 displayed". Let's fetch all active and let frontend pick (or pick here).
-        // Let's pick here to be "Smart Backend".
-        
-        // Priority: In Progress > Paused > Others
-        // Actually, pure execution items are those moved from Commit.
         $sqlExec = "
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE items.status IN ('execution_in_progress', 'execution_paused') 
+            WHERE items.tenant_id = ? AND items.status IN ('execution_in_progress', 'execution_paused') 
             ORDER BY items.updated_at DESC
         ";
-        $executionsRaw = $this->pdo->query($sqlExec)->fetchAll(PDO::FETCH_ASSOC);
-        $executions = array_map(['ItemController', 'mapRow'], $executionsRaw);
+        $stmtExec = $this->pdo->prepare($sqlExec);
+        $stmtExec->execute([$tenantId]);
+        $executionsRaw = $stmtExec->fetchAll(PDO::FETCH_ASSOC);
+        $executions = array_map([$this, 'mapRow'], $executionsRaw);
 
-        // Zone 3: Life (From separate Storage or Table? Currently LifeChecklist is Client-side in MVP, 
-        // but Plan says 'Independent'. For now, let's keep Life client-side or add simple table if needed.
-        // Plan says: "Phase 3: Execution & Life Persistence". So for now in Phase 1, we might skip Life API unless requested.
-        // But getToday should probably return structure.
-
+        // Zone 3: Life
         // Candidates for Today (Status: confirmed)
-        // Candidates for Today (Status: confirmed OR Intent Boosted)
-        // Intent Boosted items appear here regardless of status (unless already committed/active/done)
-        // Intent Boosted items appear here regardless of status (unless already committed/active/done)
         $sqlCandidates = "
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                (items.status = 'confirmed') 
+                items.tenant_id = ? AND
+                ((items.status = 'confirmed') 
                 OR 
-                (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused'))
+                (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused')))
             ORDER BY items.is_boosted DESC, items.rdd_date ASC
         ";
-        $candidates = array_map(['ItemController', 'mapRow'], $this->pdo->query($sqlCandidates)->fetchAll(PDO::FETCH_ASSOC));
+        $stmtCandidates = $this->pdo->prepare($sqlCandidates);
+        $stmtCandidates->execute([$tenantId]);
+        $candidates = array_map([$this, 'mapRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
 
 
         return [
@@ -79,19 +75,22 @@ class TodayController {
 
     private function resetExpiredBoosts() {
         // Reset boosted status if the boosted date is before today (midnight)
-        // JS sends timestamp in milliseconds, PHP time() is seconds.
         $todayStartMs = strtotime('today midnight') * 1000;
         
-        $this->pdo->exec("UPDATE items SET is_boosted = 0, boosted_date = NULL WHERE is_boosted = 1 AND boosted_date < $todayStartMs");
+        $stmt = $this->pdo->prepare("UPDATE items SET is_boosted = 0, boosted_date = NULL WHERE tenant_id = ? AND is_boosted = 1 AND boosted_date < ?");
+        $stmt->execute([$this->currentTenantId, $todayStartMs]);
     }
 
     /**
      * Commit a candidate to Today (Max 2 Check).
      */
     public function commit($id) {
-        // ... existing commit logic ...
+        $this->authenticate();
+        $tenantId = $this->currentTenantId;
+
         // 1. Check current commits count
-        $stmt = $this->pdo->query("SELECT COUNT(*) FROM items WHERE status = 'today_commit'");
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM items WHERE tenant_id = ? AND status = 'today_commit'");
+        $stmt->execute([$tenantId]);
         $count = $stmt->fetchColumn();
 
         if ($count >= 2) {
@@ -105,9 +104,9 @@ class TodayController {
             $this->eventService->logIn('TodayCommited', ['item_id' => $id]);
 
             // 3. Update Status
-            $stmt = $this->pdo->prepare("UPDATE items SET status = 'today_commit', status_updated_at = ?, updated_at = ? WHERE id = ?");
+            $stmt = $this->pdo->prepare("UPDATE items SET status = 'today_commit', status_updated_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ?");
             $now = time();
-            $stmt->execute([$now, $now, $id]);
+            $stmt->execute([$now, $now, $id, $tenantId]);
 
             $this->pdo->commit();
             return ['success' => true, 'id' => $id, 'new_status' => 'today_commit'];
@@ -122,13 +121,16 @@ class TodayController {
      * Complete an item (Done).
      */
     public function complete($id) {
+        $this->authenticate();
+        $tenantId = $this->currentTenantId;
+
         $this->pdo->beginTransaction();
         try {
             $this->eventService->logIn('TodayCompleted', ['item_id' => $id]);
 
-            $stmt = $this->pdo->prepare("UPDATE items SET status = 'done', status_updated_at = ?, updated_at = ? WHERE id = ?");
+            $stmt = $this->pdo->prepare("UPDATE items SET status = 'done', status_updated_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ?");
             $now = time();
-            $stmt->execute([$now, $now, $id]);
+            $stmt->execute([$now, $now, $id, $tenantId]);
 
             $this->pdo->commit();
             return ['success' => true, 'id' => $id, 'new_status' => 'done'];
@@ -136,5 +138,24 @@ class TodayController {
             $this->pdo->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Helper: Map row types
+     */
+    private function mapRow($item) {
+        $item['interrupt'] = (bool)$item['interrupt'];
+        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
+        $item['parentId'] = $item['parent_id'] ?? null;
+        $item['isProject'] = (bool)($item['is_project'] ?? 0);
+        $item['projectCategory'] = $item['project_category'] ?? null;
+        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
+        $item['assignedTo'] = $item['assigned_to'] ?? null;
+        $item['projectTitle'] = $item['parent_title'] ?? null;
+        
+        if (!empty($item['delegation']) && is_string($item['delegation'])) {
+            $item['delegation'] = json_decode($item['delegation'], true);
+        }
+        return $item;
     }
 }

@@ -1,5 +1,5 @@
 import { db, Door, Project } from '../../../../db/db';
-import { JudgableItem, JudgmentStatus, Item } from '../types';
+import { JudgableItem, JudgmentStatus, Item, CapacityConfig } from '../types';
 import { Deliverable } from '../../../../features/plugins/manufacturing/types';
 import { ApiClient } from '../../../../api/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,7 +40,6 @@ export const JBWOSRepository = {
     // 2. Add Item (To API)
     addItemToInbox: async (title: string): Promise<string> => {
         const id = uuidv4();
-        if (JBWOSRepository.isDebug()) return id;
 
         const newItem: Partial<JudgableItem> = {
             id,
@@ -70,8 +69,6 @@ export const JBWOSRepository = {
             }
         }
 
-        if (JBWOSRepository.isDebug()) return;
-
         // Handled by API
         try {
             await ApiClient.updateItem(id, { status });
@@ -94,8 +91,6 @@ export const JBWOSRepository = {
             }
         }
 
-        if (JBWOSRepository.isDebug()) return;
-
         try {
             await ApiClient.updateItem(id, { title });
         } catch (e) {
@@ -113,8 +108,6 @@ export const JBWOSRepository = {
             });
             return;
         }
-
-        if (JBWOSRepository.isDebug()) return;
 
         try {
             await ApiClient.updateItem(id, {
@@ -136,8 +129,6 @@ export const JBWOSRepository = {
             }
         }
 
-        if (JBWOSRepository.isDebug()) return;
-
         try {
             await ApiClient.deleteItem(id);
         } catch (e) {
@@ -158,8 +149,6 @@ export const JBWOSRepository = {
             }
         }
 
-        if (JBWOSRepository.isDebug()) return;
-
         try {
             await ApiClient.updateItem(id, { status: 'archive' });
         } catch (e) {
@@ -173,13 +162,12 @@ export const JBWOSRepository = {
     getGdbShelf: async () => {
         // 1. Fetch Server Data
         let apiShelf = { active: [], preparation: [], intent: [], history: [] };
-        if (!JBWOSRepository.isDebug()) {
-            try {
-                const res = await ApiClient.getGdbShelf();
-                if (res) apiShelf = res as any;
-            } catch (e) {
-                console.warn('Failed to fetch GDB from Server:', e);
-            }
+
+        try {
+            const res = await ApiClient.getGdbShelf();
+            if (res) apiShelf = res as any;
+        } catch (e) {
+            console.warn('Failed to fetch GDB from Server:', e);
         }
 
         // 2. Fetch Local Data (Projects & Doors)
@@ -212,6 +200,7 @@ export const JBWOSRepository = {
         }
 
         // 3. Merge & Sort
+        // Strategy: Categorize local items into Shelf buckets
         const mergedShelf = {
             active: [...(apiShelf.active || []), ...localItems.filter(i => i.status === 'inbox' || !i.status)],
             preparation: [...(apiShelf.preparation || []), ...localItems.filter(i => i.status === 'decision_hold' || i.status === 'scheduled')],
@@ -230,9 +219,6 @@ export const JBWOSRepository = {
 
     // Today View
     getTodayView: async () => {
-        if (JBWOSRepository.isDebug()) {
-            return { morning: [], afternoon: [], evening: [], candidates: [], commits: [], execution: null };
-        }
         try {
             return await ApiClient.getTodayView();
         } catch (e) {
@@ -260,8 +246,6 @@ export const JBWOSRepository = {
         }
         if (id.startsWith('door-')) return;
 
-        if (JBWOSRepository.isDebug()) return;
-
         try {
             return await ApiClient.resolveDecision(id, decision, note);
         } catch (e) {
@@ -271,19 +255,16 @@ export const JBWOSRepository = {
 
     // Today Logic
     commitToToday: async (id: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.commitToToday(id);
         } catch (e) { console.warn(e); }
     },
     startExecution: async (id: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.startExecution(id);
         } catch (e) { console.warn(e); }
     },
     completeItem: async (id: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.completeItem(id);
         } catch (e) { console.warn(e); }
@@ -291,7 +272,6 @@ export const JBWOSRepository = {
 
     // Side Memo Logic
     getMemos: async () => {
-        if (JBWOSRepository.isDebug()) return [];
         try {
             return await ApiClient.getMemos();
         } catch (e) {
@@ -299,7 +279,6 @@ export const JBWOSRepository = {
         }
     },
     createMemo: async (content: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.createMemo(content);
         } catch (e) {
@@ -307,7 +286,6 @@ export const JBWOSRepository = {
         }
     },
     deleteMemo: async (id: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.deleteMemo(id);
         } catch (e) {
@@ -315,7 +293,6 @@ export const JBWOSRepository = {
         }
     },
     moveMemoToInbox: async (id: string) => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             return await ApiClient.moveMemoToInbox(id);
         } catch (e) {
@@ -329,10 +306,13 @@ export const JBWOSRepository = {
         if (id.startsWith('project-')) {
             const projectId = parseInt(id.replace('project-', ''), 10);
             if (!isNaN(projectId)) {
+                // Map Item fields to Project fields
                 const updates: any = {};
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
+
                 updates.updatedAt = new Date();
+
                 await db.projects.update(projectId, updates);
                 return;
             }
@@ -345,7 +325,9 @@ export const JBWOSRepository = {
             if (data.status) updates.judgmentStatus = data.status;
             if (data.title) updates.name = data.title;
             if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes;
+
             updates.updatedAt = Date.now();
+
             await db.deliverables.update(deliverableId, updates);
             return;
         }
@@ -358,13 +340,12 @@ export const JBWOSRepository = {
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
                 if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
-                updates.updatedAt = new Date();
+
+                updates.updatedAt = new Date(); // Legacy might expect Date object.
                 await db.doors.update(doorId, updates);
                 return;
             }
         }
-
-        if (JBWOSRepository.isDebug()) return;
 
         try {
             return await ApiClient.updateItem(id, data);
@@ -378,8 +359,6 @@ export const JBWOSRepository = {
             item.id = uuidv4();
         }
 
-        if (JBWOSRepository.isDebug()) return item.id!;
-
         try {
             await ApiClient.createItem(item);
         } catch (e) {
@@ -389,7 +368,6 @@ export const JBWOSRepository = {
     },
 
     getSubTasks: async (parentId: string): Promise<Item[]> => {
-        if (JBWOSRepository.isDebug()) return [];
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.parentId === parentId);
@@ -399,7 +377,6 @@ export const JBWOSRepository = {
     },
 
     getItemsBySourceId: async (sourceId: string): Promise<Item[]> => {
-        if (JBWOSRepository.isDebug()) return [];
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.doorId === sourceId);
@@ -409,7 +386,6 @@ export const JBWOSRepository = {
     },
 
     updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
-        if (JBWOSRepository.isDebug()) return;
         try {
             await ApiClient.updateItem(id, updates);
         } catch (e) {
@@ -417,12 +393,12 @@ export const JBWOSRepository = {
         }
     },
 
-    getCapacityConfig: async (): Promise<any | null> => {
+    getCapacityConfig: async (): Promise<CapacityConfig | null> => {
         const record = await db.settings.get('capacity_config');
         return record ? record.value : null;
     },
 
-    saveCapacityConfig: async (config: any): Promise<void> => {
+    saveCapacityConfig: async (config: CapacityConfig): Promise<void> => {
         await db.settings.put({
             id: 'capacity_config',
             value: config,

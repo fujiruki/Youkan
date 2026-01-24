@@ -227,10 +227,12 @@ class ItemController extends BaseController {
         }
         
         // [Security Rule] Edit Permission
-        // Allow if: Project Item (Shared) OR My Item
+        // Allow if: Project Item (Shared) OR My Item OR Admin
+        $isAdmin = ($this->currentUser['role'] ?? '') === 'admin';
+
         // Ideally: Project Items should only be editable by members, but for now Tenant Public.
-        // However, Private Items (project_id IS NULL) MUST be created_by me.
-        if (is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
+        // However, Private Items (project_id IS NULL) MUST be created_by me unless Admin.
+        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
             $this->sendError(403, 'Access Denied: Cannot edit private item of another user');
         }
 
@@ -306,7 +308,7 @@ class ItemController extends BaseController {
         $check->execute([$id, $this->currentTenantId]);
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
-        if ($existing && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
+        if ($existing && !$isAdmin && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
              $this->sendError(403, 'Access Denied');
         }
 

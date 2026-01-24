@@ -13,6 +13,7 @@ export interface Tenant {
 export interface JbwosTenant extends Tenant {
     // Basic Info
     address?: string;
+    address_zip?: string;
     phone?: string;
     invoiceNumber?: string; // T+13桁
 
@@ -26,6 +27,17 @@ export interface JbwosTenant extends Tenant {
 
     // Settings
     closingDate?: number; // 締め日
+
+    // Plugin Configuration
+    config?: TenantConfig;
+}
+
+export interface TenantConfig {
+    plugins: {
+        manufacturing: boolean; // 製造業向け機能
+        tategu: boolean;       // 建具エディタ (Requires manufacturing)
+        [key: string]: boolean;
+    };
 }
 
 export interface AuthResponse {

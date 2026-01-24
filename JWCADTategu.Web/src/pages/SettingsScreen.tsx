@@ -7,14 +7,16 @@ import { CompanyProfileForm } from '../features/core/settings/components/Company
 import { MemberManagement } from '../features/core/settings/components/MemberManagement';
 import { useAuth } from '../features/core/auth/providers/AuthProvider';
 import { JbwosTenant } from '../features/core/auth/types';
-import { ArrowLeft, Building, Users, Settings, Smartphone, LogOut } from 'lucide-react'; // Added icons
+import { ArrowLeft, Building, Users, Settings, Smartphone, LogOut, Package } from 'lucide-react'; // Added icons
+import { PluginManagement } from '../features/core/settings/components/PluginManagement';
+import { TenantConfig } from '../features/core/auth/types';
 
 interface SettingsScreenProps {
     onBack: () => void;
     onNavigateToManual: () => void;
 }
 
-type TabType = 'company' | 'members' | 'system';
+type TabType = 'company' | 'plugins' | 'members' | 'system';
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigateToManual }) => {
     const vm = useJBWOSViewModel();
@@ -29,8 +31,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
         window.alert('会社情報を保存しました (Mock)');
     };
 
+    const handlePluginUpdate = (newConfig: TenantConfig) => {
+        // In real impl, this would call an API
+        console.log('Updating plugin config:', newConfig);
+        if (tenant) {
+            // Optimistic update (would be handled by VM/Provider usually)
+            Object.assign(tenant, { config: newConfig });
+        }
+    };
+
     const tabs = [
         { id: 'company', label: '会社情報', icon: Building },
+        { id: 'plugins', label: '機能管理', icon: Package },
         { id: 'members', label: 'メンバー', icon: Users },
         { id: 'system', label: 'システム設定', icon: Settings },
     ];
@@ -95,6 +107,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                             <CompanyProfileForm
                                 tenant={tenant as JbwosTenant}
                                 onSave={handleCompanySave}
+                            />
+                        </div>
+                    )}
+
+                    {/* Tab: Plugin Management */}
+                    {activeTab === 'plugins' && tenant && (
+                        <div className="animate-fade-in">
+                            <PluginManagement
+                                tenant={tenant as JbwosTenant}
+                                onUpdate={handlePluginUpdate}
                             />
                         </div>
                     )}
