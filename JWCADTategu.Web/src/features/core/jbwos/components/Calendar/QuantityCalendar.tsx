@@ -79,6 +79,12 @@ export const QuantityCalendar: React.FC<Props> = ({
     const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Ensure Config is valid to prevent crash
+    const safeConfig = useMemo(() => {
+        if (capacityConfig && capacityConfig.holidays) return capacityConfig;
+        return DEFAULT_CAPACITY_CONFIG;
+    }, [capacityConfig]);
+
     // Range: -6 Months to +1 Year
     // Align start to Monday
     const startDate = useMemo(() => {
@@ -125,14 +131,13 @@ export const QuantityCalendar: React.FC<Props> = ({
     // [REFACTOR] Use shared logic from volumeCalculator OR external map
     const heatMap = useMemo(() => {
         if (externalVolumeMap) return externalVolumeMap;
-        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
-        return calculateDailyVolume(items, config);
-    }, [items, capacityConfig, externalVolumeMap]);
+        return calculateDailyVolume(items, safeConfig);
+    }, [items, safeConfig, externalVolumeMap]);
 
     // [MODIFIED] Signs Map (ALL related items for cell click) - Due + Prep (Working Days Only)
     const signsMap = useMemo(() => {
         const map = new Map<string, Item[]>();
-        const config = capacityConfig || DEFAULT_CAPACITY_CONFIG;
+        const config = safeConfig;
 
         items.forEach(item => {
             // 1. Due Date
@@ -334,7 +339,7 @@ export const QuantityCalendar: React.FC<Props> = ({
                                         onItemClick={onItemClick}
                                         onCellAction={handleCellAction}
                                         onContextMenu={handleContextMenu}
-                                        isHoliday={isHoliday(date, capacityConfig || DEFAULT_CAPACITY_CONFIG)}
+                                        isHoliday={isHoliday(date, safeConfig)}
                                     />
                                 </div>
                             );
@@ -432,7 +437,7 @@ export const QuantityCalendar: React.FC<Props> = ({
                             setContextMenu(null);
                         }}
                     >
-                        {isHoliday(contextMenu.date, capacityConfig || DEFAULT_CAPACITY_CONFIG) ? (
+                        {isHoliday(contextMenu.date, safeConfig) ? (
                             <>
                                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                 稼働日に設定
