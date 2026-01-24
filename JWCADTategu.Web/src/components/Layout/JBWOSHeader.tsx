@@ -180,7 +180,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
                                 <button
                                     onClick={() => {
-                                        window.location.href = '/logout';
+                                        window.location.href = './logout';
                                     }}
                                     className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                                 >

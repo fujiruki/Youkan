@@ -126,6 +126,16 @@ class DebugController {
         try {
             $this->pdo->beginTransaction();
 
+            // 0. 関連データの削除 (FK制約回避 & クリーンアップ)
+            $stmt = $this->pdo->prepare("DELETE FROM api_tokens WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $this->pdo->prepare("DELETE FROM user_configs WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            $stmt = $this->pdo->prepare("DELETE FROM daily_volumes WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
             // 1. メンバーシップ削除
             $stmt = $this->pdo->prepare("DELETE FROM memberships WHERE user_id = ?");
             $stmt->execute([$userId]);
@@ -136,6 +146,7 @@ class DebugController {
 
             if ($stmt->rowCount() === 0) {
                 $this->pdo->rollBack();
+                error_log("Debug deleteUser: User $userId not found (rowCount=0)");
                 http_response_code(404);
                 echo json_encode(['error' => 'User not found']);
                 return;

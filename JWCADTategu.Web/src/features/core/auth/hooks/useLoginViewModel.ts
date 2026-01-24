@@ -12,7 +12,7 @@ export const useLoginViewModel = () => {
         authLogout();
         localStorage.removeItem('jbwos_user');
         localStorage.removeItem('jbwos_tenant');
-        window.location.href = '/login';
+        window.location.href = './login';
     };
 
     const login = async (creds: LoginCredentials) => {
@@ -36,34 +36,18 @@ export const useLoginViewModel = () => {
         setIsLoading(true);
         setError(null);
         try {
-            // We use fetch directly here or update AuthService. using fetch to match plan logic for now.
-            // Ideally should go through AuthService but for speed/consistency with plan:
-            const apiRes = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password: pass, type, company_name: companyName }),
-            });
-
-            if (!apiRes.ok) {
-                const errData = await apiRes.json();
-                throw new Error(errData.error || 'Registration failed');
-            }
-
-            const data = await apiRes.json();
+            const service = AuthService.getInstance();
+            const data = await service.register({ name, email, password: pass, type, company_name: companyName });
 
             if (data.token) {
-                // Success - set local storage same as login
-                localStorage.setItem('jbwos_token', data.token); // Store token if AuthProvider uses it
+                // Success - set local storage same as login (AuthService already sets token, but we set user/tenant here too)
                 localStorage.setItem('jbwos_user', JSON.stringify(data.user));
                 localStorage.setItem('jbwos_tenant', JSON.stringify(data.tenant));
 
                 // Reload to init auth or navigate
-                window.location.href = '/';
+                window.location.href = './'; // Relative path
             } else {
-                // User created but no token (e.g. general user waiting for invite)
-                // alert('アカウント作成完了。'); // Alert can be blocking/annoying
-                // Navigate to login with query param for message?
-                window.location.href = '/login?registered=true';
+                window.location.href = './login?registered=true'; // Relative path
             }
         } catch (e: any) {
             setError(e.message || 'Registration failed.');

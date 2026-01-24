@@ -55,4 +55,6 @@ export interface RegisterCredentials {
     name: string;
     email: string;
     password: string;
+    type?: 'user' | 'proprietor' | 'company';
+    company_name?: string;
 }
