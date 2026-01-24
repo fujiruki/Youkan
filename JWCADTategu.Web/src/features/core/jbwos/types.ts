@@ -56,6 +56,8 @@ export interface Item {
     projectTitle?: string;   // [NEW] Parent Project Title (Joined)
     isProject?: boolean;     // [NEW] プロジェクト化されたコンテナフラグ
     projectCategory?: string; // [NEW] プロジェクト分類ID
+    projectType?: 'general' | 'manufacturing' | string; // [NEW] Project Type for Unified Items
+    tenantId?: string | null; // [NEW] To distinguish company vs personal
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
 
