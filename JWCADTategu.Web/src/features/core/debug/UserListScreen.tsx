@@ -70,7 +70,7 @@ export const UserListScreen: React.FC = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 p-8">
+        <div className="min-h-full bg-slate-100 dark:bg-slate-900 p-8">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -155,8 +155,8 @@ export const UserListScreen: React.FC = () => {
                                                     setNewPassword('');
                                                 }}
                                                 className={`p-2 rounded-lg transition-colors ${resetUserId === user.id
-                                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
-                                                        : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                                                    : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
                                                     }`}
                                                 title="パスワードリセット"
                                             >

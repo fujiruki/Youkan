@@ -22,15 +22,19 @@ import { ToastContainer } from './components/Toast/ToastContainer';
 import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
+import { CompanySettingsScreen } from './features/core/projects/screens/CompanySettingsScreen'; // [NEW]
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
 import { UserListScreen } from './features/core/debug/UserListScreen'; // [NEW] Debug
 
 // Auth Imports
+// Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
 import { LoginScreen } from './features/core/auth/screens/LoginScreen';
+import { RegistrationScreen } from './pages/RegistrationScreen';
+import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings';
 
 function App() {
     // Default is now JBWOS MVP Board for verification
@@ -283,7 +287,17 @@ const AuthGuard: React.FC<{ children: React.ReactNode; bypass?: boolean }> = ({ 
     }
 
     if (!isAuthenticated) {
+        if (window.location.pathname === '/register') {
+            return <RegistrationScreen />;
+        }
+        if (window.location.pathname === '/logout') {
+            return <LogoutScreen />;
+        }
         return <LoginScreen />;
+    }
+
+    if (window.location.pathname === '/logout') {
+        return <LogoutScreen />;
     }
 
     return <>{children}</>;
@@ -354,6 +368,7 @@ const AppContent: React.FC<{
                                 onNavigateToSettings={() => setCurrentView('settings')}
                                 onNavigateToCustomers={() => setCurrentView('customers')}
                                 onNavigateToPlanning={() => setCurrentView('planning')}
+                                onNavigateToCompanySettings={() => setCurrentView('companySettings')}
                             />
                         )}
 
@@ -463,6 +478,13 @@ const AppContent: React.FC<{
                                 </div>
                             )}
 
+                            {/* 9.5 Company Settings */}
+                            {currentView === 'companySettings' && (
+                                <CompanySettingsScreen
+                                    onNavigateHome={handleBackToDashboard}
+                                />
+                            )}
+
                             {/* 10. Manual Screen */}
                             {currentView === 'manual' && (
                                 <div className="h-full w-full overflow-auto">
@@ -472,7 +494,9 @@ const AppContent: React.FC<{
 
                             {/* 11. User List (Debug) */}
                             {currentView === 'userlist' && (
-                                <UserListScreen />
+                                <div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
+                                    <UserListScreen />
+                                </div>
                             )}
                         </div>
 

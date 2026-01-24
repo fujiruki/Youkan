@@ -22,7 +22,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
     const vm = useJBWOSViewModel();
     const { tenant, user } = useAuth();
     const { logout } = useLoginViewModel();
-    const [activeTab, setActiveTab] = useState<TabType>('company');
+    const [activeTab, setActiveTab] = useState<TabType>(tenant ? 'company' : 'system');
     const [isLogoutConfirming, setIsLogoutConfirming] = useState(false);
 
     // Mock save handler
@@ -41,9 +41,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
     };
 
     const tabs = [
-        { id: 'company', label: '会社情報', icon: Building },
-        { id: 'plugins', label: '機能管理', icon: Package },
-        { id: 'members', label: 'メンバー', icon: Users },
+        ...(tenant ? [
+            { id: 'company', label: '会社情報', icon: Building },
+            { id: 'plugins', label: '機能管理', icon: Package },
+            { id: 'members', label: 'メンバー', icon: Users },
+        ] : []),
         { id: 'system', label: 'システム設定', icon: Settings },
     ];
 

@@ -178,6 +178,10 @@ export class ApiClient {
         return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
     }
 
+    public static async getProjects(): Promise<any[]> {
+        return this.request('GET', '/projects');
+    }
+
     // --- Phase 2: Decision API ---
     public static async resolveDecision(id: string, decision: 'yes' | 'hold' | 'no', note?: string, rdd?: any): Promise<{ success: boolean; new_status: string }> {
         return this.request('POST', `/decision/${id}/resolve`, { decision, note, rdd });

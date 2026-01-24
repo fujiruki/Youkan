@@ -72,8 +72,9 @@ if (-not (Test-Path $backendPath)) {
 
 # 2. Start Backend (Priority 1)
 Write-Status "🐘 [1/2] PHP Backendを起動しています (Port $PHP_PORT)..." "Cyan"
-$phpArgList = "-S $PHP_HOST`:$PHP_PORT -t `"$backendPath`" `"$backendPath\index.php`""
-$phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgList -WorkingDirectory $backendPath -NoNewWindow -PassThru
+$phpArgs = @("-S", "$PHP_HOST`:$PHP_PORT", "index.php")
+Write-Status "🐘 [1/2] PHP Backend starting with args: $phpArgs" "Cyan"
+$phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgs -WorkingDirectory $backendPath -NoNewWindow -PassThru
 Start-Sleep -Seconds 1
 
 if ($phpProcess.HasExited) {

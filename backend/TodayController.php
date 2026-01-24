@@ -22,16 +22,25 @@ class TodayController extends BaseController {
         // [New] Auto-reset "Intent Boost" items from previous days
         $this->resetExpiredBoosts();
 
+        // Logic switch for Tenant vs Personal
+        if ($tenantId) {
+             $whereClause = "items.tenant_id = ?";
+             $params = [$tenantId];
+        } else {
+             $whereClause = "items.tenant_id IS NULL AND items.created_by = ?";
+             $params = [$this->currentUserId];
+        }
+
         // Zone 1: Commit (Status: today_commit)
         $sqlCommits = "
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE items.tenant_id = ? AND items.status = 'today_commit' 
+            WHERE $whereClause AND items.status = 'today_commit' 
             ORDER BY items.sort_order ASC
         ";
         $stmtCommits = $this->pdo->prepare($sqlCommits);
-        $stmtCommits->execute([$tenantId]);
+        $stmtCommits->execute($params);
         $commits = array_map([$this, 'mapRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
@@ -39,11 +48,11 @@ class TodayController extends BaseController {
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE items.tenant_id = ? AND items.status IN ('execution_in_progress', 'execution_paused') 
+            WHERE $whereClause AND items.status IN ('execution_in_progress', 'execution_paused') 
             ORDER BY items.updated_at DESC
         ";
         $stmtExec = $this->pdo->prepare($sqlExec);
-        $stmtExec->execute([$tenantId]);
+        $stmtExec->execute($params);
         $executionsRaw = $stmtExec->fetchAll(PDO::FETCH_ASSOC);
         $executions = array_map([$this, 'mapRow'], $executionsRaw);
 
@@ -54,14 +63,14 @@ class TodayController extends BaseController {
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? AND
+                $whereClause AND
                 ((items.status = 'confirmed') 
                 OR 
                 (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused')))
             ORDER BY items.is_boosted DESC, items.rdd_date ASC
         ";
         $stmtCandidates = $this->pdo->prepare($sqlCandidates);
-        $stmtCandidates->execute([$tenantId]);
+        $stmtCandidates->execute($params);
         $candidates = array_map([$this, 'mapRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
 
 
@@ -88,9 +97,18 @@ class TodayController extends BaseController {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
 
+        // Logic switch for Tenant vs Personal
+        if ($tenantId) {
+             $whereClause = "tenant_id = ?";
+             $params = [$tenantId];
+        } else {
+             $whereClause = "tenant_id IS NULL AND created_by = ?";
+             $params = [$this->currentUserId];
+        }
+
         // 1. Check current commits count
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM items WHERE tenant_id = ? AND status = 'today_commit'");
-        $stmt->execute([$tenantId]);
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM items WHERE $whereClause AND status = 'today_commit'");
+        $stmt->execute($params);
         $count = $stmt->fetchColumn();
 
         if ($count >= 2) {
@@ -104,9 +122,10 @@ class TodayController extends BaseController {
             $this->eventService->logIn('TodayCommited', ['item_id' => $id]);
 
             // 3. Update Status
-            $stmt = $this->pdo->prepare("UPDATE items SET status = 'today_commit', status_updated_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ?");
+            $stmt = $this->pdo->prepare("UPDATE items SET status = 'today_commit', status_updated_at = ?, updated_at = ? WHERE id = ? AND $whereClause");
             $now = time();
-            $stmt->execute([$now, $now, $id, $tenantId]);
+            $paramsWithId = array_merge([$now, $now, $id], $params);
+            $stmt->execute($paramsWithId);
 
             $this->pdo->commit();
             return ['success' => true, 'id' => $id, 'new_status' => 'today_commit'];
@@ -124,13 +143,22 @@ class TodayController extends BaseController {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
 
+        if ($tenantId) {
+             $whereClause = "tenant_id = ?";
+             $params = [$tenantId];
+        } else {
+             $whereClause = "tenant_id IS NULL AND created_by = ?";
+             $params = [$this->currentUserId];
+        }
+
         $this->pdo->beginTransaction();
         try {
             $this->eventService->logIn('TodayCompleted', ['item_id' => $id]);
 
-            $stmt = $this->pdo->prepare("UPDATE items SET status = 'done', status_updated_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ?");
+            $stmt = $this->pdo->prepare("UPDATE items SET status = 'done', status_updated_at = ?, updated_at = ? WHERE id = ? AND $whereClause");
             $now = time();
-            $stmt->execute([$now, $now, $id, $tenantId]);
+            $paramsWithId = array_merge([$now, $now, $id], $params);
+            $stmt->execute($paramsWithId);
 
             $this->pdo->commit();
             return ['success' => true, 'id' => $id, 'new_status' => 'done'];

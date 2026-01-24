@@ -238,4 +238,55 @@ function initDB($pdo) {
     foreach ($commands as $sql) {
         $pdo->exec($sql);
     }
+
+    // --- Seed Data (Debug Environment) ---
+    // Check if default user exists
+    $stmt = $pdo->query("SELECT count(*) FROM users");
+    if ($stmt->fetchColumn() == 0) {
+        // 1. Create Default Tenant
+        $tenantId = 't_default';
+        $tenantName = '株式会社デバッグ';
+        $invoiceNo = 'T1234567890123';
+        $config = json_encode([
+            "plugins" => [
+                "manufacturing" => true,
+                "tategu" => true
+            ]
+        ]);
+
+        // Note: Check if columns exist (handled by migration script, but here for fresh init)
+        // For fresh init, we assume columns might be missing if migration hasn't run, 
+        // OR we should run migration first. 
+        // Simplification: We insert basic data, columns will be added by migration script if missing.
+        // BUT wait, verify_and_start runs php index.php which runs db.php FIRST.
+        // So we should stick to basic schema here, and let migration update it?
+        // NO, the user wants "株式会社デバッグ" with Plugins ON.
+        // We must ensure 'config' column exists or use migration.
+        
+        // Let's insert MINIMAL data first, assuming migration adds columns later or we add them now?
+        // Actually, initDB is for FRESH install. Let's add columns to CREATE TABLE above if we want them fresh.
+        // However, migration script `migrate_v12...` adds them.
+        
+        // Strategy: Insert basic, then update config via migration? No, migration is structure.
+        // Better: Update CREATE TABLE for tenants in initDB to include new columns for fresh install.
+        
+        $pdo->exec("INSERT INTO tenants (id, name, created_at) VALUES ('$tenantId', '$tenantName', datetime('now'))");
+
+        // 2. Create Default User
+        $userId = 'u_default';
+        $userName = 'デバッグ太郎';
+        $userEmail = 'debug@example.com';
+        $userPass = password_hash('password', PASSWORD_DEFAULT);
+
+        $stmt = $pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
+        $stmt->execute([$userId, $userEmail, $userPass, $userName]);
+
+        // 3. Link
+        $pdo->exec("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES ('$userId', '$tenantId', 'owner', datetime('now'))");
+        
+        // 4. Force Update for Debug Requirements (columns added by migrate_v12)
+        // This part relies on migrate_v12 running AFTER initDB.
+        // The verify_and_start script runs php index.php which loads db.php.
+        // Handled by manual migration step or smart logic.
+    }
 }

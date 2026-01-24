@@ -61,11 +61,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     name: data.user.name,
                     email: data.user.email
                 });
-                setTenant(data.tenant || {
-                    id: 't-default',
-                    name: 'Default Tenant',
-                    role: 'editor'
-                });
+                setTenant(data.tenant || null);
                 setIsAuthenticated(true);
             } else {
                 logout();

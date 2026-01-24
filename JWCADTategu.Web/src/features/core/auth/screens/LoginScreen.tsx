@@ -2,21 +2,15 @@ import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
 
 export const LoginScreen: React.FC = () => {
-    const { login, register, isLoading, error, clearError, debugLogin } = useLoginViewModel();
-    const [isRegisterMode, setIsRegisterMode] = useState(false);
+    const { login, isLoading, error, debugLogin } = useLoginViewModel();
 
     // Form States
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (isRegisterMode) {
-            register({ name, email, password });
-        } else {
-            login({ email, password });
-        }
+        login({ email, password });
     };
 
     return (
@@ -30,10 +24,10 @@ export const LoginScreen: React.FC = () => {
                             </svg>
                         </div>
                         <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
-                            {isRegisterMode ? 'アカウント作成' : 'おかえりなさい'}
+                            おかえりなさい
                         </h1>
                         <p className="text-slate-500 text-sm">
-                            {isRegisterMode ? 'Design Studioへようこそ' : 'Tategu Design Studioにログイン'}
+                            Tategu Design Studioにログイン
                         </p>
                     </div>
 
@@ -44,22 +38,6 @@ export const LoginScreen: React.FC = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {isRegisterMode && (
-                            <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    お名前
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                    placeholder="山田 太郎"
-                                />
-                            </div>
-                        )}
-
                         <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                 メールアドレス
@@ -93,19 +71,16 @@ export const LoginScreen: React.FC = () => {
                             disabled={isLoading}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform active:scale-95"
                         >
-                            {isLoading ? '処理中...' : (isRegisterMode ? 'アカウントを作成' : 'ログイン')}
+                            {isLoading ? '処理中...' : 'ログイン'}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center">
                         <button
-                            onClick={() => {
-                                setIsRegisterMode(!isRegisterMode);
-                                clearError();
-                            }}
+                            onClick={() => window.location.href = '/register'}
                             className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium hover:underline"
                         >
-                            {isRegisterMode ? 'すでにアカウントをお持ちの方はこちら' : 'アカウントを新規作成する'}
+                            アカウントを新規作成する
                         </button>
                     </div>
 

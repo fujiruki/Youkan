@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Menu, HelpCircle, History, Settings, Users } from 'lucide-react';
+import { Menu, HelpCircle, History, Settings, Users, Building } from 'lucide-react';
 // import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 interface JBWOSHeaderProps {
-    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers';
+    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings';
     onNavigateToToday: () => void;
     onNavigateToHistory: () => void;
     onNavigateToProjects: () => void;
     onNavigateToSettings: () => void;
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void; // [NEW]
+    onNavigateToCompanySettings?: () => void; // [NEW]
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -20,7 +21,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToProjects,
     onNavigateToSettings,
     onNavigateToCustomers,
-    onNavigateToPlanning // [NEW]
+    onNavigateToPlanning, // [NEW]
+    onNavigateToCompanySettings
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -92,6 +94,20 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
                             {/* Menu Content */}
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-20 overflow-hidden">
+                                {/* User Info & Logout */}
+                                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Signed in as</div>
+                                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                                        {/* TODO: Get legitimate user name from AuthContext */}
+                                        {(() => {
+                                            try {
+                                                const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
+                                                return u.name || 'User';
+                                            } catch { return 'User'; }
+                                        })()}
+                                    </div>
+                                </div>
+
                                 {/* Mobile Only: Plan in Menu */}
                                 <button
                                     onClick={() => {
@@ -126,6 +142,18 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                     <History size={16} />
                                     History（週間振り返り）
                                 </button>
+                                {onNavigateToCompanySettings && (
+                                    <button
+                                        onClick={() => {
+                                            onNavigateToCompanySettings();
+                                            setMenuOpen(false);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <Building size={16} />
+                                        Company Settings
+                                    </button>
+                                )}
                                 <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
                                 <button
                                     onClick={() => {
@@ -136,6 +164,16 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 >
                                     <Settings size={16} />
                                     設定
+                                </button>
+                                <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
+                                <button
+                                    onClick={() => {
+                                        window.location.href = '/logout';
+                                    }}
+                                    className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                                >
+                                    <span>🚪</span>
+                                    ログアウト
                                 </button>
                             </div>
                         </>

@@ -42,6 +42,8 @@ class ItemController extends BaseController {
         $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
         $item['assignedTo'] = $item['assigned_to'] ?? null;
         $item['projectTitle'] = $item['parent_title'] ?? null;
+        $item['projectType'] = $item['project_type'] ?? null;
+        $item['client'] = $item['client'] ?? null;
         
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
@@ -180,16 +182,27 @@ class ItemController extends BaseController {
         $now = time();
         $delegationJson = isset($data['delegation']) ? json_encode($data['delegation']) : null;
         
+        // Unified Schema Fields
+        $projectType = $data['projectType'] ?? null;
+        $client = $data['client'] ?? null;
+        $meta = isset($data['meta']) ? json_encode($data['meta']) : null;
+        
+        // Backward Compatibility
+        $isProject = ($data['isProject'] ?? false) ? 1 : 0;
+        if ($projectType) {
+            $isProject = 1;
+        }
+
         // [Security Rule] Assign owner and tenant
         $stmt = $this->pdo->prepare("
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by
+                project_id, created_by, project_type, client, meta
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?
+                ?, ?, ?, ?, ?
             )
         ");
         
@@ -201,13 +214,16 @@ class ItemController extends BaseController {
                 $data['status'] ?? 'inbox',
                 $now, $now, $now,
                 $data['parentId'] ?? null,
-                ($data['isProject'] ?? false) ? 1 : 0,
+                $isProject,
                 $data['projectCategory'] ?? null,
                 $data['estimatedMinutes'] ?? 0,
                 $data['assignedTo'] ?? null,
                 $delegationJson,
                 $data['projectId'] ?? null, // Link to project if provided
-                $this->currentUserId // Creator
+                $this->currentUserId,
+                $projectType,
+                $client,
+                $meta
             ]);
             
             $this->sendJSON(['id' => $id, 'success' => true]);
@@ -243,7 +259,8 @@ class ItemController extends BaseController {
         $simpleFields = [
             'title', 'status', 'memo', 'due_date', 'due_status', 
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
-            'project_category', 'estimated_minutes', 'assigned_to', 'project_id'
+            'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
+            'project_type', 'client', 'meta'
         ];
 
         foreach ($simpleFields as $f) {
@@ -256,16 +273,21 @@ class ItemController extends BaseController {
             if ($f === 'estimated_minutes') $inputKey = 'estimatedMinutes';
             if ($f === 'assigned_to') $inputKey = 'assignedTo';
             if ($f === 'project_id') $inputKey = 'projectId';
+            if ($f === 'project_type') $inputKey = 'projectType';
 
             if (array_key_exists($inputKey, $data)) {
                 $val = $data[$inputKey];
                 if (is_bool($val)) $val = $val ? 1 : 0;
+                // Special handling for meta array -> string
+                if ($f === 'meta' && is_array($val)) $val = json_encode($val);
+                
                 $fields[] = "$f = ?";
                 $params[] = $val;
             } else if (array_key_exists($f, $data)) {
                  // Try straight key
                 $val = $data[$f];
                 if (is_bool($val)) $val = $val ? 1 : 0;
+                if ($f === 'meta' && is_array($val)) $val = json_encode($val);
                 $fields[] = "$f = ?";
                 $params[] = $val;
             }

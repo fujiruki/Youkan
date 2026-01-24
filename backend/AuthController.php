@@ -31,11 +31,17 @@ class AuthController {
 
     private function register() {
         $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validation
         if (!$input || !isset($input['email']) || !isset($input['password']) || !isset($input['name'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Name, email and password required']);
             return;
         }
+
+        file_put_contents(__DIR__ . '/auth_debug.log', "Registering: Email=" . $input['email'] . ", Name=" . $input['name'] . ", Type=" . ($input['type'] ?? 'user') . "\n", FILE_APPEND);
+        
+        $type = $input['type'] ?? 'user'; // 'user', 'proprietor', 'company'
 
         try {
             $this->pdo->beginTransaction();
@@ -44,53 +50,78 @@ class AuthController {
             $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->execute([$input['email']]);
             if ($stmt->fetch()) {
+                file_put_contents(__DIR__ . '/auth_debug.log', "Conflict: Email already exists: " . $input['email'] . "\n", FILE_APPEND);
                 $this->pdo->rollBack();
-                http_response_code(409); // Conflict
+                http_response_code(409);
                 echo json_encode(['error' => 'Email already registered']);
                 return;
             }
 
             // 2. Create User
-            $userId = uniqid('u_'); // Simple ID generation
+            $userId = uniqid('u_');
             $passwordHash = password_hash($input['password'], PASSWORD_DEFAULT);
             $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
             $stmt->execute([$userId, $input['email'], $passwordHash, $input['name']]);
 
-            // 3. Create Default Tenant
-            $tenantId = uniqid('t_');
-            $tenantName = $input['name'] . "'s Workspace";
-            $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
-            $stmt->execute([$tenantId, $tenantName]);
+            // 3. Branching Logic
+            $tenantId = null;
+            $tenantName = null;
+            $role = 'owner'; // Default for creators
 
-            // 4. Create Membership (Owner)
-            $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
-            $stmt->execute([$userId, $tenantId]);
+            if ($type === 'proprietor' || $type === 'company') {
+                // Must create a tenant
+                $companyName = $input['company_name'] ?? ($input['name'] . "'s Company");
+                $tenantId = uniqid('t_');
+                $tenantName = $companyName;
+
+                // Create Tenant
+                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
+                $stmt->execute([$tenantId, $tenantName]);
+
+                // Create Membership
+                $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
+                $stmt->execute([$userId, $tenantId]);
+
+            } else {
+                // 'user' type: No tenant creation.
+                // User remains "Freelance" (no membership) until invited.
+                // However, for current system assumption (must have tenant), we might need a dummy or handle empty state.
+                // Current frontend assumes user has a tenant. 
+                // For MVP, we allow 'user' to be created without tenant, but login might fail if it expects tenant.
+                // Let's check login logic: it fetches tenant. If no tenant, return error.
+                // So, effectively 'user' registration means "Wait for invite".
+                // We won't return a token that allows full access yet.
+                // OR: Return a token with tenant_id = null ?
+                
+                // For now, let's keep them unassigned.
+            }
 
             $this->pdo->commit();
 
-            // 5. Auto Login (Generate Token)
-            $payload = [
-                'sub' => $userId,
-                'name' => $input['name'],
-                'email' => $input['email'],
-                'tenant_id' => $tenantId,
-                'role' => 'owner'
-            ];
-            $token = JWTService::encrypt($payload);
-
-            echo json_encode([
-                'token' => $token,
-                'user' => [
-                    'id' => $userId,
+            // 4. Response
+            if ($tenantId) {
+                // Auto Login
+                $payload = [
+                    'sub' => $userId,
                     'name' => $input['name'],
-                    'email' => $input['email']
-                ],
-                'tenant' => [
-                    'id' => $tenantId,
-                    'name' => $tenantName,
+                    'email' => $input['email'],
+                    'tenant_id' => $tenantId,
                     'role' => 'owner'
-                ]
-            ]);
+                ];
+                $token = JWTService::encrypt($payload);
+
+                echo json_encode([
+                    'token' => $token,
+                    'user' => ['id' => $userId, 'name' => $input['name'], 'email' => $input['email']],
+                    'tenant' => ['id' => $tenantId, 'name' => $tenantName, 'role' => 'owner']
+                ]);
+            } else {
+                // User created but no tenant (Wait for invite)
+                echo json_encode([
+                    'message' => 'User created. Please wait for an invitation or sign in to a workspace.',
+                    'user' => ['id' => $userId, 'name' => $input['name'], 'email' => $input['email']]
+                ]);
+            }
 
         } catch (Exception $e) {
             $this->pdo->rollBack();
@@ -124,34 +155,51 @@ class AuthController {
             $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$tenant) {
-                http_response_code(500); // Should not happen with seed data
-                echo json_encode(['error' => 'User has no tenant']);
-                return;
-            }
-
-            // Create JWT
-            $payload = [
-                'sub' => $user['id'],
-                'name' => $user['display_name'],
-                'email' => $user['email'],
-                'tenant_id' => $tenant['id'],
-                'role' => $tenant['role']
-            ];
-            $token = JWTService::encrypt($payload);
-
-            echo json_encode([
-                'token' => $token,
-                'user' => [
-                    'id' => $user['id'],
+                // User has no tenant (Freelancer / Waiting for invite)
+                // Return token with no tenant_id
+                $payload = [
+                    'sub' => $user['id'],
                     'name' => $user['display_name'],
-                    'email' => $user['email']
-                ],
-                'tenant' => [
-                    'id' => $tenant['id'],
-                    'name' => $tenant['name'],
+                    'email' => $user['email'],
+                    'tenant_id' => null,
+                    'role' => 'user'
+                ];
+                $token = JWTService::encrypt($payload);
+
+                echo json_encode([
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user['id'],
+                        'name' => $user['display_name'],
+                        'email' => $user['email']
+                    ],
+                    'tenant' => null
+                ]);
+            } else {
+                // User has tenant
+                $payload = [
+                    'sub' => $user['id'],
+                    'name' => $user['display_name'],
+                    'email' => $user['email'],
+                    'tenant_id' => $tenant['id'],
                     'role' => $tenant['role']
-                ]
-            ]);
+                ];
+                $token = JWTService::encrypt($payload);
+
+                echo json_encode([
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user['id'],
+                        'name' => $user['display_name'],
+                        'email' => $user['email']
+                    ],
+                    'tenant' => [
+                        'id' => $tenant['id'],
+                        'name' => $tenant['name'],
+                        'role' => $tenant['role']
+                    ]
+                ]);
+            }
         } else {
             http_response_code(401);
             echo json_encode(['error' => 'Invalid credentials']);

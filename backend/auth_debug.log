@@ -1,0 +1,27 @@
+Registering: Email=auth_log_unique_v1@example.com, Name=Auth Log Test, Type=user
+Registering: Email=auth_log_unique_v1@example.com, Name=Auth Log Test, Type=user
+Conflict: Email already exists: auth_log_unique_v1@example.com
+Registering: Email=auth_log_unique_new@example.com, Name=Auth Log Test, Type=user
+Registering: Email=auth_log_unique_new@example.com, Name=Auth Log Test, Type=user
+Conflict: Email already exists: auth_log_unique_new@example.com
+Registering: Email=auth_log_unique_new@example.com, Name=Auth Log Test, Type=user
+Conflict: Email already exists: auth_log_unique_new@example.com
+Registering: Email=, Name=, Type=user
+Conflict: Email already exists: 
+Registering: Email=, Name=, Type=user
+Conflict: Email already exists: 
+Registering: Email=, Name=, Type=proprietor
+Conflict: Email already exists: 
+Registering: Email=debug_1769240975465@example.com, Name=Debug User, Type=user
+Registering: Email=fix_v8@example.com, Name=Final User v8, Type=user
+Registering: Email=fix_v8@example.com, Name=Final User v8, Type=user
+Conflict: Email already exists: fix_v8@example.com
+Registering: Email=runto@g.com, Name=るんとー, Type=user
+Registering: Email=demo_user_123456789@example.com, Name=Demo User, Type=user
+Registering: Email=, Name=, Type=user
+Conflict: Email already exists: 
+Registering: Email=mail@gmail.com, Name=ふじき, Type=user
+Registering: Email=demo_user_final@example.com, Name=Demo User, Type=user
+Registering: Email=ab@gmail.com, Name=ab, Type=proprietor
+Registering: Email=info@door-fujita.com, Name=藤田晴樹, Type=company
+Registering: Email=door.fujita@gmail.com, Name=藤田晴樹, Type=company

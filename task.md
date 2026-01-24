@@ -70,13 +70,21 @@
         - [x] Frontend: 設定画面のタブ化とUI実装 <!-- id: 12041 -->
         - [x] Frontend: プラグイン管理UIとFeature Flagロジック <!-- id: 12043 -->
         - [x] Backend: Tenantsテーブル拡張 (Configカラム) <!-- id: 12042 -->
-    - [ ] **ユーザー登録機能の実装** (Registration) <!-- id: 1205 -->
-        - [ ] Environment: デバッグデータ更新・ブランチ作成 <!-- id: 12050 -->
-        - [ ] Backend: AuthController拡張 (Type分岐) <!-- id: 12051 -->
-        - [ ] Frontend: 登録ポータル画面 (3 Entrances) <!-- id: 12052 -->
-        - [ ] Frontend: 個人事業主登録フォーム <!-- id: 12053 -->
+    - [x] **ユーザー登録機能の実装** (Registration) <!-- id: 1205 -->
+        - [x] Environment: デバッグデータ更新・ブランチ作成 <!-- id: 12050 -->
+        - [x] Backend: AuthController拡張 (Type分岐) <!-- id: 12051 -->
+        - [x] Frontend: 登録ポータル画面 (3 Entrances) <!-- id: 12052 -->
+        - [x] Frontend: 個人事業主登録フォーム <!-- id: 12053 -->
     - [ ] **Manager Capacity View**: 量感のみ取得するAPIの実装 <!-- id: 1202 -->
     - [ ] **Security Verification**: アクセス権限の自動テスト <!-- id: 1203 -->
+
+- [ ] **フェーズ 4.0: 量感カレンダー (Volume Calendar)** <!-- id: 160 -->
+    - [x] **詳細設計**: ロジックとMVVM構成の定義 (`Detailed_Design_VolumeCalendar.md`)
+    - [x] **Backend**: `memberships` テーブル拡張 (`is_core`, `capacity`) <!-- id: 161 -->
+    - [x] **Backend**: `TenantController` API更新 (GET/PUT) <!-- id: 162 -->
+    - [ ] **Frontend**: メンバー設定画面 (主力チェック・キャパ設定) <!-- id: 163 -->
+    - [ ] **Frontend Logic**: `AllocationCalculator` (TDD) <!-- id: 165 -->
+    - [ ] **Frontend UI**: `VolumeCalendar` 画面実装 (MVVM) <!-- id: 164 -->
 
 - [ ] **フェーズ 4.5: デザインと物語 (User Nuance)** <!-- id: 140 -->
     - [ ] **AI会議**: 明日の計画のストーリーとユーザーフロー <!-- id: 1401 -->

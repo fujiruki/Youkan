@@ -43,7 +43,8 @@ class BaseController {
         $this->currentUserId = $payload['sub'] ?? null; // Set ID
 
         if (!$this->currentTenantId) {
-            $this->sendError(403, 'No tenant context in token');
+            // Allow tenant-less access (Personal Mode)
+            // $this->sendError(403, 'No tenant context in token');
         }
     }
 

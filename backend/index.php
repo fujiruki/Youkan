@@ -93,7 +93,7 @@ if (empty($path) || $path[0] !== '/') {
 }
 
 // Debug logs can be enabled here if needed
-// error_log("Routing Path: " . $path);
+error_log("Routing Path: " . $path);
 
 // Fix for built-in server where /api is not stripped because root is backend/
 // When accessing localhost:8000/api/items, path is /api/items.
@@ -142,11 +142,21 @@ if (preg_match('#^(/api)?/customers(?:/([^/]+))?$#', $path, $matches)) {
 // --- NEW V7 ROUTES ---
 
 // Auth Routes
+// Auth Routes
 require_once 'AuthController.php';
 if (preg_match('#^(/api)?/auth(/.*)$#', $path, $matches)) {
     $controller = new AuthController();
-    // Path passed to controller: /login, /me (without /api/auth)
     $subPath = $matches[2]; 
+    $controller->handleRequest($method, $subPath);
+    exit;
+}
+
+// Tenant Routes (Company Management)
+require_once 'TenantController.php';
+if (preg_match('#^(/api)?/tenant(/.*)$#', $path, $matches)) {
+    error_log("Matched Tenant Route: " . $path);
+    $controller = new TenantController();
+    $subPath = $matches[2];
     $controller->handleRequest($method, $subPath);
     exit;
 }
@@ -345,7 +355,7 @@ if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
 require_once 'CalendarController.php';
 
 if (preg_match('#^(/api)?/calendar/load$#', $path) && $method === 'GET') {
-    $controller = new CalendarController($db);
+    $controller = new CalendarController();
     echo json_encode($controller->getLoad($_GET));
     exit;
 }
