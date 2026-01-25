@@ -84,7 +84,7 @@ New-Item -ItemType Directory -Path $deployTmp | Out-Null
 # バックエンドファイルのコピー（存在する場合）
 if (Test-Path $backendDir) {
     Write-Host "   → Copying backend files (PHP, .htaccess)..." -ForegroundColor Cyan
-    Get-ChildItem $backendDir -Include "*.php", ".htaccess" -Recurse | ForEach-Object {
+    Get-ChildItem $backendDir -Include "*.php", ".htaccess" -Exclude "jbwos.sqlite", "*.log" -Recurse | ForEach-Object {
         Copy-Item $_.FullName -Destination $deployTmp
     }
     Write-Host "   ✓ Backend files copied" -ForegroundColor Green

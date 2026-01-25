@@ -65,7 +65,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
                 onNavigateToManual={() => { /* Not implemented yet in props? */ setMenuOpen(false); }}
                 onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
-                onLogout={() => window.location.href = './logout'}
+                onLogout={() => {
+                    localStorage.removeItem('jbwos_token');
+                    localStorage.removeItem('jbwos_user');
+                    window.location.href = './';
+                }}
                 userName={user?.name || getLegacyUserName()} // Fallback
                 user={user}     // [NEW]
                 tenant={tenant} // [NEW]
@@ -74,9 +78,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
             {/* Left: App Name */}
             <div className="flex items-center gap-2 md:gap-3 shrink-1 min-w-0">
                 {/* [NEW] Hamburger Menu (Left Aligned for Mobile Standard) */}
+                {/* [NEW] Hamburger Menu (PC: Left) */}
                 <button
                     onClick={() => setMenuOpen(true)}
-                    className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors mr-1"
+                    className="hidden md:block p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors mr-1"
                     title="メニュー"
                 >
                     <Menu size={20} className="text-slate-300" />
@@ -151,6 +156,15 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     title="ヘルプ"
                 >
                     <HelpCircle size={20} className="text-slate-400" />
+                </button>
+
+                {/* [NEW] Hamburger Menu (Mobile: Right) */}
+                <button
+                    onClick={() => setMenuOpen(true)}
+                    className="md:hidden p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                    title="メニュー"
+                >
+                    <Menu size={20} className="text-slate-300" />
                 </button>
             </div>
         </div>

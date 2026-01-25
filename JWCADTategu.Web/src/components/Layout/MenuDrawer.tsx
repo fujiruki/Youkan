@@ -59,7 +59,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             />
 
             {/* Side Panel */}
-            <div className="fixed right-0 top-0 bottom-0 w-64 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
+            <div className={`fixed top-0 bottom-0 w-64 bg-slate-50 dark:bg-slate-900 shadow-xl z-50 flex flex-col 
+                transition-transform duration-300 ease-in-out border-slate-200 dark:border-slate-800
+                /* Mobile: Right Side */
+                right-0 border-l animate-in slide-in-from-right
+                /* Desktop: Left Side */
+                md:right-auto md:left-0 md:border-l-0 md:border-r md:slide-in-from-left
+            `}>
                 {/* Header */}
                 <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950">
                     <div className="flex-1 min-w-0 pr-2">

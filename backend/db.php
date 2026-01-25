@@ -14,8 +14,9 @@ function getDB() {
         }
 
         // --- Auto-Migration Logic (Schema Evolution) ---
-        // Ensure all required columns exist even regarding existing tables.
-        
+        // Ensure all required tables exist (Migration for existing DBs)
+        ensureTables($pdo);
+
         // 1. Check 'items' table columns
         $columns = [];
         $stmt = $pdo->query("PRAGMA table_info(items)");
@@ -59,7 +60,7 @@ function getDB() {
     }
 }
 
-function initDB($pdo) {
+function ensureTables($pdo) {
     $commands = [
         "CREATE TABLE IF NOT EXISTS items (
             id TEXT PRIMARY KEY,
@@ -146,7 +147,8 @@ function initDB($pdo) {
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             display_name TEXT,
-            created_at INTEGER
+            created_at INTEGER,
+            preferences TEXT -- JSON for UI settings
         )",
         "CREATE TABLE IF NOT EXISTS tenants (
             id TEXT PRIMARY KEY,
@@ -171,22 +173,36 @@ function initDB($pdo) {
             last_used_at INTEGER,
             FOREIGN KEY(user_id) REFERENCES users(id)
         )",
-        // Renamed/Replaced Projects Table handled by migration script, 
-        // but for fresh init we use the new schema.
-        // Note: 'projects' table definition here replaces the old v6 one if db is fresh.
-        "CREATE TABLE IF NOT EXISTS projects (
+        // New tables for Phase 9
+        "CREATE TABLE IF NOT EXISTS assignees (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL,
             name TEXT NOT NULL,
-            client TEXT,
-            settings_json TEXT,
-            dxf_config_json TEXT,
-            view_mode TEXT DEFAULT 'internal',
-            judgment_status TEXT DEFAULT 'inbox',
-            is_archived INTEGER DEFAULT 0,
+            role TEXT,
+            color TEXT,
+            is_active INTEGER DEFAULT 1,
             created_at INTEGER,
-            updated_at INTEGER,
-            FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+            updated_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS project_categories (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            color TEXT,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at INTEGER,
+            updated_at INTEGER
+        )",
+        "CREATE TABLE IF NOT EXISTS life_logs (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            item_id TEXT, -- 'today' or UUID
+            action TEXT NOT NULL, -- 'clean', 'mail', 'planning', 'workout'
+            value INTEGER DEFAULT 1,
+            logged_at INTEGER,
+            created_at INTEGER
         )",
         "CREATE TABLE IF NOT EXISTS doors (
             id TEXT PRIMARY KEY,
@@ -240,6 +256,10 @@ function initDB($pdo) {
     foreach ($commands as $sql) {
         $pdo->exec($sql);
     }
+}
+
+function initDB($pdo) {
+    ensureTables($pdo);
 
     // --- Seed Data (Debug Environment) ---
     // Check if default user exists
@@ -249,28 +269,7 @@ function initDB($pdo) {
         $tenantId = 't_default';
         $tenantName = '株式会社デバッグ';
         $invoiceNo = 'T1234567890123';
-        $config = json_encode([
-            "plugins" => [
-                "manufacturing" => true,
-                "tategu" => true
-            ]
-        ]);
-
         // Note: Check if columns exist (handled by migration script, but here for fresh init)
-        // For fresh init, we assume columns might be missing if migration hasn't run, 
-        // OR we should run migration first. 
-        // Simplification: We insert basic data, columns will be added by migration script if missing.
-        // BUT wait, verify_and_start runs php index.php which runs db.php FIRST.
-        // So we should stick to basic schema here, and let migration update it?
-        // NO, the user wants "株式会社デバッグ" with Plugins ON.
-        // We must ensure 'config' column exists or use migration.
-        
-        // Let's insert MINIMAL data first, assuming migration adds columns later or we add them now?
-        // Actually, initDB is for FRESH install. Let's add columns to CREATE TABLE above if we want them fresh.
-        // However, migration script `migrate_v12...` adds them.
-        
-        // Strategy: Insert basic, then update config via migration? No, migration is structure.
-        // Better: Update CREATE TABLE for tenants in initDB to include new columns for fresh install.
         
         $pdo->exec("INSERT INTO tenants (id, name, created_at) VALUES ('$tenantId', '$tenantName', datetime('now'))");
 
@@ -285,10 +284,5 @@ function initDB($pdo) {
 
         // 3. Link
         $pdo->exec("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES ('$userId', '$tenantId', 'owner', datetime('now'))");
-        
-        // 4. Force Update for Debug Requirements (columns added by migrate_v12)
-        // This part relies on migrate_v12 running AFTER initDB.
-        // The verify_and_start script runs php index.php which loads db.php.
-        // Handled by manual migration step or smart logic.
     }
 }

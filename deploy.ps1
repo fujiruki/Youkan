@@ -39,8 +39,7 @@ if (Test-Path $deployTmp) { Remove-Item $deployTmp -Recurse -Force }
 New-Item -ItemType Directory -Path $deployTmp | Out-Null
 
 # Copy Backend PHP Files & .htaccess
-# Copy Backend PHP Files & .htaccess (Preserving Directory Structure)
-Copy-Item -Path "backend\*" -Destination $deployTmp -Recurse -Force
+Copy-Item -Path "backend\*" -Destination $deployTmp -Recurse -Force -Exclude "*.sqlite", "*.log"
 
 # Copy Frontend Assets (from JWCADTategu.Web/dist)
 # Copy Frontend Assets (from JWCADTategu.Web/dist) - Exclude 'api' (mocks)
