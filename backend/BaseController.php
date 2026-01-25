@@ -8,6 +8,7 @@ class BaseController {
     protected $currentUser;
     protected $currentTenantId;
     protected $currentUserId; // Added for convenience
+    protected $joinedTenants = []; // [Fix] PHP 8.2 Dynamic Property Deprecation
 
     public function __construct() {
         $this->pdo = getDB();
