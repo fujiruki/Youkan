@@ -12,7 +12,7 @@ const DEFAULT_ITEMS: LifeItem[] = [
 
 export const useLifeLog = () => {
     const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
-    const [customItems, setCustomItems] = useState<LifeItem[]>([]); // To be implemented via Preferences API
+    const [customItems] = useState<LifeItem[]>([]); // To be implemented via Preferences API
     const [loading, setLoading] = useState(false);
 
     const repository = new LifeLogRepository();
