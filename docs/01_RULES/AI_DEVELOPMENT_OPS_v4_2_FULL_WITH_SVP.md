@@ -48,7 +48,7 @@
 Windows PowerShell 環境におけるスクリプト実行ポリシー（Execution Policy）の制限回避のため、以下のルールを厳守すること。
 
 - **禁止事項**: `npm run ...` や `npm install` を直接実行すること。
-- **義務事項**: 必ず **`npm.cmd`** を使用すること。
+- **義務事項**: 必ず **`npm.cmd`** を使用すること。理由は、開発がWindows環境であるため。
   - 例: `npm.cmd run dev`
   - 例: `npm.cmd install`
   - 例: `npm.cmd start`

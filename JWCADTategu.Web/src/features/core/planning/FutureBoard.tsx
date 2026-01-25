@@ -260,7 +260,7 @@ export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
 
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950">
+            <div className="flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950">
                 {/* Main Calendar Area (Horizontal Scroll) */}
                 <div className="flex-1 overflow-x-auto flex divide-x divide-slate-200 dark:divide-slate-800 animate-in fade-in duration-500 relative">
                     {/* Close Button Overlay */}

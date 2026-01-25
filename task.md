@@ -83,7 +83,7 @@
     - [x] **Backend**: `memberships` テーブル拡張 (`is_core`, `capacity`) <!-- id: 161 -->
     - [x] **Backend**: `TenantController` API更新 (GET/PUT) <!-- id: 162 -->
     - [x] **Backend**: `CalendarController` API拡張 (GET) <!-- id: 162.5 -->
-    - [ ] **Frontend**: メンバー設定画面 (主力チェック・キャパ設定) <!-- id: 163 -->
+    - [x] **Frontend**: メンバー設定画面 (主力チェック・キャパ設定) <!-- id: 163 -->
     - [x] **Frontend Logic**: `AllocationCalculator` (TDD) <!-- id: 165 -->
     - [ ] **Frontend UI**: `VolumeCalendar` 画面実装 (MVVM) <!-- id: 164 -->
 
