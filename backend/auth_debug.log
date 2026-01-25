@@ -35,3 +35,4 @@ Registering: Email=del_test@example.com, Name=Delete Test User, Type=proprietor
 Registering: Email=log@example.com, Name=Log Check User, Type=proprietor
 Registering: Email=final@example.com, Name=Final Check User, Type=proprietor
 Registering: Email=robust@example.com, Name=Robust Check User, Type=proprietor
+Registering: Email=veri@example.com, Name=password123VeriUser, Type=user

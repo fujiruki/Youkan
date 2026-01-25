@@ -16,7 +16,7 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { BookOpen, AlertCircle, X, LayoutGrid, LayoutList } from 'lucide-react';
+import { BookOpen, AlertCircle, X, LayoutGrid, LayoutList, Calendar } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu'; // [NEW]
@@ -342,73 +342,63 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                     <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                         <span className="hidden md:inline">⚡ Today's Decision</span>
                         <span className="md:hidden">⚡</span>
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2 md:ml-4">
+
+                        {/* Unified Tabs (Focus / Panorama / Calendar) */}
+                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1 ml-2 md:ml-4">
                             <button
-                                onClick={() => setViewMode('board')}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'board' ? 'bg-white dark:bg-slate-600 shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => { setViewMode('board'); switchLayoutMode('standard'); }}
+                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'board' && layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                                title="Focus View (Vertical)"
                             >
-                                BOARD
+                                <LayoutList size={14} className="md:hidden" />
+                                <span className="hidden md:inline">Focus</span>
+                            </button>
+                            <button
+                                onClick={() => { setViewMode('board'); switchLayoutMode('panorama'); }}
+                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'board' && layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
+                                title="Panorama View (Grid)"
+                            >
+                                <LayoutGrid size={14} className="md:hidden" />
+                                <span className="hidden md:inline">Panorama</span>
                             </button>
                             <button
                                 onClick={() => setViewMode('calendar')}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
+                                title="Calendar View"
                             >
-                                CALENDAR
+                                <Calendar size={14} className="md:hidden" />
+                                <span className="hidden md:inline">Calendar</span>
                             </button>
                         </div>
 
-                        {/* [NEW] Layout Switcher (Visible only in Board mode) */}
-                        {/* [NEW] Layout Switcher (Visible only in Board mode) */}
-                        {/* [NEW] Layout Switcher (Visible on Mobile too) */}
-                        {viewMode === 'board' && (
-                            <div className="flex items-center gap-1 md:gap-2">
-                                <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5 ml-2">
-                                    <button
-                                        onClick={() => switchLayoutMode('standard')}
-                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
-                                        title="Standard (Vertical)"
-                                    >
-                                        <LayoutList size={14} className="md:hidden" />
-                                        <span className="hidden md:inline">Focus</span>
-                                    </button>
-                                    <button
-                                        onClick={() => switchLayoutMode('panorama')}
-                                        className={`px-2 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800' : 'text-slate-500'}`}
-                                        title="Panorama (Grid All)"
-                                    >
-                                        <LayoutGrid size={14} className="md:hidden" />
-                                        <span className="hidden md:inline">Panorama</span>
-                                    </button>
-                                </div>
-
-                                {/* [NEW] Density Slider (Only in Panorama - Desktop Only for now?) User requested mobile density too? Maybe auto-dense on mobile. */}
-                                {layoutMode === 'panorama' && (
-                                    <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">
-                                        <span className="text-[10px] font-bold text-slate-400">密度</span>
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="5"
-                                            value={columnCount}
-                                            onChange={(e) => handleColumnChange(Number(e.target.value))}
-                                            className="w-20 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                                            title="列数を変更 (1-5)"
-                                        />
-                                        <span className="text-xs font-mono text-slate-500 w-3">{columnCount}</span>
-                                    </div>
-                                )}
+                        {/* Density Slider (Panorama Only) */}
+                        {viewMode === 'board' && layoutMode === 'panorama' && (
+                            <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full animate-in fade-in slide-in-from-left-2">
+                                <span className="text-[10px] font-bold text-slate-400">密度</span>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="5"
+                                    value={columnCount}
+                                    onChange={(e) => handleColumnChange(Number(e.target.value))}
+                                    className="w-20 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                    title="列数を変更 (1-5)"
+                                />
+                                <span className="text-xs font-mono text-slate-500 w-3">{columnCount}</span>
                             </div>
                         )}
 
+                        <div className="flex-1 w-4"></div> {/* Spacer */}
+
                         <button
                             onClick={() => setShowProjectDialog(true)}
-                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2 whitespace-nowrap"
+                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2 whitespace-nowrap shadow-sm hover:shadow"
                             title="新規プロジェクト作成"
                         >
                             <span className="hidden md:inline">+ プロジェクト</span>
                             <span className="md:hidden">+</span>
                         </button>
-                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 rounded-full hidden md:block" title="Help">
+                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full hidden md:block transition-colors" title="Help">
                             <BookOpen size={18} className="text-slate-400" />
                         </button>
                     </div>
@@ -419,7 +409,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                             <button onClick={vm.clearError} className="font-bold ml-2">×</button>
                         </div>
                     )}
-                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded text-xs font-bold hover:bg-slate-300 transition-colors">
+                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
                         <span className="hidden md:inline">CLOSE</span>
                         <span className="md:hidden"><X size={18} /></span>
                     </button>

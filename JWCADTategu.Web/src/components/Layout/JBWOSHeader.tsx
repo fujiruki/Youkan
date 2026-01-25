@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, HelpCircle, History, Settings, Users, Building } from 'lucide-react';
 // import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
+import { MenuDrawer } from './MenuDrawer'; // [NEW]
 
 interface JBWOSHeaderProps {
     currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings';
@@ -28,16 +29,50 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
+    // Get User Name safe
+    const getUserName = () => {
+        try {
+            const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
+            return u.name || 'User';
+        } catch { return 'User'; }
+    };
+
     return (
-        <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md shrink-0 w-full relative">
+        <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md shrink-0 w-full relative z-30">
+            <MenuDrawer
+                isOpen={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                onNavigateToToday={() => { onNavigateToToday(); setMenuOpen(false); }}
+                onNavigateToHistory={() => { onNavigateToHistory(); setMenuOpen(false); }}
+                onNavigateToProjects={() => { onNavigateToProjects(); setMenuOpen(false); }}
+                onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
+                onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
+                onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
+                onNavigateToManual={() => { /* Not implemented yet in props? */ setMenuOpen(false); }}
+                onNavigateToCompanySettings={onNavigateToCompanySettings ? () => { onNavigateToCompanySettings(); setMenuOpen(false); } : undefined}
+                onLogout={() => window.location.href = './logout'}
+                userName={getUserName()}
+            />
+
             {/* Left: App Name */}
             <div className="flex items-center gap-2 md:gap-3 shrink-1 min-w-0">
+                {/* [NEW] Hamburger Menu (Left Aligned for Mobile Standard) */}
+                <button
+                    onClick={() => setMenuOpen(true)}
+                    className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors mr-1"
+                    title="メニュー"
+                >
+                    <Menu size={20} className="text-slate-300" />
+                </button>
+
+                <div className="h-6 w-px bg-slate-600 shrink-0 mx-1"></div>
+
                 <button
                     onClick={onNavigateToProjects}
                     className="text-xs text-slate-400 hover:text-white transition-colors whitespace-nowrap"
                 >
                     <span className="hidden md:inline">← Projects</span>
-                    <span className="md:hidden">←</span>
+                    <span className="md:hidden">Prj</span>
                 </button>
                 <div className="h-4 w-px bg-slate-600 shrink-0"></div>
                 <button
@@ -85,112 +120,6 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         Volume
                     </button>
                 )}
-
-                {/* Menu Dropdown */}
-                <div className="relative">
-                    <button
-                        onClick={() => setMenuOpen(!menuOpen)}
-                        className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                        title="メニュー"
-                    >
-                        <Menu size={20} className="text-slate-300" />
-                    </button>
-
-                    {menuOpen && (
-                        <>
-                            {/* Backdrop */}
-                            <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setMenuOpen(false)}
-                            ></div>
-
-                            {/* Menu Content */}
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-20 overflow-hidden">
-                                {/* User Info & Logout */}
-                                <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">Signed in as</div>
-                                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                                        {/* TODO: Get legitimate user name from AuthContext */}
-                                        {(() => {
-                                            try {
-                                                const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
-                                                return u.name || 'User';
-                                            } catch { return 'User'; }
-                                        })()}
-                                    </div>
-                                </div>
-
-                                {/* Mobile Only: Plan in Menu */}
-                                <button
-                                    onClick={() => {
-                                        if (onNavigateToPlanning) onNavigateToPlanning();
-                                        setMenuOpen(false);
-                                    }}
-                                    className="md:hidden w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                >
-                                    {/* Icon? */}
-                                    Plan (明日の計画)
-                                </button>
-
-                                {onNavigateToCustomers && (
-                                    <button
-                                        onClick={() => {
-                                            onNavigateToCustomers();
-                                            setMenuOpen(false);
-                                        }}
-                                        className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        <Users size={16} />
-                                        顧客管理
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => {
-                                        onNavigateToHistory();
-                                        setMenuOpen(false);
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                >
-                                    <History size={16} />
-                                    History（週間振り返り）
-                                </button>
-                                {onNavigateToCompanySettings && (
-                                    <button
-                                        onClick={() => {
-                                            onNavigateToCompanySettings();
-                                            setMenuOpen(false);
-                                        }}
-                                        className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        <Building size={16} />
-                                        Company Settings
-                                    </button>
-                                )}
-                                <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-                                <button
-                                    onClick={() => {
-                                        onNavigateToSettings();
-                                        setMenuOpen(false);
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                >
-                                    <Settings size={16} />
-                                    設定
-                                </button>
-                                <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-                                <button
-                                    onClick={() => {
-                                        window.location.href = './logout';
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
-                                >
-                                    <span>🚪</span>
-                                    ログアウト
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
 
                 {/* Health Check */}
                 <HealthCheck />
