@@ -5,7 +5,7 @@
  * アプリ起動時に initializeTateguPlugin() を呼び出して初期化する。
  */
 
-import { projectCategoryManager } from '../../core/jbwos/services/ProjectCategoryManager';
+// import { projectCategoryManager } from '../../core/jbwos/services/ProjectCategoryManager';
 import { ProjectCategory } from '../../core/jbwos/types';
 
 export const TATEGU_PLUGIN_ID = 'tategu-core';
@@ -48,10 +48,16 @@ const tateguCategories: ProjectCategory[] = [
  * 建具プラグインを初期化し、JBWOS Coreにカテゴリを登録する
  */
 export function initializeTateguPlugin(): void {
+    // [Cloud Phase 9]
+    // Categories should be managed via Repository/DB.
+    // Plugin categories are temporarily disabled from auto-registration.
+    // Ensure they are available via Repository seeder or migrations.
+    /*
     projectCategoryManager.addCategoriesFromPlugin(
         TATEGU_PLUGIN_ID,
         tateguCategories
     );
+    */
     console.log('[Tategu Plugin] Registered project categories:', tateguCategories.map(c => c.name));
 }
 
@@ -59,6 +65,6 @@ export function initializeTateguPlugin(): void {
  * 建具プラグインを無効化し、カテゴリ登録を解除する
  */
 export function unloadTateguPlugin(): void {
-    projectCategoryManager.removeCategoriesFromPlugin(TATEGU_PLUGIN_ID);
+    // projectCategoryManager.removeCategoriesFromPlugin(TATEGU_PLUGIN_ID);
     console.log('[Tategu Plugin] Unregistered project categories');
 }

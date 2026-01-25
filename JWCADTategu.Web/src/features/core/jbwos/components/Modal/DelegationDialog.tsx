@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, UserPlus, Users } from 'lucide-react';
-import { Item, Assignee } from '../../types';
-import { assigneeManager } from '../../services/AssigneeManager';
+import { Item } from '../../types';
+import { useAssignees } from '../../hooks/useAssignees';
 import { cn } from '../../../../../lib/utils';
 
 interface DelegationDialogProps {
@@ -21,17 +21,14 @@ export const DelegationDialog: React.FC<DelegationDialogProps> = ({
     const [assignedTo, setAssignedTo] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [note, setNote] = useState(item.memo || '');
-    const [assignees, setAssignees] = useState<Assignee[]>([]);
+
+    // Use Hook
+    const { assignees, addAssignee } = useAssignees();
+
     const [isDelegating, setIsDelegating] = useState(false);
     const [showAddAssignee, setShowAddAssignee] = useState(false);
     const [newAssigneeName, setNewAssigneeName] = useState('');
     const [newAssigneeType, setNewAssigneeType] = useState<'internal' | 'external'>('internal');
-
-    useEffect(() => {
-        if (isOpen) {
-            setAssignees(assigneeManager.getAllAssignees());
-        }
-    }, [isOpen]);
 
     const handleDelegate = async () => {
         if (!assignedTo) return;
@@ -57,12 +54,12 @@ export const DelegationDialog: React.FC<DelegationDialogProps> = ({
         if (!newAssigneeName.trim()) return;
 
         try {
-            const newAssignee = await assigneeManager.addAssignee({
+            const newAssignee = await addAssignee({
                 name: newAssigneeName,
                 type: newAssigneeType
             });
 
-            setAssignees([...assignees, newAssignee]);
+            // Hook updates state automatically, but we want to select it
             setAssignedTo(newAssignee.id);
             setNewAssigneeName('');
             setShowAddAssignee(false);

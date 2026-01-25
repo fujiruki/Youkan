@@ -421,6 +421,43 @@ if (preg_match('#^(/api)?/items(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// Assignee Routes (Phase 9)
+require_once 'AssigneeController.php';
+if (preg_match('#^(/api)?/assignees(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new AssigneeController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
+// Project Category Routes (Phase 9)
+require_once 'ProjectCategoryController.php';
+if (preg_match('#^(/api)?/categories(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new ProjectCategoryController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
+// Life Log Routes (Phase 9)
+require_once 'LifeController.php';
+if (preg_match('#^(/api)?/life/([^/]+)(?:/([^/]+))?$#', $path, $matches)) {
+    // /api/life/{id}/{action} or /api/life/today
+    $controller = new LifeController();
+    $id = $matches[2] ?? null; // 'today' or item_id
+    $action = $matches[3] ?? null; // 'check' etc.
+
+    // Handle /api/life/today
+    if ($id === 'today' && !$action) {
+        $controller->handleRequest($method, 'today');
+        exit;
+    }
+    
+    // Handle /api/life/{id}/check
+    $controller->handleRequest($method, $id, $action);
+    exit;
+}
+
 // Fallback 404
 http_response_code(404);
 echo json_encode([

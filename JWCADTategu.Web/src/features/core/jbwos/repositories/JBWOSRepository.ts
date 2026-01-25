@@ -485,8 +485,9 @@ export const JBWOSRepository = {
 
     async getSubTasks(parentId: string): Promise<Item[]> {
         try {
-            const allItems = await ApiClient.getAllItems();
-            return allItems.filter(i => i.parentId === parentId);
+            // [Optimized] Use server-side filtering
+            const allItems = await ApiClient.getAllItems({ parentId });
+            return allItems;
         } catch (e) {
             return [];
         }

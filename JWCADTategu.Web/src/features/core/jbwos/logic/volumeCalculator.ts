@@ -7,7 +7,7 @@ export const DEFAULT_CAPACITY_CONFIG: any = {
         { type: 'weekly', value: '0' }, // Sunday
         { type: 'weekly', value: '6' }  // Saturday
     ],
-    defaultDailyMinutes: 480, // 8 hours
+    defaultDailyMinutes: 480, // 8 hours (Standard Work Capacity)
     exceptions: {}
 };
 
@@ -18,53 +18,66 @@ const parseDateString = (dateStr: string | undefined | null): Date | null => {
 };
 
 /**
- * Calculates daily volume (heat) map based on items.
- * Logic extracted from QuantityCalendar.tsx.
+ * Calculates daily volume (load minutes) map based on items.
  * 
- * Rules:
- * 1. Due Date: Adds 1.0 volume.
- * 2. Prep Date Span: Adds 1.0 volume for each working day backwards from Prep Date.
- *    - Uses work_days from item, or falls back to estimatedMinutes.
- *    - Skips holidays defined in capacityConfig.
+ * Logic Modified (2026-01-25): Back-fill Allocation
+ * 各タスクは、期限日(prep_date)から過去に向かって、
+ * 1日の最大稼働可能時間(dailyLimit)を上限に時間を割り振る。
+ * 積み上げ式で計算し、合計負荷を算出する。
  */
 export const calculateDailyVolume = (items: Item[], capacityConfig: any = DEFAULT_CAPACITY_CONFIG): Map<string, number> => {
     const map = new Map<string, number>();
+    const dailyLimit = capacityConfig.defaultDailyMinutes || 480; // 1タスクあたり1日に費やせる最大時間（全力）
 
     items.forEach(item => {
-        // 1. Due Date: Add moderate heat
-        if (item.due_date) {
-            const d = parseDateString(item.due_date);
-            if (d) {
-                const key = d.toDateString();
-                map.set(key, (map.get(key) || 0) + 1.0);
-            }
-        }
+        // 対象: prep_dateがあり、未完了のもの
+        // （完了済みタスクも含めるべきかは議論があるが、負荷予測なら未完了メイン。
+        //   ただし、過去日の実績を見るなら完了済みも必要。今回は「未来の負荷」重視で、一旦全タスク対象とする）
 
-        // 2. Prep Date Span: Add heat for work_days range (Working Days Only)
         if (item.prep_date) {
             const prepDate = new Date(item.prep_date * 1000);
 
-            // Fallback: If work_days is 1 (default) or missing, try to use estimatedMinutes to guess days
-            // 7h (420m) = 1 day
-            const estimatedDays = item.estimatedMinutes ? Math.ceil(item.estimatedMinutes / 420) : 0;
-            const workDays = (item.work_days && item.work_days > 1) ? Number(item.work_days) : (estimatedDays || 1);
+            // 必要な総時間 (分)
+            // estimatedMinutesがない場合は work_days * 8h (480m) で概算
+            let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
 
-            let count = 0;
-            let current = new Date(prepDate);
+            // 安全装置: 無限ループ防止 & 異常に長いタスクの切り捨て
             let safety = 0;
+            let current = new Date(prepDate);
 
-            while (count < workDays && safety < 30) {
+            // 期限日当日も含めて割り振る
+            while (remainingMinutes > 0 && safety < 60) { // 最大60日前まで
                 safety++;
 
-                // Check holiday
-                if (!isHoliday(current, capacityConfig)) {
-                    const key = current.toDateString();
-                    map.set(key, (map.get(key) || 0) + 1.0);
-                    count++;
+                // 休日判定 (休日は割り振らない = スキップ)
+                // ただし設定で「休日稼働OK」なら割り振るロジックも将来的にはありうる
+                if (isHoliday(current, capacityConfig)) {
+                    // 何もしないで前日へ
+                    current.setDate(current.getDate() - 1);
+                    continue;
                 }
 
-                // Move backwards
+                // その日の割り当て量 = min(残り, 1日の限界)
+                // ここでの dailyLimit は「このタスクに割ける1日の最大」という意味合い。
+                // 実際には 8時間/日 が妥当。
+                const alloc = Math.min(remainingMinutes, dailyLimit);
+
+                const key = current.toDateString();
+                const currentTotal = map.get(key) || 0;
+                map.set(key, currentTotal + alloc);
+
+                remainingMinutes -= alloc;
+
+                // 前日へ移動
                 current.setDate(current.getDate() - 1);
+            }
+        } else if (item.due_date) {
+            // prep_dateはないがdue_dateはある場合 -> 締切日に少し負荷を乗せる（注意喚起）
+            const d = parseDateString(item.due_date);
+            if (d) {
+                const key = d.toDateString();
+                // 便宜上 60分程度の負荷として可視化
+                map.set(key, (map.get(key) || 0) + 60);
             }
         }
     });
@@ -73,23 +86,25 @@ export const calculateDailyVolume = (items: Item[], capacityConfig: any = DEFAUL
 };
 
 /**
- * Returns the Tailwind CSS class for the background color based on volume.
- * Logic matches QuantityCalendar visualization (Amber Gradient).
+ * Returns the Tailwind CSS class for the background color based on volume percentage.
  * 
- * Volume -> Intensity -> Opacity map:
- * QuantityCalendar uses: opacity = Math.min(volume * 15, 60) / 100
- * Logic:
- * vol 1 => 15%
- * vol 2 => 30%
- * vol 3 => 45%
- * vol 4 => 60% (Max)
+ * Volume is now in MINUTES.
+ * Capacity is assumed to be 480min (8h) by default, or passed via argument?
+ * Currently we simulate percentage based on standard 8h (480m).
+ * 
+ * < 60% (288m): Chill (Green/Blue)
+ * 60-90% (288-432m): Moderate (Yellow/Orange)
+ * 90-110% (432-528m): Busy (Red)
+ * > 110% (528m+): Overload (Purple)
  */
-export const getVolumeColorClass = (volume: number): string => {
-    if (!volume || volume <= 0) return "";
+export const getVolumeColorClass = (minutes: number): string => {
+    if (!minutes || minutes <= 0) return "";
 
-    if (volume < 1) return "bg-amber-500/[0.10] dark:bg-amber-400/[0.10]";      // < 1
-    if (volume < 2) return "bg-amber-500/[0.25] dark:bg-amber-400/[0.20]";      // 1.x
-    if (volume < 3) return "bg-amber-500/[0.40] dark:bg-amber-400/[0.30]";      // 2.x
-    if (volume < 4) return "bg-amber-500/[0.50] dark:bg-amber-400/[0.40]";      // 3.x
-    return "bg-amber-500/[0.60] dark:bg-amber-400/[0.50]";                      // 4+ (Max)
+    const capacity = 480; // Standard 8h
+    const ratio = minutes / capacity;
+
+    if (ratio < 0.6) return "bg-emerald-500/[0.20] dark:bg-emerald-400/[0.15]";      // Chill
+    if (ratio < 0.9) return "bg-amber-500/[0.40] dark:bg-amber-400/[0.30]";      // Moderate
+    if (ratio < 1.1) return "bg-red-500/[0.50] dark:bg-red-400/[0.40]";          // Busy
+    return "bg-purple-600/[0.60] dark:bg-purple-500/[0.50]";                     // Overload
 };

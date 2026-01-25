@@ -70,7 +70,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     // [NEW] Load Sub-tasks & Optimistic Defaults
     React.useEffect(() => {
         if (isProject && onGetSubTasks) {
-            onGetSubTasks(item.id).then(tasks => setSubTasks(tasks));
+            console.log('[Modal] Fetching subtasks for:', item.id);
+            onGetSubTasks(item.id).then(tasks => {
+                console.log('[Modal] Subtasks loaded:', tasks.length);
+                setSubTasks(tasks);
+            });
         }
 
         // Optimistic Due Date Logic (Default to Today if Waiting)
@@ -603,9 +607,29 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 {/* Sub-Tasks Section (Project Mode) - Moved to Right Column */}
                                 {isProject && (
                                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                        <div className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1">
-                                            <Folder size={12} className="text-blue-400" />
-                                            サブタスク (Project Check)
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                                <Folder size={12} className="text-blue-400" />
+                                                サブタスク (Project Check)
+                                            </div>
+                                            {/* Auto-Sum Button */}
+                                            {subTasks.length > 0 && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const totalMinutes = subTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
+                                                        if (totalMinutes > 0 && totalMinutes !== estimatedMinutes) {
+                                                            setEstimatedMinutes(totalMinutes);
+                                                            const updates = { estimatedMinutes: totalMinutes };
+                                                            if (onUpdate) await onUpdate(item.id, updates);
+                                                            else await ApiClient.updateItem(item.id, updates);
+                                                        }
+                                                    }}
+                                                    className="text-[10px] text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
+                                                    title={`合計: ${subTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0) / 60}h を親タスクに反映`}
+                                                >
+                                                    合計反映
+                                                </button>
+                                            )}
                                         </div>
 
                                         {/* List */}
@@ -614,21 +638,40 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 <div
                                                     key={sub.id}
                                                     onClick={() => onOpenItem?.(sub)}
-                                                    className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all"
+                                                    className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all group"
                                                 >
-                                                    <CheckSquare size={14} className="text-slate-300" />
-                                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-200 flex-1">{sub.title}</span>
-                                                    {sub.work_days !== undefined && sub.work_days > 0 && (
-                                                        <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
-                                                            {Number(sub.work_days).toFixed(1)}日
-                                                        </span>
-                                                    )}
+                                                    <CheckSquare size={14} className={cn(
+                                                        "transition-colors",
+                                                        sub.status === 'done' ? "text-green-500" : "text-slate-300 group-hover:text-blue-400"
+                                                    )} />
+                                                    <span className={cn(
+                                                        "text-xs font-medium flex-1 truncate",
+                                                        sub.status === 'done' ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"
+                                                    )}>{sub.title}</span>
+
+                                                    {/* Work Days & Time Display */}
+                                                    <div className="flex items-center gap-1">
+                                                        {sub.estimatedMinutes && sub.estimatedMinutes > 0 ? (
+                                                            <span className="text-[10px] font-mono text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
+                                                                {sub.estimatedMinutes >= 60
+                                                                    ? `${(sub.estimatedMinutes / 60).toFixed(1)}h`
+                                                                    : `${sub.estimatedMinutes}m`}
+                                                            </span>
+                                                        ) : (
+                                                            sub.work_days !== undefined && sub.work_days > 0 && (
+                                                                <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
+                                                                    {Number(sub.work_days).toFixed(1)}日
+                                                                </span>
+                                                            )
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
 
                                         {/* Add Input */}
                                         <div className="flex items-center gap-2">
+
                                             <input
                                                 type="text"
                                                 value={newSubTaskTitle}

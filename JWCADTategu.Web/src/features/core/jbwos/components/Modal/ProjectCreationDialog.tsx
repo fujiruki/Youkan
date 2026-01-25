@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, FolderPlus } from 'lucide-react';
-import { Item, ProjectCategory, TaskTemplate } from '../../types';
-import { projectCategoryManager } from '../../services/ProjectCategoryManager';
+import { Item, TaskTemplate } from '../../types';
+import { useProjectCategories } from '../../hooks/useProjectCategories';
 import { cn } from '../../../../../lib/utils';
 
 interface ProjectCreationDialogProps {
@@ -20,14 +20,11 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     const [selectedCategoryId, setSelectedCategoryId] = useState('general');
     const [useTemplate, setUseTemplate] = useState(true);
     const [dueDate, setDueDate] = useState('');
-    const [categories, setCategories] = useState<ProjectCategory[]>([]);
-    const [isCreating, setIsCreating] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            setCategories(projectCategoryManager.getAllCategories());
-        }
-    }, [isOpen]);
+    // Use Hook
+    const { categories } = useProjectCategories();
+
+    const [isCreating, setIsCreating] = useState(false);
 
     const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 
@@ -45,8 +42,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 due_date: dueDate || undefined,
                 weight: 1,
                 interrupt: false,
-                domain: selectedCategory?.domain, // [NEW] Inherit domain
-                pluginId: selectedCategory?.pluginId // [NEW] Inherit pluginId
+                domain: selectedCategory?.domain, // Inherit domain
+                pluginId: selectedCategory?.pluginId // Inherit pluginId
             };
 
             const defaultTasks = useTemplate && selectedCategory

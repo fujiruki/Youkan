@@ -1,4 +1,4 @@
-# SVP v4.0: Autonomous & Robust Server Starter
+﻿# SVP v4.0: Autonomous & Robust Server Starter
 # Features:
 # - Encoding Safety: Enforces UTF-8 for console output
 # - Connection Agnostic: Binds PHP to 0.0.0.0 to support all interfaces

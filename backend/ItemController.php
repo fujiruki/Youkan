@@ -18,6 +18,9 @@ class ItemController extends BaseController {
             } elseif ($projectId) {
                 // Project Scope (Shared)
                 $this->getProjectItems($projectId);
+            } elseif (isset($_GET['parent_id'])) {
+                // Subtask Retrieval
+                $this->getSubTasks($_GET['parent_id']);
             } else {
                 // Personal Scope (Inbox / My Tasks)
                 $this->getMyItems();
@@ -155,6 +158,25 @@ class ItemController extends BaseController {
         
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$this->currentTenantId, $projectId]);
+        
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $this->sendJSON(array_map([$this, 'mapRow'], $items));
+    }
+
+    // GET /api/items?parent_id=XXX
+    // Returns direct sub-tasks of an item
+    private function getSubTasks($parentId) {
+        // [Security Rule] Basic Tenant Isolation
+        $sql = "
+            SELECT items.*
+            FROM items
+            WHERE items.tenant_id = ? 
+            AND items.parent_id = ?
+            ORDER BY items.created_at ASC
+        ";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$this->currentTenantId, $parentId]);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->sendJSON(array_map([$this, 'mapRow'], $items));

@@ -162,8 +162,13 @@ export class ApiClient {
         }
     }
 
-    public static async getAllItems(options?: { scope?: 'aggregated' }): Promise<JudgableItem[]> {
-        const query = options?.scope ? `?scope=${options.scope}` : '';
+    public static async getAllItems(options?: { scope?: 'aggregated', parentId?: string }): Promise<JudgableItem[]> {
+        let query = '';
+        const params = new URLSearchParams();
+        if (options?.scope) params.append('scope', options.scope);
+        if (options?.parentId) params.append('parent_id', options.parentId);
+
+        query = params.toString() ? `?${params.toString()}` : '';
         return this.request<JudgableItem[]>('GET', `/items${query}`);
     }
 
