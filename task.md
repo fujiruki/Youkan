@@ -108,6 +108,13 @@
         - [x] Fix: Backend接続 (Port 8000 & Proxy Config) <!-- id: 1541 -->
         - [x] Test: JBWOSRepository 単体テスト (Vitest) <!-- id: 1542 -->
 
+- [ ] **フェーズ 5: Haruki Status Model Refactoring (思想の統一)** <!-- id: 170 -->
+    - [x] **定義**: `STATUS_MODEL_HARUKI.md` の策定 <!-- id: 171 -->
+    - [ ] **マイグレーション計画**: DB/Frontendの移行設計 (`implementation_plan_migration.md`) <!-- id: 172 -->
+    - [ ] **Frontend**: `types.ts` の厳格化 (5 Statuses) <!-- id: 173 -->
+    - [ ] **Backend**: DBマイグレーションスクリプト作成 & 実行 <!-- id: 174 -->
+    - [ ] **UI修正**: JBWOS / Today / FutureBoard のロジック更新 <!-- id: 175 -->
+
 - [x] **ドキュメント整理・日本語化** <!-- id: 115 -->
     - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
     - [x] `docs` フォルダの整理 (アーカイブ化) <!-- id: 117 -->
