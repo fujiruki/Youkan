@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const JBWOSRepository = {
     // 1. Fetch all items (Hybrid: API Items + Local Doors)
-    getItemsByStatus: async (status: JudgmentStatus): Promise<JudgableItem[]> => {
+    async getItemsByStatus(status: JudgmentStatus): Promise<JudgableItem[]> {
         // A. Fetch Items from Server API
         let apiItems: JudgableItem[] = [];
         try {
@@ -38,7 +38,7 @@ export const JBWOSRepository = {
     },
 
     // 2. Add Item (To API)
-    addItemToInbox: async (title: string): Promise<string> => {
+    async addItemToInbox(title: string): Promise<string> {
         const id = uuidv4();
 
         const newItem: Partial<JudgableItem> = {
@@ -56,7 +56,7 @@ export const JBWOSRepository = {
     },
 
     // 3. Update Status
-    updateStatus: async (id: string, status: JudgmentStatus): Promise<void> => {
+    async updateStatus(id: string, status: JudgmentStatus): Promise<void> {
         // [Hybrid] Handle Virtual Door ID
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
@@ -78,7 +78,7 @@ export const JBWOSRepository = {
     },
 
     // 4. Update Title
-    updateTitle: async (id: string, title: string): Promise<void> => {
+    async updateTitle(id: string, title: string): Promise<void> {
         // [Hybrid] Handle Virtual Door ID
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
@@ -99,7 +99,7 @@ export const JBWOSRepository = {
     },
 
     // 5. Interrupt
-    markAsInterrupt: async (id: string): Promise<void> => {
+    async markAsInterrupt(id: string): Promise<void> {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             await db.doors.update(doorId, {
@@ -120,7 +120,7 @@ export const JBWOSRepository = {
     },
 
     // 6. Delete
-    deleteItem: async (id: string): Promise<void> => {
+    async deleteItem(id: string): Promise<void> {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
@@ -137,7 +137,7 @@ export const JBWOSRepository = {
     },
 
     // 7. Archive
-    archiveItem: async (id: string): Promise<void> => {
+    async archiveItem(id: string): Promise<void> {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
@@ -150,7 +150,7 @@ export const JBWOSRepository = {
         }
 
         try {
-            await ApiClient.updateItem(id, { status: 'archive' });
+            await ApiClient.updateItem(id, { status: 'done' }); // Map archive to done
         } catch (e) {
             console.warn('Failed to archiveItem via API:', e);
         }
@@ -159,7 +159,7 @@ export const JBWOSRepository = {
     // --- Phase 2: Backend Intelligence Methods ---
 
     // GDB Shelf View
-    getGdbShelf: async () => {
+    async getGdbShelf() {
         // 1. Fetch Server Data
         let apiShelf = { active: [], preparation: [], intent: [], history: [] };
 
@@ -202,10 +202,30 @@ export const JBWOSRepository = {
         // 3. Merge & Sort
         // Strategy: Categorize local items into Shelf buckets
         const mergedShelf = {
-            active: [...(apiShelf.active || []), ...localItems.filter(i => i.status === 'inbox' || !i.status)],
-            preparation: [...(apiShelf.preparation || []), ...localItems.filter(i => i.status === 'decision_hold' || i.status === 'scheduled')],
-            intent: [...(apiShelf.intent || []), ...localItems.filter(i => (i.status as any) === 'someday' || (i.status as any) === 'intent')],
-            log: [...(apiShelf.history || []), ...localItems.filter(i => i.status === 'done' || i.status === 'archive' || i.status === 'decision_rejected')]
+            // Inbox: 'inbox' + 'ready' (Stock/Generic Ready without date)
+            active: [
+                ...(apiShelf.active || []),
+                ...localItems.filter(i => i.status === 'inbox' || i.status === 'ready' || !i.status)
+            ],
+            // Waiting: 'waiting' + Legacy 'decision_hold' + Legacy 'scheduled'
+            // (Note: 'ready' with date should strictly be in Calendar/Future, but if here, put in waiting or active? 
+            //  Haruki says Future is separate. But 'scheduled' legacy was mostly "Future".
+            //  Let's Mapping 'waiting' items here.)
+            preparation: [
+                ...(apiShelf.preparation || []),
+                // Legacy checks require casting if JudgmentStatus is strict
+                ...localItems.filter(i => (i.status as any) === 'waiting' || (i.status as any) === 'decision_hold')
+            ],
+            // Pending: 'pending' + Legacy 'someday'/'intent'
+            intent: [
+                ...(apiShelf.intent || []),
+                ...localItems.filter(i => (i.status as any) === 'pending' || (i.status as any) === 'someday' || (i.status as any) === 'intent')
+            ],
+            // Log
+            log: [
+                ...(apiShelf.history || []),
+                ...localItems.filter(i => (i.status as any) === 'done' || (i.status as any) === 'archive' || (i.status as any) === 'decision_rejected')
+            ]
         };
 
         const sortFn = (a: JudgableItem, b: JudgableItem) => (b.updatedAt || 0) - (a.updatedAt || 0);
@@ -218,25 +238,82 @@ export const JBWOSRepository = {
     },
 
     // Today View
-    getTodayView: async () => {
+    async getTodayView() {
         try {
             return await ApiClient.getTodayView();
         } catch (e) {
-            console.warn('Failed to fetch Today View from API:', e);
-            return { morning: [], afternoon: [], evening: [] };
+            console.warn('Failed to fetch Today View from API, using Local Fallback:', e);
+
+            try {
+                // --- Local Fallback Logic (Hybrid) ---
+                // Use explicit reference to allow mocking via object mutation in tests
+                const localItems = await JBWOSRepository.getGdbShelf();
+
+                if (!localItems || !localItems.active) {
+                    return { commits: [], candidates: [], execution: undefined };
+                }
+
+                const allItems = [...localItems.active, ...localItems.preparation, ...localItems.intent];
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const commits: Item[] = [];
+                const candidates: Item[] = [];
+                let execution: Item | undefined;
+
+                for (const item of allItems) {
+                    // Logic: Ready + Flag = Commit
+                    // Logic: Ready + PrepDate <= Today = Candidate
+
+                    if (item.status === 'ready') {
+                        // Check Flags
+                        if (item.flags?.is_executing) {
+                            execution = item;
+                            commits.push(item);
+                        } else if (item.flags?.is_today_commit) {
+                            commits.push(item);
+                        } else if (item.prep_date) {
+                            // Check Date
+                            const pDate = new Date(item.prep_date * 1000);
+                            pDate.setHours(0, 0, 0, 0);
+                            if (pDate <= today) {
+                                candidates.push(item);
+                            }
+                        } else {
+                            // Ready with no date? -> Candidate (Stock)
+                            candidates.push(item);
+                        }
+                    }
+                }
+
+                // Sort
+                commits.sort((a, b) => (a.weight || 0) - (b.weight || 0)); // High weight first? No, manual sort.
+
+                return { commits, candidates, execution };
+            } catch (fallbackError) {
+                console.error('Failed to execute Local Fallback:', fallbackError);
+                return { commits: [], candidates: [], execution: undefined };
+            }
         }
     },
 
     // Decision Logic
-    resolveDecision: async (id: string, decision: 'yes' | 'hold' | 'no', note?: string) => {
+    async resolveDecision(id: string, decision: 'yes' | 'hold' | 'no', note?: string) {
         // [Hybrid] Handle Local Updates (Projects/Doors)
         if (id.startsWith('project-')) {
             const projectId = parseInt(id.replace('project-', ''), 10);
             if (!isNaN(projectId)) {
                 let status: JudgmentStatus = 'inbox';
-                if (decision === 'hold') status = 'decision_hold';
-                if (decision === 'no' && note === 'someday') status = 'someday' as any;
-                if (decision === 'no' && note === 'archive') status = 'archive';
+                if (decision === 'hold') status = 'pending'; // Map hold to pending? Or waiting? 'hold' means "Pending" usually.
+                // Wait, Haruki says Pending = Shelf. Waiting = Enveloped.
+                // Decision 'hold' matches 'pending' (shelf) more than 'waiting'?
+                // But actually 'hold' is usually "I can't decide yet" -> Information Waiting?
+                // Let's map 'hold' -> 'pending' for safety as Shelf is safe.
+                if (decision === 'yes') status = 'ready'; // Yes = Ready (Scheduled)
+
+                if (decision === 'no' && note === 'someday') status = 'pending'; // Someday -> Pending
+                if (decision === 'no' && note === 'archive') status = 'done'; // Archive -> Done
                 await db.projects.update(projectId, {
                     judgmentStatus: status as any,
                     updatedAt: new Date()
@@ -254,45 +331,45 @@ export const JBWOSRepository = {
     },
 
     // Today Logic
-    commitToToday: async (id: string) => {
+    async commitToToday(id: string) {
         try {
             return await ApiClient.commitToToday(id);
         } catch (e) { console.warn(e); }
     },
-    startExecution: async (id: string) => {
+    async startExecution(id: string) {
         try {
             return await ApiClient.startExecution(id);
         } catch (e) { console.warn(e); }
     },
-    completeItem: async (id: string) => {
+    async completeItem(id: string) {
         try {
             return await ApiClient.completeItem(id);
         } catch (e) { console.warn(e); }
     },
 
     // Side Memo Logic
-    getMemos: async () => {
+    async getMemos() {
         try {
             return await ApiClient.getMemos();
         } catch (e) {
             return [];
         }
     },
-    createMemo: async (content: string) => {
+    async createMemo(content: string) {
         try {
             return await ApiClient.createMemo(content);
         } catch (e) {
             console.warn('Failed to create Memo via API:', e);
         }
     },
-    deleteMemo: async (id: string) => {
+    async deleteMemo(id: string) {
         try {
             return await ApiClient.deleteMemo(id);
         } catch (e) {
             console.warn('Failed to delete Memo via API:', e);
         }
     },
-    moveMemoToInbox: async (id: string) => {
+    async moveMemoToInbox(id: string) {
         try {
             return await ApiClient.moveMemoToInbox(id);
         } catch (e) {
@@ -301,7 +378,7 @@ export const JBWOSRepository = {
     },
 
     // Generic Update (For flexibility)
-    updateItem: async (id: string, data: Partial<Item>) => {
+    async updateItem(id: string, data: Partial<Item>) {
         // [Hybrid] Handle Local Project ID
         if (id.startsWith('project-')) {
             const projectId = parseInt(id.replace('project-', ''), 10);
@@ -354,7 +431,7 @@ export const JBWOSRepository = {
         }
     },
 
-    createItem: async (item: Partial<Item>): Promise<string> => {
+    async createItem(item: Partial<Item>): Promise<string> {
         if (!item.id) {
             item.id = uuidv4();
         }
@@ -367,7 +444,7 @@ export const JBWOSRepository = {
         return item.id!;
     },
 
-    getSubTasks: async (parentId: string): Promise<Item[]> => {
+    async getSubTasks(parentId: string): Promise<Item[]> {
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.parentId === parentId);
@@ -376,7 +453,7 @@ export const JBWOSRepository = {
         }
     },
 
-    getItemsBySourceId: async (sourceId: string): Promise<Item[]> => {
+    async getItemsBySourceId(sourceId: string): Promise<Item[]> {
         try {
             const allItems = await ApiClient.getAllItems();
             return allItems.filter(i => i.doorId === sourceId);
@@ -385,7 +462,7 @@ export const JBWOSRepository = {
         }
     },
 
-    updateItemGeneric: async (id: string, updates: Partial<Item>): Promise<void> => {
+    async updateItemGeneric(id: string, updates: Partial<Item>): Promise<void> {
         try {
             await ApiClient.updateItem(id, updates);
         } catch (e) {
@@ -393,12 +470,12 @@ export const JBWOSRepository = {
         }
     },
 
-    getCapacityConfig: async (): Promise<CapacityConfig | null> => {
+    async getCapacityConfig(): Promise<CapacityConfig | null> {
         const record = await db.settings.get('capacity_config');
         return record ? record.value : null;
     },
 
-    saveCapacityConfig: async (config: CapacityConfig): Promise<void> => {
+    async saveCapacityConfig(config: CapacityConfig): Promise<void> {
         await db.settings.put({
             id: 'capacity_config',
             value: config,

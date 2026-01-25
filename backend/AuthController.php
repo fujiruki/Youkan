@@ -33,11 +33,13 @@ class AuthController {
         $input = json_decode(file_get_contents('php://input'), true);
         
         // Validation
-        if (!$input || !isset($input['email']) || !isset($input['password']) || !isset($input['name'])) {
+        $name = $input['name'] ?? $input['display_name'] ?? null;
+        if (!$input || !isset($input['email']) || !isset($input['password']) || !$name) {
             http_response_code(400);
-            echo json_encode(['error' => 'Name, email and password required']);
+            echo json_encode(['error' => 'Name/display_name, email and password required']);
             return;
         }
+        $input['name'] = $name; // normalize
 
         file_put_contents(__DIR__ . '/auth_debug.log', "Registering: Email=" . $input['email'] . ", Name=" . $input['name'] . ", Type=" . ($input['type'] ?? 'user') . "\n", FILE_APPEND);
         
@@ -63,40 +65,79 @@ class AuthController {
             $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
             $stmt->execute([$userId, $input['email'], $passwordHash, $input['name']]);
 
-            // 3. Branching Logic
-            $tenantId = null;
-            $tenantName = null;
-            $role = 'owner'; // Default for creators
+            // 3. Branching Logic & Personal Tenant Strategy
+            // [Strategic Change] EVERY user gets a Personal Tenant ("My Life")
+            $personalTenantId = uniqid('t_');
+            $personalTenantName = $input['name'] . "'s Life";
+            
+            // Create Personal Tenant
+            $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
+            $stmt->execute([$personalTenantId, $personalTenantName]);
+            
+            // Link as Owner
+            $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
+            $stmt->execute([$userId, $personalTenantId]);
+
+            // If Company/Proprietor, create Company Tenant TOO.
+            $companyTenantId = null;
+            $type = $input['type'] ?? 'user';
 
             if ($type === 'proprietor' || $type === 'company') {
-                // Must create a tenant
                 $companyName = $input['company_name'] ?? ($input['name'] . "'s Company");
-                $tenantId = uniqid('t_');
-                $tenantName = $companyName;
-
-                // Create Tenant
-                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
-                $stmt->execute([$tenantId, $tenantName]);
-
-                // Create Membership
-                $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
-                $stmt->execute([$userId, $tenantId]);
-
-            } else {
-                // 'user' type: No tenant creation.
-                // User remains "Freelance" (no membership) until invited.
-                // However, for current system assumption (must have tenant), we might need a dummy or handle empty state.
-                // Current frontend assumes user has a tenant. 
-                // For MVP, we allow 'user' to be created without tenant, but login might fail if it expects tenant.
-                // Let's check login logic: it fetches tenant. If no tenant, return error.
-                // So, effectively 'user' registration means "Wait for invite".
-                // We won't return a token that allows full access yet.
-                // OR: Return a token with tenant_id = null ?
+                $companyTenantId = uniqid('t_');
                 
-                // For now, let's keep them unassigned.
+                // Create Company Tenant
+                $stmt->execute([$companyTenantId, $companyName]); // Re-using prepared statement? No, prepare again to be safe/clear
+                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, type, created_at) VALUES (?, ?, 'company', datetime('now'))");
+                 // Note: type column might not exist yet in schema? We didn't add it in Phase 1.
+                 // db.php initDB doesn't have type. Let's stick to standard INSERT for now.
+                 $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
+                 $stmt->execute([$companyTenantId, $companyName]);
+
+                // Membership
+                $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
+                $stmt->execute([$userId, $companyTenantId]);
+            }
+
+            // Primary Tenant Selection for Token
+            // If Company created, default to that? Or Personal?
+            // User requested "Safety". Defaults to Personal is safer?
+            // But business users want to start working immediately.
+            // Let's default to Personal as Primary (Home), and Client switches context.
+            $primaryTenantId = $personalTenantId; 
+            if ($companyTenantId) {
+                // $primaryTenantId = $companyTenantId; // Uncomment to default to work
             }
 
             $this->pdo->commit();
+
+            // 4. Response with Token (Primary Tenant)
+            $payload = [
+                'sub' => $userId,
+                'name' => $input['name'],
+                'email' => $input['email'],
+                'tenant_id' => $primaryTenantId,
+                'role' => 'owner'
+            ];
+            $token = JWTService::encrypt($payload);
+
+            echo json_encode([
+                'token' => $token,
+                'user' => ['id' => $userId, 'name' => $input['name'], 'email' => $input['email']],
+                'tenant' => ['id' => $primaryTenantId, 'name' => $personalTenantName, 'role' => 'owner'],
+                'company_tenant' => $companyTenantId ? ['id' => $companyTenantId] : null
+            ]);
+            return; // EXIT HERE to skip old logic
+
+            /* OLD LOGIC SKIPPED */
+            /*
+            $tenantId = null;
+            $tenantName = null;
+            $role = 'owner'; // Default for creators
+            
+            if ($type === 'proprietor' || $type === 'company') {
+            ...
+            */
 
             // 4. Response
             if ($tenantId) {

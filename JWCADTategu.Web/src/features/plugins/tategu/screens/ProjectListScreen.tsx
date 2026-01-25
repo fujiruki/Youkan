@@ -24,7 +24,7 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 
     const loadProjects = async () => {
         try {
-            const data = await ApiClient.getProjects();
+            const data = await ApiClient.getProjects({ scope: 'aggregated' });
             // Split by Tenant ID
             setPersonalProjects(data.filter(p => !p.tenant_id));
             setCompanyProjects(data.filter(p => p.tenant_id));

@@ -432,7 +432,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
             )}
 
             {/* ZONE 2: Light (Remaining Tasks) */}
-            <div className="w-full max-w-2xl px-6 mb-10 opacity-90 hover:opacity-100 transition-opacity">
+            <div className="w-full max-w-2xl px-6 mb-4 opacity-90 hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-2 mb-4">
                     <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">
                         軽 (Light)
@@ -455,11 +455,19 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
                                         ? "bg-blue-50/50 border-blue-200 ring-1 ring-blue-100 dark:bg-slate-800 dark:border-blue-900 dark:ring-blue-900/30"
                                         : "bg-white border-slate-100 dark:bg-slate-900 dark:border-slate-800 hover:bg-slate-50"
                                 )}>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-400 font-mono">#{index + 1}</span>
-                                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.title}</span>
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    {/* Tenant Badge */}
+                                    {item.tenantName && !item.tenantName.includes('Life') && (
+                                        <div className="shrink-0">
+                                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 truncate max-w-[80px] inline-block align-middle" title={item.tenantName}>
+                                                🏢 {item.tenantName.replace("'s Company", "")}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <span className="text-xs text-slate-400 font-mono shrink-0">#{index + 1}</span>
+                                    <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{item.title}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0">
                                     {index === 0 ? (
                                         <div className="text-blue-500 text-[10px] font-bold uppercase tracking-wide">
                                             実行中
@@ -495,6 +503,33 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
                 </div>
             </div>
 
+            {/* QUICK THROW-IN (Brain Dump) */}
+            <div className="w-full max-w-2xl px-6 mb-8">
+                <div className="relative group">
+                    <input
+                        type="text"
+                        placeholder="💡 思いついたことをInboxへ投げ込む..."
+                        className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-full py-3 px-5 pl-10 text-sm focus:border-blue-300 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all shadow-sm group-hover:shadow-md"
+                        onKeyDown={async (e) => {
+                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                const val = e.currentTarget.value.trim();
+                                e.currentTarget.value = ''; // clear immediately
+                                try {
+                                    await ApiClient.createItem({ title: val, status: 'inbox' });
+                                    // Optional: Show toast "Thrown to Inbox!"
+                                } catch (err) {
+                                    console.error(err);
+                                    e.currentTarget.value = val; // restore if failed
+                                }
+                            }
+                        }}
+                    />
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <ArrowDownCircle size={18} />
+                    </div>
+                </div>
+            </div>
+
             {/* Divider */}
             <div className="w-full max-w-2xl px-6 mb-10">
                 <div className="h-px bg-slate-200 dark:bg-slate-800 w-full relative">
@@ -521,3 +556,4 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
         </div >
     );
 };
+

@@ -25,47 +25,68 @@ class ProjectController extends BaseController {
     }
 
     private function index() {
-        // Unified Logic: Return BOTH Company Projects and Personal Projects
-        // Frontend will filter/group them.
-        
-        $sql = "
-            SELECT * FROM items 
-            WHERE 
-                project_type IS NOT NULL 
+        // [New] Aggregated Mode for Life-Work Integration
+        $scope = $_GET['scope'] ?? '';
+
+        if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
+            // Fetch All Projects from Joined Tenants
+            $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
+            $sql = "
+                SELECT items.*, t.name as tenant_name
+                FROM items 
+                LEFT JOIN tenants t ON items.tenant_id = t.id
+                WHERE items.project_type IS NOT NULL 
                 AND (
-                    (tenant_id = ?) -- Company Context
-                    OR 
-                    (tenant_id IS NULL AND (created_by = ? OR assigned_to = ?)) -- Personal Context
+                    items.tenant_id IN ($placeholders)
+                    OR
+                    (items.tenant_id IS NULL AND (items.created_by = ? OR items.assigned_to = ?)) -- Legacy Personal
                 )
-            ORDER BY updated_at DESC
-        ";
-        
-        // If currentTenantId is null (Personal Mode), the first condition (tenant_id = NULL) matches via parameter binding? 
-        // No, bind param will be null. `tenant_id = NULL` in SQL is false. It needs `IS NULL`.
-        // So we need dynamic SQL or handle strictness.
-        
-        if ($this->currentTenantId) {
-            $params = [$this->currentTenantId, $this->currentUserId, $this->currentUserId];
-        } else {
-            // Personal Mode: Search for items where tenant_id IS NULL (and created/assigned)
-            // The query above `tenant_id = ?` with null will fail.
-            // Simplified query for Personal Mode:
-             $sql = "
-                SELECT * FROM items 
-                WHERE 
-                    project_type IS NOT NULL 
-                    AND tenant_id IS NULL 
-                    AND (created_by = ? OR assigned_to = ?)
-                ORDER BY updated_at DESC
+                ORDER BY items.updated_at DESC
             ";
-            $params = [$this->currentUserId, $this->currentUserId];
+             // Params: [...tenant_ids, userId, userId]
+             $params = array_merge($this->joinedTenants, [$this->currentUserId, $this->currentUserId]);
+             
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute($params);
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             
+             // Map and Inject Tenant Info
+             $this->sendJSON(array_map(function($row) {
+                 $proj = $this->mapItemToProject($row);
+                 $proj['tenantName'] = $row['tenant_name'] ?? 'Personal'; 
+                 return $proj;
+             }, $items));
+             
+        } else {
+            // Legacy Single Tenant Mode
+            if ($this->currentTenantId) {
+                $sql = "
+                    SELECT * FROM items 
+                    WHERE 
+                        project_type IS NOT NULL 
+                        AND tenant_id = ?
+                    ORDER BY updated_at DESC
+                ";
+                $params = [$this->currentTenantId];
+            } else {
+                // Personal Mode
+                 $sql = "
+                    SELECT * FROM items 
+                    WHERE 
+                        project_type IS NOT NULL 
+                        AND tenant_id IS NULL 
+                        AND (created_by = ? OR assigned_to = ?)
+                    ORDER BY updated_at DESC
+                ";
+                $params = [$this->currentUserId, $this->currentUserId];
+            }
+    
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+            $this->sendJSON(array_map([$this, 'mapItemToProject'], $items));
         }
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $this->sendJSON(array_map([$this, 'mapItemToProject'], $items));
     }
 
     private function show($id) {
@@ -103,9 +124,7 @@ class ProjectController extends BaseController {
         }
 
         $id = $data['id'] ?? uniqid('prj-', true);
-        $now = time(); // PHP time (seconds) - Wait, previous controller used ms for projects? 
-        // Items uses seconds usually. Let's stick to items standard (seconds).
-        // Frontend expects whatever items uses.
+        $now = time(); 
 
         // Pack Meta
         $meta = [

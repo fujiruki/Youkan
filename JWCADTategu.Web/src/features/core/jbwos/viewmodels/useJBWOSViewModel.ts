@@ -181,41 +181,51 @@ export const useJBWOSViewModel = () => {
 
         // [New] Apply updates optimistically if provided
         if (updates) {
-            // We can't easily update the item inside "removed from active", 
-            // but we should ensure the backend gets it. 
-            // Ideally we shouldn't rely on `updateItem` call separately if we can batch.
-            // But for now, we will call updateItem BEFORE resolve if strictly needed, 
-            // OR let the repository handle it. 
-            // Since JBWOSRepository.resolveDecision might not take updates, we call updateItem first.
+            // ...
         }
+
+        const newStatus = decision === 'yes' ? 'ready' : decision === 'hold' ? 'pending' : 'done';
 
         // [Undo] Register Action
         addUndoAction({
             type: 'decision',
             id,
             previousStatus: 'inbox',
-            description: `「${decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Hold' : 'No'}」と判断しました`
+            description: `「${decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'Done'}」と判断しました`
         });
 
         try {
-            // [FIX] Apply updates FIRST to ensure consistency
+            // [FIX] Apply updates FIRST
             if (updates && Object.keys(updates).length > 0) {
                 await getRepository().updateItem(id, updates);
             }
 
-            await getRepository().resolveDecision(id, decision, note);
-            // On success, background refresh to sync (e.g. move to Today Candidate)
+            // Backend likely needs update to accept 'pending' instead of 'hold' logic?
+            // Repository.resolveDecision might map it.
+            // But we should send status update explicitly if we want strict control.
+            // For now, assume Repository is smart or updated.
+            if (decision === 'hold') {
+                await getRepository().updateItem(id, { status: 'pending' });
+            } else if (decision === 'yes') {
+                await getRepository().updateItem(id, { status: 'ready' });
+            } else {
+                await getRepository().updateItem(id, { status: 'done' }); // or delete? user wants "finished decision"
+            }
+
+            // await getRepository().resolveDecision(id, decision, note); // Legacy API might be confusing?
+            // Let's rely on standard updateItem for Status Model.
+
             refreshAll();
         } catch (e) {
             console.error('Decision failed:', e);
             setError('判断の保存に失敗しました。リロードしてください。');
-            refreshAll(); // Rollback by fetch
+            refreshAll();
         }
     };
 
     // 2. Commit to Today
     const commitToToday = async (id: string) => {
-        // Guard: Client-side check for UI feedback only (Server has final say)
+        // Guard: Client-side check for UI feedback (Strict 2 item limit)
         if (todayCommits.length >= 2) {
             setError('今日はもう手一杯です（最大2件）');
             return;
@@ -225,28 +235,30 @@ export const useJBWOSViewModel = () => {
         const target = todayCandidates.find(i => i.id === id);
         if (target) {
             setTodayCandidates(prev => prev.filter(i => i.id !== id));
-            setTodayCommits(prev => [...prev, { ...target, status: 'today_commit' } as any]);
+            // Flag logic: existing status (ready) + is_today_commit flag
+            const updated = { ...target, flags: { ...target.flags, is_today_commit: true } };
+            setTodayCommits(prev => [...prev, updated]);
         }
 
-        // [Undo] Register Action - (Status: confirmed -> today_commit)
+        // [Undo] Register Action
         addUndoAction({
             type: 'decision',
             id,
-            previousStatus: 'confirmed', // Revert to 'confirmed' (Today Candidate)
+            previousStatus: 'ready', // was ready
             description: '今日やること(Commit)に追加しました'
         });
 
         try {
-            const res = await getRepository().commitToToday(id);
-            // If server rejects (e.g. race condition), it throws or returns error
-            if ((res as any).error) {
-                throw new Error((res as any).error);
-            }
+            // We update the FLAG, not the status to 'today_commit'
+            await getRepository().updateItem(id, {
+                status: 'ready',
+                flags: { is_today_commit: true } // Now valid without cast
+            });
             refreshToday();
         } catch (e) {
             console.error('Commit failed:', e);
-            setError('コミットに失敗しました。上限を超えている可能性があります。');
-            refreshToday(); // Rollback
+            setError('コミットに失敗しました。');
+            refreshToday();
         }
     };
 
@@ -264,7 +276,7 @@ export const useJBWOSViewModel = () => {
         addUndoAction({
             type: 'complete',
             id,
-            previousStatus: 'today_commit',
+            previousStatus: 'ready' as any, // Logic: commited was ready+flag
             description: 'タスクを完了しました'
         });
 
@@ -339,14 +351,18 @@ export const useJBWOSViewModel = () => {
         addUndoAction({
             type: 'decision', // Treat as a status change
             id,
-            previousStatus: currentStatus === 'today_commit' ? 'today_commit' : 'confirmed',
+            previousStatus: 'ready' as any, // was ready+flag
             description: 'Inboxに戻しました'
         });
 
         try {
-            await getRepository().updateItem(id, { status: 'inbox', is_boosted: false }); // Reset boost too
-            // refreshGdb(); // It goes to Inbox
-            // refreshToday(); // Removed to prevent flicker
+            // Remove Today Commit Flag, Set to Inbox
+            // Note: If returning strictly to inbox, we remove flags.
+            await getRepository().updateItem(id, {
+                status: 'inbox',
+                is_boosted: false,
+                flags: { is_today_commit: false }
+            });
         } catch (e) {
             console.error('Return to Inbox failed', e);
             refreshToday();
@@ -424,14 +440,15 @@ export const useJBWOSViewModel = () => {
             setExecutionItem(newItem);
         }
 
+
+
         // 3. Server Interaction
         try {
-            // We need to commit first, then start.
-            // If we just start, server might complain if it's not in today list?
-            // Assuming startExecution handles implicitly or we call both.
-            // Safer to call both or use a specialized endpoint if exists.
-            // For now: Commit then Start.
-            await getRepository().commitToToday(id);
+            // Commit (Flag) + Start (Execution)
+            await getRepository().updateItem(id, {
+                status: 'ready',
+                flags: { is_today_commit: true }
+            });
             await getRepository().startExecution(id);
             refreshToday();
         } catch (e) {
@@ -512,7 +529,8 @@ export const useJBWOSViewModel = () => {
 
     // [NEW] Update Preparation Date (Blurry Target)
     const updatePreparationDate = async (id: string, date: number | null) => {
-        const newStatus = date ? 'scheduled' : 'inbox';
+        // Haruki Model: Future date = Ready (with prep_date). No date = Inbox.
+        const newStatus = date ? 'ready' : 'inbox';
 
         // Optimistic: Find and Move
         const allItems = [...gdbActive, ...gdbPreparation];
@@ -549,17 +567,14 @@ export const useJBWOSViewModel = () => {
         }
     };
 
-    // [NEW] Move to Someday (Intent)
+    // [NEW] Move to Someday (Intent) -> PENDING
     const moveToSomeday = async (id: string) => {
-        // Find item to save state roughly?
         // Optimistic: Remove from Active/Prep, Add to Intent
         const allItems = [...gdbActive, ...gdbPreparation];
         const item = allItems.find(i => i.id === id);
 
         if (item) {
-            const updatedItem = { ...item, status: 'someday' as any }; // 'someday' or 'intent' depending on schema? Let's assume 'someday' based on user request "status: someday".
-            // Actually in GlobalBoard.tsx it was sending 'no' + note='intent'.
-            // Let's assume 'someday' is a valid status now.
+            const updatedItem = { ...item, status: 'pending' as const };
 
             setGdbActive(prev => prev.filter(i => i.id !== id));
             setGdbPreparation(prev => prev.filter(i => i.id !== id));
@@ -570,14 +585,13 @@ export const useJBWOSViewModel = () => {
                 type: 'decision', // treat as decision
                 id,
                 previousStatus: item.status as any,
-                description: 'Somedayへ移動しました'
+                description: '保留(Pending)へ移動しました'
             });
 
             try {
-                // We use updateItem API directly usually
-                await getRepository().updateItem(id, { status: 'someday' as any });
+                await getRepository().updateItem(id, { status: 'pending' });
             } catch (e) {
-                console.error('Move to Someday failed', e);
+                console.error('Move to Pending failed', e);
                 refreshGdb();
             }
         }
@@ -735,7 +749,7 @@ export const useJBWOSViewModel = () => {
         // 2. Create JBWOS Item
         const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
             title: item.title, // Use title from external source
-            status: 'scheduled', // Directly scheduled since dropped on a date
+            status: 'ready',   // Haruki Model: Imported to Scheduled = Ready
             prep_date: date,
             // Defaults
             weight: 1,

@@ -62,6 +62,7 @@ function initDB($pdo) {
     $commands = [
         "CREATE TABLE IF NOT EXISTS items (
             id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
             title TEXT NOT NULL,
             status TEXT NOT NULL,
             memo TEXT,

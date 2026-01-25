@@ -55,31 +55,85 @@ class ItemController extends BaseController {
     // Returns items that are NOT assigned to any project (Private Inbox)
     // OR items explicitly assigned to me (even if in project - though UI might filter)
     private function getMyItems() {
-        // [Security Rule] Inbox = Private. Only I can see items with NO project_id created by me.
-        // Also include items assigned to me.
-        $sql = "
-            SELECT items.*, parent.title as parent_title
-            FROM items
-            LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE items.tenant_id = ? 
-            AND (
-                (items.project_id IS NULL AND items.created_by = ?) -- Private Inbox
-                OR items.assigned_to = ? -- Explicitly assigned to me
-                OR items.created_by = ? -- Created by me
-            )
-            ORDER BY items.updated_at DESC
-        ";
+        // [New] Aggregated Mode for Life-Work Integration
+        $scope = $_GET['scope'] ?? '';
         
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([
-            $this->currentTenantId, 
-            $this->currentUserId, 
-            $this->currentUserId,
-            $this->currentUserId
-        ]);
-        
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $this->sendJSON(array_map([$this, 'mapRow'], $items));
+        if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
+             // Fetch Personal Items + Company Items (Assigned/Created by me)
+             $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
+             
+             // Note: We need tenant name for UI badges
+             $sql = "
+                SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                FROM items
+                LEFT JOIN items parent ON items.parent_id = parent.id
+                LEFT JOIN tenants t ON items.tenant_id = t.id
+                WHERE items.tenant_id IN ($placeholders)
+                AND (
+                    -- Personal Tenant's items: ALL visible (Owner/Personal)
+                    -- Assuming 'Personal' tenant type logic or just relying on membership.
+                    -- Actually, logic is:
+                    -- 1. If map to my Personal Tenant -> All.
+                    -- 2. If map to Company Tenant -> Only Assigned OR CreatedBy.
+                    -- HOWEVER, for simplicity in SQL:
+                    -- If user is OWNER of tenant (Personal), they likely see everything in Inbox?
+                    -- But in Company, Owner sees everything? Maybe too much noise.
+                    -- Let's stick to Haruki Model:
+                    -- 'My Items' = Items I need to worry about.
+                    --   1. Items in my Personal Tenant (Everything).
+                    --   2. Items in Company Tenant assigned to me OR created by me (and not in project?).
+                    --      Actually, `getMyItems` usually filters out Project items unless it's 'Inbox'.
+                    
+                    -- Current getMyItems logic:
+                    (items.project_id IS NULL AND items.created_by = ?) -- Private/Inbox Items
+                    OR items.assigned_to = ? -- Explicitly assigned to me (Project or not)
+                )
+                ORDER BY items.updated_at DESC
+             ";
+             
+             // Params: [...tenant_ids, userId, userId]
+             $params = array_merge($this->joinedTenants, [$this->currentUserId, $this->currentUserId]);
+             
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute($params);
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             
+             // Inject tenant_name into mapRow or just pass it
+             $this->sendJSON(array_map(function($row) {
+                 $item = $this->mapRow($row);
+                 $item['tenantName'] = $row['tenant_name'];
+                 $item['tenantId'] = $row['tenant_id']; // Ensure camelCase in mapRow? mapRow doesn't touch keys it doesn't know.
+                 return $item;
+             }, $items));
+             
+        } else {
+            // Legacy (Single Tenant Mode)
+            // [Security Rule] Inbox = Private. Only I can see items with NO project_id created by me.
+            // Also include items assigned to me.
+            $sql = "
+                SELECT items.*, parent.title as parent_title
+                FROM items
+                LEFT JOIN items parent ON items.parent_id = parent.id
+                WHERE items.tenant_id = ? 
+                AND (
+                    (items.project_id IS NULL AND items.created_by = ?) -- Private Inbox
+                    OR items.assigned_to = ? -- Explicitly assigned to me
+                    OR items.created_by = ? -- Created by me
+                )
+                ORDER BY items.updated_at DESC
+            ";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                $this->currentTenantId, 
+                $this->currentUserId, 
+                $this->currentUserId,
+                $this->currentUserId
+            ]);
+            
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->sendJSON(array_map([$this, 'mapRow'], $items));
+        }
     }
 
     // GET /api/items?project_id=XXX

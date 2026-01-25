@@ -3,7 +3,7 @@ import { startOfMonth, endOfMonth, format, addMonths, subMonths } from 'date-fns
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../../jbwos/types';
 import { calculateAllocations, DailyLoadMap } from '../logic/AllocationCalculator';
-import { isHoliday } from '../../jbwos/logic/capacity';
+import { createCapacityProvider } from '../logic/CapacityFactory';
 import { DEFAULT_CAPACITY_CONFIG } from '../../jbwos/logic/volumeCalculator';
 
 // Define Member interface locally or import if available
@@ -26,26 +26,25 @@ export const useVolumeCalendarViewModel = () => {
             const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
             // Parallel fetch: Items and Members
-            const [items, members] = await Promise.all([
+            // Note: /members API returns snake_case, mapping to CamelCase manually
+            const [items, rawMembers] = await Promise.all([
                 ApiClient.request<Item[]>('GET', `/calendar/items?start_date=${start}&end_date=${end}`),
                 ApiClient.request<CalendarMember[]>('GET', '/members')
             ]);
 
-            // Calculate Total Core Capacity
-            // Note: is_core might be number (1/0) or boolean depending on API
-            const totalCoreCapacity = members
-                .filter(m => Boolean(m.is_core))
-                .reduce((sum, m) => sum + (m.daily_capacity_minutes || 480), 0);
+            const members = rawMembers.map(m => ({
+                id: m.id,
+                userId: m.id, // Fallback
+                username: 'Unknown', // Fallback
+                role: 'user', // Fallback
+                isCore: Boolean(m.is_core),
+                dailyCapacityMinutes: m.daily_capacity_minutes || 480
+            } as any)); // Type assertion to satisfy Member interface partially for CapacityFactory
 
-            // Strategy Function
-            const getCapacityForDate = (date: Date): number => {
-                // 1. Check Holiday (using default config for now)
-                if (isHoliday(date, DEFAULT_CAPACITY_CONFIG)) {
-                    return 0;
-                }
-                // 2. Return Team Capacity
-                return totalCoreCapacity > 0 ? totalCoreCapacity : 480; // Fallback to 1 person if 0
-            };
+            // 2. Create Capacity Strategy (Logic Layer)
+            // Ideally fetch config from API: const config = await ApiClient.getCapacityConfig();
+            const config = DEFAULT_CAPACITY_CONFIG;
+            const getCapacityForDate = createCapacityProvider(members, config);
 
             const loads = calculateAllocations(items, getCapacityForDate);
             setDailyLoads(loads);

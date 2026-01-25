@@ -75,6 +75,11 @@ export const useLoginViewModel = () => {
 
         localStorage.setItem('jbwos_user', JSON.stringify(dummyUser));
         localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
+
+        // [FIX] Inject Token for AuthProvider
+        localStorage.setItem('jbwos_token', 'mock-debug-token');
+        localStorage.setItem('auth_token', 'mock-debug-token');
+
         window.location.reload();
     };
 

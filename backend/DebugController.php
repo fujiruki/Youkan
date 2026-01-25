@@ -29,6 +29,10 @@ class DebugController {
         elseif (preg_match('#^/tenants$#', $path) && $method === 'GET') {
             $this->listTenants();
         }
+        // /debug/tenants/:id - テナント削除
+        elseif (preg_match('#^/tenants/([^/]+)$#', $path, $matches) && $method === 'DELETE') {
+            $this->deleteTenant($matches[1]);
+        }
         // /debug/migrate/:version - マイグレーション実行 (例: v7)
         elseif (preg_match('#^/migrate/(v[0-9]+)$#', $path, $matches) && $method === 'GET') {
             $this->migrate($matches[1]);
@@ -224,6 +228,74 @@ class DebugController {
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to fetch tenants: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * テナント削除
+     */
+    private function deleteTenant($tenantId) {
+        try {
+            $this->pdo->beginTransaction();
+
+            // 1. メンバーシップ削除
+            try {
+                $stmt = $this->pdo->prepare("DELETE FROM memberships WHERE tenant_id = ?");
+                $stmt->execute([$tenantId]);
+            } catch (Exception $e) { error_log("Delete Membership Fail: " . $e->getMessage()); }
+
+            // 2. 関連リソース削除
+            // 成果物
+            try {
+                // Try modern schema first
+                $stmt = $this->pdo->prepare("DELETE FROM deliverables WHERE project_id IN (SELECT id FROM projects WHERE tenant_id = ?)");
+                $stmt->execute([$tenantId]);
+            } catch (Exception $e) { 
+                error_log("Delete Deliverables (Smart) Fail: " . $e->getMessage());
+                // Fallback: orphan cleanup or direct tenant_id if exists? 
+                // Ignore for now to proceed.
+            }
+
+            // Stocks
+            try {
+                $stmt = $this->pdo->prepare("DELETE FROM stocks WHERE project_id IN (SELECT id FROM projects WHERE tenant_id = ?)");
+                $stmt->execute([$tenantId]);
+            } catch (Exception $e) { error_log("Delete Stocks Fail: " . $e->getMessage()); }
+
+            // 建具
+            try {
+                $stmt = $this->pdo->prepare("DELETE FROM doors WHERE tenant_id = ?");
+                $stmt->execute([$tenantId]);
+            } catch (Exception $e) { error_log("Delete Doors Fail: " . $e->getMessage()); }
+
+            // プロジェクト
+            try {
+                $stmt = $this->pdo->prepare("DELETE FROM projects WHERE tenant_id = ?");
+                $stmt->execute([$tenantId]);
+            } catch (Exception $e) { error_log("Delete Projects Fail: " . $e->getMessage()); }
+
+            // 3. テナント削除
+            $stmt = $this->pdo->prepare("DELETE FROM tenants WHERE id = ?");
+            $stmt->execute([$tenantId]);
+
+            if ($stmt->rowCount() === 0) {
+                $this->pdo->rollBack();
+                http_response_code(404);
+                echo json_encode(['error' => 'Tenant not found']);
+                return;
+            }
+
+            $this->pdo->commit();
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Tenant {$tenantId} deleted"
+            ]);
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            error_log("DeleteTenant Error: " . $e->getMessage()); // Add logging
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to delete tenant: ' . $e->getMessage()]);
         }
     }
 

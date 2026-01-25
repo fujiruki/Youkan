@@ -25,3 +25,13 @@ Registering: Email=demo_user_final@example.com, Name=Demo User, Type=user
 Registering: Email=ab@gmail.com, Name=ab, Type=proprietor
 Registering: Email=info@door-fujita.com, Name=藤田晴樹, Type=company
 Registering: Email=door.fujita@gmail.com, Name=藤田晴樹, Type=company
+Registering: Email=, Name=, Type=user
+Registering: Email=, Name=, Type=user
+Conflict: Email already exists: 
+Registering: Email=door.fujita@gmail.com, Name=藤田建具店, Type=company
+Registering: Email=fjt.suntree@gmail.com, Name=藤田 晴樹, Type=user
+Registering: Email=fixed_test@example.com, Name=Fixed Name User, Type=proprietor
+Registering: Email=del_test@example.com, Name=Delete Test User, Type=proprietor
+Registering: Email=log@example.com, Name=Log Check User, Type=proprietor
+Registering: Email=final@example.com, Name=Final Check User, Type=proprietor
+Registering: Email=robust@example.com, Name=Robust Check User, Type=proprietor

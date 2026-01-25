@@ -51,6 +51,8 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
             setError(null);
         } catch (e: any) {
             console.error(e);
+
+
             setError('Failed to load members: ' + e.message);
         } finally {
             setLoading(false);

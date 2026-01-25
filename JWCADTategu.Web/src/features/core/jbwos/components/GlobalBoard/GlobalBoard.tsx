@@ -100,10 +100,10 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
     // --- Find Container Helper ---
     const findContainer = (id: string) => {
-        if (['active', 'preparation', 'intent', 'log', 'life', 'history'].includes(id)) return id;
+        if (['active', 'waiting', 'pending', 'log', 'life', 'history'].includes(id)) return id;
         if (vm.gdbActive.find(i => i.id === id)) return 'active';
-        if (vm.gdbPreparation.find(i => i.id === id)) return 'preparation';
-        if (vm.gdbIntent.find(i => i.id === id)) return 'intent';
+        if (vm.gdbPreparation.find(i => i.id === id)) return 'waiting';
+        if (vm.gdbIntent.find(i => i.id === id)) return 'pending';
         if (vm.gdbLog.find(i => i.id === id)) return 'log';
         return null;
     };
@@ -138,20 +138,23 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
         if (overContainerId === activeContainerId) return;
 
         // Board Drop Logic
-        if (overContainerId === 'preparation') {
-            await vm.resolveDecision(activeItemId, 'hold', 'Dragged to Preparation');
-        } else if (overContainerId === 'intent') {
+        if (overContainerId === 'waiting') {
+            // Move to Waiting. Using Generic Update or Delegate?
+            // "Waiting" usually implies delegation or external dependency.
+            // If just dragging, maybe we need a "reason"?
+            // For now, simple move:
+            await vm.updateItem(activeItemId, { status: 'waiting', waitingReason: 'Moved from board' });
+            vm.refresh();
+        } else if (overContainerId === 'pending') {
             await vm.moveToSomeday(activeItemId);
         } else if (overContainerId === 'life') {
             await vm.resolveDecision(activeItemId, 'no', 'life');
         } else if (overContainerId === 'history') {
+            // Done/Archive logic
             await vm.resolveDecision(activeItemId, 'no', 'history');
         } else if (overContainerId === 'active') {
-            // Return to Inbox?
-            // Only if coming from non-active
+            // Return to Inbox
             if (activeContainerId !== 'active') {
-                // Reuse returnToInbox or similar?
-                // For now, vm.updateItem(id, {status: 'inbox'})
                 await vm.updateItem(activeItemId, { status: 'inbox' });
                 vm.refresh();
             }
@@ -464,45 +467,44 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                 </div>
                             </section>
 
-                            {/* 2. Preparation Shelf (The "Blurry") */}
+                            {/* 2. Waiting Shelf (External/Blocked) */}
                             <section className={layoutMode === 'panorama'
                                 ? "mb-4 break-inside-avoid bg-slate-100/80 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
                                 : "opacity-90"
                             }>
                                 <div>
                                     <BucketColumn
-                                        id="preparation"
-                                        title="【準備・出番待ち (Standby)】"
-                                        items={vm.gdbPreparation}
-                                        description="まだ約束しない。量感カレンダーへ。"
+                                        id="waiting"
+                                        title="【待ち (Waiting)】"
+                                        items={vm.gdbPreparation} // Mapped to Waiting
+                                        description="他者や到着を待っている状態。"
                                         className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
-                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">備えなし</div>}
+                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
                                         onClickItem={(item) => setDetailItem(item)}
                                         onContextMenu={handleContextMenu}
                                         isCompact={layoutMode === 'panorama'}
-                                        onCreateSubTask={vm.createSubTask} // [NEW]
+                                        onCreateSubTask={vm.createSubTask}
                                     />
                                 </div>
                             </section>
 
-                            {/* 3. Intent Shelf (Nice to do) */}
+                            {/* 3. Pending Shelf (The "Shelf") */}
                             <section className={layoutMode === 'panorama'
                                 ? "mb-4 break-inside-avoid bg-amber-50/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
                                 : "opacity-80"
                             }>
                                 <div>
                                     <BucketColumn
-                                        id="intent"
-                                        title="【いつかやれたら (Someday)】"
-                                        items={vm.gdbIntent}
-                                        description="期限も約束もない、溜めておく場所。"
+                                        id="pending"
+                                        title="【保留 (Pending)】"
+                                        items={vm.gdbIntent} // Mapped to Pending
+                                        description="今はやらないと決めたもの（棚）。"
                                         className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
-                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">Intentなし</div>}
+                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
                                         onClickItem={(item) => setDetailItem(item)}
-                                        // Context menu allows promote/delete? Yes.
                                         onContextMenu={handleContextMenu}
                                         isCompact={layoutMode === 'panorama'}
-                                        onCreateSubTask={vm.createSubTask} // [NEW]
+                                        onCreateSubTask={vm.createSubTask}
                                     />
                                 </div>
                             </section>

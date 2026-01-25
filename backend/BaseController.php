@@ -40,11 +40,22 @@ class BaseController {
 
         $this->currentUser = $payload;
         $this->currentTenantId = $payload['tenant_id'] ?? null;
-        $this->currentUserId = $payload['sub'] ?? null; // Set ID
+        $this->currentUserId = $payload['sub'] ?? null;
+
+        // [New] Load all joined tenants for Context Aware Access
+        if ($this->currentUserId) {
+            $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
+            $stmt->execute([$this->currentUserId]);
+            $this->joinedTenants = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            // Fail-safe: If currentTenantId from token is not in memberships (removed?), handle it.
+            // But strict check might break if token is old. For now, rely on token.
+        }
 
         if (!$this->currentTenantId) {
             // Allow tenant-less access (Personal Mode)
-            // $this->sendError(403, 'No tenant context in token');
+            // But we should prioritize Personal Tenant if exists in joinedTenants?
+            // This logic is handled by Client or subsequent Controllers.
         }
     }
 

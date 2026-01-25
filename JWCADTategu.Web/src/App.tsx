@@ -25,7 +25,7 @@ import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 import { CompanySettingsScreen } from './features/core/projects/screens/CompanySettingsScreen'; // [NEW]
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
-import { UserListScreen } from './features/core/debug/UserListScreen'; // [NEW] Debug
+import { UserManagementScreen } from './features/admin/screens/UserManagementScreen'; // [NEW] User Management
 
 // Auth Imports
 // Auth Imports
@@ -504,10 +504,10 @@ const AppContent: React.FC<{
                                 </div>
                             )}
 
-                            {/* 11. User List (Debug) */}
+                            {/* 11. User Management (Admin) */}
                             {currentView === 'userlist' && (
                                 <div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
-                                    <UserListScreen />
+                                    <UserManagementScreen />
                                 </div>
                             )}
                         </div>

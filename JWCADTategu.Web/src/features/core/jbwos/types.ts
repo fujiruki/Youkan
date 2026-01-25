@@ -1,4 +1,4 @@
-export type JudgmentStatus = 'inbox' | 'scheduled' | 'waiting' | 'ready' | 'execution' | 'done' | 'pending' | 'archive' | 'today_commit' | 'confirmed' | 'decision_required' | 'decision_hold' | 'decision_rejected' | 'execution_in_progress' | 'execution_paused' | 'intent' | 'life';
+export type JudgmentStatus = 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 
@@ -41,12 +41,24 @@ export interface Member {
     dailyCapacityMinutes: number;
 }
 
+// [NEW] Item Flags (Attributes) - Haruki Model
+export interface ItemFlags {
+    has_deadline?: boolean;      // 期限あり
+    needs_decision?: boolean;    // 判断待ち (情報不足)
+    is_projectized?: boolean;    // プロジェクト化済み
+    is_today_commit?: boolean;   // [Temporary] Today Commit flag (until Session DB)
+    is_executing?: boolean;      // [Temporary] Execution flag
+}
+
 export interface Item {
     id: string;              // UUID
     title: string;           // 表示名
 
     // --- JBWOS Core Properties ---
-    status: JudgmentStatus;
+    // --- JBWOS Core Properties ---
+    status: JudgmentStatus;  // Strict 5 Statuses: inbox|waiting|ready|pending|done
+    flags?: ItemFlags;       // [NEW] Attributes (is_today_commit, is_executing, etc)
+
     statusUpdatedAt: number; // 状態変更日（"今日"の判定用）
 
     // --- Filters & Sorters ---
@@ -67,6 +79,7 @@ export interface Item {
     projectCategory?: string; // [NEW] プロジェクト分類ID
     projectType?: 'general' | 'manufacturing' | string; // [NEW] Project Type for Unified Items
     tenantId?: string | null; // [NEW] To distinguish company vs personal
+    tenantName?: string;      // [NEW] Display Name of the Tenant (for Badges)
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
 

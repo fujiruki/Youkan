@@ -162,8 +162,9 @@ export class ApiClient {
         }
     }
 
-    public static async getAllItems(): Promise<JudgableItem[]> {
-        return this.request<JudgableItem[]>('GET', '/items');
+    public static async getAllItems(options?: { scope?: 'aggregated' }): Promise<JudgableItem[]> {
+        const query = options?.scope ? `?scope=${options.scope}` : '';
+        return this.request<JudgableItem[]>('GET', `/items${query}`);
     }
 
     public static async createItem(item: Partial<JudgableItem>): Promise<{ id: string; success: boolean }> {
@@ -178,8 +179,9 @@ export class ApiClient {
         return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
     }
 
-    public static async getProjects(): Promise<any[]> {
-        return this.request('GET', '/projects');
+    public static async getProjects(options?: { scope?: 'aggregated' }): Promise<any[]> {
+        const query = options?.scope ? `?scope=${options.scope}` : '';
+        return this.request('GET', `/projects${query}`);
     }
 
     // --- Phase 2: Decision API ---

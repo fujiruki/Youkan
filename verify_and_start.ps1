@@ -74,7 +74,7 @@ if (-not (Test-Path $backendPath)) {
 Write-Status "🐘 [1/2] PHP Backendを起動しています (Port $PHP_PORT)..." "Cyan"
 $phpArgs = @("-S", "$PHP_HOST`:$PHP_PORT", "index.php")
 Write-Status "🐘 [1/2] PHP Backend starting with args: $phpArgs" "Cyan"
-$phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgs -WorkingDirectory $backendPath -NoNewWindow -PassThru
+$phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgs -WorkingDirectory $backendPath -NoNewWindow -PassThru -RedirectStandardOutput "server_stdout.txt" -RedirectStandardError "server_stderr.txt"
 Start-Sleep -Seconds 1
 
 if ($phpProcess.HasExited) {
@@ -162,8 +162,12 @@ Write-Status "----------------------------------------" "Green"
 Write-Status "🌍 ブラウザを起動します..." "Cyan"
 Start-Process "http://localhost:$VITE_PORT"
 
-Write-Host "サーバーを停止するには何かキーを押してください..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Write-Host "サーバー起動中 (停止するにはこのプロセスを終了してください)..."
+while ($true) {
+    Start-Sleep -Seconds 5
+}
+# Unreachable in loop, but for safety:
+# $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 Write-Status "サーバーを停止しています..." "Yellow"
 if ($phpProcess -and -not $phpProcess.HasExited) { Stop-Process -Id $phpProcess.Id -Force -ErrorAction SilentlyContinue }
