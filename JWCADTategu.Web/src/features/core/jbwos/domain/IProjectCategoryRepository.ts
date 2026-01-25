@@ -1,4 +1,4 @@
-import { ProjectCategory } from '../../types';
+import { ProjectCategory } from '../types';
 
 export interface IProjectCategoryRepository {
     getAll(): Promise<ProjectCategory[]>;

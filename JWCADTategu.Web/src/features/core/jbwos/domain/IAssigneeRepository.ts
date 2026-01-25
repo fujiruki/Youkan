@@ -1,4 +1,4 @@
-import { Assignee } from '../../types';
+import { Assignee } from '../types';
 
 export interface IAssigneeRepository {
     getAll(): Promise<Assignee[]>;
