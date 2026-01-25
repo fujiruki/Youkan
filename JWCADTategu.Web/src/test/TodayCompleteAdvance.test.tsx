@@ -43,8 +43,8 @@ describe('Today Task Completion & Advance (Real VM)', () => {
     });
 
     it.skip('完了ボタンを押すと、Optimistic Updateにより即座に次のタスクがActiveになる', async () => {
-        const item1 = createMockItem({ id: 't-1', title: 'Task 1', status: 'today_commit' });
-        const item2 = createMockItem({ id: 't-2', title: 'Task 2', status: 'today_commit' });
+        const item1 = createMockItem({ id: 't-1', title: 'Task 1', status: 'ready' });
+        const item2 = createMockItem({ id: 't-2', title: 'Task 2', status: 'ready' });
 
         // Setup Repository Mock to return initial state
         (JBWOSRepository.getTodayView as any).mockResolvedValue({

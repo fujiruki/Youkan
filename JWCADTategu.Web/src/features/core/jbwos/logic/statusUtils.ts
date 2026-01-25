@@ -1,5 +1,5 @@
 import { Item } from '../types';
-import { differenceInCalendarDays, startOfDay, isBefore, isSameDay } from 'date-fns';
+import { startOfDay, isBefore, isSameDay } from 'date-fns';
 
 /**
  * Determines if an item is a candidate for "Today's Work".

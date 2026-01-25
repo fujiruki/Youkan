@@ -36,3 +36,7 @@ Registering: Email=log@example.com, Name=Log Check User, Type=proprietor
 Registering: Email=final@example.com, Name=Final Check User, Type=proprietor
 Registering: Email=robust@example.com, Name=Robust Check User, Type=proprietor
 Registering: Email=veri@example.com, Name=password123VeriUser, Type=user
+Registering: Email=fjt.suntree@gmail.com, Name=藤田 晴樹, Type=user
+Registering: Email=door.fujita@gmail.com, Name=藤田はるき, Type=company
+Registering: Email=owner@test.com, Name=TestCompanyOwner, Type=company
+Registering: Email=door.fujita@gmail.com, Name=藤田はるき, Type=company

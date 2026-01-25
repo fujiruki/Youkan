@@ -19,7 +19,7 @@ describe('TodayScreen', () => {
     const mockActiveItem = {
         id: 'item-1',
         title: 'Active Task',
-        status: 'today_commit',
+        status: 'ready',
         is_boosted: false
     };
 

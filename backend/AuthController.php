@@ -87,12 +87,8 @@ class AuthController {
                 $companyTenantId = uniqid('t_');
                 
                 // Create Company Tenant
-                $stmt->execute([$companyTenantId, $companyName]); // Re-using prepared statement? No, prepare again to be safe/clear
-                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, type, created_at) VALUES (?, ?, 'company', datetime('now'))");
-                 // Note: type column might not exist yet in schema? We didn't add it in Phase 1.
-                 // db.php initDB doesn't have type. Let's stick to standard INSERT for now.
-                 $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
-                 $stmt->execute([$companyTenantId, $companyName]);
+                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
+                $stmt->execute([$companyTenantId, $companyName]);
 
                 // Membership
                 $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");

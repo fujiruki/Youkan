@@ -213,9 +213,14 @@ class DebugController {
                     t.id,
                     t.name,
                     t.created_at,
-                    COUNT(m.user_id) as member_count
+                    COUNT( DISTINCT m.user_id ) as member_count,
+                    u.display_name as representative_name,
+                    u.email as representative_email,
+                    u.id as owner_id
                 FROM tenants t
                 LEFT JOIN memberships m ON m.tenant_id = t.id
+                LEFT JOIN memberships mo ON mo.tenant_id = t.id AND mo.role = 'owner'
+                LEFT JOIN users u ON u.id = mo.user_id
                 GROUP BY t.id
                 ORDER BY t.created_at DESC
             ");

@@ -341,6 +341,7 @@ const AppContent: React.FC<{
     initialDashboardLayout // [NEW]
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
+        const { user, tenant } = useAuth(); // [NEW] Fetch Auth Info
 
         // Setup API error handler
         useEffect(() => {
@@ -371,8 +372,9 @@ const AppContent: React.FC<{
                                 onNavigateToSettings={() => setCurrentView('settings')}
                                 onNavigateToCustomers={() => setCurrentView('customers')}
                                 onNavigateToPlanning={() => setCurrentView('planning')}
-                                onNavigateToCompanySettings={() => setCurrentView('companySettings')}
                                 onNavigateToCalendar={() => setCurrentView('calendar')}
+                                user={user}   // [NEW]
+                                tenant={tenant} // [NEW]
                             />
                         )}
 

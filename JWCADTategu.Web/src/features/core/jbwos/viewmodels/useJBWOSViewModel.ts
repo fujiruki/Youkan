@@ -175,7 +175,7 @@ export const useJBWOSViewModel = () => {
     const { addUndoAction } = useUndo();
 
     // 1. Decision (Yes/No/Hold)
-    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', _note?: string, updates?: Partial<Item>) => {
         // Optimistic Update: Remove from Active immediate
         setGdbActive(prev => prev.filter(i => i.id !== id));
 
@@ -184,7 +184,7 @@ export const useJBWOSViewModel = () => {
             // ...
         }
 
-        const newStatus = decision === 'yes' ? 'ready' : decision === 'hold' ? 'pending' : 'done';
+        // const newStatus = decision === 'yes' ? 'ready' : decision === 'hold' ? 'pending' : 'done';
 
         // [Undo] Register Action
         addUndoAction({
@@ -336,7 +336,7 @@ export const useJBWOSViewModel = () => {
         }
     };
 
-    const returnToInbox = async (id: string, currentStatus: string = 'today_commit') => {
+    const returnToInbox = async (id: string, _currentStatus: string = 'ready') => {
         // Optimistic
         const nextList = todayCommits.filter(i => i.id !== id);
         setTodayCommits(nextList);
@@ -434,7 +434,7 @@ export const useJBWOSViewModel = () => {
             // Remove from Candidates
             setTodayCandidates(prev => prev.filter(i => i.id !== id));
             // Add to Commits at TOP
-            const newItem = { ...target, status: 'today_commit' } as any;
+            const newItem = { ...target, status: 'ready', flags: { ...target.flags, is_today_commit: true } } as any;
             setTodayCommits(prev => [newItem, ...prev.filter(i => i.id !== id)]); // Prepend
             // Set Execution Item
             setExecutionItem(newItem);

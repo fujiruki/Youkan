@@ -162,7 +162,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
         if (action === 'completed_yesterday') {
             await Promise.all(itemIds.map(id => completeItem(id)));
         } else {
-            await Promise.all(itemIds.map(id => returnToInbox(id, 'today_commit')));
+            await Promise.all(itemIds.map(id => returnToInbox(id, 'ready')));
         }
     };
 
@@ -244,7 +244,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onBack, onNavigateToPl
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            uncommitFromToday(activeItem.id);
+                                            returnToInbox(activeItem.id, 'ready');
                                         }}
                                         className="text-amber-500 hover:text-amber-700 flex items-center gap-1 text-xs font-bold transition-colors"
                                         title="候補に戻す"

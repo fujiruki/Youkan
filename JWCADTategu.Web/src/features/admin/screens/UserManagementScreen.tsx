@@ -133,8 +133,8 @@ export const UserManagementScreen: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('users')}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'users'
-                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                 }`}
                         >
                             <span className="flex items-center gap-2">
@@ -145,8 +145,8 @@ export const UserManagementScreen: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('tenants')}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'tenants'
-                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                 }`}
                         >
                             <span className="flex items-center gap-2">
@@ -294,15 +294,40 @@ export const UserManagementScreen: React.FC = () => {
                                                             ID: {tenant.id}
                                                         </span>
                                                     </div>
-                                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 flex gap-4">
-                                                        <span>作成日: {tenant.created_at}</span>
-                                                        <span>メンバー数: {tenant.member_count}</span>
+                                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 flex flex-col gap-1">
+                                                        <div className="flex gap-4">
+                                                            <span>作成日: {tenant.created_at}</span>
+                                                            <span>メンバー数: {tenant.member_count}名</span>
+                                                        </div>
+                                                        {tenant.representative_name && (
+                                                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                                                                <span className="text-xs border border-indigo-200 dark:border-indigo-800 px-1 rounded">代表</span>
+                                                                <span className="font-bold">{tenant.representative_name}</span>
+                                                                <span className="text-xs text-slate-400">({tenant.representative_email})</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center gap-2">
+                                            {tenant.owner_id && (
+                                                <button
+                                                    onClick={() => {
+                                                        setResetUserId(resetUserId === tenant.owner_id ? null : (tenant.owner_id || null));
+                                                        setNewPassword('');
+                                                    }}
+                                                    className={`p-2 rounded-lg transition-colors ${resetUserId === tenant.owner_id
+                                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                                                        : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                                        }`}
+                                                    title="代表者のパスワードリセット"
+                                                >
+                                                    <Key size={18} />
+                                                </button>
+                                            )}
+
                                             <button
                                                 onClick={() => handleDeleteTenant(tenant.id, tenant.name)}
                                                 disabled={deletingId === tenant.id}
@@ -317,6 +342,16 @@ export const UserManagementScreen: React.FC = () => {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* Footer Link */}
+                <div className="mt-8 text-center">
+                    <button
+                        onClick={() => window.location.href = '/login'}
+                        className="text-slate-500 hover:text-indigo-600 underline font-medium"
+                    >
+                        ログイン画面に戻る
+                    </button>
                 </div>
             </div>
         </div>

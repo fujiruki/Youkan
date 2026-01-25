@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
-import { Menu, HelpCircle, History, Settings, Users, Building } from 'lucide-react';
+import { Menu, HelpCircle } from 'lucide-react';
 // import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 import { MenuDrawer } from './MenuDrawer'; // [NEW]
+
+// Basic types needed for props
+interface AuthUser {
+    id: string;
+    name: string;
+    email: string;
+}
+
+interface Tenant {
+    id: string;
+    name: string;
+    role: string;
+}
 
 interface JBWOSHeaderProps {
     currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings';
@@ -11,9 +24,10 @@ interface JBWOSHeaderProps {
     onNavigateToProjects: () => void;
     onNavigateToSettings: () => void;
     onNavigateToCustomers?: () => void;
-    onNavigateToPlanning?: () => void; // [NEW]
-    onNavigateToCompanySettings?: () => void; // [NEW]
-    onNavigateToCalendar?: () => void; // [NEW]
+    onNavigateToPlanning?: () => void;
+    onNavigateToCalendar?: () => void;
+    user?: AuthUser | null; // [NEW]
+    tenant?: Tenant | null; // [NEW]
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -23,14 +37,15 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToProjects,
     onNavigateToSettings,
     onNavigateToCustomers,
-    onNavigateToPlanning, // [NEW]
-    onNavigateToCompanySettings,
-    onNavigateToCalendar
+    onNavigateToPlanning,
+    onNavigateToCalendar,
+    user,   // [NEW]
+    tenant  // [NEW]
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
-    // Get User Name safe
-    const getUserName = () => {
+    // Legacy Fallback
+    const getLegacyUserName = () => {
         try {
             const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
             return u.name || 'User';
@@ -49,9 +64,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
                 onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
                 onNavigateToManual={() => { /* Not implemented yet in props? */ setMenuOpen(false); }}
-                onNavigateToCompanySettings={onNavigateToCompanySettings ? () => { onNavigateToCompanySettings(); setMenuOpen(false); } : undefined}
+                onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
                 onLogout={() => window.location.href = './logout'}
-                userName={getUserName()}
+                userName={user?.name || getLegacyUserName()} // Fallback
+                user={user}     // [NEW]
+                tenant={tenant} // [NEW]
             />
 
             {/* Left: App Name */}

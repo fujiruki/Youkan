@@ -27,7 +27,7 @@ describe('Today Screen Integration', () => {
     const mockCommitItem = createMockItem({
         id: 'commit-1',
         title: '実行中タスク',
-        status: 'today_commit',
+        status: 'ready',
     });
 
     // Spies

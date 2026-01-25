@@ -13,6 +13,9 @@ export interface AdminTenant {
     name: string;
     created_at: string;
     member_count: number;
+    representative_name?: string;
+    representative_email?: string;
+    owner_id?: string;
 }
 
 export const AdminRepository = {

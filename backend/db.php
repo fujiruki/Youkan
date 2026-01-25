@@ -33,6 +33,7 @@ function getDB() {
             'prep_date' => 'TEXT', // Ensure this exists too if used
             // [v6] Project & Delegation Fields
             'parent_id' => 'TEXT DEFAULT NULL',
+            'project_id' => 'TEXT DEFAULT NULL', // [FIX] Added missing column
             'is_project' => 'INTEGER DEFAULT 0',
             'project_category' => 'TEXT DEFAULT NULL',
             'estimated_minutes' => 'INTEGER DEFAULT 0',

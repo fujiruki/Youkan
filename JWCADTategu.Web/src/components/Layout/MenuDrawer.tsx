@@ -3,6 +3,18 @@ import { X, Calendar, CheckSquare, Clock, Settings, Users, BookOpen, LogOut, Fil
 // import { cn } from '../../lib/utils';
 // import { cn } from '../../lib/utils';
 
+interface AuthUser {
+    id: string;
+    name: string;
+    email: string;
+}
+
+interface Tenant {
+    id: string;
+    name: string;
+    role: string;
+}
+
 export interface MenuDrawerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -13,8 +25,11 @@ export interface MenuDrawerProps {
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void;
     onNavigateToManual?: () => void;
+    onNavigateToCalendar?: () => void;
     onLogout: () => void;
-    userName?: string;
+    userName?: string; // Legacy
+    user?: AuthUser | null; // [NEW]
+    tenant?: Tenant | null; // [NEW]
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -27,8 +42,11 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
     onNavigateToCustomers,
     onNavigateToPlanning,
     onNavigateToManual,
+    onNavigateToCalendar,
     onLogout,
-    userName
+    userName,
+    user,
+    tenant
 }) => {
     if (!isOpen) return null;
 
@@ -43,14 +61,33 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
             {/* Side Panel */}
             <div className="fixed right-0 top-0 bottom-0 w-64 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
                 {/* Header */}
-                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                    <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Signed in as</div>
-                        <div className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-[150px]" title={userName}>
-                            {userName || 'User'}
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-950">
+                    <div className="flex-1 min-w-0 pr-2">
+                        {/* Tenant / Account Type Info */}
+                        <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-0.5 truncate">
+                            {tenant ? (
+                                <span className="flex items-center gap-1">
+                                    <Users size={12} />
+                                    {tenant.name}
+                                </span>
+                            ) : (
+                                <span className="text-slate-500 dark:text-slate-400">Personal Account</span>
+                            )}
                         </div>
+
+                        {/* User Name */}
+                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate" title={user?.name || userName}>
+                            {user?.name || userName || 'Guest'}
+                        </div>
+
+                        {/* Email */}
+                        {user?.email && (
+                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={user.email}>
+                                {user.email}
+                            </div>
+                        )}
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0">
                         <X size={20} className="text-slate-500" />
                     </button>
                 </div>
@@ -60,6 +97,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     <nav className="space-y-1 px-2">
                         <MenuItem icon={<CheckSquare size={18} />} label="Today" onClick={onNavigateToToday} shortcut="Ctrl+T" />
                         {onNavigateToPlanning && <MenuItem icon={<Calendar size={18} />} label="Plan (明日の計画)" onClick={onNavigateToPlanning} />}
+                        {onNavigateToCalendar && <MenuItem icon={<Calendar size={18} />} label="Volume Calendar" onClick={onNavigateToCalendar} />}
+
                         <MenuItem icon={<FileText size={18} />} label="Projects" onClick={onNavigateToProjects} />
                         <MenuItem icon={<Clock size={18} />} label="History" onClick={onNavigateToHistory} />
                         {onNavigateToCustomers && <MenuItem icon={<Users size={18} />} label="顧客管理" onClick={onNavigateToCustomers} />}

@@ -115,13 +115,13 @@ export const CloudJBWOSRepository = {
     },
 
     // Subtasks
-    getSubTasks: async (parentId: string) => {
+    getSubTasks: async (_parentId: string) => {
         // Not implemented in backend yet, return empty
         return [];
     },
 
     // Factory
-    getItemsBySourceId: async (sourceId: string) => {
+    getItemsBySourceId: async (_sourceId: string) => {
         return [];
     },
 
@@ -133,7 +133,7 @@ export const CloudJBWOSRepository = {
         return { defaultDailyMinutes: 480, holidays: [], exceptions: {} };
     },
 
-    saveCapacityConfig: async (config: any) => {
+    saveCapacityConfig: async (_config: any) => {
         // TODO
     }
 };

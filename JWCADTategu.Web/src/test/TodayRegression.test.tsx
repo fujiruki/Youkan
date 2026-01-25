@@ -203,8 +203,8 @@ describe('Today Screen Regression & New Features', () => {
 
     // Testing "Today Complete -> Advance" again in this suite for regression safety
     it.skip('Regression: 完了ボタンで次のタスクがActiveになる (ViewModel Integration)', async () => {
-        const item1 = createMockItem({ id: 'ex-1', title: 'Current Task', status: 'today_commit' });
-        const item2 = createMockItem({ id: 'next-1', title: 'Next Task', status: 'today_commit' });
+        const item1 = createMockItem({ id: 'ex-1', title: 'Current Task', status: 'ready' });
+        const item2 = createMockItem({ id: 'next-1', title: 'Next Task', status: 'ready' });
 
         (JBWOSRepository.getTodayView as any).mockResolvedValue({
             commits: [item1, item2],

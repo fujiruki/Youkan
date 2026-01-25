@@ -18,13 +18,13 @@ describe('Today Screen Flexibility', () => {
     const mockActiveItem = createMockItem({
         id: 'commit-1',
         title: 'Active Task',
-        status: 'today_commit',
+        status: 'ready',
     });
 
     const mockWaitingItem = createMockItem({
         id: 'commit-2',
         title: 'Waiting Task',
-        status: 'today_commit',
+        status: 'ready',
     });
 
     const mockUncommitFromToday = vi.fn();

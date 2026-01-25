@@ -16,6 +16,7 @@ export interface Project {
     isArchived?: boolean; // [NEW]
     viewMode?: 'internal' | 'external'; // [NEW]
     judgmentStatus?: 'inbox' | 'decision_hold' | 'someday' | 'active'; // [NEW] For GDB persistence
+    userId?: string; // [NEW] Owner User ID
     updatedAt: Date;
     createdAt: Date;
 }
@@ -128,10 +129,37 @@ export class TateguDatabase extends Dexie {
             fieldNotes: '++id, projectId, createdAt',
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
             settings: 'id',
-            deliverables: 'id, projectId, status, judgmentStatus, updatedAt' // Schema stays same, fields added to objects
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
         });
 
-        this.version(15).stores({
+        this.version(17).stores({
+            projects: '++id, userId, name, isArchived, judgmentStatus, updatedAt', // [NEW] userId
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id',
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
+        }).upgrade(async tx => {
+            // Migrating existing projects to current user context
+            // Attempt to get user from localStorage
+            let userId = 'legacy_user';
+            try {
+                const stored = localStorage.getItem('jbwos_user');
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    if (u && u.id) userId = u.id;
+                }
+            } catch (e) { /* ignore */ }
+
+            await tx.table('projects').toCollection().modify(p => {
+                p.userId = userId;
+            });
+        });
+
+        this.version(16).stores({
             projects: '++id, name, isArchived, judgmentStatus, updatedAt',
             doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',

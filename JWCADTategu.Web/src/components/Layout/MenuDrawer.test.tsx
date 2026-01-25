@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MenuDrawer, MenuDrawerProps } from './MenuDrawer';
-import React from 'react';
+
 
 describe('MenuDrawer', () => {
     const defaultProps: MenuDrawerProps = {
@@ -49,7 +49,7 @@ describe('MenuDrawer', () => {
     });
 
     it('calls onClose when backdrop is clicked', () => {
-        const { container } = render(<MenuDrawer {...defaultProps} isOpen={true} />);
+        render(<MenuDrawer {...defaultProps} isOpen={true} />);
         // Assuming backdrop has a specific class or role, for now let's assume it's the first div wrapper logic
         // But since we haven't implemented, we can't select easily. 
         // We will test if we can find a close button or similar.

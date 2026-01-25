@@ -69,6 +69,18 @@ export const JBWOSRepository = {
             }
         }
 
+        // [Hybrid] Handle Virtual Project ID [FIX]
+        if (id.startsWith('project-')) {
+            const projectId = parseInt(id.replace('project-', ''), 10);
+            if (!isNaN(projectId)) {
+                await db.projects.update(projectId, {
+                    judgmentStatus: status as any, // Project status mapped to JudgmentStatus
+                    updatedAt: new Date()
+                });
+                return;
+            }
+        }
+
         // Handled by API
         try {
             await ApiClient.updateItem(id, { status });
@@ -84,6 +96,18 @@ export const JBWOSRepository = {
             const doorId = parseInt(id.replace('door-', ''), 10);
             if (!isNaN(doorId)) {
                 await db.doors.update(doorId, {
+                    name: title,
+                    updatedAt: new Date()
+                });
+                return;
+            }
+        }
+
+        // [Hybrid] Handle Virtual Project ID [FIX]
+        if (id.startsWith('project-')) {
+            const projectId = parseInt(id.replace('project-', ''), 10);
+            if (!isNaN(projectId)) {
+                await db.projects.update(projectId, {
                     name: title,
                     updatedAt: new Date()
                 });
@@ -173,8 +197,23 @@ export const JBWOSRepository = {
         // 2. Fetch Local Data (Projects & Doors)
         let localItems: JudgableItem[] = [];
         try {
+            // Get Current User ID
+            let userId = 'legacy_user';
+            try {
+                const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
+                if (u.id) userId = u.id;
+            } catch { }
+
             // A. Projects (Treat as Inbox/Active if not archived)
-            const projects = await db.projects.filter(p => !p.isArchived).toArray();
+            // Filter by userId
+            const projects = await db.projects
+                .where('userId').equals(userId)
+                .filter(p => !p.isArchived)
+                .toArray();
+
+            // Fallback: If no userId index yet (or migrated legacy), try filtering manually for legacy
+            // Actually indexed query is safer if migrated.
+
             const projectItems = projects.map(p => ({
                 id: `project-${p.id}`,
                 title: `📁 ${p.name}`, // Add icon to distinguish
