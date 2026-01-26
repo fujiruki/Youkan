@@ -25,68 +25,72 @@ class ProjectController extends BaseController {
     }
 
     private function index() {
-        // [New] Aggregated Mode for Life-Work Integration
-        $scope = $_GET['scope'] ?? '';
+        $scope = $_GET['scope'] ?? 'personal'; // Default to personal if not specified
+        
+        $sql = "";
+        $params = [];
 
-        if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
-            // Fetch All Projects from Joined Tenants
-            $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
+        if ($scope === 'dashboard') {
+            // Dashboard: Personal items + Company items assigned to me
+            // (Strictly: Created by me in Personal Scope OR Assigned to me in ANY Scope)
+            // But for now: "Personal Scope" + "Company Items Assigned to Me"
+            
+            // Personal Items: tenant_id IS NULL or ''
+            // Company Items: tenant_id IS NOT NULL AND assigned_to = ?
+            
             $sql = "
                 SELECT items.*, t.name as tenant_name
                 FROM items 
                 LEFT JOIN tenants t ON items.tenant_id = t.id
                 WHERE items.project_type IS NOT NULL 
                 AND (
-                    items.tenant_id IN ($placeholders)
+                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
                     OR
-                    (items.tenant_id IS NULL AND (items.created_by = ? OR items.assigned_to = ?)) -- Legacy Personal
+                    (items.tenant_id IS NOT NULL AND items.assigned_to = ?)
                 )
                 ORDER BY items.updated_at DESC
             ";
-             // Params: [...tenant_ids, userId, userId]
-             $params = array_merge($this->joinedTenants, [$this->currentUserId, $this->currentUserId]);
-             
-             $stmt = $this->pdo->prepare($sql);
-             $stmt->execute($params);
-             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             
-             // Map and Inject Tenant Info
-             $this->sendJSON(array_map(function($row) {
-                 $proj = $this->mapItemToProject($row);
-                 $proj['tenantName'] = $row['tenant_name'] ?? 'Personal'; 
-                 return $proj;
-             }, $items));
-             
-        } else {
-            // Legacy Single Tenant Mode
-            if ($this->currentTenantId) {
-                $sql = "
-                    SELECT * FROM items 
-                    WHERE 
-                        project_type IS NOT NULL 
-                        AND tenant_id = ?
-                    ORDER BY updated_at DESC
-                ";
-                $params = [$this->currentTenantId];
-            } else {
-                // Personal Mode
-                 $sql = "
-                    SELECT * FROM items 
-                    WHERE 
-                        project_type IS NOT NULL 
-                        AND tenant_id IS NULL 
-                        AND (created_by = ? OR assigned_to = ?)
-                    ORDER BY updated_at DESC
-                ";
-                $params = [$this->currentUserId, $this->currentUserId];
+             $params = [$this->currentUserId, $this->currentUserId, $this->currentUserId];
+
+        } elseif ($scope === 'company') {
+            // Company Tab: All items in current tenant
+            if (!$this->currentTenantId) {
+                // If no tenant selected, return empty or error? Empty list is safer.
+                $this->sendJSON([]);
+                return;
             }
-    
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-            $this->sendJSON(array_map([$this, 'mapItemToProject'], $items));
+            $sql = "
+                SELECT * FROM items 
+                WHERE 
+                    project_type IS NOT NULL 
+                    AND tenant_id = ?
+                ORDER BY updated_at DESC
+            ";
+            $params = [$this->currentTenantId];
+
+        } else { // scope === 'personal'
+            // Personal Tab: Strictly Personal items
+            $sql = "
+                SELECT * FROM items 
+                WHERE 
+                    project_type IS NOT NULL 
+                    AND (tenant_id IS NULL OR tenant_id = '') 
+                    AND (created_by = ? OR items.assigned_to = ?)
+                ORDER BY updated_at DESC
+            ";
+            $params = [$this->currentUserId, $this->currentUserId];
         }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $this->sendJSON(array_map(function($row) {
+            $proj = $this->mapItemToProject($row);
+            $proj['tenantName'] = $row['tenant_name'] ?? ($row['tenant_id'] ? 'Company' : 'Personal');
+            // If fetching 'dashboard', we might want to know if it's personal or company visually
+            return $proj;
+        }, $items));
     }
 
     private function show($id) {
@@ -138,7 +142,7 @@ class ProjectController extends BaseController {
         $type = $data['type'] ?? ($data['settings']['type'] ?? 'general');
         $meta['settings']['type'] = $type;
 
-        $tenantId = $this->currentTenantId; // Can be null (Personal)
+        $tenantId = !empty($this->currentTenantId) ? $this->currentTenantId : null; // Ensure null if empty
 
         $stmt = $this->pdo->prepare("
             INSERT INTO items (

@@ -98,7 +98,7 @@ function App() {
     };
 
     // 2.5. To Cloud Project (From ProjectRegistryScreen)
-    const handleOpenCloudProject = (projectId: string) => {
+    const handleOpenCloudProject = (projectId: string, projectName?: string) => {
         console.log('[App] Opening Cloud Project:', projectId);
         // Create a minimal Project object for JoineryScheduleScreen
         // Use the cloud ID as both:
@@ -107,7 +107,7 @@ function App() {
         const numericId = parseInt(projectId.replace(/[^0-9]/g, '').slice(-9) || '1', 10) || Date.now();
         const cloudProject: Project = {
             id: numericId,
-            name: `[CLOUD:${projectId}]`, // Marker for cloud project
+            name: projectName || `[CLOUD:${projectId}]`, // Use actual title
             client: '',
             updatedAt: new Date(),
             createdAt: new Date()
@@ -132,7 +132,7 @@ function App() {
 
     // 5. Back to Project List
     const handleBackToProjectList = () => {
-        setCurrentView('projectList');
+        setCurrentView('projects'); // Unified View
         setActiveProject(null);
     };
 
@@ -373,6 +373,7 @@ const AppContent: React.FC<{
                                 onNavigateToCustomers={() => setCurrentView('customers')}
                                 onNavigateToPlanning={() => setCurrentView('planning')}
                                 onNavigateToCalendar={() => setCurrentView('calendar')}
+                                onNavigateToCompanySettings={() => setCurrentView('companySettings')}
                                 user={user}   // [NEW]
                                 tenant={tenant} // [NEW]
                             />
@@ -396,24 +397,24 @@ const AppContent: React.FC<{
                                 </div>
                             )}
 
-                            {/* 1.5 Project Registry (New) */}
-                            {currentView === 'projects' && (
+                            {/* 1.5 Project Registry (New) - Unified View */}
+                            {(currentView === 'projects' || currentView === 'projectList') && (
                                 <ProjectRegistryScreen
-                                    onSelect={(id) => {
-                                        console.log('[App] Selected Cloud Project:', id);
-                                        handleOpenCloudProject(id);
+                                    onSelect={(project) => {
+                                        console.log('[App] Selected Cloud Project:', project.id, project.name);
+                                        // Check if ID is numeric string
+                                        const numId = parseInt(project.id, 10);
+                                        if (!isNaN(numId)) {
+                                            handleOpenProject(numId);
+                                        } else {
+                                            handleOpenCloudProject(project.id, project.name);
+                                        }
                                     }}
                                     onBack={handleBackToDashboard}
                                 />
                             )}
 
-                            {/* 2. Project List (External View) - Legacy */}
-                            {currentView === 'projectList' && (
-                                <ProjectListScreen
-                                    onSelectProject={handleOpenProject}
-                                    onNavigateHome={handleBackToDashboard}
-                                />
-                            )}
+                            {/* 2. Project List (Legacy) - REMOVED / Redirected above */}
 
                             {/* 3. Schedule (External Project Detail) */}
                             {currentView === 'schedule' && activeProject && (

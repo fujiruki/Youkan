@@ -26,6 +26,7 @@ interface JBWOSHeaderProps {
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void;
     onNavigateToCalendar?: () => void;
+    onNavigateToCompanySettings?: () => void; // [NEW] Actually required if we use it, but safe optional for now
     user?: AuthUser | null; // [NEW]
     tenant?: Tenant | null; // [NEW]
 }
@@ -39,6 +40,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToCustomers,
     onNavigateToPlanning,
     onNavigateToCalendar,
+    onNavigateToCompanySettings, // [NEW]
     user,   // [NEW]
     tenant  // [NEW]
 }) => {
@@ -65,6 +67,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
                 onNavigateToManual={() => { /* Not implemented yet in props? */ setMenuOpen(false); }}
                 onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
+                onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
                 onLogout={() => {
                     localStorage.removeItem('jbwos_token');
                     localStorage.removeItem('jbwos_user');

@@ -29,6 +29,16 @@ class TenantController extends BaseController {
                  $this->sendError(405, 'Method Not Allowed');
             }
         }
+        // /tenant/info
+        elseif (preg_match('#^/info$#', $path)) {
+            if ($method === 'GET') {
+                $this->getInfo();
+            } elseif ($method === 'PUT') {
+                 $this->updateInfo();
+            } else {
+                $this->sendError(405, 'Method Not Allowed');
+            }
+        }
         else {
              $this->sendError(404, 'Endpoint Not Found');
         }
@@ -172,5 +182,47 @@ class TenantController extends BaseController {
         } else {
             $this->sendError(404, 'Member not found');
         }
+    }
+
+    private function getInfo() {
+        if (!$this->currentTenantId) {
+             $this->sendError(400, 'Company context required');
+        }
+        
+        // Retrieve tenant info + member count
+        $stmt = $this->pdo->prepare("
+            SELECT t.id, t.name, t.created_at, COUNT(m.user_id) as member_count
+            FROM tenants t
+            LEFT JOIN memberships m ON t.id = m.tenant_id
+            WHERE t.id = ?
+            GROUP BY t.id
+        ");
+        $stmt->execute([$this->currentTenantId]);
+        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$info) {
+             $this->sendError(404, 'Tenant not found');
+        }
+        
+        $this->sendJSON($info);
+    }
+    
+    private function updateInfo() {
+        if (!$this->currentTenantId) {
+             $this->sendError(400, 'Company context required');
+        }
+        if (($this->currentUser['role'] ?? '') !== 'owner' && ($this->currentUser['role'] ?? '') !== 'admin') {
+             $this->sendError(403, 'Only admins can update company info');
+        }
+        
+        $input = $this->getInput();
+        if (empty($input['name'])) {
+            $this->sendError(400, 'Name is required');
+        }
+        
+        $stmt = $this->pdo->prepare("UPDATE tenants SET name = ? WHERE id = ?");
+        $stmt->execute([$input['name'], $this->currentTenantId]);
+        
+        $this->sendJSON(['success' => true]);
     }
 }

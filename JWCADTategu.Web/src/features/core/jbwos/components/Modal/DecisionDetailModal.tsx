@@ -26,26 +26,47 @@ interface DecisionDetailModalProps {
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, onOpenItem, onOpenParent, initialFocus, yesButtonLabel }) => {
-    if (!item) return null;
-
-    const [note, setNote] = React.useState(item.memo || '');
-    const [dueStatus, setDueStatus] = React.useState(item.due_status || 'waiting_external');
-    const [dueDate, setDueDate] = React.useState(item.due_date || '');
-    const [prepDate, setPrepDate] = React.useState(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
-    const [workDays, setWorkDays] = React.useState(item.work_days || 1);
+    // [FIX] Hooks must be called unconditionally.
+    // Initialize with safe defaults.
+    const [note, setNote] = React.useState('');
+    const [dueStatus, setDueStatus] = React.useState<Item['due_status']>('waiting_external');
+    const [dueDate, setDueDate] = React.useState('');
+    const [prepDate, setPrepDate] = React.useState('');
+    const [workDays, setWorkDays] = React.useState(1);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [isWorkDaysDirty] = React.useState(false);
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
-    const [editedTitle, setEditedTitle] = React.useState(item.title);
-    const [estimatedMinutes, setEstimatedMinutes] = React.useState(item.estimatedMinutes || 0);
+    const [editedTitle, setEditedTitle] = React.useState('');
+    const [estimatedMinutes, setEstimatedMinutes] = React.useState(0);
 
     const [subTasks, setSubTasks] = React.useState<Item[]>([]);
     const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
-    const [isProject, setIsProject] = React.useState(item.isProject || false);
+    const [isProject, setIsProject] = React.useState(false);
 
     // [NEW] Calendar State
     const [viewMonth, setViewMonth] = React.useState<Date>(new Date());
-    const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due'); // Default to 'due'
-    const [dailyVolumes, setDailyVolumes] = React.useState<Map<string, number>>(new Map()); // [NEW] Heatmap Data
+    const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
+    const [dailyVolumes, setDailyVolumes] = React.useState<Map<string, number>>(new Map());
+
+    // Sync state when item changes
+    React.useEffect(() => {
+        if (item) {
+            setNote(item.memo || '');
+            setDueStatus(item.due_status || 'waiting_external');
+            setDueDate(item.due_date || '');
+            setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
+            setWorkDays(item.work_days || 1);
+            setEditedTitle(item.title);
+            setEstimatedMinutes(item.estimatedMinutes || 0);
+            setIsProject(item.isProject || false);
+            // Default subTasks to empty until fetched
+            setSubTasks([]);
+        }
+    }, [item]);
+
+    // Now safe to return null if no item, as hooks are already registered
+    // Early return removed to allow hooks to run.
+    // Null check moved to pre-render.
 
     // [NEW] Fetch Heatmap Data when viewMonth changes
     React.useEffect(() => {
@@ -68,7 +89,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
 
     // [NEW] Load Sub-tasks & Optimistic Defaults
+    // [NEW] Load Sub-tasks & Optimistic Defaults
     React.useEffect(() => {
+        if (!item) return; // Guard
+
         if (isProject && onGetSubTasks) {
             console.log('[Modal] Fetching subtasks for:', item.id);
             onGetSubTasks(item.id).then(tasks => {
@@ -86,7 +110,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             // but UI will look like it's confirmed.
             // If user interacts (e.g. Enter), handleClose/Decision will save `dueDate`.
         }
-    }, [item.id, isProject, onGetSubTasks, item.due_status]);
+    }, [item?.id, isProject, onGetSubTasks, item?.due_status]);
 
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -115,21 +139,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     }, [isMenuOpen]);
 
     // Sync prop changes
-    React.useEffect(() => {
-        setDueStatus(item.due_status || 'waiting_external');
-        setDueDate(item.due_date || '');
-        if (!isWorkDaysDirty) {
-            setWorkDays(item.work_days || 1);
-        }
-        setEstimatedMinutes(item.estimatedMinutes || 0);
-        setEditedTitle(item.title);
-        setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
-        setIsProject(item.isProject || false); // Sync project status
-    }, [item.due_status, item.due_date, item.work_days, item.title, item.estimatedMinutes, item.prep_date, item.isProject, isWorkDaysDirty]);
+    // Duplicate Sync Effect Removed (Logic is handled by top-level effect)
 
     // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (!item) return; // Guard
             // [FIX] Stop propagation to prevent background GDB from reacting
             e.stopPropagation();
 
@@ -138,13 +153,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                 e.preventDefault();
                 if (dueStatus === 'waiting_external') {
                     setDueStatus('confirmed');
-                    if (onUpdate) {
-                        const updates: Partial<Item> = { due_status: 'confirmed' };
-                        onUpdate(item.id, updates);
-                    } else {
-                        const updates: Partial<Item> = { due_status: 'confirmed' };
-                        ApiClient.updateItem(item.id, updates);
-                    }
+                    const updates: Partial<Item> = { due_status: 'confirmed' };
+                    if (onUpdate) onUpdate(item.id, updates);
+                    else ApiClient.updateItem(item.id, updates);
                 }
                 setTimeout(() => dateInputRef.current?.focus(), 50);
             }
@@ -164,10 +175,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [item.id, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
+    }, [item ? item.id : null, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
     // [NEW] Unified Save Helper -> Returns pending updates instead of calling API immediately
     const getPendingChanges = () => {
+        if (!item) return {};
         const updates: Partial<Item> = {};
 
         // Work Days
@@ -201,6 +213,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     };
 
     const saveChanges = async () => {
+        if (!item) return;
         const updates = getPendingChanges();
         if (Object.keys(updates).length > 0) {
             console.log('Saving changes before close:', updates);
@@ -220,11 +233,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
 
     // [NEW] Helper to save work_days before decision
     const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
+        if (!item) return;
         const updates = getPendingChanges();
+
+        // [FIX] Auto-set Today's date if "Yes" (Today) is chosen and no date is set
+        if (decision === 'yes') {
+            const todayStr = format(new Date(), 'yyyy-MM-dd');
+            if (!updates.due_date && !item.due_date) {
+                updates.due_date = todayStr;
+                updates.due_status = 'confirmed';
+            }
+        }
+
         console.log('Resolving decision with atomic updates:', updates);
         // Pass updates to onDecision to handle them atomically or strictly sequentially
         onDecision(item.id, decision, note, updates);
     };
+
+    // [FIX] Null check before rendering, AFTER all hooks are declared.
+    if (!item) return null;
 
     return (
         <AnimatePresence>

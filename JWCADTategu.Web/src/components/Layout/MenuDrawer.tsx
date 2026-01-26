@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, CheckSquare, Clock, Settings, Users, BookOpen, LogOut, FileText } from 'lucide-react';
+import { X, Calendar, CheckSquare, Clock, Settings, Users, BookOpen, LogOut, FileText, Building } from 'lucide-react';
 // import { cn } from '../../lib/utils';
 // import { cn } from '../../lib/utils';
 
@@ -30,6 +30,7 @@ export interface MenuDrawerProps {
     userName?: string; // Legacy
     user?: AuthUser | null; // [NEW]
     tenant?: Tenant | null; // [NEW]
+    onNavigateToCompanySettings: () => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -46,7 +47,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
     onLogout,
     userName,
     user,
-    tenant
+    tenant,
+    onNavigateToCompanySettings
 }) => {
     if (!isOpen) return null;
 
@@ -112,6 +114,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                         <div className="h-px bg-slate-200 dark:bg-slate-800 my-2 mx-2"></div>
 
                         <MenuItem icon={<Settings size={18} />} label="設定" onClick={onNavigateToSettings} />
+                        {tenant && <MenuItem icon={<Building size={18} />} label="会社設定" onClick={onNavigateToCompanySettings} />}
                         {onNavigateToManual && <MenuItem icon={<BookOpen size={18} />} label="マニュアル" onClick={onNavigateToManual} />}
                     </nav>
                 </div>

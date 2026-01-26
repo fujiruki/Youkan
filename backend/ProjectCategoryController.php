@@ -22,7 +22,9 @@ class ProjectCategoryController extends BaseController {
 
     private function index() {
         if (!$this->currentTenantId) {
-            $this->sendError(403, 'Tenant context required');
+            // Personal Mode: Return empty list for now (or implement personal categories later)
+            $this->sendJSON([]);
+            return;
         }
 
         $stmt = $this->pdo->prepare("SELECT * FROM project_categories WHERE tenant_id = ? ORDER BY created_at ASC");

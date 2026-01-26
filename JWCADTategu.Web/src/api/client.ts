@@ -162,7 +162,7 @@ export class ApiClient {
         }
     }
 
-    public static async getAllItems(options?: { scope?: 'aggregated', parentId?: string }): Promise<JudgableItem[]> {
+    public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string }): Promise<JudgableItem[]> {
         let query = '';
         const params = new URLSearchParams();
         if (options?.scope) params.append('scope', options.scope);
@@ -184,7 +184,7 @@ export class ApiClient {
         return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
     }
 
-    public static async getProjects(options?: { scope?: 'aggregated' }): Promise<any[]> {
+    public static async getProjects(options?: { scope?: 'personal' | 'company' | 'dashboard' | 'aggregated' }): Promise<any[]> {
         const query = options?.scope ? `?scope=${options.scope}` : '';
         return this.request('GET', `/projects${query}`);
     }
@@ -285,7 +285,7 @@ export class ApiClient {
 
     // --- Member Configuration API ---
     public static async getMembers(): Promise<Member[]> {
-        return this.request('GET', '/members');
+        return this.request('GET', '/tenant/members');
     }
 
     public static async updateMember(id: string, updates: Partial<Member>): Promise<{ success: boolean }> {
@@ -293,7 +293,46 @@ export class ApiClient {
         const payload: any = {};
         if (updates.isCore !== undefined) payload.is_core = updates.isCore;
         if (updates.dailyCapacityMinutes !== undefined) payload.daily_capacity_minutes = updates.dailyCapacityMinutes;
+        if (updates.role !== undefined) payload.role = updates.role;
 
-        return this.request('PUT', `/members/${id}`, payload);
+        return this.request('PUT', `/tenant/members/${id}`, payload);
+    }
+
+    public static async inviteMember(email: string, role: 'user' | 'admin' | 'owner' = 'user', name?: string): Promise<{ success: boolean; userId: string; message: string }> {
+        return this.request('POST', '/tenant/members', { email, role, name });
+    }
+
+    public static async removeMember(id: string): Promise<{ success: boolean }> {
+        return this.request('DELETE', `/tenant/members/${id}`);
+    }
+
+    public static async getTenantInfo(): Promise<{ id: string; name: string; created_at: string; member_count: number }> {
+        return this.request('GET', '/tenant/info'); // Relative to tenant context? No, API structure is usually /api/tenant/info?
+        // TenantController routing:
+        // If we are hitting /api/tenant/..., we need to check how routing works in index.php
+        // index.php likely routes /tenant/* to TenantController using handleRequest with subpath.
+        // If I call /info, it might be /api/tenant/info.
+        // Let's verify route mapping in index.php or assume standard /tenant prefix if used there.
+        // Wait, ApiClient base is /api or /index.php/api?
+        // In index.php:
+        // $uri = ...
+        // if (strpos($uri, '/projects') === 0) ...
+        // if (strpos($uri, '/tenant') === 0) { $controller = new TenantController(...); $controller->handleRequest($method, substr($uri, 7)); }
+        // So /tenant/info -> handleRequest with /info.
+    }
+
+    // Correcting path assumption: The Client methods like `getMembers` call `/members`.
+    // Does `getMembers` prepend `/tenant`?
+    // Let's check `getMembers` implementation lines 287-288:
+    // `return this.request('GET', '/members');`
+    // Wait, if `ApiClient` uses `/api` base.
+    // Call is `/api/members`.
+    // index.php needs to route `/api/members`?
+    // If index.php routes `/tenant` to TenantController, then Client must call `/tenant/members`.
+    // Unless `/members` is a top-level route in index.php?
+    // I need to check `index.php`.
+
+    public static async updateTenantInfo(name: string): Promise<{ success: boolean }> {
+        return this.request('PUT', '/tenant/info', { name });
     }
 }

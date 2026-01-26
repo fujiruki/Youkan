@@ -74,7 +74,7 @@ if (-not (Test-Path $backendPath)) {
 # --- 2. Start Backend (Robust Binding) ---
 Write-Status "🐘 [1/2] Starting PHP Backend (${PHP_HOST}:${PHP_PORT})..." "Cyan"
 # Use 0.0.0.0 to avoid localhost ipv4/ipv6 ambiguity
-$phpArgs = @("-S", "${PHP_HOST}:${PHP_PORT}", "index.php") 
+$phpArgs = @("-S", "${PHP_HOST}:${PHP_PORT}", "router.php") 
 $phpProcess = Start-Process -FilePath "php" -ArgumentList $phpArgs -WorkingDirectory $backendPath -NoNewWindow -PassThru -RedirectStandardOutput "server_stdout.txt" -RedirectStandardError "server_stderr.txt"
 Start-Sleep -Seconds 2 # Allow socket to bind
 

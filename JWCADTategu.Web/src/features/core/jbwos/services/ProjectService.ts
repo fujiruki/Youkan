@@ -2,8 +2,8 @@ import { ApiClient } from '../../../../api/client';
 import { Project } from '../types';
 
 export class ProjectService {
-    public static async getAll(): Promise<Project[]> {
-        return ApiClient.request<Project[]>('GET', '/projects');
+    public static async getAll(options?: { scope?: 'personal' | 'company' | 'dashboard' | 'aggregated' }): Promise<Project[]> {
+        return ApiClient.getProjects(options);
     }
 
     public static async getById(id: string): Promise<Project> {

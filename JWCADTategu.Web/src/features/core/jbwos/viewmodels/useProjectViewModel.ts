@@ -9,11 +9,14 @@ export const useProjectViewModel = () => {
     const [error, setError] = useState<string | null>(null);
     const { showToast } = useToast();
 
+    const [activeScope, setActiveScope] = useState<'personal' | 'company'>('personal'); // [NEW]
+
     const fetchProjects = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await ProjectService.getAll();
+            // Pass activeScope to Service (requires update in Service too)
+            const data = await ProjectService.getAll({ scope: activeScope });
             setProjects(data);
         } catch (err: any) {
             setError(err.message);
@@ -21,7 +24,7 @@ export const useProjectViewModel = () => {
         } finally {
             setLoading(false);
         }
-    }, [showToast]);
+    }, [showToast, activeScope]); // Add activeScope dependency
 
     const createProject = async (project: Partial<Project>) => {
         setLoading(true);
@@ -75,6 +78,8 @@ export const useProjectViewModel = () => {
         fetchProjects,
         createProject,
         updateProject,
-        deleteProject
+        deleteProject,
+        activeScope, // [NEW]
+        setActiveScope // [NEW]
     };
 };

@@ -38,7 +38,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
     header("Access-Control-Allow-Origin: *");
 }
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, X-AI-Debug-Secret");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-HTTP-Method-Override, X-AI-Debug-Secret");
 header("Content-Type: application/json; charset=UTF-8");
 
 ini_set('display_errors', 0);
@@ -285,6 +285,34 @@ if (preg_match('#^(/api)?/today/complete$#', $path) && $method === 'POST') {
     $controller = new TodayController(); // Removed $db
     $data = json_decode(file_get_contents('php://input'), true);
     echo json_encode($controller->complete($data['id']));
+    exit;
+}
+if (preg_match('#^(/api)?/today/undo$#', $path) && $method === 'POST') { // [NEW] Undo
+    $controller = new TodayController();
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($controller->undo($data['id']));
+    exit;
+}
+
+// Decision Routes (Missing)
+if (preg_match('#^(/api)?/decision/([^/]+)/resolve$#', $path, $matches) && $method === 'POST') {
+    $controller = new DecisionController($db);
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode($controller->resolve($matches[2], $data));
+    exit;
+}
+
+// Execution Routes (Missing)
+require_once 'ExecutionController.php'; // Ensure file exists or create it
+if (preg_match('#^(/api)?/execution/([^/]+)/(start|pause)$#', $path, $matches) && $method === 'POST') {
+    $controller = new ExecutionController($db);
+    $id = $matches[2];
+    $action = $matches[3];
+    if ($action === 'start') {
+        echo json_encode($controller->start($id));
+    } else {
+        echo json_encode($controller->pause($id));
+    }
     exit;
 }
 

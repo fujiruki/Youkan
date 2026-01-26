@@ -43,20 +43,54 @@ class BaseController {
         $this->currentTenantId = $payload['tenant_id'] ?? null;
         $this->currentUserId = $payload['sub'] ?? null;
 
+        if (!$this->currentUserId) {
+            error_log("BaseController: Token missing 'sub' claim. Payload: " . json_encode($payload));
+            $this->sendError(401, 'Invalid token: User ID missing');
+        }
+
         // [New] Load all joined tenants for Context Aware Access
         if ($this->currentUserId) {
             $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
             $stmt->execute([$this->currentUserId]);
             $this->joinedTenants = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            // Fail-safe: If currentTenantId from token is not in memberships (removed?), handle it.
-            // But strict check might break if token is old. For now, rely on token.
+            // [FIX] Self-Healing: If user exists but has NO tenant (Broken State), create one.
+            if (empty($this->joinedTenants)) {
+                $newTenantId = uniqid('t_');
+                $name = ($this->currentUser['name'] ?? 'User') . "'s Life";
+                $now = time(); // Use integer timestamp for consistency with migrate_v7
+
+                try {
+                    $this->pdo->beginTransaction();
+                    $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
+                        ->execute([$newTenantId, $name, $now]);
+                    
+                    $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))")
+                         ->execute([$this->currentUserId, $newTenantId]);
+                    
+                    $this->pdo->commit();
+
+                    // Update Context
+                    $this->joinedTenants = [$newTenantId];
+                    if (!$this->currentTenantId) {
+                        $this->currentTenantId = $newTenantId;
+                    }
+                    error_log("BaseController: Self-Healed missing tenant for User {$this->currentUserId}. Created {$newTenantId}");
+
+                } catch (Exception $e) {
+                    $this->pdo->rollBack();
+                    error_log("BaseController: Failed to self-heal tenant: " . $e->getMessage());
+                }
+            }
         }
 
         if (!$this->currentTenantId) {
             // Allow tenant-less access (Personal Mode)
             // But we should prioritize Personal Tenant if exists in joinedTenants?
-            // This logic is handled by Client or subsequent Controllers.
+            // Fallback: Use the first available tenant (Personal or Company)
+            if (!empty($this->joinedTenants)) {
+                $this->currentTenantId = $this->joinedTenants[0];
+            }
         }
     }
 

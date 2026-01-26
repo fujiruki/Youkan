@@ -13,24 +13,22 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
     onSelectProject,
     onNavigateHome
 }) => {
-    const [personalProjects, setPersonalProjects] = useState<any[]>([]);
-    const [companyProjects, setCompanyProjects] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'personal' | 'company'>('personal');
+    const [projects, setProjects] = useState<any[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
 
     useEffect(() => {
         loadProjects();
-    }, []);
+    }, [activeTab]);
 
     const loadProjects = async () => {
         try {
-            const data = await ApiClient.getProjects({ scope: 'aggregated' });
-            // Split by Tenant ID
-            setPersonalProjects(data.filter(p => !p.tenant_id));
-            setCompanyProjects(data.filter(p => p.tenant_id));
+            setProjects([]); // Clear before load
+            const data = await ApiClient.getProjects({ scope: activeTab });
+            setProjects(data);
         } catch (e) {
             console.error('Failed to load projects from API:', e);
-            // Fallback to local Dexie if offline? (Optional)
         }
     };
 
@@ -38,24 +36,19 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
         if (!newProjectName.trim()) return;
 
         try {
-            // Use local DB for optimistic creation? 
-            // Better to use API since we switched source.
-            // But API Client doesn't have createProject yet?
-            // ItemController creates item with project_type.
-
-            // Temporary: Use API creation via createItem logic or add createProject to ApiClient.
-            // Let's use ItemController logic via JBWOSRepository helper or direct API call.
-            // Actually, we should add createProject to ApiClient properly later.
-            // For now, let's assume we want to call the Item Creation API with project_type.
-
             await ApiClient.createItem({
                 title: newProjectName,
-                projectType: 'general', // Default
-                status: 'inbox'
+                projectType: 'general',
+                status: 'inbox',
+                // Explicitly send tenant_id if creating in Company tab? 
+                // Currently API handles tenant_id based on User Context.
+                // If user is logged in as Company, scope=company -> API should Create in Company?
+                // ProjectController create() logic uses currentTenantId.
+                // So if user's token is for Personal Tenant, it creates Personal.
+                // If token is Company, it creates Company.
+                // NOTE: View Filtering doesn't change Create Context unless we switch Token Context.
+                // For Phase 10, let's assume Context is fixed per session (Token).
             });
-
-            // 2. Auto-generate "Estimate Creation" Task (Needs ID from response)
-            // Skip for now to keep it simple or implement if ID returned.
 
             setNewProjectName('');
             setIsCreating(false);
@@ -86,6 +79,12 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                     <FileText size={14} />
                     <span>Project ({project.type || 'general'})</span>
                 </div>
+                {project.tenantName && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                        {project.tenantName === 'Personal' ? <Home size={12} /> : <Building size={12} />}
+                        <span>{project.tenantName}</span>
+                    </div>
+                )}
             </div>
 
             <div className="mt-6 flex justify-end">
@@ -110,9 +109,7 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                     </div>
                 </div>
                 <div>
-                    <div className="px-3 py-1 bg-amber-500/20 text-amber-300 text-xs rounded border border-amber-500/30">
-                        Unified Mode
-                    </div>
+                    {/* Tab Switcher in Header or Below? Let's put it below title in main area or here */}
                 </div>
             </div>
 
@@ -127,9 +124,33 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                     </button>
                 </div>
 
+                {/* Tabs */}
+                <div className="flex gap-4 mb-8 border-b border-slate-200">
+                    <button
+                        onClick={() => setActiveTab('personal')}
+                        className={`pb-2 px-4 flex items-center gap-2 transition-colors ${activeTab === 'personal'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 font-medium'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Home size={18} />
+                        Personal (基本)
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('company')}
+                        className={`pb-2 px-4 flex items-center gap-2 transition-colors ${activeTab === 'company'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 font-medium'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Building size={18} />
+                        Company (会社)
+                    </button>
+                </div>
+
                 {isCreating && (
                     <div className="mb-8 p-6 bg-white rounded-lg shadow-sm border border-slate-200 animate-in slide-in-from-top-2">
-                        <label className="block text-sm font-medium mb-2">Project Name</label>
+                        <label className="block text-sm font-medium mb-2">Project Name ({activeTab === 'personal' ? 'Personal' : 'Company'})</label>
                         <div className="flex gap-4">
                             <input
                                 type="text"
@@ -152,35 +173,14 @@ export const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
                     </div>
                 )}
 
-                {/* Company Projects Section */}
-                {companyProjects.length > 0 && (
-                    <div className="mb-8">
-                        <div className="flex items-center gap-2 mb-4 text-slate-600 border-b border-slate-200 pb-2">
-                            <Building size={20} className="text-indigo-600" />
-                            <h3 className="font-bold text-lg">Company Projects</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {projects.map(project => (
+                        <ProjectCard key={project.id} project={project} />
+                    ))}
+                    {projects.length === 0 && (
+                        <div className="col-span-full text-center py-12 text-slate-400">
+                            No projects found in {activeTab} view.
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {companyProjects.map(project => (
-                                <ProjectCard key={project.id} project={project} />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Personal Projects Section */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4 text-slate-600 border-b border-slate-200 pb-2">
-                        <Home size={20} className="text-emerald-600" />
-                        <h3 className="font-bold text-lg">Personal Projects</h3>
-                    </div>
-                    {personalProjects.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {personalProjects.map(project => (
-                                <ProjectCard key={project.id} project={project} />
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-slate-400 text-sm">No personal projects yet.</p>
                     )}
                 </div>
             </div>

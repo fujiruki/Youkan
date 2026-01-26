@@ -44,7 +44,8 @@ class ItemController extends BaseController {
         $item['projectCategory'] = $item['project_category'] ?? null;
         $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
         $item['assignedTo'] = $item['assigned_to'] ?? null;
-        $item['projectTitle'] = $item['parent_title'] ?? null;
+        // Prioritize project_id title, fallback to parent_title (legacy)
+        $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
         $item['projectType'] = $item['project_type'] ?? null;
         $item['client'] = $item['client'] ?? null;
         
@@ -109,14 +110,48 @@ class ItemController extends BaseController {
                  return $item;
              }, $items));
              
+        } elseif ($scope === 'dashboard') {
+            // Dashboard Scope:
+            // 1. Personal Items (Inbox/Tasks in Personal Tenant)
+            // 2. Company Items Assigned to Me (in Current Tenant or All Joined?)
+            //    Let's assume "Current Context" for now if we are switching context?
+            //    But Dashboard implies "Overview". 
+            //    If I am in Company Context, I want to see My Personal Tasks + My Company Tasks.
+            //    So we should fetch Personal items (tenant_id IS NULL) AND Company items (tenant_id = ?)
+            
+            $sql = "
+                SELECT items.*, parent.title as parent_title
+                FROM items
+                LEFT JOIN items parent ON items.parent_id = parent.id
+                WHERE items.project_type IS NULL -- Ordinary Items
+                AND (
+                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
+                    OR
+                    (items.tenant_id = ? AND items.assigned_to = ?)
+                )
+                ORDER BY items.updated_at DESC
+            ";
+            // Params: [userId, userId, currentTenantId, userId]
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute([
+                 $this->currentUserId, 
+                 $this->currentUserId,
+                 $this->currentTenantId,
+                 $this->currentUserId
+             ]);
+             
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             $this->sendJSON(array_map([$this, 'mapRow'], $items));
+
         } else {
             // Legacy (Single Tenant Mode)
             // [Security Rule] Inbox = Private. Only I can see items with NO project_id created by me.
             // Also include items assigned to me.
             $sql = "
-                SELECT items.*, parent.title as parent_title
+                SELECT items.*, parent.title as parent_title, proj.title as real_project_title
                 FROM items
                 LEFT JOIN items parent ON items.parent_id = parent.id
+                LEFT JOIN items proj ON items.project_id = proj.id
                 WHERE items.tenant_id = ? 
                 AND (
                     (items.project_id IS NULL AND items.created_by = ?) -- Private Inbox
@@ -148,9 +183,10 @@ class ItemController extends BaseController {
         // TODO: Future - Check user membership in project
         
         $sql = "
-            SELECT items.*, parent.title as parent_title
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
             FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
+            LEFT JOIN items proj ON items.project_id = proj.id
             WHERE items.tenant_id = ? 
             AND items.project_id = ?
             ORDER BY items.updated_at DESC
@@ -230,12 +266,15 @@ class ItemController extends BaseController {
     private function show($id) {
         // [Security Rule] Check visibility
         $sql = "
-            SELECT * FROM items 
-            WHERE id = ? AND tenant_id = ? 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items 
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE items.id = ? AND items.tenant_id = ? 
             AND (
-                project_id IS NOT NULL -- Public Project Item
-                OR created_by = ?          -- My Item
-                OR assigned_to = ?         -- Assigned to Me
+                items.project_id IS NOT NULL -- Public Project Item
+                OR items.created_by = ?          -- My Item
+                OR items.assigned_to = ?         -- Assigned to Me
             )
         ";
         $stmt = $this->pdo->prepare($sql);
@@ -254,7 +293,7 @@ class ItemController extends BaseController {
             $this->sendError(400, 'Title is required');
         }
 
-        $id = $data['id'] ?? uniqid('item_', true);
+        $id = $data['id'] ?? uniqid('item_', false); // Avoid dots in ID for routing safety
         $now = time();
         $delegationJson = isset($data['delegation']) ? json_encode($data['delegation']) : null;
         
@@ -309,10 +348,20 @@ class ItemController extends BaseController {
     }
 
     private function update($id) {
-        // Verify ownership/permission FIRST
-        $check = $this->pdo->prepare("SELECT project_id, created_by FROM items WHERE id = ? AND tenant_id = ?");
-        $check->execute([$id, $this->currentTenantId]);
+        // [Security Rule] Multi-Tenant Support
+        // Allow updates to items in ANY tenant the user belongs to (e.g. Personal or Company),
+        // not just the currently active context.
+        $tenantIds = $this->joinedTenants;
+        if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
+        if (!in_array($this->currentTenantId, $tenantIds)) $tenantIds[] = $this->currentTenantId;
+
+        $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        
+        // Fetch item's actual tenant_id
+        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND tenant_id IN ($placeholders)");
+        $check->execute(array_merge([$id], $tenantIds));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
+
         
         if (!$existing) {
              $this->sendError(404, 'Item not found');
@@ -388,7 +437,7 @@ class ItemController extends BaseController {
         $params[] = time();
 
         $params[] = $id;
-        $params[] = $this->currentTenantId; // Double check tenant in WHERE
+        $params[] = $existing['tenant_id']; // Use the item's REAL tenant_id
 
         $sql = "UPDATE items SET " . implode(', ', $fields) . " WHERE id = ? AND tenant_id = ?";
         
@@ -402,16 +451,30 @@ class ItemController extends BaseController {
     
     private function delete($id) {
          // Verify ownership (Same rule as update)
-        $check = $this->pdo->prepare("SELECT project_id, created_by FROM items WHERE id = ? AND tenant_id = ?");
-        $check->execute([$id, $this->currentTenantId]);
+         // [Security Rule] Multi-Tenant Support
+        $tenantIds = $this->joinedTenants;
+        if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
+        if (!in_array($this->currentTenantId, $tenantIds)) $tenantIds[] = $this->currentTenantId;
+
+        $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+
+        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND tenant_id IN ($placeholders)");
+        $check->execute(array_merge([$id], $tenantIds));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
-        if ($existing && !$isAdmin && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
+        // Allow if: Project Item (Shared) OR My Item OR Admin
+        $isAdmin = ($this->currentUser['role'] ?? '') === 'admin';
+
+        if (!$existing) {
+             $this->sendError(404, 'Item not found');
+        }
+
+        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
              $this->sendError(403, 'Access Denied');
         }
 
         $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ? AND tenant_id = ?");
-        $stmt->execute([$id, $this->currentTenantId]);
+        $stmt->execute([$id, $existing['tenant_id']]);
         $this->sendJSON(['success' => true]);
     }
     

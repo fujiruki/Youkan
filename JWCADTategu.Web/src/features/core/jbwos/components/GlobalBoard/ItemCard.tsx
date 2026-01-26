@@ -115,8 +115,11 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                 onContextMenu={(e) => onContextMenu?.(e, item.id)}
             >
                 {/* Content (Inline Edit or Text) */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex flex-col gap-0.5">
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-2 overflow-hidden">
+                    {/* Left: Title + Project Name Area */}
+                    <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        {item.isProject && <Folder size={isCompact ? 12 : 14} className="shrink-0 text-slate-400" />}
+
                         {isEditing ? (
                             <input
                                 autoFocus
@@ -128,57 +131,67 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 className="w-full bg-transparent border-b border-indigo-500 text-[1em] focus:outline-none p-0"
                             />
                         ) : (
-                            <span className={cn(
-                                "text-slate-700 dark:text-slate-200 font-medium leading-snug",
-                                isCompact ? "line-clamp-1" : "line-clamp-2"
-                            )}>
-                                {/* Project Badge for Compact Mode */}
-                                {isCompact && item.projectTitle && (
-                                    <span className="inline-block bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1 rounded text-[0.85em] mr-1.5 align-baseline">
-                                        {item.projectTitle.slice(0, 3)}
+                            <>
+                                <span className={cn(
+                                    "text-slate-700 dark:text-slate-200 font-medium leading-snug truncate",
+                                    isCompact ? "text-[0.9em]" : "text-[0.95em]"
+                                )}>
+                                    {item.title}
+                                </span>
+
+                                {/* Project Badge (Moved to immediately follow title) */}
+                                {item.projectTitle && (
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded text-[0.75em] font-medium border max-w-[120px] truncate shrink-0",
+                                        "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                                    )} title={item.projectTitle}>
+                                        {item.projectTitle}
                                     </span>
                                 )}
-
-                                {/* Folder Icon only if it IS a project (usually not in item buckets but safe to keep) */}
-                                {item.isProject && <Folder size={isCompact ? 12 : 14} className="inline-block mr-1 text-slate-400 align-text-bottom" />}
-
-                                {item.title}
-
-                                {/* Full Project Title for Standard Mode */}
-                                {!isCompact && item.projectTitle && (
-                                    <span className="ml-2 font-normal text-slate-400 text-[0.9em]">
-                                        ({item.projectTitle})
-                                    </span>
-                                )}
-                            </span>
+                            </>
                         )}
                     </div>
-                    {/* Meta / Tags */}
-                    {(item.waitingReason || item.projectId || item.due_status === 'waiting_external') && (
-                        <div className="flex flex-wrap gap-2 mt-1.5 text-[0.75em] text-slate-400">
-                            {item.due_status === 'waiting_external' && (
-                                <span className="text-slate-500 font-normal">取付日未確定</span>
-                            )}
-                            {item.waitingReason && (
-                                <span className="text-amber-600 dark:text-amber-500 flex items-center gap-1">
-                                    ⏳ {item.waitingReason}
+
+                    {/* Right: Meta Badges (Date, Wait, etc) */}
+                    {(item.due_date || item.waitingReason || item.due_status) && !isEditing && (
+                        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                            {/* Deadline Display */}
+                            {item.due_date && (
+                                <span className={cn(
+                                    "flex items-center gap-1 text-[0.75em] font-medium px-1.5 py-0.5 rounded border",
+                                    "text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800"
+                                )}>
+                                    <Calendar size={10} className="shrink-0" />
+                                    <span className="whitespace-nowrap">
+                                        {new Date(item.due_date).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' })}
+                                    </span>
                                 </span>
                             )}
 
+                            {item.due_status === 'waiting_external' && (
+                                <span className="text-[0.75em] text-slate-500 font-normal whitespace-nowrap hidden sm:inline">未確定</span>
+                            )}
+
+                            {/* Wait Reason */}
+                            {item.waitingReason && (
+                                <span className="text-[0.75em] text-amber-600 dark:text-amber-500 whitespace-nowrap">
+                                    ⏳
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Side Memo Indicator (MVP: Just an icon or subtle text) */}
                 {item.memo && (
-                    <div className="text-[0.7em] text-slate-400 max-w-[80px] truncate border-l pl-2 border-slate-200 dark:border-slate-700">
+                    <div className="shrink-0 text-[0.7em] text-slate-400 max-w-[60px] truncate border-l pl-2 border-slate-200 dark:border-slate-700 hidden sm:block">
                         {item.memo}
                     </div>
                 )}
 
                 {/* [NEW] Quick Add Button */}
                 {isCompact && onCreateSubTask && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center shrink-0">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -192,14 +205,14 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                     </div>
                 )}
 
-                {/* Calendar Link (Hover only) - Logic based on status */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Calendar Link (Hover only) */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                         onClick={(e) => handleCalendarClick(e)}
-                        className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
+                        className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
                         title={item.status === 'ready' ? "作業予定をカレンダー登録" : "判断再開をカレンダー登録"}
                     >
-                        <Calendar size="1.2em" />
+                        <Calendar size="1em" />
                     </button>
                 </div>
             </div>

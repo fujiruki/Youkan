@@ -43,7 +43,8 @@ export const CloudJBWOSRepository = {
 
     // 5. GDB Shelf (Aggregated View)
     getGdbShelf: async (): Promise<GdbShelf> => {
-        const allItems = await ApiClient.getAllItems({ scope: 'aggregated' });
+        // [Change] Use 'dashboard' scope to mix Personal and Company-Assigned items
+        const allItems = await ApiClient.getAllItems({ scope: 'dashboard' });
 
         // Categorize
         return {

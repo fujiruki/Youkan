@@ -3,14 +3,15 @@ import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
 import { Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
 
-export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
-    const { projects, loading, fetchProjects, createProject, updateProject, deleteProject } = useProjectViewModel();
+export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
+    // Destructure activeScope and setActiveScope
+    const { projects, loading, fetchProjects, createProject, updateProject, deleteProject, activeScope, setActiveScope } = useProjectViewModel();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     useEffect(() => {
         fetchProjects();
-    }, [fetchProjects]);
+    }, [fetchProjects]); // fetchProjects now depends on activeScope
 
     const handleCreate = () => {
         setEditingProject(null);
@@ -26,7 +27,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; o
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-8 pb-24">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
                             <ArrowLeft className="w-6 h-6 text-slate-600 dark:text-slate-400" />
@@ -40,13 +41,44 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; o
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={handleCreate}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <span>新規プロジェクト</span>
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {/* Scope Tabs */}
+                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+                            <button
+                                onClick={() => setActiveScope('personal')}
+                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeScope === 'personal'
+                                    ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                    }`}
+                            >
+                                基本 (Personal)
+                            </button>
+                            <button
+                                onClick={() => setActiveScope('company')}
+                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeScope === 'company'
+                                    ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                    }`}
+                            >
+                                会社 (Company)
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={handleCreate}
+                            className="hidden md:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span>新規プロジェクト</span>
+                        </button>
+                        {/* Mobile Add Button */}
+                        <button
+                            onClick={handleCreate}
+                            className="md:hidden flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white w-12 h-12 rounded-full shadow-lg transition-all"
+                        >
+                            <Plus className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Grid */}
@@ -58,7 +90,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (id: string) => void; o
                             <ProjectCard
                                 key={project.id}
                                 project={project}
-                                onSelect={() => onSelect(project.id)}
+                                onSelect={() => onSelect(project)}
                                 onEdit={() => handleEdit(project)}
                                 onDelete={() => deleteProject(project.id)}
                             />
