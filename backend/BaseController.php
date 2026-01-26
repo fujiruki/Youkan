@@ -54,34 +54,8 @@ class BaseController {
             $stmt->execute([$this->currentUserId]);
             $this->joinedTenants = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            // [FIX] Self-Healing: If user exists but has NO tenant (Broken State), create one.
-            if (empty($this->joinedTenants)) {
-                $newTenantId = uniqid('t_');
-                $name = ($this->currentUser['name'] ?? 'User') . "'s Life";
-                $now = time(); // Use integer timestamp for consistency with migrate_v7
-
-                try {
-                    $this->pdo->beginTransaction();
-                    $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, ?)")
-                        ->execute([$newTenantId, $name, $now]);
-                    
-                    $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))")
-                         ->execute([$this->currentUserId, $newTenantId]);
-                    
-                    $this->pdo->commit();
-
-                    // Update Context
-                    $this->joinedTenants = [$newTenantId];
-                    if (!$this->currentTenantId) {
-                        $this->currentTenantId = $newTenantId;
-                    }
-                    error_log("BaseController: Self-Healed missing tenant for User {$this->currentUserId}. Created {$newTenantId}");
-
-                } catch (Exception $e) {
-                    $this->pdo->rollBack();
-                    error_log("BaseController: Failed to self-heal tenant: " . $e->getMessage());
-                }
-            }
+            // [Modified] Self-Healing Disabled: Allow Tenant-less (Personal) User.
+            // If user exists but has NO tenant, do not force create one.
         }
 
         if (!$this->currentTenantId) {
