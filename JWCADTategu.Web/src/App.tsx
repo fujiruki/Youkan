@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 // import { DashboardScreen } from './components/Dashboard/DashboardScreen'; // Deprecated
-// import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
 // import { ProjectListScreen } from './features/plugins/tategu/screens/ProjectListScreen';
 import { JoineryScheduleScreen } from './features/plugins/tategu/screens/JoineryScheduleScreen';
 import { EditorScreen } from './features/plugins/tategu/editor/EditorScreen';
@@ -8,9 +7,10 @@ import { Project, Door, db } from './db/db';
 import { DebugBanner } from './components/Debug/DebugBanner';
 import { CatalogScreen } from './features/plugins/tategu/catalog/CatalogScreen';
 
-import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [NEW] MVP Board
-import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [NEW] Today Screen
-import { FutureBoard } from './features/core/planning/FutureBoard'; // [NEW]
+import { DashboardScreen } from './features/core/jbwos/screens/DashboardScreen'; // [NEW] Unified Dashboard
+// import { JbwosBoard } from './features/core/jbwos/components/GlobalBoard/GlobalBoard'; // [REPLACED]
+// import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [REPLACED]
+import { FutureBoard } from './features/core/planning/FutureBoard'; // [Keep for now]
 import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
 import { ProjectRegistryScreen } from './features/core/jbwos/screens/ProjectRegistryScreen'; // [NEW] Project Registry
 import { CustomerList } from './features/plugins/customer'; // [NEW] Customer Plugin
@@ -39,13 +39,13 @@ import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCal
 type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar';
 
 function App() {
-    // Default is now JBWOS MVP Board for verification
-    const [currentView, setCurrentView] = useState<ViewState>('jbwos');
+    // Default is now Dashboard
+    const [currentView, setCurrentView] = useState<ViewState>('dashboard');
     const [activeProject, setActiveProject] = useState<Project | null>(null);
     const [activeDoor, setActiveDoor] = useState<Door | null>(null);
 
     // [NEW] URL Routing State
-    const [initialDashboardLayout, setInitialDashboardLayout] = useState<'standard' | 'panorama'>('standard');
+
 
     // [NEW] URL Router Effect (Run Once)
     useEffect(() => {
@@ -55,14 +55,15 @@ function App() {
         // /JBWOS/Panorama -> jbwos + panorama
         // /JBWOS/Focus    -> jbwos + standard
 
-        if (path.includes('/jbwos/panorama')) {
-            console.log('[Router] Detected Panorama URL');
-            setCurrentView('jbwos');
-            setInitialDashboardLayout('panorama');
+        if (path.includes('/dashboard')) {
+            console.log('[Router] Detected Dashboard URL');
+            setCurrentView('dashboard');
+        } else if (path.includes('/jbwos/panorama')) {
+            console.log('[Router] Detected Legacy Panorama URL');
+            setCurrentView('dashboard'); // Redirect to dashboard
         } else if (path.includes('/jbwos/focus')) {
-            console.log('[Router] Detected Focus URL');
-            setCurrentView('jbwos');
-            setInitialDashboardLayout('standard');
+            console.log('[Router] Detected Legacy Focus URL');
+            setCurrentView('dashboard');
         } else if (path.includes('/userlist')) {
             console.log('[Router] Detected UserList URL');
             setCurrentView('userlist');
@@ -123,10 +124,10 @@ function App() {
         setCurrentView('editor');
     };
 
-    // 4. Back Home (Global Decision Board -> JBWOS)
+    // 4. Back Home (Global Decision Board -> JBWOS -> Dashboard)
     const handleBackToDashboard = () => {
-        console.log('[App] Back to Global Board (JBWOS)');
-        setCurrentView('jbwos');
+        console.log('[App] Back to Dashboard');
+        setCurrentView('dashboard');
         setActiveProject(null);
     };
 
@@ -266,7 +267,7 @@ function App() {
                         handleDeleteProject={handleDeleteProject}
                         handleArchiveProject={handleArchiveProject}
                         setActiveProject={setActiveProject}
-                        initialDashboardLayout={initialDashboardLayout} // [NEW]
+
                     />
                 </AuthGuard>
             </AuthProvider>
@@ -322,7 +323,7 @@ const AppContent: React.FC<{
     handleDeleteProject: (id: number) => Promise<void>;
     handleArchiveProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
-    initialDashboardLayout: 'standard' | 'panorama'; // [NEW]
+
 }> = ({
     currentView,
     setCurrentView,
@@ -338,7 +339,7 @@ const AppContent: React.FC<{
     handleDeleteProject,
     handleArchiveProject,
     setActiveProject,
-    initialDashboardLayout // [NEW]
+
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
         const { user, tenant } = useAuth(); // [NEW] Fetch Auth Info
@@ -387,14 +388,9 @@ const AppContent: React.FC<{
                       We use 'jbwos' as the main dashboard now.
                     */}
 
-                            {/* 0. JBWOS (MVP) - MAIN DASHBOARD */}
+                            {/* 0. JBWOS Dashboard - Unified View */}
                             {(currentView === 'jbwos' || currentView === 'dashboard') && (
-                                <div className="h-full w-full bg-slate-100 dark:bg-slate-950">
-                                    <JbwosBoard
-                                        onClose={handleNavigateToProjects}
-                                        initialLayoutMode={initialDashboardLayout} // [NEW]
-                                    />
-                                </div>
+                                <DashboardScreen />
                             )}
 
                             {/* 1.5 Project Registry (New) - Unified View */}
@@ -448,13 +444,7 @@ const AppContent: React.FC<{
                                 />
                             )}
 
-                            {/* 6. Today Screen (Execution) */}
-                            {currentView === 'today' && (
-                                <TodayScreen
-                                    onBack={() => setCurrentView('jbwos')}
-                                    onNavigateToPlanning={() => setCurrentView('planning')} // [NEW]
-                                />
-                            )}
+
 
                             {/* 6.1 Volume Calendar (Workload Visualization) */}
                             {currentView === 'calendar' && (

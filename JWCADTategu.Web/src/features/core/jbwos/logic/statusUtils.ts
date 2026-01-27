@@ -7,8 +7,8 @@ import { startOfDay, isBefore, isSameDay } from 'date-fns';
  * @param nowUnix - Current time in Unix seconds (optional, defaults to now)
  */
 export function isTodayCandidate(item: Item, nowUnix?: number): boolean {
-    // 1. Must be 'ready' status.
-    if (item.status !== 'ready') return false;
+    // 1. Must be 'focus' status.
+    if (item.status !== 'focus') return false;
 
     // 2. Flags override checks.
     // If it is already committed to today (manually), it shows up.

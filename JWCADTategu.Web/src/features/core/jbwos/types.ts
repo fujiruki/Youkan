@@ -1,4 +1,4 @@
-export type JudgmentStatus = 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
+export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 

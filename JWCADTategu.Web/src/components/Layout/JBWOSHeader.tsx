@@ -18,7 +18,7 @@ interface Tenant {
 }
 
 interface JBWOSHeaderProps {
-    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings';
+    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist';
     onNavigateToToday: () => void;
     onNavigateToHistory: () => void;
     onNavigateToProjects: () => void;
@@ -107,25 +107,21 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                             ctrlKey: true
                         }));
                     }}
-                    className="text-sm font-bold text-slate-100 hover:text-white transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1"
-                    title="放り込み箱へ戻る (Ctrl+G)"
+                    className={`text-sm font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${currentView === 'dashboard' || currentView === 'jbwos'
+                        ? 'text-white underline decoration-indigo-400 decoration-2 underline-offset-4'
+                        : 'text-slate-300 hover:text-white'
+                        }`}
+                    title="ダッシュボードへ戻る (Ctrl+G)"
                 >
-                    📊 <span className="hidden xs:inline">JBWOS</span>
+                    📊 <span className="hidden xs:inline">Dashboard</span>
                 </button>
             </div>
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
                 {/* Today Button (Priority) */}
-                <button
-                    onClick={onNavigateToToday}
-                    className={`px-3 md:px-6 py-1.5 md:py-2 rounded-lg font-bold text-xs md:text-sm transition-all shadow-md whitespace-nowrap ${currentView === 'today'
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-amber-400 text-white hover:bg-amber-500'
-                        }`}
-                >
-                    Today
-                </button>
+                {/* Dashboard Link (Replaced JBWOS title) */}
+                {/* <button className="... hidden" /> */ /* Removed Today Button */}
 
                 {/* Plan Button (Desktop Only) */}
                 <button

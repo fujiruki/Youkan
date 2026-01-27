@@ -47,7 +47,8 @@ class ItemController extends BaseController {
         // Prioritize project_id title, fallback to parent_title (legacy)
         $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
         $item['projectType'] = $item['project_type'] ?? null;
-        $item['client'] = $item['client'] ?? null;
+
+        // $item['client'] = $item['client'] ?? null; // Removed as column missing
         
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
@@ -111,37 +112,60 @@ class ItemController extends BaseController {
              }, $items));
              
         } elseif ($scope === 'dashboard') {
-            // Dashboard Scope:
-            // 1. Personal Items (Inbox/Tasks in Personal Tenant)
-            // 2. Company Items Assigned to Me (in Current Tenant or All Joined?)
-            //    Let's assume "Current Context" for now if we are switching context?
-            //    But Dashboard implies "Overview". 
-            //    If I am in Company Context, I want to see My Personal Tasks + My Company Tasks.
-            //    So we should fetch Personal items (tenant_id IS NULL) AND Company items (tenant_id = ?)
+            // Dashboard Scope: Aggregated Personal + Company Items (Life-Work Integration)
+            // Strategy: Search in ALL joined tenants + Personal Space
+            
+            $tenantIds = $this->joinedTenants ?: []; 
+            // Ensure current tenant is included if set (for safety against memberships/tenant_members sync issues)
+            if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+                $tenantIds[] = $this->currentTenantId;
+            }
+            
+             // We must always allow searching in 'Personal' (NULL/'')
+            
+            $placeholders = '';
+            if (!empty($tenantIds)) {
+                $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+            }
             
             $sql = "
-                SELECT items.*, parent.title as parent_title
+                SELECT items.*, parent.title as parent_title, t.name as tenant_name
                 FROM items
                 LEFT JOIN items parent ON items.parent_id = parent.id
-                WHERE items.project_type IS NULL -- Ordinary Items
+                LEFT JOIN tenants t ON items.tenant_id = t.id
+                WHERE items.project_type IS NULL 
                 AND (
-                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
+                    -- 1. Personal Items (No Tenant)
+                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND items.created_by = ?)
+                    
                     OR
-                    (items.tenant_id = ? AND items.assigned_to = ?)
+                    
+                    -- 2. Company Items (In Joined Tenants)
+                    (
+                        " . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . "
+                        AND (
+                            items.assigned_to = ?
+                            OR (items.project_id IS NULL AND items.created_by = ?)
+                        )
+                    )
                 )
                 ORDER BY items.updated_at DESC
             ";
-            // Params: [userId, userId, currentTenantId, userId]
+            
+            // Params: [userId, ...tenantIds, userId, userId]
+            $params = array_merge([$this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
+            
              $stmt = $this->pdo->prepare($sql);
-             $stmt->execute([
-                 $this->currentUserId, 
-                 $this->currentUserId,
-                 $this->currentTenantId,
-                 $this->currentUserId
-             ]);
+             $stmt->execute($params);
              
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             $this->sendJSON(array_map([$this, 'mapRow'], $items));
+             
+             $this->sendJSON(array_map(function($row) {
+                 $item = $this->mapRow($row);
+                 $item['tenantName'] = $row['tenant_name'];
+                 $item['tenantId'] = $row['tenant_id']; 
+                 return $item;
+             }, $items));
 
         } else {
             // Legacy (Single Tenant Mode)
@@ -299,8 +323,8 @@ class ItemController extends BaseController {
         
         // Unified Schema Fields
         $projectType = $data['projectType'] ?? null;
-        $client = $data['client'] ?? null;
-        $meta = isset($data['meta']) ? json_encode($data['meta']) : null;
+        // $client = $data['client'] ?? null;
+        // $meta = isset($data['meta']) ? json_encode($data['meta']) : null;
         
         // Backward Compatibility
         $isProject = ($data['isProject'] ?? false) ? 1 : 0;
@@ -313,11 +337,11 @@ class ItemController extends BaseController {
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by, project_type, client, meta
+                project_id, created_by, project_type
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?
+                ?, ?, ?
             )
         ");
         
@@ -336,9 +360,8 @@ class ItemController extends BaseController {
                 $delegationJson,
                 $data['projectId'] ?? null, // Link to project if provided
                 $this->currentUserId,
-                $projectType,
-                $client,
-                $meta
+                $projectType
+                // $meta
             ]);
             
             $this->sendJSON(['id' => $id, 'success' => true]);
@@ -385,7 +408,7 @@ class ItemController extends BaseController {
             'title', 'status', 'memo', 'due_date', 'due_status', 
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
             'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
-            'project_type', 'client', 'meta'
+            'project_type'
         ];
 
         foreach ($simpleFields as $f) {

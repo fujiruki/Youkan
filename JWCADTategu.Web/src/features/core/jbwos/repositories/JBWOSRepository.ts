@@ -180,6 +180,17 @@ export const JBWOSRepository = {
         }
     },
 
+    // 8. Dashboard Scope (Aggregated)
+    async getDashboardItems(): Promise<JudgableItem[]> {
+        try {
+            // Fetch aggregated items (Personal + Company) from Server
+            return await ApiClient.getAllItems({ scope: 'dashboard' });
+        } catch (e) {
+            console.error('Failed to fetch Dashboard Items:', e);
+            return [];
+        }
+    },
+
     // --- Phase 2: Backend Intelligence Methods ---
 
     // GDB Shelf View
@@ -241,10 +252,10 @@ export const JBWOSRepository = {
         // 3. Merge & Sort
         // Strategy: Categorize local items into Shelf buckets
         const mergedShelf = {
-            // Inbox: 'inbox' + 'ready' (Stock/Generic Ready without date)
+            // Inbox: 'inbox' + 'focus' (Stock/Generic Focus without date)
             active: [
                 ...(apiShelf.active || []),
-                ...localItems.filter(i => i.status === 'inbox' || i.status === 'ready' || !i.status)
+                ...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || !i.status)
             ],
             // Waiting: 'waiting' + Legacy 'decision_hold' + Legacy 'scheduled'
             // (Note: 'ready' with date should strictly be in Calendar/Future, but if here, put in waiting or active? 
@@ -302,10 +313,10 @@ export const JBWOSRepository = {
                 let execution: Item | undefined;
 
                 for (const item of allItems) {
-                    // Logic: Ready + Flag = Commit
-                    // Logic: Ready + PrepDate <= Today = Candidate
+                    // Logic: Focus + Flag = Commit
+                    // Logic: Focus + PrepDate <= Today = Candidate
 
-                    if (item.status === 'ready') {
+                    if (item.status === 'focus') {
                         // Check Flags
                         if (item.flags?.is_executing) {
                             execution = item;
@@ -320,7 +331,7 @@ export const JBWOSRepository = {
                                 candidates.push(item);
                             }
                         } else {
-                            // Ready with no date? -> Candidate (Stock)
+                            // Focus with no date? -> Candidate (Stock)
                             candidates.push(item);
                         }
                     }
@@ -349,7 +360,7 @@ export const JBWOSRepository = {
                 // Decision 'hold' matches 'pending' (shelf) more than 'waiting'?
                 // But actually 'hold' is usually "I can't decide yet" -> Information Waiting?
                 // Let's map 'hold' -> 'pending' for safety as Shelf is safe.
-                if (decision === 'yes') status = 'ready'; // Yes = Ready (Scheduled)
+                if (decision === 'yes') status = 'focus'; // Yes = Focus (Scheduled)
 
                 if (decision === 'no' && note === 'someday') status = 'pending'; // Someday -> Pending
                 if (decision === 'no' && note === 'archive') status = 'done'; // Archive -> Done
@@ -534,7 +545,8 @@ async function convertDoorToItem(door: Door): Promise<Item> {
     return {
         id: `door-${door.id}`,
         title: door.name,
-        status: door.judgmentStatus || 'inbox',
+        // Map legacy door status: ready -> focus
+        status: (door.judgmentStatus === 'ready' ? 'focus' : (door.judgmentStatus || 'inbox')) as JudgmentStatus,
         statusUpdatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
         interrupt: false,
         weight: door.weight || 1,

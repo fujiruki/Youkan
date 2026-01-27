@@ -44,8 +44,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
 
     const handleCalendarClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent card select
-        if (item.status === 'ready') {
-            openCalendarForReady(item);
+        if (item.status === 'focus') {
+            openCalendarForReady(item); // Maybe rename hook method too later, but compatible for now.
         } else {
             // Default to Inbox behavior (Judgment Resume Hook) for all other states
             openCalendarForInbox(item);
@@ -210,7 +210,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                     <button
                         onClick={(e) => handleCalendarClick(e)}
                         className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
-                        title={item.status === 'ready' ? "作業予定をカレンダー登録" : "判断再開をカレンダー登録"}
+                        title={item.status === 'focus' ? "作業予定をカレンダー登録" : "判断再開をカレンダー登録"}
                     >
                         <Calendar size="1em" />
                     </button>

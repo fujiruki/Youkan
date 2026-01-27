@@ -25,8 +25,8 @@ const createItem = (status: JudgmentStatus, overrides: Partial<Item> = {}): Item
 describe('Status Utils (Haruki Model)', () => {
 
     describe('isTodayCandidate', () => {
-        it('should return true if status is ready and is_today_commit flag is true', () => {
-            const item = createItem('ready', {
+        it('should return true if status is focus and is_today_commit flag is true', () => {
+            const item = createItem('focus', {
                 flags: {
                     has_deadline: false,
                     needs_decision: false,
@@ -38,13 +38,13 @@ describe('Status Utils (Haruki Model)', () => {
             expect(isTodayCandidate(item)).toBe(true);
         });
 
-        it('should return true if status is ready and prep_date is today or past', () => {
+        it('should return true if status is focus and prep_date is today or past', () => {
             const today = Math.floor(Date.now() / 1000); // Approximation
             // We need to inject "current time" or pass it. 
             // For now assuming util uses system time, or we mock it.
             // Let's assume util accepts 'todayTimestamp' optional.
 
-            const item = createItem('ready', { prep_date: today - 86400 }); // Yesterday
+            const item = createItem('focus', { prep_date: today - 86400 }); // Yesterday
             expect(isTodayCandidate(item, today)).toBe(true);
         });
 
@@ -68,9 +68,9 @@ describe('Status Utils (Haruki Model)', () => {
             expect(isOverdue(item, todayString)).toBe(false);
         });
 
-        it('should return true if ready and deadline passed', () => {
+        it('should return true if focus and deadline passed', () => {
             const todayString = '2026-01-25';
-            const item = createItem('ready', { due_date: '2026-01-24' });
+            const item = createItem('focus', { due_date: '2026-01-24' });
             expect(isOverdue(item, todayString)).toBe(true);
         });
     });

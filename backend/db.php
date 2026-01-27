@@ -11,11 +11,11 @@ function getDB() {
         
         if ($isNew) {
             initDB($pdo);
+        } else {
+            // --- Auto-Migration Logic (Schema Evolution) ---
+            // Ensure all required tables exist (Migration for existing DBs)
+            ensureTables($pdo);
         }
-
-        // --- Auto-Migration Logic (Schema Evolution) ---
-        // Ensure all required tables exist (Migration for existing DBs)
-        ensureTables($pdo);
 
         // 1. Check 'items' table columns
         $columns = [];
@@ -67,6 +67,7 @@ function ensureTables($pdo) {
             tenant_id TEXT NOT NULL,
             title TEXT NOT NULL,
             status TEXT NOT NULL,
+            created_by TEXT,
             memo TEXT,
             interrupt INTEGER DEFAULT 0,
             status_updated_at INTEGER,
@@ -82,7 +83,9 @@ function ensureTables($pdo) {
             project_category TEXT DEFAULT NULL,
             estimated_minutes INTEGER DEFAULT 0,
             assigned_to TEXT DEFAULT NULL,
-            delegation TEXT DEFAULT NULL
+            delegation TEXT DEFAULT NULL,
+            project_id TEXT DEFAULT NULL,
+            project_type TEXT DEFAULT NULL
         )",
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,6 +163,7 @@ function ensureTables($pdo) {
             user_id TEXT,
             tenant_id TEXT,
             role TEXT DEFAULT 'member',
+            joined_at INTEGER,
             PRIMARY KEY (user_id, tenant_id),
             FOREIGN KEY(user_id) REFERENCES users(id),
             FOREIGN KEY(tenant_id) REFERENCES tenants(id)
