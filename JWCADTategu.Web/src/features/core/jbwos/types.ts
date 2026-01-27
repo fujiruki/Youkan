@@ -60,12 +60,16 @@ export interface Item {
     status: JudgmentStatus;  // Strict 5 Statuses: inbox|waiting|ready|pending|done
     flags?: ItemFlags;       // [NEW] Attributes (is_today_commit, is_executing, etc)
 
+    // [JBWOS] Judgment Fields
+    focusOrder: number;      // 0 = Unsorted/Inbox
+    isIntent: boolean;       // Strong Intent ("Do Today")
+    dueStatus?: 'today' | 'future' | 'overdue' | 'someday'; // Temporal State
+
     statusUpdatedAt: number; // 状態変更日（"今日"の判定用）
 
     // --- Filters & Sorters ---
     dueHook?: DeadlineHook;
     due_date?: string | null;  // "YYYY-MM-DD"
-    due_status?: 'confirmed' | 'waiting_external';
     prep_date?: number | null; // [NEW] Preparation Target (Blurry Date, Timestamp)
     work_days?: number;        // [Legacy] 制作目安日数（デフォルト: 1）
     estimatedMinutes?: number; // [NEW] 制作目安時間（分）

@@ -26,7 +26,12 @@ class ItemController extends BaseController {
                 $this->getMyItems();
             }
         } elseif ($method === 'POST') {
-            $this->create();
+             // [JBWOS] Special Action: Reorder Focus
+             if (isset($_GET['action']) && $_GET['action'] === 'reorder_focus') {
+                 $this->reorderFocus();
+             } else {
+                 $this->create();
+             }
         } elseif ($method === 'PUT' && $id) {
             $this->update($id);
         } elseif ($method === 'DELETE' && $id) {
@@ -47,6 +52,11 @@ class ItemController extends BaseController {
         // Prioritize project_id title, fallback to parent_title (legacy)
         $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
         $item['projectType'] = $item['project_type'] ?? null;
+
+        // [JBWOS] Judgment Columns
+        $item['focusOrder'] = (int)($item['focus_order'] ?? 0);
+        $item['isIntent'] = (bool)($item['is_intent'] ?? 0);
+        $item['dueStatus'] = $item['due_status'] ?? null;
 
         // $item['client'] = $item['client'] ?? null; // Removed as column missing
         
@@ -444,6 +454,25 @@ class ItemController extends BaseController {
         if (isset($data['status'])) {
              $fields[] = "status_updated_at = ?";
              $params[] = time();
+             
+             // [JBWOS] Reset Intent if task is moved out of 'focus' or completed
+             if ($data['status'] === 'done') {
+                $fields[] = "is_intent = ?";
+                $params[] = 0;
+             }
+        }
+        
+        // [JBWOS] Handle new Judgment Columns explicitly
+        $judgmentFields = ['focus_order' => 'focusOrder', 'is_intent' => 'isIntent', 'due_status' => 'dueStatus'];
+        foreach ($judgmentFields as $dbCol => $apiCol) {
+            if (array_key_exists($apiCol, $data)) {
+                $val = $data[$apiCol];
+                // Boolean conversion for intent
+                if ($dbCol === 'is_intent') $val = $val ? 1 : 0;
+                
+                $fields[] = "$dbCol = ?";
+                $params[] = $val;
+            }
         }
 
         if (array_key_exists('delegation', $data)) {
@@ -503,6 +532,39 @@ class ItemController extends BaseController {
     
     private function toCamel($snake) {
         return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $snake))));
+    }
+
+    // [JBWOS] Bulk Reorder Logic
+    private function reorderFocus() {
+        $data = $this->getInput();
+        // Expecting: { items: [ { id: 'xxx', order: 1 }, ... ] }
+        if (empty($data['items']) || !is_array($data['items'])) {
+            $this->sendError(400, 'Invalid items data');
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+
+            $sql = "UPDATE items SET focus_order = ? WHERE id = ? AND tenant_id = ?";
+            $stmt = $this->pdo->prepare($sql);
+
+            foreach ($data['items'] as $item) {
+                if (isset($item['id'], $item['order'])) {
+                     $stmt->execute([
+                         (int)$item['order'], 
+                         $item['id'], 
+                         $this->currentTenantId // Strictly scoped to current tenant
+                     ]);
+                }
+            }
+
+            $this->pdo->commit();
+            $this->sendJSON(['success' => true]);
+
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->sendError(500, 'Reorder Failed: ' . $e->getMessage());
+        }
     }
 }
 

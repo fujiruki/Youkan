@@ -2,6 +2,7 @@ export interface AuthUser {
     id: string;
     name: string;
     email: string;
+    activeTaskId?: string; // [JBWOS] Current Focus Pointer
 }
 
 export interface Tenant {

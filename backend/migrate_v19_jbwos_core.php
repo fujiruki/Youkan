@@ -1,54 +1,52 @@
 <?php
 // backend/migrate_v19_jbwos_core.php
-// Phase 16: JBWOS Core Refinement - Schema Update
-// Goal: Add support for Focus Queue (Order), Intent (Flag), and ActiveTask (Persistence)
+// Purpose: Add core columns for Judgment-Centered OS (JBWOS) to prevent 500 errors and enable new logic.
 
 require_once __DIR__ . '/db.php';
 
 try {
     $pdo = getDB();
     echo "Starting JBWOS Core Migration (v19)...\n";
+    
+    // 1. Add columns to 'items' table
+    $columnsToAdd = [
+        'due_status' => 'TEXT DEFAULT NULL',   // 'overdue', 'today', 'future' etc - Used by Controller
+        'focus_order' => 'INTEGER DEFAULT 0',  // Order within the Focus Queue (Today's List)
+        'is_intent' => 'INTEGER DEFAULT 0'     // 1 = "Do Today" Commitment (High Priority/Active Candidate)
+    ];
 
-    $pdo->beginTransaction();
+    $tableInfo = $pdo->query("PRAGMA table_info(items)")->fetchAll(PDO::FETCH_ASSOC);
+    $existingCols = array_column($tableInfo, 'name');
 
-    // 1. Add 'focus_order' to 'items'
-    // Used for sorting items in the Focus Queue. Float allows insertion between items.
-    $columns = $pdo->query("PRAGMA table_info(items)")->fetchAll(PDO::FETCH_COLUMN, 1);
-    if (!in_array('focus_order', $columns)) {
-        $pdo->exec("ALTER TABLE items ADD COLUMN focus_order REAL DEFAULT 0");
-        echo "Added 'focus_order' to 'items'.\n";
-    } else {
-        echo "'focus_order' already exists in 'items'.\n";
+    foreach ($columnsToAdd as $colName => $def) {
+        if (!in_array($colName, $existingCols)) {
+            echo "Adding column 'items.$colName'...\n";
+            $pdo->exec("ALTER TABLE items ADD COLUMN $colName $def");
+        } else {
+            echo "Column 'items.$colName' already exists.\n";
+        }
     }
 
-    // 2. Add 'is_intent' to 'items'
-    // Flag for "Meaning Layer" items (Important but not urgent).
-    if (!in_array('is_intent', $columns)) {
-        $pdo->exec("ALTER TABLE items ADD COLUMN is_intent INTEGER DEFAULT 0"); // Boolean 0/1
-        echo "Added 'is_intent' to 'items'.\n";
-    } else {
-        echo "'is_intent' already exists in 'items'.\n";
+    // 2. Add columns to 'users' table (for Active Task Pointer)
+    $userColumnsToAdd = [
+        'active_task_id' => 'TEXT DEFAULT NULL' // Pointer to the single item correctly being done
+    ];
+
+    $userTableInfo = $pdo->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
+    $existingUserCols = array_column($userTableInfo, 'name');
+
+    foreach ($userColumnsToAdd as $colName => $def) {
+         if (!in_array($colName, $existingUserCols)) {
+            echo "Adding column 'users.$colName'...\n";
+            $pdo->exec("ALTER TABLE users ADD COLUMN $colName $def");
+        } else {
+            echo "Column 'users.$colName' already exists.\n";
+        }
     }
 
-    // 3. Add 'active_task_id' to 'users'
-    // Persist "Current Active Task" across devices.
-    $userColumns = $pdo->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_COLUMN, 1);
-    // Note: If 'users' table structure is different (some setups used 'members'), ensure we target the right auth table.
-    // Assuming standard 'users' table from AuthController.
-    if (!in_array('active_task_id', $userColumns)) {
-        $pdo->exec("ALTER TABLE users ADD COLUMN active_task_id TEXT DEFAULT NULL");
-        echo "Added 'active_task_id' to 'users'.\n";
-    } else {
-        echo "'active_task_id' already exists in 'users'.\n";
-    }
-
-    $pdo->commit();
-    echo "Migration v19 Complete.\n";
+    echo "Migration v19 completed successfully.\n";
 
 } catch (PDOException $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
     echo "Migration Failed: " . $e->getMessage() . "\n";
     exit(1);
 }

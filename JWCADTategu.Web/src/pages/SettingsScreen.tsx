@@ -63,7 +63,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                            設定 (Settings)
+                            設定
                         </h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             {tenant?.name || 'My Company'} の設定と管理
@@ -134,30 +134,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     {activeTab === 'system' && (
                         <div className="space-y-8 animate-fade-in">
 
-                            {/* Cloud Mode Toggle */}
-                            <section>
+                            {/* Data Source Setting (Cloud Only) */}
+                            {/* <section className="hidden">
                                 <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">
                                     データソース設定
                                 </h2>
-                                <div className="flex items-center space-x-3 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <input
-                                        type="checkbox"
-                                        id="useCloud"
-                                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                                        defaultChecked={localStorage.getItem('JBWOS_USE_CLOUD') === 'true'}
-                                        onChange={(e) => {
-                                            localStorage.setItem('JBWOS_USE_CLOUD', e.target.checked ? 'true' : 'false');
-                                            window.location.reload();
-                                        }}
-                                    />
-                                    <label htmlFor="useCloud" className="text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
-                                        Cloud APIを使用する (Check to use Server Mode)
-                                    </label>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2 ml-1">
-                                    ※ 切り替え後、ページがリロードされます。Migrationが完了していることを確認してください。
+                                <p className="text-sm text-slate-500 px-1">
+                                    現在、クラウド同期モードで動作しています。
                                 </p>
-                            </section>
+                            </section> */}
 
                             {/* Holiday Config Section */}
                             <section>
@@ -241,12 +226,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                             {/* Other Settings (Placeholder) */}
                             <section className="opacity-50 pointer-events-none">
                                 <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-1">
-                                    表示設定 (Coming Soon)
+                                    表示設定 (準備中)
                                 </h2>
                                 <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                     <div className="flex items-center gap-2 text-slate-500">
                                         <Smartphone size={20} />
-                                        <span>Dark Mode / Density Settings</span>
+                                        <span>ダークモード / 表示密度設定</span>
                                     </div>
                                 </div>
                             </section>

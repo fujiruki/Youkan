@@ -47,7 +47,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
             setNonWorkingHours(nwh || '');
         } catch (error) {
             console.error('Failed to load profile', error);
-            showToast({ type: 'error', title: 'Error', message: 'Failed to load profile' });
+            showToast({ type: 'error', title: 'エラー', message: 'プロフィールの読み込みに失敗しました' });
         } finally {
             setIsLoading(false);
         }
@@ -63,10 +63,10 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 non_working_hours: nonWorkingHours
             });
             await checkAuth(); // Refresh global auth state
-            showToast({ type: 'success', title: 'Saved', message: 'Profile updated successfully' });
+            showToast({ type: 'success', title: '保存完了', message: 'プロフィールを更新しました' });
         } catch (error) {
             console.error(error);
-            showToast({ type: 'error', title: 'Error', message: 'Failed to save profile' });
+            showToast({ type: 'error', title: 'エラー', message: 'プロフィールの保存に失敗しました' });
         } finally {
             setIsLoading(false);
         }
@@ -74,7 +74,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
     const handleChangePassword = async () => {
         if (!currentPassword || !newPassword) {
-            showToast({ type: 'error', title: 'Error', message: 'Both password fields are required' });
+            showToast({ type: 'error', title: 'エラー', message: 'パスワードを入力してください' });
             return;
         }
         try {
@@ -82,17 +82,17 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
             await ApiClient.changePassword(currentPassword, newPassword);
             setCurrentPassword('');
             setNewPassword('');
-            showToast({ type: 'success', title: 'Success', message: 'Password changed successfully' });
+            showToast({ type: 'success', title: '成功', message: 'パスワードを変更しました' });
         } catch (error: any) {
             console.error(error);
-            showToast({ type: 'error', title: 'Error', message: error.message || 'Failed to change password' });
+            showToast({ type: 'error', title: 'エラー', message: error.message || 'パスワードの変更に失敗しました' });
         } finally {
             setIsLoading(false);
         }
     };
 
     if (isLoading && !email) {
-        return <div className="p-8 text-slate-500">Loading settings...</div>;
+        return <div className="p-8 text-slate-500">設定を読み込み中...</div>;
     }
 
     return (
@@ -105,7 +105,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                     </button>
                     <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                         <User className="w-6 h-6 text-indigo-500" />
-                        Personal Settings
+                        個人設定
                     </h1>
                 </div>
                 <button
@@ -114,7 +114,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition-all disabled:opacity-50"
                 >
                     <Save className="w-4 h-4" />
-                    Save Changes
+                    変更を保存
                 </button>
             </div>
 
@@ -124,31 +124,31 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 {/* Profile Section */}
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
-                        Basic Information
+                        基本情報
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Display Name</label>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">表示名 (Display Name)</label>
                             <input
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Your Name"
+                                placeholder="氏名を入力"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Email Address</label>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">メールアドレス</label>
                             <input
                                 type="email"
                                 value={email}
                                 disabled
                                 className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed"
                             />
-                            <p className="text-xs text-slate-400">Email cannot be changed.</p>
+                            <p className="text-xs text-slate-400">メールアドレスは変更できません。</p>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Birthday</label>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">誕生日</label>
                             <input
                                 type="date"
                                 value={birthday}
@@ -163,12 +163,12 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
                         <Clock className="w-5 h-5 text-slate-500" />
-                        Work Capacity & Balance
+                        業務キャパシティ設定
                     </h2>
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                Daily Work Capacity (Minutes)
+                                1日の業務可能時間 (分)
                             </label>
                             <div className="flex items-center gap-4">
                                 <input
@@ -178,15 +178,15 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                                     className="w-32 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                                 />
                                 <span className="text-slate-500 dark:text-slate-400 text-sm">
-                                    {(dailyCapacity / 60).toFixed(1)} Hours
+                                    {(dailyCapacity / 60).toFixed(1)} 時間
                                 </span>
                             </div>
-                            <p className="text-xs text-slate-400">Used for workload calculation and scheduling.</p>
+                            <p className="text-xs text-slate-400">業務量の計算とスケジューリングに使用されます。</p>
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                Non-Working Hours / Holidays (JSON Config)
+                                定休日・祝日設定 (JSON)
                             </label>
                             <textarea
                                 value={nonWorkingHours}
@@ -195,7 +195,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                                 className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-mono text-sm"
                                 placeholder='{"weekends": ["Sat", "Sun"], "holidays": []}'
                             />
-                            <p className="text-xs text-slate-400">Advanced configuration for recurring off-hours.</p>
+                            <p className="text-xs text-slate-400">定休日や祝日の詳細設定です (Advanced)。</p>
                         </div>
                     </div>
                 </section>
@@ -204,11 +204,11 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
                         <Lock className="w-5 h-5 text-slate-500" />
-                        Security
+                        セキュリティ
                     </h2>
                     <div className="space-y-4 max-w-md">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Current Password</label>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">現在のパスワード</label>
                             <input
                                 type="password"
                                 value={currentPassword}
@@ -217,7 +217,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">New Password</label>
+                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">新しいパスワード</label>
                             <input
                                 type="password"
                                 value={newPassword}
@@ -230,7 +230,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                             disabled={isLoading || !currentPassword || !newPassword}
                             className="mt-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg font-medium shadow-sm transition-all disabled:opacity-50 text-sm"
                         >
-                            Update Password
+                            パスワードを変更
                         </button>
                     </div>
                 </section>

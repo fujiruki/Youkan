@@ -7,7 +7,9 @@ import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
 
 const getUseCloud = () => {
-    return localStorage.getItem('JBWOS_USE_CLOUD') === 'true';
+    // Enforce Cloud Mode by default (User Request)
+    // return localStorage.getItem('JBWOS_USE_CLOUD') === 'true';
+    return true;
 };
 
 // Simple Repository Proxy/Factory
