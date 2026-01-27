@@ -57,10 +57,10 @@ export const MembersScreen: React.FC = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold">
-                                                {member.username.charAt(0)}
+                                                {member.display_name.charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="font-medium text-slate-800 dark:text-slate-200">{member.username}</div>
+                                                <div className="font-medium text-slate-800 dark:text-slate-200">{member.display_name}</div>
                                                 <div className="text-xs text-slate-500">{member.role}</div>
                                             </div>
                                         </div>

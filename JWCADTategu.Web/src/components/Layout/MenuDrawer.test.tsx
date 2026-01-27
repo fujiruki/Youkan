@@ -15,7 +15,8 @@ describe('MenuDrawer', () => {
         onNavigateToPlanning: vi.fn(),
         onNavigateToManual: vi.fn(),
         onLogout: vi.fn(),
-        userName: 'Test User'
+        userName: 'Test User',
+        onNavigateToCompanySettings: vi.fn()
     };
 
     it('renders nothing when closed', () => {

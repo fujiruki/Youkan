@@ -35,7 +35,7 @@ export const useVolumeCalendarViewModel = () => {
             const members = rawMembers.map(m => ({
                 id: m.id,
                 userId: m.id, // Fallback
-                username: 'Unknown', // Fallback
+                display_name: 'Unknown', // Fallback
                 role: 'user', // Fallback
                 isCore: Boolean(m.is_core),
                 dailyCapacityMinutes: m.daily_capacity_minutes || 480

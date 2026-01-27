@@ -17,7 +17,7 @@ describe('useMembersViewModel', () => {
         {
             id: 'rel_1',
             userId: 'usr_1',
-            username: 'User 1',
+            display_name: 'User 1',
             role: 'admin',
             isCore: true,
             dailyCapacityMinutes: 480
@@ -25,7 +25,7 @@ describe('useMembersViewModel', () => {
         {
             id: 'rel_2',
             userId: 'usr_2',
-            username: 'User 2',
+            display_name: 'User 2',
             role: 'member',
             isCore: false,
             dailyCapacityMinutes: 420

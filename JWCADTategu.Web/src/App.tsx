@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 // import { DashboardScreen } from './components/Dashboard/DashboardScreen'; // Deprecated
 // import { GlobalDecisionBoard } from './components/Dashboard/GlobalDecisionBoard';
-import { ProjectListScreen } from './features/plugins/tategu/screens/ProjectListScreen';
+// import { ProjectListScreen } from './features/plugins/tategu/screens/ProjectListScreen';
 import { JoineryScheduleScreen } from './features/plugins/tategu/screens/JoineryScheduleScreen';
 import { EditorScreen } from './features/plugins/tategu/editor/EditorScreen';
 import { Project, Door, db } from './db/db';
@@ -314,7 +314,7 @@ const AppContent: React.FC<{
     activeDoor: Door | null;
     handleNavigateToProjects: () => void;
     handleOpenProject: (id: number) => Promise<void>;
-    handleOpenCloudProject: (id: string) => void;
+    handleOpenCloudProject: (id: string, name?: string) => void;
     handleOpenDoor: (door: Door) => void;
     handleBackToDashboard: () => void;
     handleBackToProjectList: () => void;

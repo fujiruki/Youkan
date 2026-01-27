@@ -7,7 +7,7 @@ describe('CapacityFactory', () => {
     const mockMember = (id: string, isCore: boolean, capacity: number): Member => ({
         id,
         userId: id,
-        username: `User ${id}`,
+        display_name: `User ${id}`,
         role: 'user',
         isCore,
         dailyCapacityMinutes: capacity

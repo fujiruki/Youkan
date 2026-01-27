@@ -35,7 +35,8 @@ export type JudgableItem = Item; // Alias for compatibility
 export interface Member {
     id: string; // membership_id
     userId: string;
-    username: string;
+    display_name: string; // [Modified] Match backend column name
+    email?: string; // [Modified] Optional to prevent build break on legacy usages
     role: string;
     isCore: boolean;
     dailyCapacityMinutes: number;

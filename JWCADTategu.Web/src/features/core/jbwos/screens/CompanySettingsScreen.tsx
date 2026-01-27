@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient } from '../../../../api/client';
-import { Users, Building, Plus, Trash2, Edit2, Check, Shield, Crown } from 'lucide-react';
+import { Users, Building, Plus, Trash2, Edit2, Check } from 'lucide-react';
 import { Member } from '../types'; // Import from central types
 
 interface TenantInfo {
@@ -214,8 +214,8 @@ export const CompanySettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack
                                                 onChange={(e) => handleRoleUpdate(m.id, e.target.value as 'admin' | 'user')}
                                                 disabled={m.role === 'owner'}
                                                 className={`text-xs font-medium border rounded px-1 py-0.5 ${m.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                        m.role === 'admin' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                                            'bg-slate-100 text-slate-600 border-slate-200'
+                                                    m.role === 'admin' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                        'bg-slate-100 text-slate-600 border-slate-200'
                                                     }`}
                                             >
                                                 <option value="owner" disabled>Owner</option>
