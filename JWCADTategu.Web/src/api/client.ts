@@ -283,6 +283,19 @@ export class ApiClient {
         return this.request('GET', '/health', undefined, true);
     }
 
+    // --- User API ---
+    public static async getUserProfile(): Promise<{ id: string; email: string; display_name: string; birthday: string; daily_capacity_minutes: number; non_working_hours: any }> {
+        return this.request('GET', '/user/profile');
+    }
+
+    public static async updateUserProfile(data: { display_name?: string; birthday?: string; daily_capacity_minutes?: number; non_working_hours?: any }): Promise<{ success: boolean }> {
+        return this.request('PUT', '/user/profile', data);
+    }
+
+    public static async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
+        return this.request('PUT', '/user/password', { current_password: currentPassword, new_password: newPassword });
+    }
+
     // --- Member Configuration API ---
     public static async getMembers(): Promise<Member[]> {
         return this.request('GET', '/tenant/members');

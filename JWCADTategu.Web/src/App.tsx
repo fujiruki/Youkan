@@ -23,6 +23,7 @@ import { ApiClient } from './api/client';
 import { JBWOSHeader } from './components/Layout/JBWOSHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 import { CompanySettingsScreen } from './features/core/projects/screens/CompanySettingsScreen'; // [NEW]
+import { PersonalSettingsScreen } from './features/core/jbwos/screens/PersonalSettingsScreen'; // [NEW]
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
 import { UserManagementScreen } from './features/admin/screens/UserManagementScreen'; // [NEW] User Management
@@ -36,7 +37,7 @@ import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
 
 function App() {
     // Default is now Dashboard
@@ -67,6 +68,9 @@ function App() {
         } else if (path.includes('/userlist')) {
             console.log('[Router] Detected UserList URL');
             setCurrentView('userlist');
+        } else if (path.includes('/settings/profile')) { // [NEW]
+            console.log('[Router] Detected Personal Settings URL');
+            setCurrentView('personalSettings');
         }
         // Else default to what's in useState or other logic (e.g. Deep linking below)
     }, []);
@@ -364,9 +368,9 @@ const AppContent: React.FC<{
                         <DebugBanner />
                         {/* New JBWOS Header */}
                         {/* Immersive Mode for Today Screen: Hide Global Header */}
-                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers') && (
+                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings') && (
                             <JBWOSHeader
-                                currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings' | 'customers'}
+                                currentView={currentView as any}
                                 onNavigateToToday={() => setCurrentView('today')}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
@@ -375,6 +379,7 @@ const AppContent: React.FC<{
                                 onNavigateToPlanning={() => setCurrentView('planning')}
                                 onNavigateToCalendar={() => setCurrentView('calendar')}
                                 onNavigateToCompanySettings={() => setCurrentView('companySettings')}
+                                onNavigateToPersonalSettings={() => setCurrentView('personalSettings')}
                                 user={user}   // [NEW]
                                 tenant={tenant} // [NEW]
                             />
@@ -502,6 +507,13 @@ const AppContent: React.FC<{
                                 <div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
                                     <UserManagementScreen />
                                 </div>
+                            )}
+
+                            {/* 12. Personal Settings */}
+                            {currentView === 'personalSettings' && (
+                                <PersonalSettingsScreen
+                                    onBack={handleBackToDashboard}
+                                />
                             )}
                         </div>
 

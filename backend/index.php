@@ -40,6 +40,8 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-HTTP-Method-Override, X-AI-Debug-Secret");
 header("Content-Type: application/json; charset=UTF-8");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0"); // [FIX] Prevent browser caching
+header("Pragma: no-cache");
 
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
@@ -164,6 +166,15 @@ if (preg_match('#^(/api)?/members(?:/([^/]+))?$#', $path, $matches)) {
 }
 
 // --- NEW V7 ROUTES ---
+
+// User Settings Routes (Personal)
+require_once 'UserController.php';
+if (preg_match('#^(/api)?/user(/.*)$#', $path, $matches)) {
+    $controller = new UserController();
+    $subPath = $matches[2];
+    $controller->handleRequest($method, $subPath);
+    exit;
+}
 
 // Auth Routes
 // Auth Routes

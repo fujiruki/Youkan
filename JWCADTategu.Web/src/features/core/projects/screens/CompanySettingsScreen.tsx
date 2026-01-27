@@ -236,19 +236,12 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                             </label>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            {isAdmin ? (
-                                                <input
-                                                    type="number"
-                                                    value={member.daily_capacity_minutes || 480}
-                                                    onChange={(e) => handleUpdateMember(member.id, { daily_capacity_minutes: parseInt(e.target.value) })}
-                                                    className="w-20 text-center border border-slate-200 rounded px-2 py-1 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                    step={30}
-                                                />
-                                            ) : (
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded">
                                                     {member.daily_capacity_minutes || 480} min
                                                 </span>
-                                            )}
+                                                <span className="text-[10px] text-slate-400 mt-1">Personal Setting</span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-500">
                                             {member.joined_at?.split(' ')[0] || '-'}

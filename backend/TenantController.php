@@ -53,7 +53,7 @@ class TenantController extends BaseController {
         // Let's allow everyone in tenant to see who else is in tenant.
         
         $stmt = $this->pdo->prepare("
-            SELECT u.id, u.email, u.display_name, m.role, m.joined_at, m.is_core, m.daily_capacity_minutes
+            SELECT u.id, u.email, u.display_name, m.role, m.joined_at, m.is_core, u.daily_capacity_minutes
             FROM memberships m
             JOIN users u ON u.id = m.user_id
             WHERE m.tenant_id = ?

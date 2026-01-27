@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, CheckSquare, Clock, Settings, Users, BookOpen, LogOut, FileText, Building } from 'lucide-react';
+import { X, Calendar, CheckSquare, Clock, Settings, Users, BookOpen, LogOut, FileText, Building, User } from 'lucide-react';
 // import { cn } from '../../lib/utils';
 // import { cn } from '../../lib/utils';
 
@@ -31,6 +31,7 @@ export interface MenuDrawerProps {
     user?: AuthUser | null; // [NEW]
     tenant?: Tenant | null; // [NEW]
     onNavigateToCompanySettings: () => void;
+    onNavigateToPersonalSettings?: () => void; // [NEW]
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -48,7 +49,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
     userName,
     user,
     tenant,
-    onNavigateToCompanySettings
+    onNavigateToCompanySettings,
+    onNavigateToPersonalSettings
 }) => {
     if (!isOpen) return null;
 
@@ -76,10 +78,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                             {tenant ? (
                                 <span className="flex items-center gap-1">
                                     <Users size={12} />
-                                    {tenant.name}
+                                    Mode: Content ({tenant.name})
                                 </span>
                             ) : (
-                                <span className="text-slate-500 dark:text-slate-400">Personal Account</span>
+                                <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                                    <User size={12} />
+                                    Mode: Personal
+                                </span>
                             )}
                         </div>
 
@@ -114,6 +119,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                         <div className="h-px bg-slate-200 dark:bg-slate-800 my-2 mx-2"></div>
 
                         <MenuItem icon={<Settings size={18} />} label="設定" onClick={onNavigateToSettings} />
+                        {onNavigateToPersonalSettings && <MenuItem icon={<User size={18} />} label="個人設定" onClick={onNavigateToPersonalSettings} />}
                         {tenant && <MenuItem icon={<Building size={18} />} label="会社設定" onClick={onNavigateToCompanySettings} />}
                         {onNavigateToManual && <MenuItem icon={<BookOpen size={18} />} label="マニュアル" onClick={onNavigateToManual} />}
                     </nav>
