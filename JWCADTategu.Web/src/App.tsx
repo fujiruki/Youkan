@@ -364,7 +364,7 @@ const AppContent: React.FC<{
                         <DebugBanner />
                         {/* New JBWOS Header */}
                         {/* Immersive Mode for Today Screen: Hide Global Header */}
-                        {(currentView === 'jbwos' || currentView === 'planning' || currentView === 'history' || currentView === 'customers') && (
+                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers') && (
                             <JBWOSHeader
                                 currentView={currentView as 'jbwos' | 'today' | 'history' | 'settings' | 'customers'}
                                 onNavigateToToday={() => setCurrentView('today')}
