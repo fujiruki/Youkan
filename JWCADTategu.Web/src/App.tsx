@@ -144,6 +144,19 @@ function App() {
         setActiveProject(null);
     };
 
+    // [NEW] Dashboard Navigation Handler (Force Reset)
+    const handleNavigateToDashboard = () => {
+        console.log('[App] handleNavigateToDashboard called');
+        setCurrentView('dashboard');
+        setActiveProject(null);
+        // Logic to reset URL to base/Focus
+        const basePath = import.meta.env.BASE_URL || '/';
+        const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
+        window.history.pushState({}, '', normalizedBase + 'Focus');
+        // Dispatch event to reset DashboardScreen internal state
+        window.dispatchEvent(new Event('dashboard-reset'));
+    };
+
     // 5. Back to Project List
     const handleBackToProjectList = () => {
         setCurrentView('projects'); // Unified View
@@ -280,7 +293,7 @@ function App() {
                         handleDeleteProject={handleDeleteProject}
                         handleArchiveProject={handleArchiveProject}
                         setActiveProject={setActiveProject}
-
+                        handleNavigateToDashboard={handleNavigateToDashboard}
                     />
                 </AuthGuard>
             </AuthProvider>
@@ -336,6 +349,7 @@ const AppContent: React.FC<{
     handleDeleteProject: (id: number) => Promise<void>;
     handleArchiveProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
+    handleNavigateToDashboard: () => void;
 
 }> = ({
     currentView,
@@ -352,6 +366,7 @@ const AppContent: React.FC<{
     handleDeleteProject,
     handleArchiveProject,
     setActiveProject,
+    handleNavigateToDashboard,
 
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
@@ -381,7 +396,7 @@ const AppContent: React.FC<{
                             <JBWOSHeader
                                 currentView={currentView as any}
                                 onNavigateToToday={() => setCurrentView('today')}
-                                onNavigateToDashboard={() => setCurrentView('dashboard')}
+                                onNavigateToDashboard={handleNavigateToDashboard}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
                                 onNavigateToSettings={() => setCurrentView('settings')}

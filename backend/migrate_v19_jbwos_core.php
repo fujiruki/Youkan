@@ -27,9 +27,11 @@ try {
         }
     }
 
-    // 2. Add columns to 'users' table (for Active Task Pointer)
+    // 2. Add columns to 'users' table (for Active Task Pointer and display details)
     $userColumnsToAdd = [
-        'active_task_id' => 'TEXT DEFAULT NULL' // Pointer to the single item correctly being done
+        'active_task_id' => 'TEXT DEFAULT NULL',   // Pointer to the single item correctly being done
+        'display_name' => 'TEXT DEFAULT NULL',      // User's display name for UI
+        'daily_capacity_minutes' => 'INTEGER DEFAULT 480' // Default capacity (8 hours)
     ];
 
     $userTableInfo = $pdo->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);

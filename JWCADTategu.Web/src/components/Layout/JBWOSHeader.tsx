@@ -59,10 +59,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
     // Navigate to Dashboard (Home)
     const handleGoHome = () => {
-        window.dispatchEvent(new KeyboardEvent('keydown', {
-            key: 'g',
-            ctrlKey: true
-        }));
+        onNavigateToDashboard();
     };
 
     // Check if current view is a primary navigation target

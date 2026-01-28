@@ -125,6 +125,16 @@ export const DashboardScreen = () => {
         localStorage.setItem('jbwos_view_mode', viewMode);
     }, [viewMode]);
 
+    // [NEW] Listen for global dashboard reset event (from App.tsx header navigation)
+    useEffect(() => {
+        const handleReset = () => {
+            setViewMode('stream');
+            // Ensure URL is synced if needed, but App.tsx handles the pushState
+        };
+        window.addEventListener('dashboard-reset', handleReset);
+        return () => window.removeEventListener('dashboard-reset', handleReset);
+    }, []);
+
     // ... (Existing VM Hooks) ...
     const {
         inboxItems, pendingItems, waitingItems,
