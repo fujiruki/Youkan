@@ -33,12 +33,10 @@ class MemberController extends BaseController {
             // Query: Join memberships with users to get names
             $sql = "
                 SELECT 
-                    m.id, 
                     m.user_id, 
                     m.role, 
                     m.is_core, 
-                    m.daily_capacity_minutes,
-                    u.username,
+                    u.daily_capacity_minutes,
                     u.display_name
                 FROM memberships m
                 JOIN users u ON m.user_id = u.id
@@ -52,9 +50,9 @@ class MemberController extends BaseController {
             // Format response
             $response = array_map(function($row) {
                 return [
-                    'id' => $row['id'],
+                    'id' => $row['user_id'], // Use user_id as unique ID for membership in this context
                     'userId' => $row['user_id'],
-                    'username' => $row['display_name'] ?: $row['username'], // Prefer display name
+                    'username' => $row['display_name'], // display_name is the only name field
                     'role' => $row['role'],
                     'isCore' => (bool)$row['is_core'],
                     'dailyCapacityMinutes' => (int)$row['daily_capacity_minutes']

@@ -29,7 +29,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     // [FIX] Hooks must be called unconditionally.
     // Initialize with safe defaults.
     const [note, setNote] = React.useState('');
-    const [dueStatus, setDueStatus] = React.useState<Item['due_status']>('waiting_external');
+    const [dueStatus, setDueStatus] = React.useState<any>('waiting_external');
     const [dueDate, setDueDate] = React.useState('');
     const [prepDate, setPrepDate] = React.useState('');
     const [workDays, setWorkDays] = React.useState(1);
@@ -52,7 +52,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     React.useEffect(() => {
         if (item) {
             setNote(item.memo || '');
-            setDueStatus(item.due_status || 'waiting_external');
+            setDueStatus(item.dueStatus || 'waiting_external');
             setDueDate(item.due_date || '');
             setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
             setWorkDays(item.work_days || 1);
@@ -102,7 +102,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         }
 
         // Optimistic Due Date Logic (Default to Today if Waiting)
-        if (item.due_status === 'waiting_external') {
+        if (item.dueStatus === 'waiting_external') {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             setDueDate(todayStr); // In-memory only until save
             setDueStatus('confirmed');
@@ -110,7 +110,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             // but UI will look like it's confirmed.
             // If user interacts (e.g. Enter), handleClose/Decision will save `dueDate`.
         }
-    }, [item?.id, isProject, onGetSubTasks, item?.due_status]);
+    }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -152,8 +152,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
                 if (dueStatus === 'waiting_external') {
-                    setDueStatus('confirmed');
-                    const updates: Partial<Item> = { due_status: 'confirmed' };
+                    setDueStatus('confirmed' as any);
+                    const updates: Partial<Item> = { dueStatus: 'confirmed' as any };
                     if (onUpdate) onUpdate(item.id, updates);
                     else ApiClient.updateItem(item.id, updates);
                 }
@@ -206,7 +206,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
         // Due Date (Safety check)
         if (dueDate !== (item.due_date || '')) {
             updates.due_date = dueDate;
-            updates.due_status = dueStatus; // If date changed, likely status is confirmed
+            updates.dueStatus = dueStatus; // If date changed, likely status is confirmed
         }
 
         return updates;
@@ -241,7 +241,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             if (!updates.due_date && !item.due_date) {
                 updates.due_date = todayStr;
-                updates.due_status = 'confirmed';
+                updates.dueStatus = 'confirmed';
             }
         }
 
@@ -306,9 +306,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 }
                                             }
                                         }}
-                                        onKeyDown={(e) => {
+                                        onKeyDown={async (e) => {
                                             if (e.key === 'Enter') {
                                                 e.currentTarget.blur();
+                                                // Check for changes and trigger update immediately on Enter
+                                                // Although onBlur handles it, forcing it here ensures UX feels responsive
+                                                if (editedTitle !== item.title) {
+                                                    if (onUpdate) await onUpdate(item.id, { title: editedTitle });
+                                                    else await ApiClient.updateItem(item.id, { title: editedTitle });
+                                                }
                                             } else if (e.key === 'Escape') {
                                                 setEditedTitle(item.title);
                                                 setIsEditingTitle(false);
@@ -359,9 +365,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         const newStatus = dueStatus === 'waiting_external' ? 'confirmed' : 'waiting_external';
                                                         const todayStr = format(new Date(), 'yyyy-MM-dd');
                                                         const newDateVal = newStatus === 'waiting_external' ? null : (dueDate || todayStr);
-                                                        setDueStatus(newStatus);
+                                                        setDueStatus(newStatus as any);
                                                         if (newStatus === 'confirmed' && !dueDate) setDueDate(todayStr); // Only auto-set if empty
-                                                        const updates: Partial<Item> = { due_status: newStatus, due_date: newDateVal };
+                                                        const updates: Partial<Item> = { dueStatus: newStatus as any, due_date: newDateVal };
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
                                                     }}
@@ -376,7 +382,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         const todayStr = format(new Date(), 'yyyy-MM-dd');
                                                         setDueStatus('confirmed');
                                                         setDueDate(todayStr);
-                                                        const updates: Partial<Item> = { due_status: 'confirmed', due_date: todayStr };
+                                                        const updates: Partial<Item> = { dueStatus: 'confirmed', due_date: todayStr };
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
                                                     }}
@@ -393,7 +399,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                 const val = d ? format(d, 'yyyy-MM-dd') : '';
                                                                 setDueDate(val);
                                                                 if (d) setViewMonth(d);
-                                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                                const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' };
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
@@ -410,7 +416,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                 const val = e.target.value;
                                                                 setDueDate(val);
                                                                 if (val) setViewMonth(new Date(val));
-                                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                                const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' as any };
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}

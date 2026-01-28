@@ -142,7 +142,7 @@ class ProjectController extends BaseController {
         $type = $data['type'] ?? ($data['settings']['type'] ?? 'general');
         $meta['settings']['type'] = $type;
 
-        $tenantId = !empty($this->currentTenantId) ? $this->currentTenantId : null; // Ensure null if empty
+        $tenantId = !empty($this->currentTenantId) ? $this->currentTenantId : ''; // Use empty string for NOT NULL constraint
 
         $stmt = $this->pdo->prepare("
             INSERT INTO items (

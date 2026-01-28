@@ -46,6 +46,12 @@ class UserController extends BaseController {
         // [JBWOS] Explicit CamelCase for frontend
         $user['activeTaskId'] = $user['active_task_id'];
 
+        // [FIX] Fallback for empty display name
+        if (empty($user['display_name'])) {
+            $parts = explode('@', $user['email']);
+            $user['display_name'] = $parts[0] ?? 'User';
+        }
+
         $this->sendJSON($user);
     }
 

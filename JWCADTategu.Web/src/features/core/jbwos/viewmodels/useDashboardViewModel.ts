@@ -156,6 +156,72 @@ export const useDashboardViewModel = () => {
         } catch (e) { console.error(e); }
     };
 
+    // [NEW] Undo / Restore
+    const undoItem = async (id: string) => {
+        try {
+            await JBWOSRepository.updateItemGeneric(id, { status: 'inbox' }); // Simply restore to inbox? Or revert specific status?
+            // For simple "Undo Complete", restore to Inbox is usually safe, or 'focus' if it was today.
+            // Let's stick to Inbox for safety.
+            refresh();
+            return true;
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
+    };
+
+    // [NEW] Subtask Support
+    const createSubTask = async (parentId: string, title: string, initialDueDate?: string) => {
+        try {
+            // Use ApiClient directly or Repo extension
+            // Assuming ApiClient.createItem supports parent_id in payload
+            const newItemId = await JBWOSRepository.createItem({
+                title,
+                status: 'inbox',
+                parentId: parentId,
+                due_date: initialDueDate
+            });
+            refresh();
+            return newItemId;
+        } catch (e) { console.error(e); return undefined; }
+    };
+
+    const getSubTasks = async (parentId: string) => {
+        try {
+            return await JBWOSRepository.getSubTasks(parentId);
+        } catch (e) { return []; }
+    };
+
+    // [NEW] Project Creation
+    const createProject = async (projectData: Partial<Item>, defaultTasks: any[]) => {
+        try {
+            // 1. Create Project Item
+            const projectId = await JBWOSRepository.createItem({
+                ...projectData,
+                status: 'inbox', // Projects usually start in inbox or active?
+                isProject: true
+            });
+
+            // 2. Create Default Tasks (if any)
+            if (defaultTasks && defaultTasks.length > 0 && projectId) {
+                // Sequential execution to ensure order? or Parallel?
+                for (const task of defaultTasks) {
+                    await JBWOSRepository.createItem({
+                        title: task.title,
+                        estimatedMinutes: task.estimatedMinutes,
+                        status: 'inbox',
+                        parentId: projectId // Link to new project
+                    });
+                }
+            }
+            refresh();
+            return projectId;
+        } catch (e) {
+            console.error('Failed to create project:', e);
+            throw e; // Rethrow for UI to handle
+        }
+    };
+
     return {
         ...state,
         refresh,
@@ -165,6 +231,11 @@ export const useDashboardViewModel = () => {
         completeItem,
         createItem,
         updateItem,
-        deleteItem
+        deleteItem,
+        undoItem,
+        createSubTask,
+        getSubTasks,
+
+        createProject, // Export
     };
 };

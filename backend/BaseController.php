@@ -20,13 +20,13 @@ class BaseController {
         // [Debug Mode] Accept mock token for offline development
         if ($token === 'mock-debug-token') {
             $this->currentUser = [
-                'sub' => 1,
+                'sub' => 'u_default', // [FIX] Match existing default user ID
                 'name' => 'Debug User',
                 'tenant_id' => 1,
                 'role' => 'admin'
             ];
             $this->currentTenantId = 1;
-            $this->currentUserId = 1;
+            $this->currentUserId = 'u_default'; // [FIX] Match DB
             return;
         }
 
@@ -64,6 +64,10 @@ class BaseController {
             // Fallback: Use the first available tenant (Personal or Company)
             if (!empty($this->joinedTenants)) {
                 $this->currentTenantId = $this->joinedTenants[0];
+            } else {
+                // [FIX] Force Personal Tenant ID if no tenant context
+                // This prevents SQL NOT NULL error in items.tenant_id
+                $this->currentTenantId = 'p_' . $this->currentUserId;
             }
         }
     }

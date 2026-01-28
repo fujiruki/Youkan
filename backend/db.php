@@ -39,7 +39,9 @@ function getDB() {
             'project_category' => 'TEXT DEFAULT NULL',
             'estimated_minutes' => 'INTEGER DEFAULT 0',
             'assigned_to' => 'TEXT DEFAULT NULL',
-            'delegation' => 'TEXT DEFAULT NULL' // JSON String
+            'delegation' => 'TEXT DEFAULT NULL', // JSON String
+            'client' => 'TEXT DEFAULT NULL', // [FIX] Added missing column for Projects
+            'meta' => 'TEXT DEFAULT NULL' // [FIX] Added for Project Settings/Config
         ];
 
         foreach ($requiredColumns as $col => $def) {
