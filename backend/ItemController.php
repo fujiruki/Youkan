@@ -346,9 +346,9 @@ class ItemController extends BaseController {
         $dueDate = $data['due_date'] ?? null;
         $parentId = $data['parentId'] ?? null;
         if ($parentId && !$dueDate) {
-            // Fetch parent's due_date
-            $parentStmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ? AND tenant_id = ?");
-            $parentStmt->execute([$parentId, $this->currentTenantId]);
+            // Fetch parent's due_date (no tenant filter - parent_id is sufficient)
+            $parentStmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ?");
+            $parentStmt->execute([$parentId]);
             $parent = $parentStmt->fetch(PDO::FETCH_ASSOC);
             if ($parent && !empty($parent['due_date'])) {
                 $dueDate = $parent['due_date'];

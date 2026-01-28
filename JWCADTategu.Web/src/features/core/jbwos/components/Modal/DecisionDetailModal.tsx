@@ -403,7 +403,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
-                                                            onFocus={() => setActiveDateInput('due')}
+                                                            onFocus={() => {
+                                                                setActiveDateInput('due');
+                                                                if (dueDate) setViewMonth(new Date(dueDate));
+                                                            }}
                                                             autoFocus={initialFocus === 'date' || !dueDate}
                                                             className="text-xs py-1"
                                                         />
@@ -420,7 +423,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
-                                                            onFocus={() => setActiveDateInput('due')}
+                                                            onFocus={() => {
+                                                                setActiveDateInput('due');
+                                                                if (dueDate) setViewMonth(new Date(dueDate));
+                                                            }}
                                                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs"
                                                         />
                                                     </div>
@@ -448,7 +454,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             if (onUpdate) await onUpdate(item.id, updates);
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
-                                                        onFocus={() => setActiveDateInput('my')}
+                                                        onFocus={() => {
+                                                            setActiveDateInput('my');
+                                                            if (prepDate) setViewMonth(new Date(prepDate));
+                                                        }}
                                                         placeholder="目標日..."
                                                         className={cn(
                                                             "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
@@ -469,7 +478,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             if (onUpdate) await onUpdate(item.id, updates);
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
-                                                        onFocus={() => setActiveDateInput('my')}
+                                                        onFocus={() => {
+                                                            setActiveDateInput('my');
+                                                            if (prepDate) setViewMonth(new Date(prepDate));
+                                                        }}
                                                         className={cn(
                                                             "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 w-full transition-colors",
                                                             activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
