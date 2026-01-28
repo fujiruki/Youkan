@@ -21,10 +21,12 @@ export const createMockItem = (overrides: Partial<Item> = {}): Item => {
         statusUpdatedAt: now.getTime(),
         interrupt: false,
         weight: 1,
+        focusOrder: 0,
+        isIntent: false,
         createdAt: now.getTime(),
         updatedAt: now.getTime(),
         ...overrides,
-    };
+    } as Item;
 };
 
 /**

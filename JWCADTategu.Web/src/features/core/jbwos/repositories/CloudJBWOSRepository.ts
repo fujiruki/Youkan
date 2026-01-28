@@ -48,7 +48,7 @@ export const CloudJBWOSRepository = {
 
         // Categorize
         return {
-            active: allItems.filter(i => i.status === 'ready' || i.status === 'pending'), // Ready & Pending
+            active: allItems.filter(i => i.status === 'focus' || i.status === 'pending'), // Focus & Pending
             preparation: allItems.filter(i => i.status === 'waiting'), // Waiting
             intent: allItems.filter(i => i.status === 'inbox'), // Inbox
             log: allItems.filter(i => i.status === 'done') // Done

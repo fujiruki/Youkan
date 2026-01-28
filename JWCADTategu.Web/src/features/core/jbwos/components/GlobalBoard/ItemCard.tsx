@@ -153,7 +153,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                     </div>
 
                     {/* Right: Meta Badges (Date, Wait, etc) */}
-                    {(item.due_date || item.waitingReason || item.due_status) && !isEditing && (
+                    {(item.due_date || item.waitingReason || item.dueStatus) && !isEditing && (
                         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                             {/* Deadline Display */}
                             {item.due_date && (
@@ -168,7 +168,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 </span>
                             )}
 
-                            {item.due_status === 'waiting_external' && (
+                            {item.dueStatus === 'waiting_external' && (
                                 <span className="text-[0.75em] text-slate-500 font-normal whitespace-nowrap hidden sm:inline">未確定</span>
                             )}
 

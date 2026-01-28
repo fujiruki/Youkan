@@ -6,7 +6,7 @@ import { Item } from '../types';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog'; // [NEW]
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu'; // [NEW]
-import { Clock, Users, ChevronDown, ChevronRight, Plus, BarChart2, FolderPlus, Trash2, LayoutGrid, List } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, Plus, BarChart2, FolderPlus, Trash2, List } from 'lucide-react';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { DayProgressBar } from '../components/Dashboard/DayProgressBar';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
@@ -140,7 +140,6 @@ export const DashboardScreen = () => {
         capacityUsed,
         capacityLimit,
         setIntent,
-        reorder,
         refresh: refreshQueue
     } = useFocusQueue();
 
@@ -303,7 +302,17 @@ export const DashboardScreen = () => {
         );
     }
 
-    if (isDashboardLoading || isQueueLoading) {
+    // [NEW] Prevent flickering on background refresh
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    // Initial Load Effect
+    useEffect(() => {
+        if (!isDashboardLoading && !isQueueLoading && isInitialLoad) {
+            setIsInitialLoad(false);
+        }
+    }, [isDashboardLoading, isQueueLoading]);
+
+    if ((isDashboardLoading || isQueueLoading) && isInitialLoad) {
         return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">JBWOSを読み込み中...</div>;
     }
 

@@ -18,7 +18,7 @@ The script performs the following steps:
 2. **Execute Deployment Script**
    Run the following command from the project root:
    ```powershell
-   powershell -ExecutionPolicy Bypass -File .\docs\AI_DEVELOP_RULES\UPLOAD\upload.ps1
+   powershell -ExecutionPolicy Bypass -File .\docs\01_RULES\UPLOAD\upload.ps1
    ```
    
    > **Note**: The script is configured to deploy to `public_html/door-fujita.com/contents/TateguDesignStudio`.

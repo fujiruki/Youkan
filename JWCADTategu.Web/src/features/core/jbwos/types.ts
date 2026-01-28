@@ -63,7 +63,7 @@ export interface Item {
     // [JBWOS] Judgment Fields
     focusOrder: number;      // 0 = Unsorted/Inbox
     isIntent: boolean;       // Strong Intent ("Do Today")
-    dueStatus?: 'today' | 'future' | 'overdue' | 'someday'; // Temporal State
+    dueStatus?: 'today' | 'future' | 'overdue' | 'someday' | 'waiting_external' | 'confirmed'; // Temporal State
 
     statusUpdatedAt: number; // 状態変更日（"今日"の判定用）
 

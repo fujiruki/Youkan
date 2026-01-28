@@ -45,6 +45,8 @@ describe('FutureBoard', () => {
         statusUpdatedAt: Date.now(),
         interrupt: false,
         weight: 1,
+        focusOrder: 0,
+        isIntent: false,
         ...overrides
     });
 
@@ -54,8 +56,8 @@ describe('FutureBoard', () => {
         const waitingItem = createMockItem({ id: '2', title: 'Waiting Item', status: 'waiting', updatedAt: 90 });
         const holdItem = createMockItem({ id: '3', title: 'Hold Item', status: 'waiting', updatedAt: 80 }); // hold -> waiting
         const intentItem = createMockItem({ id: '4', title: 'Intent Item', status: 'pending', updatedAt: 70 }); // intent -> pending
-        const scheduledItem = createMockItem({ id: '5', title: 'Scheduled Item', status: 'ready', prep_date: 1234567890, updatedAt: 60 }); // scheduled -> ready
-        const todayItem = createMockItem({ id: '6', title: 'Today Item', status: 'ready', updatedAt: 50 });
+        const scheduledItem = createMockItem({ id: '5', title: 'Scheduled Item', status: 'focus', prep_date: 1234567890, updatedAt: 60 }); // scheduled -> ready
+        const todayItem = createMockItem({ id: '6', title: 'Today Item', status: 'focus', updatedAt: 50 });
 
         // Items in vm.gdbActive usually include inbox, waiting, etc. if not filtered by getter
         // Items in vm.gdbPreparation include scheduled ones.

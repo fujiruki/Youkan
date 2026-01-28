@@ -415,7 +415,7 @@ class ItemController extends BaseController {
         $params = [];
         
         $simpleFields = [
-            'title', 'status', 'memo', 'due_date', 'due_status', 
+            'title', 'status', 'memo', 'due_date', // Removed 'due_status'
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
             'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
             'project_type'

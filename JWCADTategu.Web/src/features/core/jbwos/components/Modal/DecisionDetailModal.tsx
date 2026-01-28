@@ -55,10 +55,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             setDueStatus(item.dueStatus || 'waiting_external');
             setDueDate(item.due_date || '');
             setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
-            setWorkDays(item.work_days || 1);
+            setWorkDays(item.work_days ?? 1);
             setEditedTitle(item.title);
-            setEstimatedMinutes(item.estimatedMinutes || 0);
-            setIsProject(item.isProject || false);
+            setEstimatedMinutes(item.estimatedMinutes ?? 0);
+            setIsProject(item.isProject ?? false);
             // Default subTasks to empty until fetched
             setSubTasks([]);
         }
@@ -152,8 +152,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
                 if (dueStatus === 'waiting_external') {
-                    setDueStatus('confirmed' as any);
-                    const updates: Partial<Item> = { dueStatus: 'confirmed' as any };
+                    setDueStatus('confirmed');
+                    const updates: Partial<Item> = { dueStatus: 'confirmed' };
                     if (onUpdate) onUpdate(item.id, updates);
                     else ApiClient.updateItem(item.id, updates);
                 }
@@ -465,7 +465,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             setPrepDate(val);
                                                             const dateObj = new Date(val);
                                                             const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
-                                                            const updates = { prep_date: timestamp };
+                                                            const updates: Partial<Item> = { prep_date: timestamp || undefined }; // Explicit undefined
                                                             if (onUpdate) await onUpdate(item.id, updates);
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
@@ -493,13 +493,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 setPrepDate(val);
                                                 const dateObj = new Date(val);
                                                 const timestamp = Math.floor(dateObj.getTime() / 1000);
-                                                const updates = { prep_date: timestamp };
+                                                const updates: Partial<Item> = { prep_date: timestamp };
                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                 else await ApiClient.updateItem(item.id, updates);
                                             } else {
                                                 setDueDate(val);
                                                 setDueStatus('confirmed');
-                                                const updates: Partial<Item> = { due_date: val, due_status: 'confirmed' };
+                                                const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' };
                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }

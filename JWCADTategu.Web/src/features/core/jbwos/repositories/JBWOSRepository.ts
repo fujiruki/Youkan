@@ -233,7 +233,9 @@ export const JBWOSRepository = {
                 createdAt: new Date(p.createdAt).getTime(),
                 category: 'project',
                 type: 'project',
-                isProject: true
+                isProject: true,
+                focusOrder: 0,
+                isIntent: false
             } as JudgableItem));
 
             // B. Deliverables
@@ -558,7 +560,9 @@ async function convertDoorToItem(door: Door): Promise<Item> {
         thumbnail: door.thumbnail,
         createdAt: new Date(door.createdAt).getTime(), // Robust conversion
         updatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
-        memo: door.tag + (project ? ` @${project.name}` : '')
+        memo: door.tag + (project ? ` @${project.name}` : ''),
+        focusOrder: 0,
+        isIntent: false
     };
 }
 
@@ -590,7 +594,9 @@ async function convertDeliverableToItem(deliverable: Deliverable): Promise<Item>
         updatedAt: updatedAt,
         estimatedMinutes: deliverable.estimatedWorkMinutes,
         due_date: undefined,
-        due_status: undefined,
-        memo: (deliverable.description || '') + (project ? ` @${project.name}` : '')
+        dueStatus: undefined,
+        memo: (deliverable.description || '') + (project ? ` @${project.name}` : ''),
+        focusOrder: 0,
+        isIntent: false
     };
 }

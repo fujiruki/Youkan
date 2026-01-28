@@ -186,7 +186,7 @@ export const useJBWOSViewModel = () => {
             // ...
         }
 
-        // const newStatus = decision === 'yes' ? 'ready' : decision === 'hold' ? 'pending' : 'done';
+        // const newStatus = decision === 'yes' ? 'focus' : decision === 'hold' ? 'pending' : 'done';
 
         // [Undo] Register Action
         addUndoAction({
@@ -209,7 +209,7 @@ export const useJBWOSViewModel = () => {
             if (decision === 'hold') {
                 await getRepository().updateItem(id, { status: 'pending' });
             } else if (decision === 'yes') {
-                await getRepository().updateItem(id, { status: 'ready' });
+                await getRepository().updateItem(id, { status: 'focus' });
             } else {
                 await getRepository().updateItem(id, { status: 'done' }); // or delete? user wants "finished decision"
             }
@@ -237,7 +237,7 @@ export const useJBWOSViewModel = () => {
         const target = todayCandidates.find(i => i.id === id);
         if (target) {
             setTodayCandidates(prev => prev.filter(i => i.id !== id));
-            // Flag logic: existing status (ready) + is_today_commit flag
+            // Flag logic: existing status (focus) + is_today_commit flag
             const updated = { ...target, flags: { ...target.flags, is_today_commit: true } };
             setTodayCommits(prev => [...prev, updated]);
         }
@@ -246,14 +246,14 @@ export const useJBWOSViewModel = () => {
         addUndoAction({
             type: 'decision',
             id,
-            previousStatus: 'ready', // was ready
+            previousStatus: 'focus', // was focus
             description: '今日やること(Commit)に追加しました'
         });
 
         try {
             // We update the FLAG, not the status to 'today_commit'
             await getRepository().updateItem(id, {
-                status: 'ready',
+                status: 'focus',
                 flags: { is_today_commit: true } // Now valid without cast
             });
             refreshToday();
@@ -278,7 +278,7 @@ export const useJBWOSViewModel = () => {
         addUndoAction({
             type: 'complete',
             id,
-            previousStatus: 'ready' as any, // Logic: commited was ready+flag
+            previousStatus: 'focus' as any, // Logic: commited was focus+flag
             description: 'タスクを完了しました'
         });
 
@@ -338,7 +338,7 @@ export const useJBWOSViewModel = () => {
         }
     };
 
-    const returnToInbox = async (id: string, _currentStatus: string = 'ready') => {
+    const returnToInbox = async (id: string, _currentStatus: string = 'focus') => {
         // Optimistic
         const nextList = todayCommits.filter(i => i.id !== id);
         setTodayCommits(nextList);
@@ -353,7 +353,7 @@ export const useJBWOSViewModel = () => {
         addUndoAction({
             type: 'decision', // Treat as a status change
             id,
-            previousStatus: 'ready' as any, // was ready+flag
+            previousStatus: 'focus' as any, // was focus+flag
             description: 'Inboxに戻しました'
         });
 
@@ -411,8 +411,8 @@ export const useJBWOSViewModel = () => {
         // We might lose some data if we just filter, but refreshToday will fix.
 
         try {
-            // Update status to 'ready' (Candidate)
-            await getRepository().updateItem(id, { status: 'ready' });
+            // Update status to 'focus' (Candidate)
+            await getRepository().updateItem(id, { status: 'focus' });
             // refreshToday(); // Removed
         } catch (e) {
             console.error('Uncommit failed', e);
@@ -436,7 +436,7 @@ export const useJBWOSViewModel = () => {
             // Remove from Candidates
             setTodayCandidates(prev => prev.filter(i => i.id !== id));
             // Add to Commits at TOP
-            const newItem = { ...target, status: 'ready', flags: { ...target.flags, is_today_commit: true } } as any;
+            const newItem = { ...target, status: 'focus', flags: { ...target.flags, is_today_commit: true } } as any;
             setTodayCommits(prev => [newItem, ...prev.filter(i => i.id !== id)]); // Prepend
             // Set Execution Item
             setExecutionItem(newItem);
@@ -448,7 +448,7 @@ export const useJBWOSViewModel = () => {
         try {
             // Commit (Flag) + Start (Execution)
             await getRepository().updateItem(id, {
-                status: 'ready',
+                status: 'focus',
                 flags: { is_today_commit: true }
             });
             await getRepository().startExecution(id);
@@ -520,7 +520,9 @@ export const useJBWOSViewModel = () => {
             category: 'door', // Default category
             type: 'start',
             memo: '',
-            projectId: undefined
+            projectId: undefined,
+            focusOrder: 0,
+            isIntent: false
         };
 
         setGdbActive(prev => [newItem, ...prev]);
@@ -532,7 +534,7 @@ export const useJBWOSViewModel = () => {
     // [NEW] Update Preparation Date (Blurry Target)
     const updatePreparationDate = async (id: string, date: number | null) => {
         // Haruki Model: Future date = Ready (with prep_date). No date = Inbox.
-        const newStatus = date ? 'ready' : 'inbox';
+        const newStatus = date ? 'focus' : 'inbox';
 
         // Optimistic: Find and Move
         const allItems = [...gdbActive, ...gdbPreparation];
@@ -644,7 +646,9 @@ export const useJBWOSViewModel = () => {
             interrupt: false,
             category: 'subtask',
             type: 'generic',
-            domain // [NEW] Link domain
+            domain, // [NEW] Link domain
+            focusOrder: 0,
+            isIntent: false
         };
 
         try {
@@ -721,7 +725,9 @@ export const useJBWOSViewModel = () => {
             type: 'project',     // Explicitly set type as project
             isProject: true,     // Flag
             domain: domain || 'general',
-            status: 'inbox'      // Default to inbox
+            status: 'inbox',      // Default to inbox
+            focusOrder: 0,
+            isIntent: false
         };
 
         const projectId = await getRepository().createItem(projectItem);
@@ -751,14 +757,16 @@ export const useJBWOSViewModel = () => {
         // 2. Create JBWOS Item
         const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
             title: item.title, // Use title from external source
-            status: 'ready',   // Haruki Model: Imported to Scheduled = Ready
+            status: 'focus',   // Haruki Model: Imported to Scheduled = Ready
             prep_date: date,
             // Defaults
             weight: 1,
             interrupt: false,
             category: 'import',
             type: 'generic',
-            memo: `Imported from ${source?.name}`
+            memo: `Imported from ${source?.name}`,
+            focusOrder: 0,
+            isIntent: false
         };
 
         try {
