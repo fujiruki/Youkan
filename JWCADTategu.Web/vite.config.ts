@@ -29,5 +29,5 @@ export default defineConfig({
             },
         },
     },
-    base: './', // GitHub Pages等でのデプロイを考慮し相対パス化
+    base: '/contents/TateguDesignStudio/', // 本番環境の絶対パス
 });
