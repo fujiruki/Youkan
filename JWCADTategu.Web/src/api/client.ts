@@ -6,50 +6,18 @@ import { JudgableItem, Member } from '../features/core/jbwos/types';
 // Production uses index.php with PATH_INFO.
 // FIX: Use absolute path calculation to prevent 404 when app is at sub-path (e.g. /today)
 const getApiBase = () => {
-    // Debug Log
-    console.log('[ApiClient] Calculating Base URL', {
-        dev: import.meta.env.DEV,
-        pathname: window.location.pathname,
-        href: window.location.href
-    });
-
     if (import.meta.env.DEV) return '/api';
 
-    // Production: Calculate path to index.php valid from anywhere
-    const pathname = window.location.pathname;
+    // Production: Use Vite's BASE_URL to find the absolute root of the app
+    // Then point to backend/index.php
+    let base = import.meta.env.BASE_URL || '/';
 
-    // Case 1: Already inside index.php
-    if (pathname.includes('/index.php')) {
-        return pathname.split('/index.php')[0] + '/index.php';
-    }
+    // Ensure base ends with /
+    if (!base.endsWith('/')) base += '/';
 
-    // Case 2: SPA Route (e.g. /UserList, /projects/123)
-    // We need to strip the app route to get the root path where index.php resides.
-    let root = pathname;
+    // The backend is expected to be in the 'backend/' directory relative to the app root
+    const result = `${base}backend/index.php`;
 
-    // List of known top-level routes to strip
-    const appRoutes = [
-        '/userlist', '/projects', '/doors', '/schedule',
-        '/jbwos', '/today', '/history', '/settings',
-        '/customers', '/items', '/catalog', '/planning', '/manual',
-        '/login', '/register' // Add auth related routes
-    ];
-
-    for (const route of appRoutes) {
-        const lowerRoot = root.toLowerCase();
-        // Check if path contains the route
-        const index = lowerRoot.indexOf(route);
-        if (index !== -1) {
-            // Cut off from the route onwards
-            root = root.substring(0, index);
-            break;
-        }
-    }
-
-    // Remove trailing slash if exists
-    root = root.replace(/\/$/, '');
-
-    const result = `${root}/index.php`;
     console.log('[ApiClient] Resolved Base URL:', result);
     return result;
 };

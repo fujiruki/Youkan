@@ -1,6 +1,12 @@
 <?php
 // backend/index.php
 
+// 0. Robust Migration Trigger (Bypass routing)
+if (isset($_GET['trigger_migration_secret']) && $_GET['trigger_migration_secret'] === 'v19') {
+    require_once 'migrate_v19_jbwos_core.php';
+    exit;
+}
+
 // 1. Error Handling for AI Autonomy
 // 1. Error Handling for AI Autonomy
 ini_set('display_errors', 1);
