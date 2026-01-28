@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Menu, HelpCircle } from 'lucide-react';
-// import { BackupSettings } from '../../features/core/jbwos/components/Settings/BackupSettings';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, ChevronDown } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
-import { MenuDrawer } from './MenuDrawer'; // [NEW]
+import { MenuDrawer } from './MenuDrawer';
 
 // Basic types needed for props
 interface AuthUser {
@@ -18,8 +17,9 @@ interface Tenant {
 }
 
 interface JBWOSHeaderProps {
-    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist';
+    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings';
     onNavigateToToday: () => void;
+    onNavigateToDashboard: () => void;  // NEW: Navigate to Dashboard (Focus view)
     onNavigateToHistory: () => void;
     onNavigateToProjects: () => void;
     onNavigateToSettings: () => void;
@@ -27,7 +27,7 @@ interface JBWOSHeaderProps {
     onNavigateToPlanning?: () => void;
     onNavigateToCalendar?: () => void;
     onNavigateToCompanySettings?: () => void;
-    onNavigateToPersonalSettings?: () => void; // [NEW]
+    onNavigateToPersonalSettings?: () => void;
     user?: AuthUser | null;
     tenant?: Tenant | null;
 }
@@ -35,6 +35,7 @@ interface JBWOSHeaderProps {
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     currentView,
     onNavigateToToday,
+    onNavigateToDashboard,
     onNavigateToHistory,
     onNavigateToProjects,
     onNavigateToSettings,
@@ -42,7 +43,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToPlanning,
     onNavigateToCalendar,
     onNavigateToCompanySettings,
-    onNavigateToPersonalSettings, // [NEW]
+    onNavigateToPersonalSettings,
     user,
     tenant
 }) => {
@@ -56,6 +57,19 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         } catch { return 'User'; }
     };
 
+    // Navigate to Dashboard (Home)
+    const handleGoHome = () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'g',
+            ctrlKey: true
+        }));
+    };
+
+    // Check if current view is a primary navigation target
+    const isDashboard = currentView === 'dashboard' || currentView === 'jbwos';
+    const isProjects = currentView === 'projects';
+    const isCalendar = currentView === 'calendar' || currentView === 'planning';
+
     return (
         <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md shrink-0 w-full relative z-30">
             <MenuDrawer
@@ -67,108 +81,107 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
                 onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
                 onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
-                onNavigateToManual={() => { /* Not implemented yet in props? */ setMenuOpen(false); }}
+                onNavigateToManual={() => { setMenuOpen(false); }}
                 onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
                 onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
-                onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }} // [NEW]
+                onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
                 onLogout={() => {
                     localStorage.removeItem('jbwos_token');
                     localStorage.removeItem('jbwos_user');
                     window.location.href = './';
                 }}
-                userName={user?.name || getLegacyUserName()} // Fallback
-                user={user}     // [NEW]
-                tenant={tenant} // [NEW]
+                userName={user?.name || getLegacyUserName()}
+                user={user}
+                tenant={tenant}
             />
 
-            {/* Left: App Name */}
-            <div className="flex items-center gap-2 md:gap-3 shrink-1 min-w-0">
-                {/* [NEW] Hamburger Menu (Left Aligned for Mobile Standard) */}
-                {/* [NEW] Hamburger Menu (PC: Left) */}
+            {/* Left: Logo/Home + Hamburger */}
+            <div className="flex items-center gap-2 shrink-0">
+                {/* Hamburger Menu */}
                 <button
                     onClick={() => setMenuOpen(true)}
-                    className="hidden md:block p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors mr-1"
+                    className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors"
                     title="メニュー"
                 >
                     <Menu size={20} className="text-slate-300" />
                 </button>
 
-                <div className="h-6 w-px bg-slate-600 shrink-0 mx-1"></div>
-
+                {/* Logo / Home */}
                 <button
-                    onClick={onNavigateToProjects}
-                    className="text-xs text-slate-400 hover:text-white transition-colors whitespace-nowrap"
+                    onClick={handleGoHome}
+                    className="hidden md:flex items-center gap-1.5 px-2 py-1 hover:bg-slate-700 rounded-lg transition-colors"
+                    title="ホームへ戻る"
                 >
-                    <span className="hidden md:inline">← Projects</span>
-                    <span className="md:hidden">Prj</span>
-                </button>
-                <div className="h-4 w-px bg-slate-600 shrink-0"></div>
-                <button
-                    onClick={() => {
-                        window.dispatchEvent(new KeyboardEvent('keydown', {
-                            key: 'g',
-                            ctrlKey: true
-                        }));
-                    }}
-                    className={`text-sm font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${currentView === 'dashboard' || currentView === 'jbwos'
-                        ? 'text-white underline decoration-indigo-400 decoration-2 underline-offset-4'
-                        : 'text-slate-300 hover:text-white'
-                        }`}
-                    title="ダッシュボードへ戻る (Ctrl+G)"
-                >
-                    📊 <span className="hidden xs:inline">Dashboard</span>
+                    <span className="text-lg">⚡</span>
+                    <span className="text-sm font-bold text-slate-200">JBWOS</span>
                 </button>
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                {/* Today Button (Priority) */}
-                {/* Dashboard Link (Replaced JBWOS title) */}
-                {/* <button className="... hidden" /> */ /* Removed Today Button */}
+            {/* Center: Primary Navigation Tabs (PC) */}
+            <div className="flex-1 flex items-center justify-center">
+                <nav className="flex items-center bg-slate-700/50 rounded-lg p-1 gap-1">
+                    {/* Dashboard Tab */}
+                    <NavTab
+                        icon={<LayoutDashboard size={16} />}
+                        label="Dashboard"
+                        isActive={isDashboard}
+                        onClick={onNavigateToDashboard}
+                    />
 
-                {/* Plan Button (Desktop Only) */}
-                <button
-                    onClick={onNavigateToPlanning}
-                    className="hidden md:block px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-sm text-slate-200 transition-all shadow-sm whitespace-nowrap"
-                    title="明日の計画"
-                >
-                    Plan
-                </button>
+                    {/* Projects Tab */}
+                    <NavTab
+                        icon={<FolderKanban size={16} />}
+                        label="Projects"
+                        isActive={isProjects}
+                        onClick={onNavigateToProjects}
+                    />
 
-                {onNavigateToCalendar && (
-                    <button
-                        onClick={onNavigateToCalendar}
-                        className="hidden md:block px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-sm text-slate-200 transition-all shadow-sm whitespace-nowrap"
-                        title="Volume Calendar"
-                    >
-                        Volume
-                    </button>
-                )}
+                    {/* Calendar Tab */}
+                    <NavTab
+                        icon={<CalendarDays size={16} />}
+                        label="Calendar"
+                        isActive={isCalendar}
+                        onClick={onNavigateToCalendar || (() => { })}
+                    />
+                </nav>
+            </div>
 
-                {/* Health Check */}
+            {/* Right: API Indicator + User Menu */}
+            <div className="flex items-center gap-2 shrink-0">
+                {/* API Health Check (Development) */}
                 <HealthCheck />
 
-                {/* Help Button (Desktop Only) */}
-                <button
-                    onClick={() => {
-                        // TODO: Help modal
-                        alert('ヘルプは未実装');
-                    }}
-                    className="hidden md:block p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                    title="ヘルプ"
-                >
-                    <HelpCircle size={20} className="text-slate-400" />
-                </button>
-
-                {/* [NEW] Hamburger Menu (Mobile: Right) */}
+                {/* User Menu */}
                 <button
                     onClick={() => setMenuOpen(true)}
-                    className="md:hidden p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
-                    title="メニュー"
+                    className="flex items-center gap-1 px-2 py-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                    title="ユーザーメニュー"
                 >
-                    <Menu size={20} className="text-slate-300" />
+                    <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white">
+                        {(user?.name || getLegacyUserName()).charAt(0).toUpperCase()}
+                    </div>
+                    <ChevronDown size={14} className="text-slate-400 hidden md:block" />
                 </button>
             </div>
         </div>
     );
 };
+
+// Navigation Tab Component
+const NavTab: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+}> = ({ icon, label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${isActive
+            ? 'bg-white text-slate-900 shadow-sm'
+            : 'text-slate-300 hover:text-white hover:bg-slate-600'
+            }`}
+    >
+        <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>{icon}</span>
+        <span className="hidden md:inline">{label}</span>
+    </button>
+);

@@ -59,6 +59,15 @@ function App() {
         if (path.includes('/dashboard')) {
             console.log('[Router] Detected Dashboard URL');
             setCurrentView('dashboard');
+        } else if (path.includes('/projects/personal')) {
+            console.log('[Router] Detected Projects (Personal) URL');
+            setCurrentView('projects');
+        } else if (path.includes('/projects/company')) {
+            console.log('[Router] Detected Projects (Company) URL');
+            setCurrentView('projects');
+        } else if (path.includes('/projects')) {
+            console.log('[Router] Detected Projects URL');
+            setCurrentView('projects');
         } else if (path.includes('/jbwos/panorama')) {
             console.log('[Router] Detected Legacy Panorama URL');
             setCurrentView('dashboard'); // Redirect to dashboard
@@ -368,10 +377,11 @@ const AppContent: React.FC<{
                         <DebugBanner />
                         {/* New JBWOS Header */}
                         {/* Immersive Mode for Today Screen: Hide Global Header */}
-                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings') && (
+                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects') && (
                             <JBWOSHeader
                                 currentView={currentView as any}
                                 onNavigateToToday={() => setCurrentView('today')}
+                                onNavigateToDashboard={() => setCurrentView('dashboard')}
                                 onNavigateToHistory={() => setCurrentView('history')}
                                 onNavigateToProjects={handleNavigateToProjects}
                                 onNavigateToSettings={() => setCurrentView('settings')}

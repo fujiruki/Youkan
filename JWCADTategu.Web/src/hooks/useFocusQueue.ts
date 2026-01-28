@@ -83,15 +83,19 @@ export const useFocusQueue = (currentCapacityLimit: number = 480): UseFocusQueue
     const setIntent = async (id: string, isIntent: boolean) => {
         // Optimistic
         setItems(prev => prev.map(item =>
-            item.id === id ? { ...item, isIntent } : item
+            item.id === id ? { ...item, isIntent, status: isIntent ? 'focus' : item.status } : item
         ));
 
         // Also update local list status to ensure UI responsiveness?
         // Actually intent implies "Focus" and "Due Today".
 
         try {
-            // Use updateItem wrapper
-            await ApiClient.updateItem(id, { isIntent, dueStatus: isIntent ? 'today' : undefined });
+            // Use updateItem wrapper - IMPORTANT: Include status change to 'focus'
+            await ApiClient.updateItem(id, {
+                isIntent,
+                status: isIntent ? 'focus' : undefined,
+                dueStatus: isIntent ? 'today' : undefined
+            });
         } catch (err) {
             console.error('Set Intent failed', err);
             fetchQueue();

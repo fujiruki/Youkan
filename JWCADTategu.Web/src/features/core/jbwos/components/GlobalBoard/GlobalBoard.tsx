@@ -58,17 +58,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
     // [NEW] Layout Mode for Board: 'standard' (Vertical) or 'panorama' (Grid)
     const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>(initialLayoutMode || 'standard');
 
-    // [NEW] URL Synchronization
+    // [NEW] URL Synchronization - Uses Vite base path for production compatibility
     const switchLayoutMode = (mode: 'standard' | 'panorama') => {
         setLayoutMode(mode);
-        // Update URL strictly - Assuming base is important? 
-        // Or just replace path suffix?
-        // Let's just push strictly as requested: /JBWOS/Panorama or /JBWOS/Focus
-        // Caution: This might affect if we are at root /. 
-        // User requested: /JBWOS/Panorama
-        // We should check if we are in dev/prod.
-        // Simple pushState for now.
-        const path = mode === 'panorama' ? '/JBWOS/Panorama' : '/JBWOS/Focus';
+        // Get base path from Vite config (e.g., './' or '/contents/TateguDesignStudio/')
+        const basePath = import.meta.env.BASE_URL || '/';
+        const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
+        const path = mode === 'panorama' ? normalizedBase + 'JBWOS/Panorama' : normalizedBase + 'JBWOS/Focus';
         window.history.pushState({ layoutMode: mode }, '', path);
     };
 

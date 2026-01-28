@@ -155,16 +155,20 @@ export const DashboardScreen = () => {
     // [NEW] Project Creation Modal State
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-    // [NEW] URL Sync Helper
+    // [NEW] URL Sync Helper - Uses Vite base path for production compatibility
     const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar') => {
         setViewMode(mode);
+        // Get base path from Vite config (e.g., './' or '/contents/TateguDesignStudio/')
+        const basePath = import.meta.env.BASE_URL || '/';
+        // Normalize: ensure ends with / and construct full path
+        const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
         const urlMap = {
-            'stream': '/Focus',
-            'panorama': '/Panorama',
-            'calendar': '/Calendar'
+            'stream': 'Focus',
+            'panorama': 'Panorama',
+            'calendar': 'Calendar'
         };
         // Update URL without reloading
-        window.history.pushState({}, '', urlMap[mode]);
+        window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
     const handleRefresh = async () => {
@@ -240,67 +244,10 @@ export const DashboardScreen = () => {
         setContextMenu(null);
     };
 
-    // [NEW] Panic/Switch Handler
-    if (viewMode === 'panorama') {
-        return (
-            <div className="h-screen w-full flex flex-col overflow-hidden">
-                <header className="flex-none bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center shadow-sm z-10">
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <button onClick={() => handleViewModeChange('stream')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Focus</button>
-                        <button onClick={() => handleViewModeChange('panorama')} className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all">Panorama</button>
-                        <button onClick={() => handleViewModeChange('calendar')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Calendar</button>
-                    </div>
-                </header>
-                <JbwosBoard
-                    initialLayoutMode="panorama"
-                    onClose={() => handleViewModeChange('stream')}
-                />
-            </div>
-        );
-    }
+    // [REMOVED] Early returns for panorama and calendar moved to conditional rendering in main return
 
-    if (viewMode === 'calendar') {
-        const allItems = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems]; // Combine for calendar
-        return (
-            <div className="h-screen w-full flex flex-col overflow-hidden bg-slate-50">
-                <header className="flex-none bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center shadow-sm z-10">
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <button onClick={() => handleViewModeChange('stream')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Focus</button>
-                        <button onClick={() => handleViewModeChange('panorama')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Panorama</button>
-                        <button onClick={() => handleViewModeChange('calendar')} className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all">Calendar</button>
-                    </div>
-                </header>
-                <div className="flex-1 overflow-hidden">
-                    <QuantityCalendar
-                        items={allItems}
-                        onItemClick={(item) => { setSelectedItem(item); trackInteraction(item.id); }}
-                        capacityConfig={DEFAULT_CAPACITY_CONFIG}
-                        onToggleHoliday={() => { }} // TODO: Implement holiday toggle persistence
-                    />
-                </div>
-                {selectedItem && (
-                    <DecisionDetailModal
-                        item={selectedItem}
-                        onClose={() => { setSelectedItem(null); handleRefresh(); }}
-                        onDecision={async (id, decision, note, updates) => {
-                            // Re-use logic or refactor to shared handler
-                            let newStatus: Item['status'] = 'inbox';
-                            if (decision === 'yes') newStatus = 'focus';
-                            else if (decision === 'hold') newStatus = 'pending';
-                            else if (decision === 'no') newStatus = 'done';
-                            await updateItem(id, { ...updates, status: newStatus, memo: note ? note : undefined, isIntent: decision === 'yes', dueStatus: decision === 'yes' ? 'today' : undefined });
-                            setSelectedItem(null);
-                            handleRefresh();
-                        }}
-                        onDelete={async (id) => { if (confirm('削除しますか？')) { await deleteItem(id); setSelectedItem(null); handleRefresh(); } }}
-                        onUpdate={updateItem}
-                        onCreateSubTask={createSubTask} // [NEW]
-                        onGetSubTasks={getSubTasks} // [NEW]
-                    />
-                )}
-            </div>
-        );
-    }
+    // Combine all items for calendar view
+    const allItemsForCalendar = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems];
 
     // [NEW] Prevent flickering on background refresh
     const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -321,269 +268,304 @@ export const DashboardScreen = () => {
 
     return (
         <div className="h-screen flex flex-col bg-slate-50 overflow-hidden" onClick={handleCloseContextMenu}>
-            {/* Main Content Area (Scrollable) */}
-            <div className="flex-1 overflow-y-auto pb-20">
-                {/* Context Menu Overlay */}
-                {contextMenu && (
-                    <ContextMenu
-                        x={contextMenu.x}
-                        y={contextMenu.y}
-                        itemId={contextMenu.itemId}
-                        onClose={handleCloseContextMenu}
-                        actions={[
-                            {
-                                label: 'プロジェクト化...',
-                                icon: <FolderPlus size={14} />,
-                                onClick: () => {
-                                    const item = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems].find(i => i.id === contextMenu.itemId);
-                                    if (item) setSelectedItem(item); // Open Detail to Projectize
-                                }
-                            },
-                            {
-                                label: '削除',
-                                danger: true,
-                                icon: <Trash2 size={14} />,
-                                onClick: async () => {
-                                    if (confirm('本当に削除しますか?')) {
-                                        await deleteItem(contextMenu.itemId);
-                                        handleRefresh();
+            {/* Conditional View Rendering */}
+            {viewMode === 'panorama' ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <header className="flex-none bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center shadow-sm z-10">
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button onClick={() => handleViewModeChange('stream')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Focus</button>
+                            <button onClick={() => handleViewModeChange('panorama')} className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all">Panorama</button>
+                            <button onClick={() => handleViewModeChange('calendar')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Calendar</button>
+                        </div>
+                    </header>
+                    <JbwosBoard
+                        initialLayoutMode="panorama"
+                        onClose={() => handleViewModeChange('stream')}
+                    />
+                </div>
+            ) : viewMode === 'calendar' ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <header className="flex-none bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center shadow-sm z-10">
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button onClick={() => handleViewModeChange('stream')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Focus</button>
+                            <button onClick={() => handleViewModeChange('panorama')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Panorama</button>
+                            <button onClick={() => handleViewModeChange('calendar')} className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all">Calendar</button>
+                        </div>
+                    </header>
+                    <div className="flex-1 overflow-hidden">
+                        <QuantityCalendar
+                            items={allItemsForCalendar}
+                            onItemClick={(item) => { setSelectedItem(item); trackInteraction(item.id); }}
+                            capacityConfig={DEFAULT_CAPACITY_CONFIG}
+                            onToggleHoliday={() => { }}
+                        />
+                    </div>
+                </div>
+            ) : (
+                /* Stream/Focus View - Default */
+                <div className="flex-1 overflow-y-auto pb-20">
+                    {/* Context Menu Overlay */}
+                    {contextMenu && (
+                        <ContextMenu
+                            x={contextMenu.x}
+                            y={contextMenu.y}
+                            itemId={contextMenu.itemId}
+                            onClose={handleCloseContextMenu}
+                            actions={[
+                                {
+                                    label: 'プロジェクト化...',
+                                    icon: <FolderPlus size={14} />,
+                                    onClick: () => {
+                                        const item = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems].find(i => i.id === contextMenu.itemId);
+                                        if (item) setSelectedItem(item); // Open Detail to Projectize
+                                    }
+                                },
+                                {
+                                    label: '削除',
+                                    danger: true,
+                                    icon: <Trash2 size={14} />,
+                                    onClick: async () => {
+                                        if (confirm('本当に削除しますか?')) {
+                                            await deleteItem(contextMenu.itemId);
+                                            handleRefresh();
+                                        }
                                     }
                                 }
-                            }
-                        ]}
-                    />
-                )}
+                            ]}
+                        />
+                    )}
 
-                {/* Header / Judgment Zone */}
-                <div className="bg-gradient-to-b from-indigo-50 to-white pb-6 pt-6 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 transition-all relative">
-                    <div className="max-w-3xl mx-auto">
-                        <header className="mb-6 flex justify-between items-center">
-                            {/* Segmented Control */}
-                            <div className="flex bg-slate-200/60 p-1 rounded-lg">
-                                <button
-                                    onClick={() => handleViewModeChange('stream')}
-                                    className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all"
-                                >
-                                    Focus
-                                </button>
-                                <button
-                                    onClick={() => handleViewModeChange('panorama')}
-                                    className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all"
-                                >
-                                    Panorama
-                                </button>
-                                <button
-                                    onClick={() => handleViewModeChange('calendar')}
-                                    className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all"
-                                >
-                                    Calendar
-                                </button>
+                    {/* Header / Judgment Zone */}
+                    <div className="bg-gradient-to-b from-indigo-50 to-white pb-6 pt-6 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 transition-all relative">
+                        <div className="max-w-3xl mx-auto">
+                            <header className="mb-6 flex justify-between items-center">
+                                {/* Segmented Control */}
+                                <div className="flex bg-slate-200/60 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => handleViewModeChange('stream')}
+                                        className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all"
+                                    >
+                                        Focus
+                                    </button>
+                                    <button
+                                        onClick={() => handleViewModeChange('panorama')}
+                                        className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all"
+                                    >
+                                        Panorama
+                                    </button>
+                                    <button
+                                        onClick={() => handleViewModeChange('calendar')}
+                                        className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all"
+                                    >
+                                        Calendar
+                                    </button>
+                                </div>
+
+                                {/* Right Actions */}
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setIsProjectModalOpen(true)}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-sm flex items-center gap-1 transition-colors"
+                                    >
+                                        <Plus size={14} strokeWidth={3} />
+                                        プロジェクト
+                                    </button>
+
+                                    {/* SideMemo Toggle or Log Book could go here */}
+                                    <button className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-md transition-colors">
+                                        <List size={18} />
+                                    </button>
+                                </div>
+                            </header>
+
+                            {/* Capacity Viz (Moved below header) */}
+                            <div className="flex justify-end mb-4">
+                                <div className="w-1/3 min-w-[120px]">
+                                    <DayProgressBar usedMinutes={capacityUsed} limitMinutes={capacityLimit} />
+                                </div>
                             </div>
 
-                            {/* Right Actions */}
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setIsProjectModalOpen(true)}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-sm flex items-center gap-1 transition-colors"
-                                >
-                                    <Plus size={14} strokeWidth={3} />
-                                    プロジェクト
-                                </button>
-
-                                {/* SideMemo Toggle or Log Book could go here */}
-                                <button className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-md transition-colors">
-                                    <List size={18} />
-                                </button>
-                            </div>
-                        </header>
-
-                        {/* Capacity Viz (Moved below header) */}
-                        <div className="flex justify-end mb-4">
-                            <div className="w-1/3 min-w-[120px]">
-                                <DayProgressBar usedMinutes={capacityUsed} limitMinutes={capacityLimit} />
-                            </div>
-                        </div>
-
-                        {/* Active Focus Card */}
-                        <div className="mb-8">
-                            {activeFocusItem ? (
-                                <FocusCard
-                                    item={activeFocusItem}
-                                    onSetIntent={handleSetIntent}
-                                    onComplete={handleComplete}
-                                    onDrop={handleDropToInbox}
-                                    onClick={() => { setSelectedItem(activeFocusItem); trackInteraction(activeFocusItem.id); }}
-                                />
-                            ) : (
-                                <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4">
-                                        <BarChart2 size={24} />
+                            {/* Active Focus Card */}
+                            <div className="mb-2">
+                                {activeFocusItem ? (
+                                    <FocusCard
+                                        item={activeFocusItem}
+                                        onSetIntent={handleSetIntent}
+                                        onComplete={handleComplete}
+                                        onDrop={handleDropToInbox}
+                                        onClick={() => { setSelectedItem(activeFocusItem); trackInteraction(activeFocusItem.id); }}
+                                    />
+                                ) : (
+                                    <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4">
+                                            <BarChart2 size={24} />
+                                        </div>
+                                        <h3 className="text-lg font-medium text-slate-600">現在タスク無し</h3>
+                                        <p className="text-sm text-slate-400 mt-2 max-w-xs mx-auto">
+                                            判断キャパシティに余裕があります。<br />下の受信箱からタスクを選んでください。
+                                        </p>
                                     </div>
-                                    <h3 className="text-lg font-medium text-slate-600">現在タスク無し</h3>
-                                    <p className="text-sm text-slate-400 mt-2 max-w-xs mx-auto">
-                                        判断キャパシティに余裕があります。<br />下の受信箱からタスクを選んでください。
-                                    </p>
+                                )}
+                            </div>
+
+                            {/* Remaining Queue (Next Up) */}
+                            {remainingQueue.length > 0 && (
+                                <div className="mb-2 pl-4 border-l-2 border-indigo-100/50 ml-4 pb-1">
+                                    <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1 pl-2">次に控えているタスク</h3>
+                                    <div className="space-y-0.5">
+                                        {remainingQueue.map((item, index) => (
+                                            <SimpleItemRow
+                                                key={item.id}
+                                                item={item}
+                                                index={index + 1}
+                                                onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
+                                                onFocus={handleSetIntent}
+                                                onContextMenu={handleContextMenu}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
+                    </div>
 
-                        {/* Remaining Queue (Next Up) */}
-                        {remainingQueue.length > 0 && (
-                            <div className="mb-8 pl-4 border-l-2 border-indigo-100/50 ml-4 pb-2">
-                                <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-3 pl-2">次に控えているタスク</h3>
-                                <div className="space-y-2">
-                                    {remainingQueue.map((item, index) => (
-                                        <SimpleItemRow
-                                            key={item.id}
-                                            item={item}
-                                            index={index + 1}
-                                            onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
-                                            onFocus={handleSetIntent}
-                                            onContextMenu={handleContextMenu}
-                                        />
-                                    ))}
-                                </div>
+                    {/* Panorama View: Inbox & Staged */}
+                    <div className="max-w-3xl mx-auto px-4 md:px-6">
+                        <div className="flex items-center justify-between mb-1">
+                            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">受信箱 (Inbox)</h2>
+                            <span className="bg-slate-100 text-slate-500 text-xs px-2 py-0.5 rounded-full font-mono">{inboxItems.length}</span>
+                        </div>
+
+                        {/* Quick Add */}
+                        <form onSubmit={handleCreate} className="mb-0 relative">
+                            <input
+                                type="text"
+                                value={newItemTitle}
+                                onChange={(e) => setNewItemTitle(e.target.value)}
+                                placeholder="思いついたことを入力..."
+                                className="w-full pl-2 pr-10 py-1 bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all text-sm"
+                            />
+                            <button
+                                type="submit"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 transition-colors"
+                                disabled={!newItemTitle.trim()}
+                            >
+                                <Plus size={16} />
+                            </button>
+                        </form>
+
+                        {/* Inbox List */}
+                        <div className="space-y-0.5 mb-12">
+                            {inboxItems.length === 0 ? (
+                                <p className="text-sm text-slate-400 italic text-center py-4">受信箱は空です。</p>
+                            ) : (
+                                inboxItems.map(item => (
+                                    <SimpleItemRow
+                                        key={item.id}
+                                        item={item}
+                                        onFocus={handleMoveToFocus}
+                                        onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
+                                        onContextMenu={handleContextMenu}
+                                    />
+                                ))
+                            )}
+                        </div>
+
+                        {/* Collapsible Sections */}
+                        <SectionHeader
+                            title="待機中 (Waiting)"
+                            count={waitingItems.length}
+                            expanded={isWaitingExpanded}
+                            onToggle={() => setIsWaitingExpanded(!isWaitingExpanded)}
+                            icon={<Users size={14} />}
+                        />
+                        {isWaitingExpanded && (
+                            <div className="space-y-1 mb-8 opacity-75">
+                                {waitingItems.map(item => (
+                                    <SimpleItemRow
+                                        key={item.id}
+                                        item={item}
+                                        onFocus={handleMoveToFocus}
+                                        onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
+                                        onContextMenu={handleContextMenu}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        <SectionHeader
+                            title="保留 (Pending)"
+                            count={pendingItems.length}
+                            expanded={isPendingExpanded}
+                            onToggle={() => setIsPendingExpanded(!isPendingExpanded)}
+                            icon={<Clock size={14} />}
+                        />
+                        {isPendingExpanded && (
+                            <div className="space-y-1 mb-20 opacity-75">
+                                {pendingItems.map(item => (
+                                    <SimpleItemRow
+                                        key={item.id}
+                                        item={item}
+                                        onFocus={handleMoveToFocus}
+                                        onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
+                                        onContextMenu={handleContextMenu}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Panorama View: Inbox & Staged */}
-                <div className="max-w-3xl mx-auto px-4 md:px-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">受信箱 (Inbox)</h2>
-                        <span className="bg-slate-100 text-slate-500 text-xs px-2 py-0.5 rounded-full font-mono">{inboxItems.length}</span>
-                    </div>
+                    {/* Detail Modal (Shared) */}
+                    {selectedItem && (
+                        <DecisionDetailModal
+                            item={selectedItem}
+                            onClose={() => { setSelectedItem(null); handleRefresh(); }}
+                            onDecision={async (id, decision, note, updates) => {
+                                let newStatus: Item['status'] = 'inbox';
+                                if (decision === 'yes') newStatus = 'focus';
+                                else if (decision === 'hold') newStatus = 'pending';
+                                else if (decision === 'no') newStatus = 'done';
 
-                    {/* Quick Add */}
-                    <form onSubmit={handleCreate} className="mb-6 relative">
-                        <input
-                            type="text"
-                            value={newItemTitle}
-                            onChange={(e) => setNewItemTitle(e.target.value)}
-                            placeholder="思いついたことを入力..."
-                            className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all text-sm"
-                        />
-                        <button
-                            type="submit"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 transition-colors"
-                            disabled={!newItemTitle.trim()}
-                        >
-                            <Plus size={16} />
-                        </button>
-                    </form>
+                                const finalUpdates: any = { ...updates, status: newStatus };
+                                if (note) finalUpdates.memo = note;
+                                if (decision === 'yes') {
+                                    finalUpdates.isIntent = true;
+                                    finalUpdates.dueStatus = 'today';
+                                }
 
-                    {/* Inbox List */}
-                    <div className="space-y-1 mb-12">
-                        {inboxItems.length === 0 ? (
-                            <p className="text-sm text-slate-400 italic text-center py-4">受信箱は空です。</p>
-                        ) : (
-                            inboxItems.map(item => (
-                                <SimpleItemRow
-                                    key={item.id}
-                                    item={item}
-                                    onFocus={handleMoveToFocus}
-                                    onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
-                                    onContextMenu={handleContextMenu}
-                                />
-                            ))
-                        )}
-                    </div>
-
-                    {/* Collapsible Sections */}
-                    <SectionHeader
-                        title="待機中 (Waiting)"
-                        count={waitingItems.length}
-                        expanded={isWaitingExpanded}
-                        onToggle={() => setIsWaitingExpanded(!isWaitingExpanded)}
-                        icon={<Users size={14} />}
-                    />
-                    {isWaitingExpanded && (
-                        <div className="space-y-1 mb-8 opacity-75">
-                            {waitingItems.map(item => (
-                                <SimpleItemRow
-                                    key={item.id}
-                                    item={item}
-                                    onFocus={handleMoveToFocus}
-                                    onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
-                                    onContextMenu={handleContextMenu}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    <SectionHeader
-                        title="保留 (Pending)"
-                        count={pendingItems.length}
-                        expanded={isPendingExpanded}
-                        onToggle={() => setIsPendingExpanded(!isPendingExpanded)}
-                        icon={<Clock size={14} />}
-                    />
-                    {isPendingExpanded && (
-                        <div className="space-y-1 mb-20 opacity-75">
-                            {pendingItems.map(item => (
-                                <SimpleItemRow
-                                    key={item.id}
-                                    item={item}
-                                    onFocus={handleMoveToFocus}
-                                    onClick={() => { setSelectedItem(item); trackInteraction(item.id); }}
-                                    onContextMenu={handleContextMenu}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Detail Modal (Shared) */}
-                {selectedItem && (
-                    <DecisionDetailModal
-                        item={selectedItem}
-                        onClose={() => { setSelectedItem(null); handleRefresh(); }}
-                        onDecision={async (id, decision, note, updates) => {
-                            let newStatus: Item['status'] = 'inbox';
-                            if (decision === 'yes') newStatus = 'focus';
-                            else if (decision === 'hold') newStatus = 'pending';
-                            else if (decision === 'no') newStatus = 'done';
-
-                            const finalUpdates: any = { ...updates, status: newStatus };
-                            if (note) finalUpdates.memo = note;
-                            if (decision === 'yes') {
-                                finalUpdates.isIntent = true;
-                                finalUpdates.dueStatus = 'today';
-                            }
-
-                            await updateItem(id, finalUpdates);
-                            setSelectedItem(null);
-                            handleRefresh();
-                        }}
-                        onDelete={async (id) => {
-                            if (confirm('本当に削除しますか?')) {
-                                await deleteItem(id);
+                                await updateItem(id, finalUpdates);
                                 setSelectedItem(null);
                                 handleRefresh();
-                            }
+                            }}
+                            onDelete={async (id) => {
+                                if (confirm('本当に削除しますか?')) {
+                                    await deleteItem(id);
+                                    setSelectedItem(null);
+                                    handleRefresh();
+                                }
+                            }}
+                            onUpdate={async (id, updates) => {
+                                await updateItem(id, updates);
+                            }}
+                            onCreateSubTask={createSubTask} // [NEW]
+                            onGetSubTasks={getSubTasks} // [NEW]
+                        />
+                    )}
+
+                    <SideMemoWidget />
+
+                    {/* Project Creation Dialog */}
+                    <ProjectCreationDialog
+                        isOpen={isProjectModalOpen}
+                        onClose={() => setIsProjectModalOpen(false)}
+                        onCreate={async (project, defaultTasks) => {
+                            await createProject(project, defaultTasks);
+                            setIsProjectModalOpen(false);
+                            // Add toast?
                         }}
-                        onUpdate={async (id, updates) => {
-                            await updateItem(id, updates);
-                        }}
-                        onCreateSubTask={createSubTask} // [NEW]
-                        onGetSubTasks={getSubTasks} // [NEW]
                     />
-                )}
-
-                <SideMemoWidget />
-
-                {/* Project Creation Dialog */}
-                <ProjectCreationDialog
-                    isOpen={isProjectModalOpen}
-                    onClose={() => setIsProjectModalOpen(false)}
-                    onCreate={async (project, defaultTasks) => {
-                        await createProject(project, defaultTasks);
-                        setIsProjectModalOpen(false);
-                        // Add toast?
-                    }}
-                />
-            </div>
+                </div>
+            )}
         </div>
     );
 };

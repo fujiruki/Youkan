@@ -147,6 +147,12 @@ if (preg_match('#^(/api)?/migrate$#', $path)) {
     exit;
 }
 
+// Migration Route (v19 JBWOS Core)
+if (preg_match('#^(/api)?/migrate/v19$#', $path)) {
+    require_once 'migrate_v19_jbwos_core.php';
+    exit;
+}
+
 // Members Route (MemberConfig)
 if (preg_match('#^(/api)?/members(?:/([^/]+))?$#', $path, $matches)) {
     require_once 'MemberController.php';

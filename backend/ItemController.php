@@ -333,8 +333,6 @@ class ItemController extends BaseController {
         
         // Unified Schema Fields
         $projectType = $data['projectType'] ?? null;
-        // $client = $data['client'] ?? null;
-        // $meta = isset($data['meta']) ? json_encode($data['meta']) : null;
         
         // Backward Compatibility
         $isProject = ($data['isProject'] ?? false) ? 1 : 0;
@@ -342,16 +340,29 @@ class ItemController extends BaseController {
             $isProject = 1;
         }
 
+        // [NEW] Inherit parent due_date if parentId is provided
+        $dueDate = $data['due_date'] ?? null;
+        $parentId = $data['parentId'] ?? null;
+        if ($parentId && !$dueDate) {
+            // Fetch parent's due_date
+            $parentStmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ? AND tenant_id = ?");
+            $parentStmt->execute([$parentId, $this->currentTenantId]);
+            $parent = $parentStmt->fetch(PDO::FETCH_ASSOC);
+            if ($parent && !empty($parent['due_date'])) {
+                $dueDate = $parent['due_date'];
+            }
+        }
+
         // [Security Rule] Assign owner and tenant
         $stmt = $this->pdo->prepare("
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by, project_type
+                project_id, created_by, project_type, due_date
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?
+                ?, ?, ?, ?
             )
         ");
         
@@ -362,7 +373,7 @@ class ItemController extends BaseController {
                 $data['title'],
                 $data['status'] ?? 'inbox',
                 $now, $now, $now,
-                $data['parentId'] ?? null,
+                $parentId,
                 $isProject,
                 $data['projectCategory'] ?? null,
                 $data['estimatedMinutes'] ?? 0,
@@ -370,8 +381,8 @@ class ItemController extends BaseController {
                 $delegationJson,
                 $data['projectId'] ?? null, // Link to project if provided
                 $this->currentUserId,
-                $projectType
-                // $meta
+                $projectType,
+                $dueDate
             ]);
             
             $this->sendJSON(['id' => $id, 'success' => true]);
