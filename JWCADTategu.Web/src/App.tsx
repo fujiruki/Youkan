@@ -149,13 +149,25 @@ function App() {
         console.log('[App] handleNavigateToDashboard called');
         setCurrentView('dashboard');
         setActiveProject(null);
+
+        // Update localStorage to ensure the next mount of DashboardScreen defaults to stream
+        localStorage.setItem('jbwos_view_mode', 'stream');
+
         // Logic to reset URL to base/Focus
         const basePath = import.meta.env.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        window.history.pushState({}, '', normalizedBase + 'Focus');
-        // Dispatch event to reset DashboardScreen internal state
-        window.dispatchEvent(new Event('dashboard-reset'));
+        const newPath = normalizedBase + 'Focus';
+
+        // Use window.history.pushState to update URL without full reload
+        window.history.pushState({ view: 'dashboard', mode: 'stream' }, '', newPath);
+
+        // Dispatch event to reset DashboardScreen internal state (if already mounted)
+        window.dispatchEvent(handleNavigateToDashboardEvent());
     };
+
+    // Helper for custom event
+    const handleNavigateToDashboardEvent = () => new CustomEvent('dashboard-reset', { detail: { mode: 'stream' } });
+
 
     // 5. Back to Project List
     const handleBackToProjectList = () => {

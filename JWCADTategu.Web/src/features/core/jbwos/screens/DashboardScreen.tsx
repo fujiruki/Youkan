@@ -115,8 +115,13 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 export const DashboardScreen = () => {
     // [NEW] View Mode State
     const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar'>(() => {
-        if (window.location.pathname.toLowerCase().includes('panorama')) return 'panorama';
-        if (window.location.pathname.toLowerCase().includes('calendar')) return 'calendar';
+        const path = window.location.pathname.toLowerCase();
+        // Priority 1: URL path
+        if (path.includes('panorama')) return 'panorama';
+        if (path.includes('calendar')) return 'calendar';
+        if (path.includes('focus')) return 'stream'; // Reset to focus if explicitly in URL
+
+        // Priority 2: localStorage
         const saved = localStorage.getItem('jbwos_view_mode');
         return (saved === 'panorama' || saved === 'stream' || saved === 'calendar') ? saved : 'stream';
     });
