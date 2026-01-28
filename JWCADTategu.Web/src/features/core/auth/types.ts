@@ -74,4 +74,5 @@ export interface RegisterCredentials {
     password: string;
     type?: 'user' | 'proprietor' | 'company';
     company_name?: string;
+    personal_email?: string; // For proprietor: separate email for user account
 }

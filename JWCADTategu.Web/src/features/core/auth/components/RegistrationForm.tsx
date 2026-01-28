@@ -13,12 +13,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ type, onBack
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [companyName, setCompanyName] = useState('');
+    const [sameEmail, setSameEmail] = useState(true); // Default: same email for business and personal
+    const [personalEmail, setPersonalEmail] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // For proprietor: use different emails for user account vs company account
+        const effectivePersonalEmail = type === 'proprietor' && !sameEmail ? personalEmail : email;
+
         // Call ViewModel register
-        await register(name, email, password, type, companyName);
+        await register(name, email, password, type, companyName, effectivePersonalEmail);
         // Note: Redirect on success is handled by ViewModel/Router
     };
 
@@ -77,20 +82,80 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ type, onBack
                         />
                     </div>
 
-                    {/* Common: Email */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            メールアドレス
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500"
-                            placeholder="your@email.com"
-                        />
-                    </div>
+                    {/* Email Fields - Different layout for proprietor */}
+                    {type === 'proprietor' ? (
+                        <>
+                            {/* Business Email */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    事業用メールアドレス
+                                </label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500"
+                                    placeholder="info@your-business.com"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">
+                                    会社（屋号）アカウントのログインに使用されます
+                                </p>
+                            </div>
+
+                            {/* Same Email Checkbox */}
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="sameEmail"
+                                    checked={sameEmail}
+                                    onChange={(e) => {
+                                        setSameEmail(e.target.checked);
+                                        if (e.target.checked) setPersonalEmail(email);
+                                    }}
+                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <label htmlFor="sameEmail" className="text-sm text-slate-600 dark:text-slate-400">
+                                    同一のメールアドレスを使用する
+                                </label>
+                            </div>
+
+                            {/* Personal Email (only if not same) */}
+                            {!sameEmail && (
+                                <div className="animate-fade-in">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        個人用メールアドレス
+                                    </label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={personalEmail}
+                                        onChange={(e) => setPersonalEmail(e.target.value)}
+                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500"
+                                        placeholder="personal@gmail.com"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        個人アカウントのログインに使用されます
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        /* Common: Email (for user and company types) */
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                メールアドレス
+                            </label>
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500"
+                                placeholder="your@email.com"
+                            />
+                        </div>
+                    )}
 
                     {/* Company Name (Proprietor & Company only) */}
                     {(type === 'proprietor' || type === 'company') && (

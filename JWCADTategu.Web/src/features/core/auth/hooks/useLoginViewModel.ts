@@ -42,13 +42,13 @@ export const useLoginViewModel = () => {
         }
     };
 
-    // Modified register function supporting 'type'
-    const register = async (name: string, email: string, pass: string, type: 'user' | 'proprietor' | 'company' = 'user', companyName?: string) => {
+    // Modified register function supporting 'type' and optional personalEmail (for proprietor)
+    const register = async (name: string, email: string, pass: string, type: 'user' | 'proprietor' | 'company' = 'user', companyName?: string, personalEmail?: string) => {
         setIsLoading(true);
         setError(null);
         try {
             const service = AuthService.getInstance();
-            const data = await service.register({ name, email, password: pass, type, company_name: companyName });
+            const data = await service.register({ name, email, password: pass, type, company_name: companyName, personal_email: personalEmail });
 
             if (data.token) {
                 // Success - set local storage same as login (AuthService already sets token, but we set user/tenant here too)

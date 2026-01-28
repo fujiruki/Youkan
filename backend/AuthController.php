@@ -68,10 +68,19 @@ class AuthController {
             }
 
             // 2. Create User
+            $userId = uniqid('u_'); // Generate unique user ID
             $isRep = ($type === 'company' || $type === 'proprietor') ? 1 : 0;
             $passwordHash = password_hash($input['password'], PASSWORD_DEFAULT);
+            
+            // For proprietor: if personal_email is provided, use it for user account
+            // Otherwise, use the same email for both user and company accounts
+            $userEmail = $input['email']; // Default: same as company email
+            if ($type === 'proprietor' && !empty($input['personal_email']) && $input['personal_email'] !== $input['email']) {
+                $userEmail = $input['personal_email'];
+            }
+            
             $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, is_representative, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))");
-            $stmt->execute([$userId, $input['email'], $passwordHash, $input['name'], $isRep]);
+            $stmt->execute([$userId, $userEmail, $passwordHash, $input['name'], $isRep]);
 
             // 3. Branching Logic & Personal Tenant Strategy
             // [Strategic Change] EVERY user gets a Personal Tenant ("My Life")
