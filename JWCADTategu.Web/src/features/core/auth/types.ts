@@ -60,6 +60,7 @@ export interface BackendAuthResponse {
     token?: string;
     user: BackendAuthUser;
     tenant: Tenant | null;
+    joinedTenants?: Tenant[];
     valid?: boolean;
 }
 

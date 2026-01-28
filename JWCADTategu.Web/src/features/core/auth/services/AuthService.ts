@@ -45,6 +45,15 @@ export class AuthService {
         return response;
     }
 
+    // [v24] Switch tenant context
+    public async switchTenant(tenantId: string | null): Promise<any> {
+        const response = await ApiClient.request<any>('POST', '/auth/switch-tenant', { tenant_id: tenantId });
+        if (response.token) {
+            localStorage.setItem(this.TOKEN_KEY, response.token);
+        }
+        return response;
+    }
+
     public async me(): Promise<BackendAuthResponse | null> {
         try {
             return await ApiClient.request<BackendAuthResponse>('GET', '/auth/me');

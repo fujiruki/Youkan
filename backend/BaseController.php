@@ -61,15 +61,9 @@ class BaseController {
 
         if (!$this->currentTenantId) {
             // Allow tenant-less access (Personal Mode)
-            // But we should prioritize Personal Tenant if exists in joinedTenants?
-            // Fallback: Use the first available tenant (Personal or Company)
-            if (!empty($this->joinedTenants)) {
-                $this->currentTenantId = $this->joinedTenants[0];
-            } else {
-                // [FIX] Fallback to empty string for Personal context
-                // This matches the logic in ProjectController and ItemController
-                $this->currentTenantId = ''; 
-            }
+            // Always default to empty string for Personal context
+            // This matches the logic in ProjectController and ItemController
+            $this->currentTenantId = ''; 
         }
     }
 

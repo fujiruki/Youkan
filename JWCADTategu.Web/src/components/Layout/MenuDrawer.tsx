@@ -18,9 +18,10 @@ export interface MenuDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     onNavigateToToday: () => void;
-    onNavigateToHistory: () => void;
-    onNavigateToProjects: () => void;
-    onNavigateToSettings: () => void;
+    onNavigateToDashboard?: () => void;
+    onNavigateToHistory?: () => void;
+    onNavigateToProjects?: () => void;
+    onNavigateToSettings?: () => void;
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void;
     onNavigateToManual?: () => void;
@@ -29,8 +30,10 @@ export interface MenuDrawerProps {
     userName?: string;
     user?: AuthUser | null;
     tenant?: Tenant | null;
-    onNavigateToCompanySettings: () => void;
+    onNavigateToCompanySettings?: () => void;
     onNavigateToPersonalSettings?: () => void;
+    joinedTenants?: Tenant[];
+    onSwitchTenant?: (tenantId: string | null) => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -45,7 +48,9 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
     user,
     tenant,
     onNavigateToCompanySettings,
-    onNavigateToPersonalSettings
+    onNavigateToPersonalSettings,
+    joinedTenants = [],
+    onSwitchTenant
 }) => {
     if (!isOpen) return null;
 
@@ -101,22 +106,67 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     </button>
                 </div>
 
+                {/* Tenant Switcher Section */}
+                {onSwitchTenant && (
+                    <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">モード切替</div>
+                        <div className="space-y-1">
+                            {/* Personal Mode Switch */}
+                            <button
+                                onClick={() => { onSwitchTenant(null); onClose(); }}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors ${!tenant
+                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-900/30'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <User size={14} />
+                                    個人用 (Life)
+                                </span>
+                                {!tenant && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                            </button>
+
+                            {/* Company/Proprietor Tenants */}
+                            {joinedTenants.map(t => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => { onSwitchTenant(t.id); onClose(); }}
+                                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors ${tenant?.id === t.id
+                                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-bold border border-amber-100 dark:border-amber-900/30'
+                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <Building size={14} />
+                                        {t.name}
+                                    </span>
+                                    {tenant?.id === t.id && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Content - Secondary Navigation */}
                 <div className="flex-1 overflow-y-auto py-3">
                     {/* Settings Section */}
                     <MenuSection title="設定">
-                        {onNavigateToPersonalSettings && !user?.isRepresentative && (
+                        {onNavigateToPersonalSettings && !tenant && (
                             <MenuItem icon={<User size={18} />} label="個人設定" onClick={onNavigateToPersonalSettings} />
                         )}
-                        {tenant && (
+                        {tenant && onNavigateToCompanySettings && (
                             <MenuItem icon={<Building size={18} />} label="会社設定" onClick={onNavigateToCompanySettings} />
                         )}
-                        <MenuItem icon={<Settings size={18} />} label="アプリ設定" onClick={onNavigateToSettings} />
+                        {onNavigateToSettings && (
+                            <MenuItem icon={<Settings size={18} />} label="アプリ設定" onClick={onNavigateToSettings} />
+                        )}
                     </MenuSection>
 
                     {/* Tools Section */}
                     <MenuSection title="ツール">
-                        <MenuItem icon={<Clock size={18} />} label="履歴" onClick={onNavigateToHistory} />
+                        {onNavigateToHistory && (
+                            <MenuItem icon={<Clock size={18} />} label="履歴" onClick={onNavigateToHistory} />
+                        )}
                         {onNavigateToCustomers && (
                             <MenuItem icon={<Users size={18} />} label="顧客管理" onClick={onNavigateToCustomers} />
                         )}

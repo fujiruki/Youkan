@@ -389,7 +389,7 @@ const AppContent: React.FC<{
 
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
-        const { user, tenant } = useAuth(); // [NEW] Fetch Auth Info
+        const { user, tenant, joinedTenants, switchTenant } = useAuth(); // [NEW] Fetch Auth Info
 
         // Setup API error handler
         useEffect(() => {
@@ -426,6 +426,8 @@ const AppContent: React.FC<{
                                 onNavigateToPersonalSettings={() => setCurrentView('personalSettings')}
                                 user={user}   // [NEW]
                                 tenant={tenant} // [NEW]
+                                joinedTenants={joinedTenants}
+                                onSwitchTenant={switchTenant}
                             />
                         )}
 

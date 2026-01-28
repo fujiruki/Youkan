@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, ChevronDown } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 import { MenuDrawer } from './MenuDrawer';
 
@@ -30,6 +30,8 @@ interface JBWOSHeaderProps {
     onNavigateToPersonalSettings?: () => void;
     user?: AuthUser | null;
     tenant?: Tenant | null;
+    joinedTenants?: Tenant[];
+    onSwitchTenant?: (tenantId: string | null) => void;
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -45,7 +47,9 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     onNavigateToCompanySettings,
     onNavigateToPersonalSettings,
     user,
-    tenant
+    tenant,
+    joinedTenants = [],
+    onSwitchTenant
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -90,6 +94,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 userName={user?.name || getLegacyUserName()}
                 user={user}
                 tenant={tenant}
+                joinedTenants={joinedTenants}
+                onSwitchTenant={onSwitchTenant}
             />
 
             {/* Left: Logo/Home + Hamburger */}
@@ -148,17 +154,29 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 {/* API Health Check (Development) */}
                 <HealthCheck />
 
-                {/* User Menu */}
-                <button
-                    onClick={() => setMenuOpen(true)}
-                    className="flex items-center gap-1 px-2 py-1.5 hover:bg-slate-700 rounded-lg transition-colors"
-                    title="ユーザーメニュー"
-                >
-                    <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white">
-                        {(user?.name || getLegacyUserName()).charAt(0).toUpperCase()}
-                    </div>
-                    <ChevronDown size={14} className="text-slate-400 hidden md:block" />
-                </button>
+                <MenuDrawer
+                    isOpen={menuOpen}
+                    onClose={() => setMenuOpen(false)}
+                    user={user}
+                    tenant={tenant}
+                    joinedTenants={joinedTenants}
+                    onSwitchTenant={onSwitchTenant}
+                    onNavigateToToday={onNavigateToToday}
+                    onNavigateToDashboard={onNavigateToDashboard}
+                    onNavigateToHistory={onNavigateToHistory}
+                    onNavigateToProjects={onNavigateToProjects}
+                    onNavigateToSettings={onNavigateToSettings}
+                    onNavigateToCustomers={onNavigateToCustomers}
+                    onNavigateToPlanning={onNavigateToPlanning}
+                    onNavigateToCalendar={onNavigateToCalendar || (() => { })}
+                    onNavigateToCompanySettings={onNavigateToCompanySettings}
+                    onNavigateToPersonalSettings={onNavigateToPersonalSettings}
+                    onLogout={() => {
+                        console.log('Logging out...');
+                        localStorage.removeItem('jbwos_token');
+                        window.location.reload();
+                    }}
+                />
             </div>
         </div>
     );

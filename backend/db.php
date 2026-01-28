@@ -77,7 +77,7 @@ function ensureTables($pdo) {
     $commands = [
         "CREATE TABLE IF NOT EXISTS items (
             id TEXT PRIMARY KEY,
-            tenant_id TEXT NOT NULL,
+            tenant_id TEXT,
             title TEXT NOT NULL,
             status TEXT NOT NULL,
             created_by TEXT,

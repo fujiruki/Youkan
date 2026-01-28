@@ -5,11 +5,13 @@ import { AuthService } from '../services/AuthService';
 interface AuthContextType {
     user: AuthUser | null;
     tenant: Tenant | null;
+    joinedTenants: Tenant[];
     isAuthenticated: boolean;
-    isLoading: boolean; // Added
+    isLoading: boolean;
     login: (user: AuthUser, tenant: Tenant, token: string) => void;
     logout: () => void;
     checkAuth: () => Promise<void>;
+    switchTenant: (tenantId: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [tenant, setTenant] = useState<Tenant | null>(null);
+    const [joinedTenants, setJoinedTenants] = useState<Tenant[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true); // Initial true
 
@@ -63,6 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     isRepresentative: data.user.is_representative
                 });
                 setTenant(data.tenant || null);
+                setJoinedTenants(data.joinedTenants || []);
                 setIsAuthenticated(true);
             } else {
                 logout();
@@ -88,13 +92,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const logout = () => {
         setUser(null);
         setTenant(null);
+        setJoinedTenants([]);
         setIsAuthenticated(false);
         localStorage.removeItem('jbwos_token');
         // AuthService.getInstance().logout(); // If implemented
     };
 
+    const switchTenant = async (tenantId: string | null) => {
+        setIsLoading(true);
+        try {
+            await AuthService.getInstance().switchTenant(tenantId);
+            await checkAuth(); // Refresh state with new token
+        } catch (e) {
+            console.error('Failed to switch tenant', e);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, tenant, isAuthenticated, isLoading, login, logout, checkAuth }}>
+        <AuthContext.Provider value={{ user, tenant, joinedTenants, isAuthenticated, isLoading, login, logout, checkAuth, switchTenant }}>
             {children}
         </AuthContext.Provider>
     );

@@ -31,6 +31,10 @@ class AuthController {
         elseif (preg_match('#^/me$#', $path) && $method === 'GET') {
             $this->me();
         }
+        // /auth/switch-tenant
+        elseif (preg_match('#^/switch-tenant$#', $path) && $method === 'POST') {
+            $this->switchTenant();
+        }
         else {
             http_response_code(404);
             echo json_encode(['error' => 'Auth endpoint not found']);
@@ -82,26 +86,19 @@ class AuthController {
             $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, is_representative, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))");
             $stmt->execute([$userId, $userEmail, $passwordHash, $input['name'], $isRep]);
 
-            // 3. Branching Logic & Personal Tenant Strategy
-            // [Strategic Change] EVERY user gets a Personal Tenant ("My Life")
-            $personalTenantId = uniqid('t_');
-            $personalTenantName = $input['name'] . "'s Life";
-            
-            // Create Personal Tenant
-            $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
-            $stmt->execute([$personalTenantId, $personalTenantName]);
-            
-            // Link as Owner
-            $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
-            $stmt->execute([$userId, $personalTenantId]);
+            // 3. Branching Logic
+            // [Strategic Change] Personal Mode = tenant_id is NULL. 
+            // No need to create a dummy "'s Life" tenant.
 
-            // If Company/Proprietor, create Company Tenant TOO.
+            // If Company/Proprietor, create Company Tenant.
             $companyTenantId = null;
+            $companyTenantName = null;
             $type = $input['type'] ?? 'user';
 
             if ($type === 'proprietor' || $type === 'company') {
                 $companyName = $input['company_name'] ?? ($input['name'] . "'s Company");
                 $companyTenantId = uniqid('t_');
+                $companyTenantName = $companyName;
                 
                 // Create Company Tenant with its own auth credentials
                 $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
@@ -113,11 +110,10 @@ class AuthController {
             }
 
             // Primary Tenant Selection for Token
-            // If Company created, default to that for business users.
-            $primaryTenantId = $personalTenantId; 
-            if ($companyTenantId) {
-                $primaryTenantId = $companyTenantId; 
-            }
+            // Strategic Change: Default to Personal Mode (NULL) after registration
+            $primaryTenantId = null; 
+            $primaryTenantName = null;
+            $primaryRole = 'user';
 
             $this->pdo->commit();
 
@@ -125,9 +121,10 @@ class AuthController {
             $payload = [
                 'sub' => $userId,
                 'name' => $input['name'],
-                'email' => $input['email'],
+                'email' => $userEmail, 
                 'tenant_id' => $primaryTenantId,
-                'role' => 'owner'
+                'role' => $primaryRole,
+                'is_representative' => (bool)$isRep
             ];
             $token = JWTService::encrypt($payload);
 
@@ -136,10 +133,10 @@ class AuthController {
                 'user' => [
                     'id' => $userId, 
                     'name' => $input['name'], 
-                    'email' => $input['email'],
+                    'email' => $userEmail, // Use identical email as in token
                     'is_representative' => (bool)$isRep
                 ],
-                'tenant' => ['id' => $primaryTenantId, 'name' => ($companyTenantId ? $companyName : $personalTenantName), 'role' => 'owner'],
+                'tenant' => $primaryTenantId ? ['id' => $primaryTenantId, 'name' => $primaryTenantName, 'role' => $primaryRole] : null,
                 'company_tenant' => $companyTenantId ? ['id' => $companyTenantId] : null
             ]);
             return; // EXIT HERE to skip old logic
@@ -216,7 +213,8 @@ class AuthController {
                 'email' => $user['email'],
                 'account_type' => 'user',
                 'tenant_id' => null,
-                'role' => 'user'
+                'role' => 'user',
+                'is_representative' => (bool)$user['is_representative']
             ];
             $token = JWTService::encrypt($payload);
 
@@ -285,10 +283,92 @@ class AuthController {
         $payload = $token ? JWTService::decrypt($token) : null;
 
         if ($payload) {
-            echo json_encode(['valid' => true, 'user' => $payload]);
+            // Fetch tenant details if tenant_id is in payload
+            $tenantInfo = null;
+            if (!empty($payload['tenant_id'])) {
+                $stmt = $this->pdo->prepare("SELECT id, name FROM tenants WHERE id = ?");
+                $stmt->execute([$payload['tenant_id']]);
+                $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($tenant) {
+                    $tenantInfo = [
+                        'id' => $tenant['id'],
+                        'name' => $tenant['name'],
+                        'role' => $payload['role'] ?? 'member'
+                    ];
+                }
+            }
+
+            // Fetch all joined tenants for switching
+            $stmt = $this->pdo->prepare("
+                SELECT t.id, t.name, m.role 
+                FROM memberships m
+                JOIN tenants t ON t.id = m.tenant_id
+                WHERE m.user_id = ?
+            ");
+            $stmt->execute([$payload['sub']]);
+            $joinedTenants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'valid' => true, 
+                'user' => [
+                    'id' => $payload['sub'],
+                    'name' => $payload['name'],
+                    'email' => $payload['email'],
+                    'is_representative' => $payload['is_representative'] ?? false
+                ],
+                'tenant' => $tenantInfo,
+                'joinedTenants' => array_map(function($t) {
+                    return ['id' => $t['id'], 'name' => $t['name'], 'role' => $t['role']];
+                }, $joinedTenants)
+            ]);
         } else {
             http_response_code(401);
             echo json_encode(['valid' => false, 'error' => 'Invalid or expired token']);
         }
+    }
+
+    // [v24] Switch Tenant: Issue new token for a different tenant context
+    private function switchTenant() {
+        $token = JWTService::getBearerToken();
+        $payload = $token ? JWTService::decrypt($token) : null;
+        
+        if (!$payload) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $newTenantId = $input['tenant_id'] ?? null;
+
+        // If switching to null (Personal Mode), that's valid
+        if ($newTenantId) {
+            // Verify membership
+            $stmt = $this->pdo->prepare("SELECT role FROM memberships WHERE user_id = ? AND tenant_id = ?");
+            $stmt->execute([$payload['sub'], $newTenantId]);
+            $membership = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$membership) {
+                http_response_code(403);
+                echo json_encode(['error' => 'You are not a member of this tenant']);
+                return;
+            }
+            $newRole = $membership['role'];
+        } else {
+            $newRole = 'user';
+        }
+
+        // Issue new token with updated tenant context
+        $newPayload = $payload;
+        $newPayload['tenant_id'] = $newTenantId;
+        $newPayload['role'] = $newRole;
+        
+        $newToken = JWTService::encrypt($newPayload);
+
+        echo json_encode([
+            'token' => $newToken,
+            'tenant_id' => $newTenantId,
+            'role' => $newRole
+        ]);
     }
 }
