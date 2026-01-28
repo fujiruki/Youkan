@@ -1,3 +1,4 @@
+<?php
 // backend/migrate_v19_jbwos_core.php
 // Purpose: Add core columns for Judgment-Centered OS (JBWOS) to prevent 500 errors and enable new logic.
 
