@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
+import { Building2, User } from 'lucide-react';
+
+type AccountTab = 'user' | 'tenant';
 
 export const LoginScreen: React.FC = () => {
     const { login, isLoading, error, debugLogin } = useLoginViewModel();
+
+    // Tab state
+    const [activeTab, setActiveTab] = useState<AccountTab>('user');
 
     // Form States
     const [email, setEmail] = useState('');
@@ -10,7 +16,7 @@ export const LoginScreen: React.FC = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        login({ email, password });
+        login({ email, password }, activeTab);
     };
 
     return (
@@ -31,6 +37,32 @@ export const LoginScreen: React.FC = () => {
                         </p>
                     </div>
 
+                    {/* [v22] Account Type Tabs */}
+                    <div className="flex bg-slate-200 dark:bg-slate-700 rounded-lg p-1 mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('user')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md transition-all ${activeTab === 'user'
+                                    ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                }`}
+                        >
+                            <User size={16} />
+                            <span>ユーザーアカウント</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('tenant')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md transition-all ${activeTab === 'tenant'
+                                    ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                }`}
+                        >
+                            <Building2 size={16} />
+                            <span>会社アカウント</span>
+                        </button>
+                    </div>
+
                     {error && (
                         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm border border-red-200">
                             {error}
@@ -40,7 +72,7 @@ export const LoginScreen: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                メールアドレス
+                                {activeTab === 'tenant' ? '会社のメールアドレス' : 'メールアドレス'}
                             </label>
                             <input
                                 type="email"
@@ -48,7 +80,7 @@ export const LoginScreen: React.FC = () => {
                                 className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
-                                placeholder="name@example.com"
+                                placeholder={activeTab === 'tenant' ? 'info@company.com' : 'name@example.com'}
                             />
                         </div>
 
@@ -71,7 +103,7 @@ export const LoginScreen: React.FC = () => {
                             disabled={isLoading}
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6 transform active:scale-95"
                         >
-                            {isLoading ? '処理中...' : 'ログイン'}
+                            {isLoading ? '処理中...' : (activeTab === 'tenant' ? '会社でログイン' : 'ログイン')}
                         </button>
                     </form>
 

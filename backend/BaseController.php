@@ -22,11 +22,12 @@ class BaseController {
             $this->currentUser = [
                 'sub' => 'u_default', // [FIX] Match existing default user ID
                 'name' => 'Debug User',
-                'tenant_id' => 1,
+                'tenant_id' => 't_default',
                 'role' => 'admin'
             ];
-            $this->currentTenantId = 1;
+            $this->currentTenantId = 't_default';
             $this->currentUserId = 'u_default'; // [FIX] Match DB
+            $this->joinedTenants = ['t_default']; // [FIX] Ensure joinedTenants is populated in debug mode
             return;
         }
 
@@ -65,9 +66,9 @@ class BaseController {
             if (!empty($this->joinedTenants)) {
                 $this->currentTenantId = $this->joinedTenants[0];
             } else {
-                // [FIX] Force Personal Tenant ID if no tenant context
-                // This prevents SQL NOT NULL error in items.tenant_id
-                $this->currentTenantId = 'p_' . $this->currentUserId;
+                // [FIX] Fallback to empty string for Personal context
+                // This matches the logic in ProjectController and ItemController
+                $this->currentTenantId = ''; 
             }
         }
     }

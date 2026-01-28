@@ -2,6 +2,7 @@ export interface AuthUser {
     id: string;
     name: string;
     email: string;
+    isRepresentative?: boolean;
     activeTaskId?: string; // [JBWOS] Current Focus Pointer
 }
 
@@ -45,6 +46,21 @@ export interface AuthResponse {
     token: string;
     user: AuthUser;
     tenant: Tenant;
+}
+
+export interface BackendAuthUser {
+    id: string;
+    name: string;
+    email: string;
+    is_representative: boolean;
+    sub?: string; // from me()
+}
+
+export interface BackendAuthResponse {
+    token?: string;
+    user: BackendAuthUser;
+    tenant: Tenant | null;
+    valid?: boolean;
 }
 
 export interface LoginCredentials {

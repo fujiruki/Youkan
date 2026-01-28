@@ -18,7 +18,8 @@ export interface StockJob {
 export interface Project {
     id: string;
     name: string;
-    client?: string;
+    client?: string;      // Legacy
+    clientName?: string;  // [NEW]
     settings?: any;
     dxfConfig?: any;
     viewMode: 'internal' | 'external' | 'mixed';
@@ -26,6 +27,8 @@ export interface Project {
     isArchived: boolean;
     grossProfitTarget: number;
     color?: string;
+    tenantId?: string;    // [NEW]
+    tenantName?: string;  // [NEW]
     createdAt: number;
     updatedAt: number;
 }

@@ -347,7 +347,7 @@ export const UserManagementScreen: React.FC = () => {
                 {/* Footer Link */}
                 <div className="mt-8 text-center">
                     <button
-                        onClick={() => window.location.href = '/login'}
+                        onClick={() => window.location.href = '/contents/TateguDesignStudio/'}
                         className="text-slate-500 hover:text-indigo-600 underline font-medium"
                     >
                         ログイン画面に戻る

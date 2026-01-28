@@ -1,17 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
-import { Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, Building2 } from 'lucide-react';
+import { useAuth } from '../../auth/providers/AuthProvider';
+import { JbwosTenant } from '../../auth/types';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
-    // Destructure activeScope and setActiveScope
     const { projects, loading, fetchProjects, createProject, updateProject, deleteProject, activeScope, setActiveScope } = useProjectViewModel();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     useEffect(() => {
         fetchProjects();
-    }, [fetchProjects]); // fetchProjects now depends on activeScope
+    }, [fetchProjects]);
+
+    // Grouping logic for Company scope
+    const groupedProjects = projects.reduce((acc, proj) => {
+        const key = proj.tenantName || 'Others';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(proj);
+        return acc;
+    }, {} as Record<string, Project[]>);
 
     const handleCreate = () => {
         setEditingProject(null);
@@ -84,6 +93,31 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 {/* Grid */}
                 {loading && projects.length === 0 ? (
                     <div className="text-center py-20 text-slate-400">読み込み中...</div>
+                ) : activeScope === 'company' ? (
+                    <div className="space-y-12">
+                        {Object.entries(groupedProjects).map(([tenantName, tenantProjects]) => (
+                            <div key={tenantName} className="space-y-6">
+                                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                                    <Building2 className="w-5 h-5 text-indigo-500" />
+                                    <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200">{tenantName}</h2>
+                                    <span className="bg-slate-200 dark:bg-slate-800 text-slate-500 text-xs px-2 py-0.5 rounded-full">
+                                        {tenantProjects.length}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {tenantProjects.map(project => (
+                                        <ProjectCard
+                                            key={project.id}
+                                            project={project}
+                                            onSelect={() => onSelect(project)}
+                                            onEdit={() => handleEdit(project)}
+                                            onDelete={() => deleteProject(project.id)}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {projects.map(project => (
@@ -103,12 +137,17 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             {isModalOpen && (
                 <ProjectModal
                     project={editingProject}
+                    activeScope={activeScope}
                     onClose={() => setIsModalOpen(false)}
                     onSave={async (data) => {
+                        const payload = { ...data };
+                        if (activeScope === 'personal') {
+                            (payload as any).isPersonal = true;
+                        }
                         if (editingProject) {
-                            await updateProject(editingProject.id, data);
+                            await updateProject(editingProject.id, payload);
                         } else {
-                            await createProject(data);
+                            await createProject(payload);
                         }
                         setIsModalOpen(false);
                     }}
@@ -136,7 +175,7 @@ const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: ()
                             <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
                         )}
                         <span className="text-xs uppercase font-bold tracking-wider text-slate-400">
-                            {project.client || '自社・個人'}
+                            {project.clientName || project.client || '自社・個人'}
                         </span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -172,11 +211,16 @@ const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: ()
 
 const ProjectModal: React.FC<{
     project: Project | null;
+    activeScope: 'personal' | 'company';
     onClose: () => void;
     onSave: (data: Partial<Project>) => Promise<void>;
-}> = ({ project, onClose, onSave }) => {
+}> = ({ project, activeScope, onClose, onSave }) => {
+    const { tenant } = useAuth();
+    const jbwosTenant = tenant as JbwosTenant;
+    const isManufacturing = jbwosTenant?.config?.plugins?.manufacturing ?? false;
+
     const [name, setName] = useState(project?.name || '');
-    const [client, setClient] = useState(project?.client || '');
+    const [clientName, setClientName] = useState(project?.clientName || project?.client || '');
     const [target, setTarget] = useState(project?.grossProfitTarget?.toString() || '0');
     const [color, setColor] = useState(project?.color || '#6366f1');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -187,7 +231,7 @@ const ProjectModal: React.FC<{
         try {
             await onSave({
                 name,
-                client,
+                clientName,
                 grossProfitTarget: parseInt(target) || 0,
                 color
             });
@@ -220,31 +264,33 @@ const ProjectModal: React.FC<{
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                顧客名 / 現場名
-                            </label>
-                            <input
-                                type="text"
-                                value={client}
-                                onChange={e => setClient(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                placeholder="例: 田中邸"
-                            />
+                    {activeScope === 'company' && isManufacturing && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    顧客名 / 現場名
+                                </label>
+                                <input
+                                    type="text"
+                                    value={clientName}
+                                    onChange={e => setClientName(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    placeholder="例: 田中邸"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    目標粗利 (円)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={target}
+                                    onChange={e => setTarget(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                目標粗利 (円)
-                            </label>
-                            <input
-                                type="number"
-                                value={target}
-                                onChange={e => setTarget(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            />
-                        </div>
-                    </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">

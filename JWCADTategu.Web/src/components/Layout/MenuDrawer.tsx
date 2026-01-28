@@ -5,6 +5,7 @@ interface AuthUser {
     id: string;
     name: string;
     email: string;
+    isRepresentative?: boolean;
 }
 
 interface Tenant {
@@ -104,7 +105,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                 <div className="flex-1 overflow-y-auto py-3">
                     {/* Settings Section */}
                     <MenuSection title="設定">
-                        {onNavigateToPersonalSettings && (
+                        {onNavigateToPersonalSettings && !user?.isRepresentative && (
                             <MenuItem icon={<User size={18} />} label="個人設定" onClick={onNavigateToPersonalSettings} />
                         )}
                         {tenant && (

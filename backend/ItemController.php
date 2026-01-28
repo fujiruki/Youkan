@@ -58,7 +58,9 @@ class ItemController extends BaseController {
         $item['isIntent'] = (bool)($item['is_intent'] ?? 0);
         $item['dueStatus'] = $item['due_status'] ?? null;
 
-        // $item['client'] = $item['client'] ?? null; // Removed as column missing
+        // [New Project Context]
+        $item['clientName'] = $item['client_name'] ?? $item['client'] ?? null; 
+        $item['grossProfitTarget'] = (int)($item['gross_profit_target'] ?? 0);
         
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
@@ -159,7 +161,7 @@ class ItemController extends BaseController {
                         )
                     )
                 )
-                ORDER BY items.updated_at DESC
+                ORDER BY items.is_project DESC, items.updated_at DESC
             ";
             
             // Params: [userId, ...tenantIds, userId, userId]
@@ -358,18 +360,29 @@ class ItemController extends BaseController {
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by, project_type, due_date
+                project_id, created_by, project_type, due_date, client_name, gross_profit_target
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?
             )
         ");
         
         try {
+            // [v21] If parent_id is provided, inherit tenant_id from parent and auto-promote parent
+            $effectiveTenantId = $this->currentTenantId;
+            if ($parentId) {
+                $parentStmt = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
+                $parentStmt->execute([$parentId]);
+                $parent = $parentStmt->fetch(PDO::FETCH_ASSOC);
+                if ($parent) {
+                    $effectiveTenantId = $parent['tenant_id']; // Inherit from parent
+                }
+            }
+
             $stmt->execute([
                 $id,
-                $this->currentTenantId,
+                $effectiveTenantId, // Use inherited tenant_id
                 $data['title'],
                 $data['status'] ?? 'inbox',
                 $now, $now, $now,
@@ -382,13 +395,22 @@ class ItemController extends BaseController {
                 $data['projectId'] ?? null, // Link to project if provided
                 $this->currentUserId,
                 $projectType,
-                $dueDate
+                $dueDate,
+                $data['clientName'] ?? $data['client'] ?? null,
+                $data['grossProfitTarget'] ?? 0
             ]);
+            
+            // [v21] Auto-promote parent to project if child was added
+            if ($parentId) {
+                $this->pdo->prepare("UPDATE items SET is_project = 1 WHERE id = ?")
+                    ->execute([$parentId]);
+            }
             
             $this->sendJSON(['id' => $id, 'success' => true]);
         } catch (PDOException $e) {
             $this->sendError(500, 'Database Error: ' . $e->getMessage());
         }
+
     }
 
     private function update($id) {
@@ -417,7 +439,7 @@ class ItemController extends BaseController {
 
         // Ideally: Project Items should only be editable by members, but for now Tenant Public.
         // However, Private Items (project_id IS NULL) MUST be created_by me unless Admin.
-        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] !== $this->currentUserId) {
+        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] != (string)$this->currentUserId) {
             $this->sendError(403, 'Access Denied: Cannot edit private item of another user');
         }
 
@@ -429,7 +451,7 @@ class ItemController extends BaseController {
             'title', 'status', 'memo', 'due_date', // Removed 'due_status'
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
             'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
-            'project_type'
+            'project_type', 'client_name', 'gross_profit_target'
         ];
 
         foreach ($simpleFields as $f) {
@@ -443,6 +465,8 @@ class ItemController extends BaseController {
             if ($f === 'assigned_to') $inputKey = 'assignedTo';
             if ($f === 'project_id') $inputKey = 'projectId';
             if ($f === 'project_type') $inputKey = 'projectType';
+            if ($f === 'client_name') $inputKey = 'clientName';
+            if ($f === 'gross_profit_target') $inputKey = 'grossProfitTarget';
 
             if (array_key_exists($inputKey, $data)) {
                 $val = $data[$inputKey];

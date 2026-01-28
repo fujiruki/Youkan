@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Project } from '../types';
 import { ProjectService } from '../services/ProjectService';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -9,13 +9,26 @@ export const useProjectViewModel = () => {
     const [error, setError] = useState<string | null>(null);
     const { showToast } = useToast();
 
-    const [activeScope, setActiveScope] = useState<'personal' | 'company'>('personal'); // [NEW]
+    const [activeScope, setActiveScope] = useState<'personal' | 'company'>(() => {
+        // Initial state from URL
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes('/projects/company')) return 'company';
+        return 'personal';
+    });
+
+    // Update URL when activeScope changes
+    const handleSetScope = useCallback((scope: 'personal' | 'company') => {
+        setActiveScope(scope);
+        // Force absolute path for the subdirectory deployment
+        const deployBase = '/contents/TateguDesignStudio/';
+        const newPath = `${deployBase}projects/${scope}`;
+        window.history.pushState({ scope }, '', newPath);
+    }, []);
 
     const fetchProjects = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            // Pass activeScope to Service (requires update in Service too)
             const data = await ProjectService.getAll({ scope: activeScope });
             setProjects(data);
         } catch (err: any) {
@@ -24,7 +37,18 @@ export const useProjectViewModel = () => {
         } finally {
             setLoading(false);
         }
-    }, [showToast, activeScope]); // Add activeScope dependency
+    }, [showToast, activeScope]);
+
+    // Listen to popstate (back button)
+    useEffect(() => {
+        const handlePopState = () => {
+            const path = window.location.pathname.toLowerCase();
+            if (path.includes('/projects/company')) setActiveScope('company');
+            else if (path.includes('/projects/personal')) setActiveScope('personal');
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     const createProject = async (project: Partial<Project>) => {
         setLoading(true);
@@ -79,7 +103,7 @@ export const useProjectViewModel = () => {
         createProject,
         updateProject,
         deleteProject,
-        activeScope, // [NEW]
-        setActiveScope // [NEW]
+        activeScope,
+        setActiveScope: handleSetScope
     };
 };

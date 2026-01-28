@@ -42,7 +42,7 @@ class ProjectController extends BaseController {
                 SELECT items.*, t.name as tenant_name
                 FROM items 
                 LEFT JOIN tenants t ON items.tenant_id = t.id
-                WHERE items.project_type IS NOT NULL 
+                WHERE items.is_project = 1 
                 AND (
                     ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
                     OR
@@ -53,30 +53,33 @@ class ProjectController extends BaseController {
              $params = [$this->currentUserId, $this->currentUserId, $this->currentUserId];
 
         } elseif ($scope === 'company') {
-            // Company Tab: All items in current tenant
-            if (!$this->currentTenantId) {
-                // If no tenant selected, return empty or error? Empty list is safer.
+            // Company Tab: All projects in ALL joined tenants
+            if (empty($this->joinedTenants)) {
                 $this->sendJSON([]);
                 return;
             }
+            $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
             $sql = "
-                SELECT * FROM items 
+                SELECT items.*, t.name as tenant_name
+                FROM items 
+                LEFT JOIN tenants t ON items.tenant_id = t.id
                 WHERE 
-                    project_type IS NOT NULL 
-                    AND tenant_id = ?
-                ORDER BY updated_at DESC
+                    items.is_project = 1 
+                    AND items.tenant_id IN ($placeholders)
+                ORDER BY t.name ASC, items.updated_at DESC
             ";
-            $params = [$this->currentTenantId];
+            $params = $this->joinedTenants;
 
         } else { // scope === 'personal'
             // Personal Tab: Strictly Personal items
             $sql = "
-                SELECT * FROM items 
+                SELECT items.*, 'Personal' as tenant_name
+                FROM items 
                 WHERE 
-                    project_type IS NOT NULL 
-                    AND (tenant_id IS NULL OR tenant_id = '') 
-                    AND (created_by = ? OR items.assigned_to = ?)
-                ORDER BY updated_at DESC
+                    items.is_project = 1 
+                    AND (items.tenant_id IS NULL OR items.tenant_id = '') 
+                    AND (items.created_by = ? OR items.assigned_to = ?)
+                ORDER BY items.updated_at DESC
             ";
             $params = [$this->currentUserId, $this->currentUserId];
         }
@@ -107,8 +110,9 @@ class ProjectController extends BaseController {
         }
 
         // Auth Check
-        if ($item['tenant_id']) {
-            if ($item['tenant_id'] !== $this->currentTenantId) {
+        $itemTenantId = (string)($item['tenant_id'] ?? '');
+        if ($itemTenantId !== '') {
+            if ($itemTenantId != (string)$this->currentTenantId) {
                 $this->sendError(403, 'Access Denied (Company Mismatch)');
             }
         } else {
@@ -135,20 +139,22 @@ class ProjectController extends BaseController {
             'settings' => $data['settings'] ?? [],
             'dxf_config' => $data['dxf_config'] ?? [],
             'view_mode' => $data['view_mode'] ?? 'internal',
-            'gross_profit_target' => $data['gross_profit_target'] ?? 0,
             'color' => $data['color'] ?? 'blue'
         ];
         // If type is in data, use it, else default 'general'
         $type = $data['type'] ?? ($data['settings']['type'] ?? 'general');
         $meta['settings']['type'] = $type;
 
-        $tenantId = !empty($this->currentTenantId) ? $this->currentTenantId : ''; // Use empty string for NOT NULL constraint
+        // Determine tenant_id: use current tenant ONLY if not explicitly personal
+        $isPersonal = isset($data['isPersonal']) && $data['isPersonal'] === true;
+        $tenantId = (!$isPersonal && !empty($this->currentTenantId)) ? $this->currentTenantId : ''; 
 
         $stmt = $this->pdo->prepare("
             INSERT INTO items (
-                id, tenant_id, title, project_type, client, meta, 
-                status, created_at, updated_at, created_by, assigned_to
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, tenant_id, title, project_type, client_name, meta, 
+                status, created_at, updated_at, created_by, assigned_to,
+                gross_profit_target, is_project
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         ");
 
         $status = $data['judgment_status'] ?? 'inbox'; // Map to item status
@@ -159,13 +165,14 @@ class ProjectController extends BaseController {
                 $tenantId,
                 $data['name'],
                 $type,
-                $data['client'] ?? '',
+                $data['clientName'] ?? $data['client'] ?? '',
                 json_encode($meta),
                 $status,
                 $now,
                 $now,
                 $this->currentUserId,
-                $data['assigned_to'] ?? $this->currentUserId // Default assign to creator
+                $data['assigned_to'] ?? $this->currentUserId, // Default assign to creator
+                $data['grossProfitTarget'] ?? $data['gross_profit_target'] ?? 0
             ]);
             $this->show($id);
         } catch (PDOException $e) {
@@ -184,9 +191,15 @@ class ProjectController extends BaseController {
         }
 
         // Auth Logic same as show (simplified)
-        if (($item['tenant_id'] && $item['tenant_id'] !== $this->currentTenantId) ||
-            (!$item['tenant_id'] && $item['created_by'] !== $this->currentUserId)) {
-             $this->sendError(403, 'Access Denied');
+        $itemTenantId = (string)($item['tenant_id'] ?? '');
+        if ($itemTenantId !== '') {
+            if ($itemTenantId != (string)$this->currentTenantId) {
+                $this->sendError(403, 'Access Denied');
+            }
+        } else {
+            if ($item['created_by'] != (string)$this->currentUserId) {
+                $this->sendError(403, 'Access Denied');
+            }
         }
 
         $data = $this->getInput();
@@ -195,7 +208,11 @@ class ProjectController extends BaseController {
 
         // Map updates
         if (isset($data['name'])) { $fields[] = "title = ?"; $params[] = $data['name']; }
-        if (isset($data['client'])) { $fields[] = "client = ?"; $params[] = $data['client']; }
+        if (isset($data['clientName'])) { $fields[] = "client_name = ?"; $params[] = $data['clientName']; }
+        else if (isset($data['client'])) { $fields[] = "client_name = ?"; $params[] = $data['client']; }
+        
+        $grossProfitTarget = $data['grossProfitTarget'] ?? $data['gross_profit_target'] ?? null;
+        if ($grossProfitTarget !== null) { $fields[] = "gross_profit_target = ?"; $params[] = $grossProfitTarget; }
         if (isset($data['judgment_status'])) { $fields[] = "status = ?"; $params[] = $data['judgment_status']; }
         
         // Meta Updates (Merge)
@@ -205,7 +222,8 @@ class ProjectController extends BaseController {
         if (isset($data['settings'])) { $meta['settings'] = $data['settings']; $metaUpdated = true; }
         if (isset($data['dxf_config'])) { $meta['dxf_config'] = $data['dxf_config']; $metaUpdated = true; }
         if (isset($data['view_mode'])) { $meta['view_mode'] = $data['view_mode']; $metaUpdated = true; }
-        if (isset($data['gross_profit_target'])) { $meta['gross_profit_target'] = $data['gross_profit_target']; $metaUpdated = true; }
+        // Note: gross_profit_target is now a top-level column, but we might keep it in meta for very old clients?
+        // Let's stick to columns for new data.
         if (isset($data['color'])) { $meta['color'] = $data['color']; $metaUpdated = true; }
 
         if ($metaUpdated) {
@@ -250,15 +268,15 @@ class ProjectController extends BaseController {
             'id' => $item['id'],
             'tenant_id' => $item['tenant_id'],
             'name' => $item['title'], // Map title -> name
-            'client' => $item['client'],
+            'client' => $item['client_name'] ?? $item['client'] ?? '',
             'settings_json' => json_encode($meta['settings'] ?? []),
             'dxf_config_json' => json_encode($meta['dxf_config'] ?? []),
             'view_mode' => $meta['view_mode'] ?? 'internal',
             'judgment_status' => $item['status'], // Map status
             'is_archived' => ($item['status'] === 'archive'),
-            'gross_profit_target' => $meta['gross_profit_target'] ?? 0,
+            'grossProfitTarget' => (int)($item['gross_profit_target'] ?? $meta['gross_profit_target'] ?? 0),
             'color' => $meta['color'] ?? 'blue',
-            'created_at' => $item['created_at'], // Seconds? Legacy was ms. Frontend might need conversion.
+            'created_at' => $item['created_at'], 
             'updated_at' => $item['updated_at'],
             'type' => $item['project_type'] // Exposed
         ];

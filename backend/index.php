@@ -2,8 +2,8 @@
 // backend/index.php
 
 // 0. Robust Migration Trigger (Bypass routing)
-if (isset($_GET['trigger_migration_secret']) && $_GET['trigger_migration_secret'] === 'v19') {
-    require_once 'migrate_v19_jbwos_core.php';
+if (isset($_GET['trigger_migration_secret']) && $_GET['trigger_migration_secret'] === 'v20') {
+    require_once 'migrate_v20_project_context.php';
     exit;
 }
 

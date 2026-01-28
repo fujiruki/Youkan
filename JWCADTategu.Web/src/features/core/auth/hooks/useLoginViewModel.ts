@@ -15,17 +15,28 @@ export const useLoginViewModel = () => {
         window.location.href = './login';
     };
 
-    const login = async (creds: LoginCredentials) => {
+    // [v22] Support both user and tenant login
+    const login = async (creds: LoginCredentials, accountType: 'user' | 'tenant' = 'user') => {
         setIsLoading(true);
         setError(null);
         try {
             const service = AuthService.getInstance();
-            const res = await service.login(creds);
-            localStorage.setItem('jbwos_user', JSON.stringify(res.user));
-            localStorage.setItem('jbwos_tenant', JSON.stringify(res.tenant));
+            const res = accountType === 'tenant'
+                ? await service.loginTenant(creds)
+                : await service.loginUser(creds);
+
+            if (res.user) {
+                localStorage.setItem('jbwos_user', JSON.stringify(res.user));
+            }
+            if (res.tenant) {
+                localStorage.setItem('jbwos_tenant', JSON.stringify(res.tenant));
+            }
+            localStorage.setItem('jbwos_account_type', accountType);
             window.location.reload();
         } catch (e) {
-            setError('Login failed. Check your credentials.');
+            setError(accountType === 'tenant'
+                ? '会社アカウントのログインに失敗しました。メールアドレスとパスワードを確認してください。'
+                : 'ユーザーアカウントのログインに失敗しました。メールアドレスとパスワードを確認してください。');
         } finally {
             setIsLoading(false);
         }

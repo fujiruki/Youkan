@@ -88,8 +88,12 @@ function App() {
 
     // 1. To Project List (External View)
     const handleNavigateToProjects = () => {
-        setCurrentView('projects'); // Switched to New Project Registry
+        setCurrentView('projects');
         setActiveProject(null);
+
+        // Update URL
+        const deployBase = '/contents/TateguDesignStudio/';
+        window.history.pushState({ view: 'projects' }, '', `${deployBase}projects/personal`);
     };
 
     // 2. To Specific Project (Schedule View)
@@ -171,8 +175,11 @@ function App() {
 
     // 5. Back to Project List
     const handleBackToProjectList = () => {
-        setCurrentView('projects'); // Unified View
+        setCurrentView('projects');
         setActiveProject(null);
+
+        const deployBase = '/contents/TateguDesignStudio/';
+        window.history.pushState({ view: 'projects' }, '', `${deployBase}projects/personal`);
     };
 
     const handleBackToSchedule = () => {

@@ -8,18 +8,13 @@ import { JudgableItem, Member } from '../features/core/jbwos/types';
 const getApiBase = () => {
     if (import.meta.env.DEV) return '/api';
 
-    // Production: Use Vite's BASE_URL to find the absolute root of the app
-    // Then point to backend/index.php
-    let base = import.meta.env.BASE_URL || '/';
+    // Production: Force absolute path
+    // Assuming deployed at /contents/TateguDesignStudio/
+    const deployPath = '/contents/TateguDesignStudio/';
 
-    // Ensure base ends with /
-    if (!base.endsWith('/')) base += '/';
-
-    // The backend is expected to be in the 'backend/' directory relative to the app root
-    const result = `${base}backend/index.php`;
-
-    console.log('[ApiClient] Resolved Base URL:', result);
-    return result;
+    // Check if we are actually under this path to be safe, or just force it.
+    // Given the deployment script targeting this path, forcing it is safest for now.
+    return `${deployPath}backend/index.php`;
 };
 
 const API_BASE = getApiBase();

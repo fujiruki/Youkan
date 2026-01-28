@@ -59,7 +59,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setUser({
                     id: data.user.id,
                     name: data.user.name,
-                    email: data.user.email
+                    email: data.user.email,
+                    isRepresentative: data.user.is_representative
                 });
                 setTenant(data.tenant || null);
                 setIsAuthenticated(true);

@@ -41,8 +41,19 @@ function getDB() {
             'assigned_to' => 'TEXT DEFAULT NULL',
             'delegation' => 'TEXT DEFAULT NULL', // JSON String
             'client' => 'TEXT DEFAULT NULL', // [FIX] Added missing column for Projects
+            'client_name' => 'TEXT DEFAULT NULL', // [v20]
+            'gross_profit_target' => 'INTEGER DEFAULT 0', // [v20]
             'meta' => 'TEXT DEFAULT NULL' // [FIX] Added for Project Settings/Config
         ];
+
+        // 1.2 Check 'users' table columns
+        $userCols = [];
+        $stmt = $pdo->query("PRAGMA table_info(users)");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) { $userCols[] = $row['name']; }
+        
+        if (!in_array('is_representative', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN is_representative INTEGER DEFAULT 0");
+        }
 
         foreach ($requiredColumns as $col => $def) {
             if (!in_array($col, $columns)) {
@@ -124,15 +135,8 @@ function ensureTables($pdo) {
             status TEXT DEFAULT 'open',
             created_at INTEGER
         )",
-        "CREATE TABLE IF NOT EXISTS projects (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            status TEXT DEFAULT 'active',
-            progress_rate INTEGER DEFAULT 0,
-            total_weight INTEGER DEFAULT 0,
-            current_weight INTEGER DEFAULT 0,
-            created_at INTEGER
-        )",
+        // [v21] projects table removed - now unified in items table
+        // Legacy: "CREATE TABLE IF NOT EXISTS projects (...)" - REMOVED
         "CREATE TABLE IF NOT EXISTS user_configs (
             user_id TEXT PRIMARY KEY,
             daily_capacity_minutes INTEGER DEFAULT 480,
@@ -159,6 +163,8 @@ function ensureTables($pdo) {
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             domain TEXT,
+            email TEXT,
+            password_hash TEXT,
             created_at INTEGER
         )",
         "CREATE TABLE IF NOT EXISTS memberships (

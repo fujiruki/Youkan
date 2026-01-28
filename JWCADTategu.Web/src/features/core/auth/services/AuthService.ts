@@ -1,4 +1,4 @@
-import { AuthResponse, LoginCredentials, RegisterCredentials } from '../types';
+import { BackendAuthResponse, LoginCredentials, RegisterCredentials } from '../types';
 import { ApiClient } from '../../../../api/client';
 
 export class AuthService {
@@ -14,25 +14,40 @@ export class AuthService {
         return AuthService.instance;
     }
 
-    public async login(credentials: LoginCredentials): Promise<AuthResponse> {
-        const response = await ApiClient.request<AuthResponse>('POST', '/auth/login', credentials);
+    // [v22] User account login
+    public async loginUser(credentials: LoginCredentials): Promise<BackendAuthResponse> {
+        const response = await ApiClient.request<BackendAuthResponse>('POST', '/auth/login/user', credentials);
         if (response.token) {
             localStorage.setItem(this.TOKEN_KEY, response.token);
         }
         return response;
     }
 
-    public async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-        const response = await ApiClient.request<AuthResponse>('POST', '/auth/register', credentials);
+    // [v22] Company/Tenant account login
+    public async loginTenant(credentials: LoginCredentials): Promise<BackendAuthResponse> {
+        const response = await ApiClient.request<BackendAuthResponse>('POST', '/auth/login/tenant', credentials);
         if (response.token) {
             localStorage.setItem(this.TOKEN_KEY, response.token);
         }
         return response;
     }
 
-    public async me(): Promise<AuthResponse | null> {
+    // Legacy login (defaults to user login)
+    public async login(credentials: LoginCredentials): Promise<BackendAuthResponse> {
+        return this.loginUser(credentials);
+    }
+
+    public async register(credentials: RegisterCredentials): Promise<BackendAuthResponse> {
+        const response = await ApiClient.request<BackendAuthResponse>('POST', '/auth/register', credentials);
+        if (response.token) {
+            localStorage.setItem(this.TOKEN_KEY, response.token);
+        }
+        return response;
+    }
+
+    public async me(): Promise<BackendAuthResponse | null> {
         try {
-            return await ApiClient.request<AuthResponse>('GET', '/auth/me');
+            return await ApiClient.request<BackendAuthResponse>('GET', '/auth/me');
         } catch (error) {
             console.error("Failed to fetch user info:", error);
             return null;

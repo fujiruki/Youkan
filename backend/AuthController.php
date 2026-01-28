@@ -11,9 +11,17 @@ class AuthController {
     }
 
     public function handleRequest($method, $path) {
-        // /auth/login
-        if (preg_match('#^/login$#', $path) && $method === 'POST') {
-            $this->login();
+        // [v22] /auth/login/user - User account login
+        if (preg_match('#^/login/user$#', $path) && $method === 'POST') {
+            $this->loginUser();
+        }
+        // [v22] /auth/login/tenant - Company account login
+        elseif (preg_match('#^/login/tenant$#', $path) && $method === 'POST') {
+            $this->loginTenant();
+        }
+        // /auth/login (legacy, same as /login/user)
+        elseif (preg_match('#^/login$#', $path) && $method === 'POST') {
+            $this->loginUser(); // Default to user login for backwards compatibility
         } 
         // /auth/register
         elseif (preg_match('#^/register$#', $path) && $method === 'POST') {
@@ -60,10 +68,10 @@ class AuthController {
             }
 
             // 2. Create User
-            $userId = uniqid('u_');
+            $isRep = ($type === 'company' || $type === 'proprietor') ? 1 : 0;
             $passwordHash = password_hash($input['password'], PASSWORD_DEFAULT);
-            $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
-            $stmt->execute([$userId, $input['email'], $passwordHash, $input['name']]);
+            $stmt = $this->pdo->prepare("INSERT INTO users (id, email, password_hash, display_name, is_representative, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))");
+            $stmt->execute([$userId, $input['email'], $passwordHash, $input['name'], $isRep]);
 
             // 3. Branching Logic & Personal Tenant Strategy
             // [Strategic Change] EVERY user gets a Personal Tenant ("My Life")
@@ -86,9 +94,9 @@ class AuthController {
                 $companyName = $input['company_name'] ?? ($input['name'] . "'s Company");
                 $companyTenantId = uniqid('t_');
                 
-                // Create Company Tenant
-                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, created_at) VALUES (?, ?, datetime('now'))");
-                $stmt->execute([$companyTenantId, $companyName]);
+                // Create Company Tenant with its own auth credentials
+                $stmt = $this->pdo->prepare("INSERT INTO tenants (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, datetime('now'))");
+                $stmt->execute([$companyTenantId, $companyName, $input['email'], $passwordHash]);
 
                 // Membership
                 $stmt = $this->pdo->prepare("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))");
@@ -96,13 +104,10 @@ class AuthController {
             }
 
             // Primary Tenant Selection for Token
-            // If Company created, default to that? Or Personal?
-            // User requested "Safety". Defaults to Personal is safer?
-            // But business users want to start working immediately.
-            // Let's default to Personal as Primary (Home), and Client switches context.
+            // If Company created, default to that for business users.
             $primaryTenantId = $personalTenantId; 
             if ($companyTenantId) {
-                // $primaryTenantId = $companyTenantId; // Uncomment to default to work
+                $primaryTenantId = $companyTenantId; 
             }
 
             $this->pdo->commit();
@@ -119,8 +124,13 @@ class AuthController {
 
             echo json_encode([
                 'token' => $token,
-                'user' => ['id' => $userId, 'name' => $input['name'], 'email' => $input['email']],
-                'tenant' => ['id' => $primaryTenantId, 'name' => $personalTenantName, 'role' => 'owner'],
+                'user' => [
+                    'id' => $userId, 
+                    'name' => $input['name'], 
+                    'email' => $input['email'],
+                    'is_representative' => (bool)$isRep
+                ],
+                'tenant' => ['id' => $primaryTenantId, 'name' => ($companyTenantId ? $companyName : $personalTenantName), 'role' => 'owner'],
                 'company_tenant' => $companyTenantId ? ['id' => $companyTenantId] : null
             ]);
             return; // EXIT HERE to skip old logic
@@ -167,7 +177,8 @@ class AuthController {
         }
     }
 
-    private function login() {
+    // [v22] User Account Login
+    private function loginUser() {
         $input = json_decode(file_get_contents('php://input'), true);
         if (!$input || !isset($input['email']) || !isset($input['password'])) {
             http_response_code(400);
@@ -180,63 +191,80 @@ class AuthController {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($input['password'], $user['password_hash'])) {
-            // Success. Fetch primary tenant.
+            // Fetch all joined tenants
             $stmt = $this->pdo->prepare("
                 SELECT t.id, t.name, m.role 
                 FROM memberships m
                 JOIN tenants t ON t.id = m.tenant_id
                 WHERE m.user_id = ?
-                LIMIT 1
             ");
             $stmt->execute([$user['id']]);
-            $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+            $tenants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            if (!$tenant) {
-                // User has no tenant (Freelancer / Waiting for invite)
-                // Return token with no tenant_id
-                $payload = [
-                    'sub' => $user['id'],
+            $payload = [
+                'sub' => $user['id'],
+                'name' => $user['display_name'],
+                'email' => $user['email'],
+                'account_type' => 'user',
+                'tenant_id' => null,
+                'role' => 'user'
+            ];
+            $token = JWTService::encrypt($payload);
+
+            echo json_encode([
+                'token' => $token,
+                'accountType' => 'user',
+                'user' => [
+                    'id' => $user['id'],
                     'name' => $user['display_name'],
-                    'email' => $user['email'],
-                    'tenant_id' => null,
-                    'role' => 'user'
-                ];
-                $token = JWTService::encrypt($payload);
+                    'email' => $user['email']
+                ],
+                'tenant' => null,
+                'joinedTenants' => array_map(function($t) {
+                    return ['id' => $t['id'], 'name' => $t['name'], 'role' => $t['role']];
+                }, $tenants)
+            ]);
+        } else {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid credentials']);
+        }
+    }
 
-                echo json_encode([
-                    'token' => $token,
-                    'user' => [
-                        'id' => $user['id'],
-                        'name' => $user['display_name'],
-                        'email' => $user['email']
-                    ],
-                    'tenant' => null
-                ]);
-            } else {
-                // User has tenant
-                $payload = [
-                    'sub' => $user['id'],
-                    'name' => $user['display_name'],
-                    'email' => $user['email'],
-                    'tenant_id' => $tenant['id'],
-                    'role' => $tenant['role']
-                ];
-                $token = JWTService::encrypt($payload);
+    // [v22] Company/Tenant Account Login
+    private function loginTenant() {
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!$input || !isset($input['email']) || !isset($input['password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Email and password required']);
+            return;
+        }
 
-                echo json_encode([
-                    'token' => $token,
-                    'user' => [
-                        'id' => $user['id'],
-                        'name' => $user['display_name'],
-                        'email' => $user['email']
-                    ],
-                    'tenant' => [
-                        'id' => $tenant['id'],
-                        'name' => $tenant['name'],
-                        'role' => $tenant['role']
-                    ]
-                ]);
-            }
+        // Look up tenant by email
+        $stmt = $this->pdo->prepare("SELECT * FROM tenants WHERE email = ?");
+        $stmt->execute([$input['email']]);
+        $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($tenant && !empty($tenant['password_hash']) && password_verify($input['password'], $tenant['password_hash'])) {
+            $payload = [
+                'sub' => $tenant['id'], // Tenant ID as subject for company login
+                'name' => $tenant['name'],
+                'email' => $tenant['email'],
+                'account_type' => 'tenant',
+                'tenant_id' => $tenant['id'],
+                'role' => 'owner'
+            ];
+            $token = JWTService::encrypt($payload);
+
+            echo json_encode([
+                'token' => $token,
+                'accountType' => 'tenant',
+                'user' => null,
+                'tenant' => [
+                    'id' => $tenant['id'],
+                    'name' => $tenant['name'],
+                    'email' => $tenant['email']
+                ]
+            ]);
         } else {
             http_response_code(401);
             echo json_encode(['error' => 'Invalid credentials']);
