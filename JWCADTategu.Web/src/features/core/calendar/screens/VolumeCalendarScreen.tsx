@@ -97,7 +97,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                 <RyokanCalendar
                     items={adapterResult.items}
                     onItemClick={() => { }}
-                    onToggleHoliday={() => { }}
                 />
             </div>
         </div>

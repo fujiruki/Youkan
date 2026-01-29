@@ -57,7 +57,6 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                 <RyokanCalendar
                     items={items}
                     onItemClick={onItemClick}
-                    onToggleHoliday={() => { }} // Not editable in mini panel for now
                     layoutMode="mini"
                     filterMode={filterMode}
                     selectedDate={selectedDate}

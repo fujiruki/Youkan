@@ -598,7 +598,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                 items={[...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCommits, ...todayCandidates]}
                                 onItemClick={(item) => setDetailItem(item)}
                                 capacityConfig={vm.capacityConfig}
-                                onToggleHoliday={vm.toggleHoliday}
                             />
                         </div>
                     )}
