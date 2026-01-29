@@ -262,7 +262,7 @@ export class ApiClient {
 
     // --- Member Configuration API ---
     public static async getMembers(): Promise<Member[]> {
-        return this.request('GET', '/tenant/members');
+        return this.request('GET', '/members');
     }
 
     public static async updateMember(id: string, updates: Partial<Member>): Promise<{ success: boolean }> {

@@ -17,7 +17,7 @@ class MemberController extends BaseController {
             
             if (!$this->currentTenantId) {
                 // If NO tenant (Personal Account), return ONLY the current user as a virtual team
-                $sql = "SELECT id as user_id, 'owner' as role, 1 as is_core, daily_capacity_minutes, display_name FROM users WHERE id = ?";
+                $sql = "SELECT id as user_id, email, 'owner' as role, 1 as is_core, daily_capacity_minutes, display_name FROM users WHERE id = ?";
                 $stmt = $this->pdo->prepare($sql);
                 $stmt->execute([$this->currentUserId]);
                 $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -29,7 +29,8 @@ class MemberController extends BaseController {
                         m.role, 
                         m.is_core, 
                         u.daily_capacity_minutes,
-                        u.display_name
+                        u.display_name,
+                        u.email
                     FROM memberships m
                     JOIN users u ON m.user_id = u.id
                     WHERE m.tenant_id = ?
@@ -44,7 +45,8 @@ class MemberController extends BaseController {
                 return [
                     'id' => $row['user_id'], // Use user_id as unique ID for membership in this context
                     'userId' => $row['user_id'],
-                    'username' => $row['display_name'], // display_name is the only name field
+                    'display_name' => $row['display_name'], 
+                    'email' => $row['email'] ?? null,
                     'role' => $row['role'],
                     'isCore' => (bool)$row['is_core'],
                     'dailyCapacityMinutes' => (int)$row['daily_capacity_minutes']
