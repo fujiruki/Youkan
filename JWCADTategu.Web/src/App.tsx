@@ -52,37 +52,34 @@ function App() {
     useEffect(() => {
         const path = window.location.pathname.toLowerCase();
 
-        // JBWOS Routing
-        // /JBWOS/Panorama -> jbwos + panorama
-        // /JBWOS/Focus    -> jbwos + standard
+        // ヘルパー: パスの末尾が一致するか、またはセグメントとして含まれているかを確認
+        const matches = (segment: string) => path.endsWith(segment.toLowerCase()) || path.includes('/' + segment.toLowerCase() + '/');
 
-        if (path.includes('/dashboard')) {
-            console.log('[Router] Detected Dashboard URL');
+        if (matches('dashboard') || matches('focus')) {
+            console.log('[Router] Detected Dashboard/Focus URL');
             setCurrentView('dashboard');
-        } else if (path.includes('/projects/personal')) {
-            console.log('[Router] Detected Projects (Personal) URL');
-            setCurrentView('projects');
-        } else if (path.includes('/projects/company')) {
-            console.log('[Router] Detected Projects (Company) URL');
-            setCurrentView('projects');
-        } else if (path.includes('/projects')) {
+        } else if (matches('jbwos/panorama') || matches('panorama')) {
+            console.log('[Router] Detected Panorama URL');
+            setCurrentView('dashboard'); // 現状はダッシュボードへリダイレクト（後にパノラマビュー実装時に切り替え）
+        } else if (matches('projects/personal') || matches('projects/company') || matches('projects')) {
             console.log('[Router] Detected Projects URL');
             setCurrentView('projects');
-        } else if (path.includes('/jbwos/panorama')) {
-            console.log('[Router] Detected Legacy Panorama URL');
-            setCurrentView('dashboard'); // Redirect to dashboard
-        } else if (path.includes('/jbwos/focus')) {
-            console.log('[Router] Detected Legacy Focus URL');
-            setCurrentView('dashboard');
-        } else if (path.includes('/userlist')) {
-            console.log('[Router] Detected UserList URL');
-            setCurrentView('userlist');
-        } else if (path.includes('/settings/profile')) { // [NEW]
+        } else if (matches('calendar')) {
+            console.log('[Router] Detected Calendar URL');
+            setCurrentView('calendar');
+        } else if (matches('history')) {
+            console.log('[Router] Detected History URL');
+            setCurrentView('history');
+        } else if (matches('settings/profile') || matches('personalsettings')) {
             console.log('[Router] Detected Personal Settings URL');
             setCurrentView('personalSettings');
+        } else if (matches('userlist')) {
+            console.log('[Router] Detected UserList URL');
+            setCurrentView('userlist');
         }
-        // Else default to what's in useState or other logic (e.g. Deep linking below)
     }, []);
+
+
 
     // --- Navigation Handlers ---
 

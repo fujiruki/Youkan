@@ -205,9 +205,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
             }
         }
         // Due Date (Safety check)
+        // Due Date (Safety check)
         if (dueDate !== (item.due_date || '')) {
             updates.due_date = dueDate;
             updates.dueStatus = dueStatus; // If date changed, likely status is confirmed
+        }
+        // Title
+        if (editedTitle !== item.title) {
+            updates.title = editedTitle;
         }
 
         return updates;
@@ -762,7 +767,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         e.preventDefault();
                                                         const titleToAdd = newSubTaskTitle.trim();
                                                         setNewSubTaskTitle(''); // Clear early for UX
-                                                        const newId = await onCreateSubTask(item.id, titleToAdd, item.due_date || undefined);
+                                                        const newId = await onCreateSubTask(item.id, titleToAdd, dueDate || item.due_date || undefined);
                                                         console.log('[Modal] Subtask created:', newId);
                                                         if (onGetSubTasks) {
                                                             const tasks = await onGetSubTasks(item.id);

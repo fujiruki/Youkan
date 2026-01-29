@@ -55,6 +55,18 @@ function getDB() {
         if (!in_array('is_representative', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN is_representative INTEGER DEFAULT 0");
         }
+        if (!in_array('birthday', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN birthday TEXT DEFAULT NULL");
+        }
+        if (!in_array('daily_capacity_minutes', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN daily_capacity_minutes INTEGER DEFAULT 480");
+        }
+        if (!in_array('non_working_hours', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN non_working_hours TEXT DEFAULT NULL");
+        }
+        if (!in_array('active_task_id', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN active_task_id TEXT DEFAULT NULL");
+        }
 
         foreach ($requiredColumns as $col => $def) {
             if (!in_array($col, $columns)) {
@@ -66,6 +78,18 @@ function getDB() {
             }
         }
         
+        // 1.3 Check 'assignees' table columns
+        $assigneeCols = [];
+        $stmt = $pdo->query("PRAGMA table_info(assignees)");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) { $assigneeCols[] = $row['name']; }
+
+        if (!in_array('type', $assigneeCols)) {
+            $pdo->exec("ALTER TABLE assignees ADD COLUMN type TEXT DEFAULT 'internal'");
+        }
+        if (!in_array('email', $assigneeCols)) {
+            $pdo->exec("ALTER TABLE assignees ADD COLUMN email TEXT DEFAULT NULL");
+        }
+
         return $pdo;
     } catch (PDOException $e) {
         // Log connection error
@@ -160,6 +184,10 @@ function ensureTables($pdo) {
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             display_name TEXT,
+            birthday TEXT DEFAULT NULL,
+            daily_capacity_minutes INTEGER DEFAULT 480,
+            non_working_hours TEXT DEFAULT NULL,
+            active_task_id TEXT DEFAULT NULL,
             created_at INTEGER,
             preferences TEXT -- JSON for UI settings
         )",
@@ -191,10 +219,11 @@ function ensureTables($pdo) {
         )",
         // New tables for Phase 9
         "CREATE TABLE IF NOT EXISTS assignees (
-            id TEXT PRIMARY KEY,
-            tenant_id TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id TEXT,
             name TEXT NOT NULL,
-            role TEXT,
+            type TEXT DEFAULT 'internal',
+            email TEXT,
             color TEXT,
             is_active INTEGER DEFAULT 1,
             created_at INTEGER,

@@ -70,113 +70,143 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     const isDashboard = currentView === 'dashboard' || currentView === 'jbwos';
     const isProjects = currentView === 'projects';
     const isCalendar = currentView === 'calendar' || currentView === 'planning';
-
     return (
-        <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md shrink-0 w-full relative z-30">
-            <MenuDrawer
-                isOpen={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                onNavigateToToday={() => { onNavigateToToday(); setMenuOpen(false); }}
-                onNavigateToHistory={() => { onNavigateToHistory(); setMenuOpen(false); }}
-                onNavigateToProjects={() => { onNavigateToProjects(); setMenuOpen(false); }}
-                onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
-                onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
-                onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
-                onNavigateToManual={() => { setMenuOpen(false); }}
-                onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
-                onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
-                onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
-                onLogout={() => {
-                    localStorage.removeItem('jbwos_token');
-                    localStorage.removeItem('jbwos_user');
-                    window.location.href = './';
-                }}
-                userName={user?.name || getLegacyUserName()}
-                user={user}
-                tenant={tenant}
-                joinedTenants={joinedTenants}
-                onSwitchTenant={onSwitchTenant}
-            />
-
-            {/* Left: Logo/Home + Hamburger */}
-            <div className="flex items-center gap-2 shrink-0">
-                {/* Hamburger Menu */}
-                <button
-                    onClick={() => setMenuOpen(true)}
-                    className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                    title="メニュー"
-                >
-                    <Menu size={20} className="text-slate-300" />
-                </button>
-
-                {/* Logo / Home */}
-                <button
-                    onClick={handleGoHome}
-                    className="hidden md:flex items-center gap-1.5 px-2 py-1 hover:bg-slate-700 rounded-lg transition-colors"
-                    title="ホームへ戻る"
-                >
-                    <span className="text-lg">⚡</span>
-                    <span className="text-sm font-bold text-slate-200">JBWOS</span>
-                </button>
+        <div className="flex flex-col shrink-0 w-full">
+            {/* Top Info Bar (For AI Awareness & Debugging) */}
+            <div className="bg-slate-900/80 px-4 py-0.5 flex flex-wrap justify-end gap-x-4 items-center text-[9px] text-slate-400 font-mono border-b border-slate-700/30 w-full select-none opacity-80 z-40">
+                <div className="flex items-center gap-1">
+                    <span className="text-slate-500">TYPE:</span>
+                    <span className={tenant ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {tenant ? 'COMPANY_ACCOUNT' : 'PERSONAL_ACCOUNT'}
+                    </span>
+                </div>
+                {(!tenant && joinedTenants.length > 0) && (
+                    <div className="flex items-center gap-1">
+                        <span className="text-slate-500">MEMBER_OF:</span>
+                        <span className="text-slate-300">{joinedTenants.map(t => t.name).join(', ')}</span>
+                    </div>
+                )}
+                <div className="flex items-center gap-1">
+                    <span className="text-slate-500">EMAIL:</span>
+                    <span className="text-sky-300">{user?.email}</span>
+                </div>
+                {tenant && (
+                    <div className="flex items-center gap-1">
+                        <span className="text-slate-500">TENANT_NAME:</span>
+                        <span className="text-slate-200">{tenant.name}</span>
+                    </div>
+                )}
             </div>
 
-            {/* Center: Primary Navigation Tabs (PC) */}
-            <div className="flex-1 flex items-center justify-center">
-                <nav className="flex items-center bg-slate-700/50 rounded-lg p-1 gap-1">
-                    {/* Dashboard Tab */}
-                    <NavTab
-                        icon={<LayoutDashboard size={16} />}
-                        label="Dashboard"
-                        isActive={isDashboard}
-                        onClick={onNavigateToDashboard}
-                    />
-
-                    {/* Projects Tab */}
-                    <NavTab
-                        icon={<FolderKanban size={16} />}
-                        label="Projects"
-                        isActive={isProjects}
-                        onClick={onNavigateToProjects}
-                    />
-
-                    {/* Calendar Tab */}
-                    <NavTab
-                        icon={<CalendarDays size={16} />}
-                        label="Calendar"
-                        isActive={isCalendar}
-                        onClick={onNavigateToCalendar || (() => { })}
-                    />
-                </nav>
-            </div>
-
-            {/* Right: API Indicator + User Menu */}
-            <div className="flex items-center gap-2 shrink-0">
-                {/* API Health Check (Development) */}
-                <HealthCheck />
-
+            <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md w-full relative z-30">
                 <MenuDrawer
                     isOpen={menuOpen}
                     onClose={() => setMenuOpen(false)}
+                    onNavigateToToday={() => { onNavigateToToday(); setMenuOpen(false); }}
+                    onNavigateToHistory={() => { onNavigateToHistory(); setMenuOpen(false); }}
+                    onNavigateToProjects={() => { onNavigateToProjects(); setMenuOpen(false); }}
+                    onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
+                    onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
+                    onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
+                    onNavigateToManual={() => { setMenuOpen(false); }}
+                    onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
+                    onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
+                    onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
+                    onLogout={() => {
+                        localStorage.removeItem('jbwos_token');
+                        localStorage.removeItem('jbwos_user');
+                        window.location.href = './';
+                    }}
+                    userName={user?.name || getLegacyUserName()}
                     user={user}
                     tenant={tenant}
                     joinedTenants={joinedTenants}
                     onSwitchTenant={onSwitchTenant}
-                    onNavigateToToday={onNavigateToToday}
-                    onNavigateToDashboard={onNavigateToDashboard}
-                    onNavigateToHistory={onNavigateToHistory}
-                    onNavigateToProjects={onNavigateToProjects}
-                    onNavigateToSettings={onNavigateToSettings}
-                    onNavigateToCustomers={onNavigateToCustomers}
-                    onNavigateToPlanning={onNavigateToPlanning}
-                    onNavigateToCalendar={onNavigateToCalendar || (() => { })}
-                    onNavigateToCompanySettings={onNavigateToCompanySettings}
-                    onNavigateToPersonalSettings={onNavigateToPersonalSettings}
-                    onLogout={() => {
-                        console.log('Logging out...');
-                        localStorage.removeItem('jbwos_token');
-                        window.location.reload();
-                    }}
                 />
+
+                {/* Left: Logo/Home + Hamburger */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {/* Hamburger Menu */}
+                    <button
+                        onClick={() => setMenuOpen(true)}
+                        className="p-1.5 md:p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                        title="メニュー"
+                    >
+                        <Menu size={20} className="text-slate-300" />
+                    </button>
+
+                    {/* Logo / Home */}
+                    <button
+                        onClick={handleGoHome}
+                        className="hidden md:flex items-center gap-1.5 px-2 py-1 hover:bg-slate-700 rounded-lg transition-colors"
+                        title="ホームへ戻る"
+                    >
+                        <span className="text-lg">⚡</span>
+                        <span className="text-sm font-bold text-slate-200">JBWOS</span>
+                    </button>
+                </div>
+
+                {/* Center: Primary Navigation Tabs (PC) */}
+                <div className="flex-1 flex items-center justify-center">
+                    <nav className="flex items-center bg-slate-700/50 rounded-lg p-1 gap-1">
+                        {/* Dashboard Tab */}
+                        <NavTab
+                            icon={<LayoutDashboard size={16} />}
+                            label="Dashboard"
+                            isActive={isDashboard}
+                            onClick={onNavigateToDashboard}
+                        />
+
+                        {/* Projects Tab */}
+                        <NavTab
+                            icon={<FolderKanban size={16} />}
+                            label="Projects"
+                            isActive={isProjects}
+                            onClick={onNavigateToProjects}
+                        />
+
+                        {/* Calendar Tab */}
+                        <NavTab
+                            icon={<CalendarDays size={16} />}
+                            label="Calendar"
+                            isActive={isCalendar}
+                            onClick={onNavigateToCalendar || (() => { })}
+                        />
+                    </nav>
+                </div>
+
+                {/* Right: API Indicator + User Menu */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {/* API Health Check (Development) */}
+                    <HealthCheck />
+
+                    {/* The MenuDrawer below was a duplicate and has been removed to fix the JSX structure.
+                        The first MenuDrawer is correctly placed at the top of the main header div.
+                    <MenuDrawer
+                        isOpen={menuOpen}
+                        onClose={() => setMenuOpen(false)}
+                        user={user}
+                        tenant={tenant}
+                        joinedTenants={joinedTenants}
+                        onSwitchTenant={onSwitchTenant}
+                        onNavigateToToday={onNavigateToToday}
+                        onNavigateToDashboard={onNavigateToDashboard}
+                        onNavigateToHistory={onNavigateToHistory}
+                        onNavigateToProjects={onNavigateToProjects}
+                        onNavigateToSettings={onNavigateToSettings}
+                        onNavigateToCustomers={onNavigateToCustomers}
+                        onNavigateToPlanning={onNavigateToPlanning}
+                        onNavigateToCalendar={onNavigateToCalendar || (() => { })}
+                        onNavigateToCompanySettings={onNavigateToCompanySettings}
+                        onNavigateToPersonalSettings={onNavigateToPersonalSettings}
+                        onLogout={() => {
+                            console.log('Logging out...');
+                            localStorage.removeItem('jbwos_token');
+                            window.location.reload();
+                        }}
+                    />
+                    */}
+                </div>
             </div>
         </div>
     );
