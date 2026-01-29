@@ -42,15 +42,15 @@ export const CloudJBWOSRepository = {
     },
 
     // 5. GDB Shelf (Aggregated View)
-    getGdbShelf: async (): Promise<GdbShelf> => {
+    getGdbShelf: async (projectId?: string): Promise<GdbShelf> => {
         // [Change] Use 'dashboard' scope to mix Personal and Company-Assigned items
-        const allItems = await ApiClient.getAllItems({ scope: 'dashboard' });
+        const allItems = await ApiClient.getAllItems({ scope: 'dashboard', project_id: projectId });
 
-        // Categorize
+        // Categorize based on JBWOS Logic
         return {
-            active: allItems.filter(i => i.status === 'focus' || i.status === 'pending'), // Focus & Pending
+            active: allItems.filter(i => i.status === 'inbox'), // Inbox (To be judged)
             preparation: allItems.filter(i => i.status === 'waiting'), // Waiting
-            intent: allItems.filter(i => i.status === 'inbox'), // Inbox
+            intent: allItems.filter(i => i.status === 'pending'), // Pending (Someday)
             log: allItems.filter(i => i.status === 'done') // Done
         };
     },
@@ -116,9 +116,12 @@ export const CloudJBWOSRepository = {
     },
 
     // Subtasks
-    getSubTasks: async (_parentId: string) => {
-        // Not implemented in backend yet, return empty
-        return [];
+    getSubTasks: async (parentId: string): Promise<JudgableItem[]> => {
+        return await ApiClient.getAllItems({ parentId });
+    },
+
+    getMembers: async () => {
+        return await ApiClient.getMembers();
     },
 
     // Factory

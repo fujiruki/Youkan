@@ -30,7 +30,7 @@ class UserController extends BaseController {
         }
     }
 
-    private function getProfile() {
+    protected function getProfile() {
         if (!$this->currentUserId) {
             $this->sendError(400, 'User context required');
         }
@@ -55,7 +55,7 @@ class UserController extends BaseController {
         $this->sendJSON($user);
     }
 
-    private function updateProfile() {
+    protected function updateProfile() {
         if (!$this->currentUserId) {
             $this->sendError(400, 'User context required');
         }
@@ -104,7 +104,7 @@ class UserController extends BaseController {
         $this->sendJSON(['success' => true]);
     }
 
-    private function changePassword() {
+    protected function changePassword() {
         if (!$this->currentUserId) {
              $this->sendError(400, 'User context required');
         }

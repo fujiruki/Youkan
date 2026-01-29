@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
-import { Item, SideMemo, CapacityConfig } from '../types';
+import { Item, SideMemo, CapacityConfig, Member } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
@@ -39,14 +39,17 @@ export const useJBWOSViewModel = () => {
     // Side Memos
     const [memos, setMemos] = useState<SideMemo[]>([]);
 
+    // [NEW] Members
+    const [members, setMembers] = useState<Member[]>([]);
+
     // Loading & Error
     const [error, setError] = useState<string | null>(null);
 
     // --- Data Fetching ---
-    const refreshGdb = useCallback(async () => {
+    const refreshGdb = useCallback(async (projectId?: string) => {
         try {
-            const shelf = await getRepository().getGdbShelf();
-            console.log('[ViewModel] Fetched GDB Shelf:', shelf); // [DEBUG]
+            const shelf = await getRepository().getGdbShelf(projectId);
+            console.log('[ViewModel] Fetched GDB Shelf:', shelf, 'for project:', projectId); // [DEBUG]
             if (!shelf) throw new Error('Shelf is null');
 
             setGdbActive((Array.isArray(shelf.active) ? shelf.active : []).filter(Boolean));
@@ -80,6 +83,15 @@ export const useJBWOSViewModel = () => {
             setMemos(data);
         } catch (e) {
             console.error('Failed to fetch Memos:', e);
+        }
+    }, []);
+
+    const refreshMembers = useCallback(async () => {
+        try {
+            const data = await getRepository().getMembers();
+            setMembers(data);
+        } catch (e) {
+            console.error('Failed to fetch Members:', e);
         }
     }, []);
 
@@ -150,13 +162,15 @@ export const useJBWOSViewModel = () => {
         await updateCapacityConfig(newConfig);
     };
 
-    const refreshAll = useCallback(() => {
-        refreshGdb();
-        refreshToday();
-        refreshMemos();
-        refreshMemos();
-        refreshCapacityConfig();
-    }, [refreshGdb, refreshToday, refreshMemos, refreshCapacityConfig]);
+    const refreshAll = useCallback(async () => {
+        await Promise.all([
+            refreshGdb(),
+            refreshToday(),
+            refreshMemos(),
+            refreshMembers(), // [NEW]
+            refreshCapacityConfig()
+        ]);
+    }, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig]);
 
     // Initial Load & Global Refresh Listener
     useEffect(() => {
@@ -315,26 +329,32 @@ export const useJBWOSViewModel = () => {
     };
 
     const deleteItem = async (id: string) => {
-        // Find item to save for undo (if we had full item data, we could recreate)
-        // For MVP, we don't have full item data passed here, only ID. 
-        // We can't implement CREATE-UNDO without data.
-        // WORKAROUND: For 'decision=no', we usually just log/delete.
-        // If we want to support undoing 'delete', we need to fetch it first or have it passed.
-        // For now, let's omit DELETE UNDO unless we changes 'delete' to 'archive' status.
-        // User asked for "Ctrl+Z" generally.
-        // The most critical ones are Decision and Completion. I will prioritize those.
+        // Find item to save for undo
+        const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
+        const itemToDelete = allItems.find(i => i.id === id);
+
+        if (itemToDelete) {
+            // [Undo] Register Action
+            addUndoAction({
+                type: 'delete',
+                id,
+                previousData: itemToDelete,
+                description: `「${itemToDelete.title}」を削除しました`
+            });
+        }
 
         // Optimistic UI
         setGdbActive(prev => prev.filter(i => i.id !== id));
         setGdbPreparation(prev => prev.filter(i => i.id !== id));
-        setTodayCandidates(prev => prev.filter(i => i.id !== id)); // [FIX] Remove from Today Candidates
-        setTodayCommits(prev => prev.filter(i => i.id !== id));    // [FIX] Remove from Today Commits
+        setGdbIntent(prev => prev.filter(i => i.id !== id));
+        setTodayCandidates(prev => prev.filter(i => i.id !== id));
+        setTodayCommits(prev => prev.filter(i => i.id !== id));
 
         try {
             await getRepository().deleteItem(id);
         } catch (e) {
             console.error('Delete item failed', e);
-            refreshGdb();
+            refreshAll();
         }
     };
 
@@ -788,11 +808,13 @@ export const useJBWOSViewModel = () => {
         todayCommits,
         executionItem,
         memos,
+        members, // [NEW]
         error,
         capacityConfig, // New state
 
         // Actions
         refresh: refreshAll,
+        refreshGdb, // [NEW] Exported for project filtering
         resolveDecision,
         commitToToday,
         completeItem,

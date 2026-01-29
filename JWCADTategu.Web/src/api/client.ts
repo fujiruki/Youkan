@@ -1,4 +1,4 @@
-import { JudgableItem, Member } from '../features/core/jbwos/types';
+import { JudgableItem, Member, Assignee } from '../features/core/jbwos/types';
 
 // src/api/client.ts
 
@@ -125,11 +125,12 @@ export class ApiClient {
         }
     }
 
-    public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string }): Promise<JudgableItem[]> {
+    public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string, project_id?: string }): Promise<JudgableItem[]> {
         let query = '';
         const params = new URLSearchParams();
         if (options?.scope) params.append('scope', options.scope);
         if (options?.parentId) params.append('parent_id', options.parentId);
+        if (options?.project_id) params.append('project_id', options.project_id);
 
         query = params.toString() ? `?${params.toString()}` : '';
         return this.request<JudgableItem[]>('GET', `/items${query}`);
@@ -282,6 +283,23 @@ export class ApiClient {
         return this.request('DELETE', `/tenant/members/${id}`);
     }
 
+    // --- Assignee API (Phase 9) ---
+    public static async getAssignees(): Promise<Assignee[]> {
+        return this.request('GET', '/assignees');
+    }
+
+    public static async createAssignee(data: Partial<Assignee>): Promise<{ success: boolean; id: string }> {
+        return this.request('POST', '/assignees', data);
+    }
+
+    public static async updateAssignee(id: string, updates: Partial<Assignee>): Promise<{ success: boolean }> {
+        return this.request('PUT', `/assignees/${id}`, updates);
+    }
+
+    public static async deleteAssignee(id: string): Promise<{ success: boolean }> {
+        return this.request('DELETE', `/assignees/${id}`);
+    }
+
     public static async getTenantInfo(): Promise<{ id: string; name: string; created_at: string; member_count: number }> {
         return this.request('GET', '/tenant/info'); // Relative to tenant context? No, API structure is usually /api/tenant/info?
         // TenantController routing:
@@ -310,5 +328,22 @@ export class ApiClient {
 
     public static async updateTenantInfo(name: string): Promise<{ success: boolean }> {
         return this.request('PUT', '/tenant/info', { name });
+    }
+
+    // --- Manufacturing Plugin API (v23) ---
+    public static async getManufacturingItem(itemId: string): Promise<any> {
+        return this.request('GET', `/manufacturing/items?item_id=${itemId}`);
+    }
+
+    public static async updateManufacturingItem(itemId: string, data: any): Promise<{ success: boolean }> {
+        return this.request('PUT', `/manufacturing/items?item_id=${itemId}`, data);
+    }
+
+    public static async getCompanyMembers(): Promise<any[]> {
+        return this.request('GET', '/manufacturing/members');
+    }
+
+    public static async updateCompanyMember(id: string, updates: any): Promise<{ success: boolean }> {
+        return this.request('PUT', `/manufacturing/members/${id}`, updates);
     }
 }

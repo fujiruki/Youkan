@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 'lucide-react';
-import { Item } from '../../types';
+import { Item, Member } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
@@ -20,12 +20,13 @@ interface DecisionDetailModalProps {
     onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>; // [NEW]
     onOpenItem?: (item: Item) => void; // [NEW] Drill-down navigation
     onOpenParent?: (parentId: string) => void; // [NEW] Drill-up navigation
+    members?: Member[]; // [NEW]
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, onOpenItem, onOpenParent, initialFocus, yesButtonLabel }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, onOpenItem, onOpenParent, members = [], initialFocus, yesButtonLabel }) => {
     // [FIX] Hooks must be called unconditionally.
     // Initialize with safe defaults.
     const [note, setNote] = React.useState('');
@@ -308,19 +309,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         }}
                                         onKeyDown={async (e) => {
                                             if (e.key === 'Enter') {
-                                                e.currentTarget.blur();
-                                                // Check for changes and trigger update immediately on Enter
-                                                // Although onBlur handles it, forcing it here ensures UX feels responsive
-                                                if (editedTitle !== item.title) {
-                                                    if (onUpdate) await onUpdate(item.id, { title: editedTitle });
-                                                    else await ApiClient.updateItem(item.id, { title: editedTitle });
+                                                e.preventDefault();
+                                                const newTitle = editedTitle.trim();
+                                                if (!newTitle) {
+                                                    setEditedTitle(item.title);
+                                                    setIsEditingTitle(false);
+                                                    return;
+                                                }
+                                                setIsEditingTitle(false);
+                                                if (newTitle !== item.title) {
+                                                    // [FIX] Update immediately and wait
+                                                    if (onUpdate) await onUpdate(item.id, { title: newTitle });
+                                                    else await ApiClient.updateItem(item.id, { title: newTitle });
                                                 }
                                             } else if (e.key === 'Escape') {
                                                 setEditedTitle(item.title);
                                                 setIsEditingTitle(false);
                                             }
                                         }}
-                                        className="w-full text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug bg-transparent border-b-2 border-indigo-500 focus:outline-none"
+                                        className="w-full text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug bg-white dark:bg-slate-800 border-b-2 border-indigo-500 focus:outline-none px-2 rounded-t"
                                         autoFocus
                                     />
                                 ) : (
@@ -496,8 +503,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
-                                        currentDate={viewMonth}
-                                        onMonthChange={setViewMonth}
                                         selectedDate={dueDate ? new Date(dueDate) : null}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');
@@ -636,7 +641,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                     </div>
 
                                     {/* Manual Input (Subtle) */}
-                                    <div className="flex items-center justify-end gap-2 pt-2">
+                                    <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800">
                                         <span className="text-[10px] text-slate-400">微調整:</span>
                                         <input
                                             type="number"
@@ -648,6 +653,37 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                         <span className="text-[10px] text-slate-400">h</span>
                                     </div>
                                 </div>
+
+                                {/* Assignment Selection (Haruki Plan) */}
+                                <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                        <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
+                                        担当者 (Assignee)
+                                    </span>
+                                    <div className="relative group/assignee shadow-sm">
+                                        <select
+                                            value={item.assignedTo || ''}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                const updates: Partial<Item> = { assignedTo: val || undefined };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }}
+                                            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                                        >
+                                            <option value="">自分 (Unassigned)</option>
+                                            {members.map(m => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.display_name} {m.role ? `(${m.role})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
+                                            ▼
+                                        </div>
+                                    </div>
+                                </div>
+
 
                                 {/* Sub-Tasks Section (Project Mode) - Moved to Right Column */}
                                 {isProject && (
@@ -724,10 +760,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 onKeyDown={async e => {
                                                     if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
                                                         e.preventDefault();
-                                                        const newId = await onCreateSubTask?.(item.id, newSubTaskTitle, item.due_date || undefined);
-                                                        if (newId) {
-                                                            setNewSubTaskTitle('');
-                                                            if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                        const titleToAdd = newSubTaskTitle.trim();
+                                                        setNewSubTaskTitle(''); // Clear early for UX
+                                                        const newId = await onCreateSubTask(item.id, titleToAdd, item.due_date || undefined);
+                                                        console.log('[Modal] Subtask created:', newId);
+                                                        if (onGetSubTasks) {
+                                                            const tasks = await onGetSubTasks(item.id);
+                                                            setSubTasks(tasks);
                                                         }
                                                     }
                                                 }}
@@ -737,12 +776,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             <button
                                                 onClick={async () => {
                                                     if (newSubTaskTitle.trim() && onCreateSubTask) {
-                                                        await onCreateSubTask(item.id, newSubTaskTitle);
+                                                        const titleToAdd = newSubTaskTitle.trim();
                                                         setNewSubTaskTitle('');
-                                                        if (onGetSubTasks) onGetSubTasks(item.id).then(setSubTasks);
+                                                        const parentDueDate = dueDate || item.due_date;
+                                                        await onCreateSubTask(item.id, titleToAdd, parentDueDate || undefined);
+                                                        if (onGetSubTasks) {
+                                                            const tasks = await onGetSubTasks(item.id);
+                                                            setSubTasks(tasks);
+                                                        }
                                                     }
                                                 }}
-                                                className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500"
+                                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-blue-500 transition-colors"
                                             >
                                                 <Plus size={16} />
                                             </button>
@@ -787,6 +831,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                     setIsProject(true);
                                                     if (onUpdate) await onUpdate(item.id, { isProject: true });
                                                     else await ApiClient.updateItem(item.id, { isProject: true });
+                                                    // [FIX] Explicitly refresh subtasks after projectization
+                                                    if (onGetSubTasks) {
+                                                        const tasks = await onGetSubTasks(item.id);
+                                                        setSubTasks(tasks);
+                                                    }
                                                 }}
                                                 className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
                                             >

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { db, Door, Project, DoorPhoto } from '../../../../db/db';
+import { db, Project, DoorPhoto } from '../../../../db/db'; // [MIGRATION] Keep db for photos only
+import { DoorApiClient, Door } from '../../../../api/DoorApiClient'; // [CLOUD] Use API client
 import { useDoorViewModel } from '../../../../hooks/useDoorViewModel';
 import { PreviewCanvas } from './PreviewCanvas';
 import { Sidebar } from './Sidebar/Sidebar';
@@ -13,31 +14,48 @@ import { DoorTextureSpecs, defaultTextureSpecs, CatalogItem } from '../domain/Do
 import { CatalogService } from '../domain/CatalogService';
 import { PhotoPanel } from './PhotoPanel';
 import { CatalogPicker } from './CatalogPicker';
-import { SchedulePanel } from './SchedulePanel'; // [NEW]
-import { syncDeliverableChanges } from '../../manufacturing/StockIntegrationService'; // [NEW] Sync Service
+import { SchedulePanel } from './SchedulePanel';
+import { syncDeliverableChanges } from '../../manufacturing/StockIntegrationService';
 import clsx from 'clsx';
-import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal, Download, Calendar } from 'lucide-react'; // [NEW] Calendar
+import { Home, RotateCcw, BookTemplate, LayoutGrid, Settings, Calculator, Camera, SplitSquareHorizontal, Download, Calendar } from 'lucide-react';
 
-export const EditorScreen: React.FC<{ doorId: number; onBack: () => void }> = ({ doorId, onBack }) => {
+// [CLOUD] doorId is now string (UUID from API)
+export const EditorScreen: React.FC<{ doorId: string; onBack: () => void }> = ({ doorId, onBack }) => {
     const [initialDoor, setInitialDoor] = useState<Door | null>(null);
     const [initialProject, setInitialProject] = useState<Project | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const load = async () => {
-            const d = await db.doors.get(doorId);
-            if (d) {
-                setInitialDoor(d);
-                const p = await db.projects.get(d.projectId);
-                setInitialProject(p || null);
+            try {
+                // [CLOUD] Fetch door from API instead of local DB
+                const door = await DoorApiClient.get(doorId);
+                setInitialDoor(door);
+
+                // [CLOUD] Create fallback project (project data is managed separately)
+                // TODO: Implement ProjectApiClient for full cloud support
+                setInitialProject({
+                    id: parseInt(door.projectId, 10) || 0,
+                    name: 'Cloud Project',
+                    client: '',
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                });
+            } catch (e) {
+                console.error('[EditorScreen] Failed to load door:', e);
+                setError('Door not found or API error');
             }
         };
         load();
     }, [doorId]);
 
-    if (!initialDoor || !initialProject) return <div className="p-8 text-slate-400">Loading data...</div>;
+    if (error) return <div className="p-8 text-red-400 bg-slate-950 h-full">{error}</div>;
+    if (!initialDoor) return <div className="p-8 text-slate-400 bg-slate-950 h-full">Loading...</div>;
+    if (!initialProject) return <div className="p-8 text-slate-400 bg-slate-950 h-full">Loading project...</div>;
 
     return <EditorContent initialDoor={initialDoor} initialProject={initialProject} onBack={onBack} />;
 };
+
 
 const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBack: () => void }> = ({ initialDoor, initialProject, onBack }) => {
     // State for Reset / Undo
@@ -88,7 +106,8 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         const timer = setTimeout(async () => {
             // Simply save current state to DB (without thumbnail for performance)
             if (door.id) {
-                await db.doors.update(door.id, {
+                // [CLOUD] Save via API instead of local IndexedDB
+                await DoorApiClient.update(door.id, {
                     ...door,
                     specs: { ...door.specs, texture: textureSpecs },
                     updatedAt: new Date()
@@ -153,7 +172,8 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
         };
 
         if (door.id) {
-            await db.doors.update(door.id, finalDoor);
+            // [CLOUD] Save via API instead of local IndexedDB
+            await DoorApiClient.update(door.id, finalDoor);
 
             // [NEW] Sync changes to related JBWOS Tasks (Manufacturing Plugin)
             // Convert Door to Deliverable-like object for sync
@@ -186,8 +206,10 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
 
         // Resize/Compress logic could go here? For now save raw.
         // Create new DoorPhoto
+        // [MIGRATION] DoorPhoto still uses local IndexedDB, needs numeric doorId
+        const numericDoorId = parseInt(door.id, 10) || 0;
         const newPhoto: DoorPhoto = {
-            doorId: door.id,
+            doorId: numericDoorId,
             blob: file, // Store File directly (File extends Blob)
             mimeType: file.type,
             memo: '',

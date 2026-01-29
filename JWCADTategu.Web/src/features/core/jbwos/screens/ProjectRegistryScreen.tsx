@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 import { JbwosTenant } from '../../auth/types';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
-    const { projects, loading, fetchProjects, createProject, updateProject, deleteProject, activeScope, setActiveScope } = useProjectViewModel();
+    const { projects, members, loading, fetchProjects, createProject, updateProject, deleteProject, assignProject, activeScope, setActiveScope } = useProjectViewModel();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
 
@@ -112,6 +112,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                             onSelect={() => onSelect(project)}
                                             onEdit={() => handleEdit(project)}
                                             onDelete={() => deleteProject(project.id)}
+                                            members={members}
+                                            onAssign={(id) => assignProject(project.id, id)}
                                         />
                                     ))}
                                 </div>
@@ -127,6 +129,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                 onSelect={() => onSelect(project)}
                                 onEdit={() => handleEdit(project)}
                                 onDelete={() => deleteProject(project.id)}
+                                members={members}
+                                onAssign={(id) => assignProject(project.id, id)}
                             />
                         ))}
                     </div>
@@ -159,7 +163,14 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 
 // Sub-components
 
-const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: () => void; onDelete: () => void }> = ({ project, onSelect, onEdit, onDelete }) => {
+const ProjectCard: React.FC<{
+    project: Project;
+    onSelect: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    members?: any[];
+    onAssign?: (id: string | null) => void;
+}> = ({ project, onSelect, onEdit, onDelete, members = [], onAssign }) => {
     return (
         <div
             onClick={onSelect}
@@ -203,6 +214,36 @@ const ProjectCard: React.FC<{ project: Project; onSelect: () => void; onEdit: ()
                         <span className="text-xs text-slate-400">状態</span>
                         <span className="capitalize">{project.judgmentStatus || '未分類'}</span>
                     </div>
+                </div>
+
+                {/* Assignment Selector */}
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">担当:</span>
+                        <select
+                            value={project.assigned_to || ''}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onAssign?.(e.target.value || null);
+                            }}
+                            className="text-xs bg-slate-100 dark:bg-slate-700 border-none rounded px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-400"
+                        >
+                            <option value="">未割当</option>
+                            {members.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {project.assigned_to && (
+                        <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                            style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
+                            title={members.find(m => m.id === project.assigned_to)?.name}
+                        >
+                            {members.find(m => m.id === project.assigned_to)?.name?.charAt(0)}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

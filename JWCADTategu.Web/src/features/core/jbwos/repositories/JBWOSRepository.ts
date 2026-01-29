@@ -181,10 +181,10 @@ export const JBWOSRepository = {
     },
 
     // 8. Dashboard Scope (Aggregated)
-    async getDashboardItems(): Promise<JudgableItem[]> {
+    async getDashboardItems(projectId?: string): Promise<JudgableItem[]> {
         try {
             // Fetch aggregated items (Personal + Company) from Server
-            return await ApiClient.getAllItems({ scope: 'dashboard' });
+            return await ApiClient.getAllItems({ scope: 'dashboard', project_id: projectId });
         } catch (e) {
             console.error('Failed to fetch Dashboard Items:', e);
             return [];
@@ -534,6 +534,10 @@ export const JBWOSRepository = {
             value: config,
             updatedAt: Date.now()
         });
+    },
+
+    async getMembers() {
+        return await ApiClient.getMembers();
     }
 };
 

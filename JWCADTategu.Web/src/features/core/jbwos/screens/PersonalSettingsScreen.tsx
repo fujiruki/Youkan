@@ -41,7 +41,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
             // Handle JSON or string for non_working_hours
             let nwh = profile.non_working_hours;
-            if (typeof nwh !== 'string') {
+            if (nwh === null || nwh === 'null') {
+                nwh = '';
+            } else if (typeof nwh !== 'string') {
                 nwh = JSON.stringify(nwh, null, 2);
             }
             setNonWorkingHours(nwh || '');
@@ -56,11 +58,22 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
     const handleSaveProfile = async () => {
         try {
             setIsLoading(true);
+            // Validate JSON if not empty
+            let parsedNwh = nonWorkingHours;
+            if (nonWorkingHours.trim()) {
+                try {
+                    parsedNwh = JSON.parse(nonWorkingHours);
+                } catch (e) {
+                    showToast({ type: 'error', title: '保存エラー', message: '定休日・祝日のJSON形式が正しくありません' });
+                    return;
+                }
+            }
+
             await ApiClient.updateUserProfile({
                 display_name: displayName,
                 birthday: birthday,
                 daily_capacity_minutes: dailyCapacity,
-                non_working_hours: nonWorkingHours
+                non_working_hours: parsedNwh
             });
             await checkAuth(); // Refresh global auth state
             showToast({ type: 'success', title: '保存完了', message: 'プロフィールを更新しました' });

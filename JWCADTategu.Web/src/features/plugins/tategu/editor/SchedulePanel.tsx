@@ -1,5 +1,5 @@
 import React from 'react';
-import { Door } from '../../../../db/db';
+import { Door } from '../../../../api/DoorApiClient'; // [CLOUD] Use API Door type
 import { Calendar, Clock, BarChart } from 'lucide-react';
 
 interface SchedulePanelProps {

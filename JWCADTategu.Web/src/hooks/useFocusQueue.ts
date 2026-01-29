@@ -20,7 +20,7 @@ interface UseFocusQueueResult {
     setIntent: (id: string, isIntent: boolean) => Promise<void>;
 }
 
-export const useFocusQueue = (currentCapacityLimit: number = 480): UseFocusQueueResult => {
+export const useFocusQueue = (currentCapacityLimit: number = 480, projectId?: string): UseFocusQueueResult => {
     const [items, setItems] = useState<Item[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export const useFocusQueue = (currentCapacityLimit: number = 480): UseFocusQueue
         // Scope 'dashboard' aggregates personal + company items (Life-Work Integration)
         try {
             // Fetch items using static class method
-            const data = await ApiClient.getAllItems({ scope: 'dashboard' });
+            const data = await ApiClient.getAllItems({ scope: 'dashboard', project_id: projectId });
 
             // Filter focus/judgable items
             // Assuming data is JudgableItem[] which extends Item (or compatible)

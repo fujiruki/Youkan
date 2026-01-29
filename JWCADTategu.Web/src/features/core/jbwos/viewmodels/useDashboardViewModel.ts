@@ -10,9 +10,10 @@ export interface DashboardState {
     doneItems: Item[];
     isLoading: boolean;
     error: string | null;
+    actionHistory: { itemId: string, prevStatus: Item['status'], prevMemo?: string }[];
 }
 
-export const useDashboardViewModel = () => {
+export const useDashboardViewModel = (projectId?: string) => {
     const [state, setState] = useState<DashboardState>({
         focusItems: [],
         inboxItems: [],
@@ -20,17 +21,13 @@ export const useDashboardViewModel = () => {
         waitingItems: [],
         doneItems: [],
         isLoading: true,
-        error: null
+        error: null,
+        actionHistory: []
     });
 
     const refresh = useCallback(async () => {
-        // Don't set loading to true on refresh to avoid flickering if already loaded
-        // Only set it initially? Or use a separate isRefetching?
-        // sticking to simple isLoading for first load, maybe manage it better.
-        // For now, let's keep it simple.
-
         try {
-            const items = await JBWOSRepository.getDashboardItems();
+            const items = await JBWOSRepository.getDashboardItems(projectId);
 
             // Grouping Logic
             // Note: sort by updatedAt? or weight?
@@ -40,9 +37,9 @@ export const useDashboardViewModel = () => {
             const inbox = items.filter(i => i.status === 'inbox'); // Urgent (Due) items should be highlighted in UI
             const pending = items.filter(i => i.status === 'pending');
             const waiting = items.filter(i => i.status === 'waiting');
-            const done = items.filter(i => i.status === 'done').slice(0, 10); // Limit history
-
-            setState({
+            const done = items.filter(i => i.status === 'done').slice(0, 10);
+            setState(prev => ({
+                ...prev,
                 focusItems: focus,
                 inboxItems: inbox,
                 pendingItems: pending,
@@ -50,7 +47,7 @@ export const useDashboardViewModel = () => {
                 doneItems: done,
                 isLoading: false,
                 error: null
-            });
+            }));
         } catch (e) {
             console.error(e);
             setState(prev => ({ ...prev, isLoading: false, error: 'Failed to load dashboard items.' }));
@@ -68,10 +65,23 @@ export const useDashboardViewModel = () => {
         return () => window.removeEventListener('jbwos-data-changed', handleGlobalRefresh);
     }, [refresh]);
 
+    const findItem = (id: string): Item | undefined => {
+        const all = [...state.focusItems, ...state.inboxItems, ...state.pendingItems, ...state.waitingItems, ...state.doneItems];
+        return all.find(i => i.id === id);
+    };
+
+    const pushHistory = (id: string, prevStatus: Item['status'], prevMemo?: string) => {
+        setState(prev => ({
+            ...prev,
+            actionHistory: [{ itemId: id, prevStatus, prevMemo }, ...prev.actionHistory].slice(0, 10) // Keep last 10
+        }));
+    };
+
     // Actions
     const moveToFocus = async (id: string) => {
-        // Optimistic Update can be added here
         try {
+            const item = findItem(id);
+            if (item) pushHistory(id, item.status, item.memo);
             await JBWOSRepository.updateItemGeneric(id, { status: 'focus' });
             refresh();
         } catch (e) { console.error(e); }
@@ -79,10 +89,10 @@ export const useDashboardViewModel = () => {
 
     const moveToPending = async (id: string, reason?: string) => {
         try {
+            const item = findItem(id);
+            if (item) pushHistory(id, item.status, item.memo);
             const updates: any = { status: 'pending' };
-            if (reason) updates.memo = reason; // Use memo for reason or pendingReason?
-            // types.ts has 'waitingReason' but maybe not 'pendingReason'.
-            // using memo is safe for generic notes.
+            if (reason) updates.memo = reason;
             await JBWOSRepository.updateItemGeneric(id, updates);
             refresh();
         } catch (e) { console.error(e); }
@@ -90,6 +100,8 @@ export const useDashboardViewModel = () => {
 
     const moveToInbox = async (id: string) => {
         try {
+            const item = findItem(id);
+            if (item) pushHistory(id, item.status, item.memo);
             await JBWOSRepository.updateItemGeneric(id, { status: 'inbox' });
             refresh();
         } catch (e) { console.error(e); }
@@ -97,6 +109,8 @@ export const useDashboardViewModel = () => {
 
     const completeItem = async (id: string) => {
         try {
+            const item = findItem(id);
+            if (item) pushHistory(id, item.status, item.memo);
             await JBWOSRepository.updateItemGeneric(id, { status: 'done' });
             refresh();
         } catch (e) { console.error(e); }
@@ -157,15 +171,20 @@ export const useDashboardViewModel = () => {
     };
 
     // [NEW] Undo / Restore
-    const undoItem = async (id: string) => {
+    const undoItem = async () => {
+        if (state.actionHistory.length === 0) return false;
+
+        const [lastAction, ...remainingHistory] = state.actionHistory;
         try {
-            await JBWOSRepository.updateItemGeneric(id, { status: 'inbox' }); // Simply restore to inbox? Or revert specific status?
-            // For simple "Undo Complete", restore to Inbox is usually safe, or 'focus' if it was today.
-            // Let's stick to Inbox for safety.
+            await JBWOSRepository.updateItemGeneric(lastAction.itemId, {
+                status: lastAction.prevStatus,
+                memo: lastAction.prevMemo
+            });
+            setState(prev => ({ ...prev, actionHistory: remainingHistory }));
             refresh();
             return true;
         } catch (e) {
-            console.error(e);
+            console.error('Undo failed:', e);
             return false;
         }
     };

@@ -42,6 +42,7 @@ function getDB() {
             'delegation' => 'TEXT DEFAULT NULL', // JSON String
             'client' => 'TEXT DEFAULT NULL', // [FIX] Added missing column for Projects
             'client_name' => 'TEXT DEFAULT NULL', // [v20]
+            'site_name' => 'TEXT DEFAULT NULL', // [v23]
             'gross_profit_target' => 'INTEGER DEFAULT 0', // [v20]
             'meta' => 'TEXT DEFAULT NULL' // [FIX] Added for Project Settings/Config
         ];
@@ -98,7 +99,10 @@ function ensureTables($pdo) {
             assigned_to TEXT DEFAULT NULL,
             delegation TEXT DEFAULT NULL,
             project_id TEXT DEFAULT NULL,
-            project_type TEXT DEFAULT NULL
+            project_type TEXT DEFAULT NULL,
+            client_name TEXT DEFAULT NULL,
+            site_name TEXT DEFAULT NULL,
+            gross_profit_target INTEGER DEFAULT 0
         )",
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,6 +266,31 @@ function ensureTables($pdo) {
             created_at INTEGER,
             updated_at INTEGER,
             FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+        )",
+        // [v23] Manufacturing Integration
+        "CREATE TABLE IF NOT EXISTS manufacturing_items (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            category TEXT NOT NULL, -- 'fabrication', 'site_work', 'other'
+            fab_minutes INTEGER DEFAULT 0,
+            site_minutes INTEGER DEFAULT 0,
+            labor_rate INTEGER DEFAULT 0,
+            image_url TEXT,
+            meta TEXT, -- JSON for extra data
+            created_at INTEGER,
+            updated_at INTEGER,
+            FOREIGN KEY(item_id) REFERENCES items(id)
+        )",
+        "CREATE TABLE IF NOT EXISTS company_members (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            daily_capacity_minutes INTEGER DEFAULT 480,
+            is_core_member INTEGER DEFAULT 1, -- 0 or 1
+            created_at INTEGER,
+            updated_at INTEGER,
+            FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+            FOREIGN KEY(user_id) REFERENCES users(id)
         )"
     ];
 
@@ -296,5 +325,8 @@ function initDB($pdo) {
 
         // 3. Link
         $pdo->exec("INSERT INTO memberships (user_id, tenant_id, role, joined_at) VALUES ('$userId', '$tenantId', 'owner', datetime('now'))");
+
+        // 4. [v23] Add as Core Member
+        $pdo->exec("INSERT INTO company_members (id, tenant_id, user_id, daily_capacity_minutes, is_core_member, created_at) VALUES ('cm_default', '$tenantId', '$userId', 480, 1, datetime('now'))");
     }
 }

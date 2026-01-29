@@ -2,11 +2,9 @@ import React, { useMemo } from 'react';
 import {
     format,
     startOfMonth,
-    endOfMonth,
     startOfWeek,
     endOfWeek,
     eachDayOfInterval,
-    isSameMonth,
     isSameDay,
     isToday,
     addDays,
@@ -14,13 +12,9 @@ import {
     Day
 } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
-import { getVolumeColorClass } from '../../logic/volumeCalculator';
 
 interface SideCalendarPanelProps {
-    currentDate: Date; // The visible month
-    onMonthChange: (date: Date) => void;
     selectedDate: Date | null;
     onSelectDate: (date: Date) => void;
     prepDate?: Date | null; // For the "My Deadline" marker
@@ -30,8 +24,6 @@ interface SideCalendarPanelProps {
 }
 
 export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
-    currentDate,
-    onMonthChange,
     selectedDate,
     onSelectDate,
     prepDate,
@@ -39,10 +31,19 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     dailyVolumes = new Map(),
     className
 }) => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday start
-    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Continuous Range: -1 Month to +6 Months
+    const startDate = useMemo(() => {
+        const d = startOfMonth(addDays(today, -30));
+        return startOfWeek(d, { weekStartsOn: 1 });
+    }, [today]);
+
+    const endDate = useMemo(() => {
+        const d = startOfMonth(addDays(today, 180));
+        return endOfWeek(d, { weekStartsOn: 1 });
+    }, [today]);
 
     const calendarDays = useMemo(() => {
         return eachDayOfInterval({ start: startDate, end: endDate });
@@ -50,35 +51,17 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
-    const handlePrevMonth = () => onMonthChange(addDays(monthStart, -1));
-    const handleNextMonth = () => onMonthChange(addDays(monthEnd, 1));
+    // Auto-scroll to current view or today
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+    const todayRef = React.useRef<HTMLDivElement>(null);
 
-    const quickSelect = (type: 'today' | 'tomorrow' | 'next_mon' | 'next_fri') => {
-        const today = new Date();
-        switch (type) {
-            case 'today':
-                onSelectDate(today);
-                onMonthChange(today);
-                break;
-            case 'tomorrow':
-                const tmr = addDays(today, 1);
-                onSelectDate(tmr);
-                onMonthChange(tmr);
-                break;
-            case 'next_mon':
-                const mon = nextDay(today, 1 as Day);
-                onSelectDate(mon);
-                onMonthChange(mon);
-                break;
-            case 'next_fri':
-                const fri = nextDay(today, 5 as Day);
-                onSelectDate(fri);
-                onMonthChange(fri);
-                break;
+    React.useEffect(() => {
+        if (todayRef.current && scrollRef.current) {
+            todayRef.current.scrollIntoView({ block: 'start', behavior: 'auto' });
         }
-    };
+    }, []);
 
-    // [NEW] Visual Theme based on Target Mode
+    // Theme based on Target Mode
     const headerColorClass = targetMode === 'my'
         ? "text-indigo-600 dark:text-indigo-400"
         : "text-slate-700 dark:text-slate-300";
@@ -91,91 +74,90 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
-            {/* Header (Compact) */}
-            <div className="flex items-center justify-between px-1 py-1 bg-slate-100/50 dark:bg-slate-800/50">
-                <button
-                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
-                    onClick={handlePrevMonth}
-                    tabIndex={-1}
-                >
-                    <ChevronLeft className="h-3 w-3" />
-                </button>
+            {/* Header (Selection Modes) */}
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200">
                 <div className="flex items-baseline gap-2">
-                    <span className={cn("font-bold text-sm leading-none", headerColorClass)}>
-                        {format(currentDate, 'yyyy年 M月', { locale: ja })}
+                    <span className={cn("font-bold text-sm", headerColorClass)}>
+                        数量カレンダー
                     </span>
-                    {/* Minimal Label incorporated in header line */}
                     <span className={cn("text-[10px] font-bold tracking-tight opacity-80", labelColor)}>
-                        {targetMode === 'my' ? '(My期限)' : '(納期)'}
+                        {targetMode === 'my' ? '【My期限を設定中】' : '【納期を設定中】'}
                     </span>
                 </div>
-                <button
-                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-500"
-                    onClick={handleNextMonth}
-                    tabIndex={-1}
-                >
-                    <ChevronRight className="h-3 w-3" />
-                </button>
             </div>
 
-            {/* Week Days (Super Compact) */}
-            <div className={cn("grid grid-cols-7 text-center text-[10px] font-bold border-b bg-white dark:bg-slate-900", borderColorClass, "text-slate-400")}>
+            {/* Week Days (Sticky) */}
+            <div className={cn("grid grid-cols-7 text-center text-[10px] font-bold border-b bg-white dark:bg-slate-900 z-20 shadow-sm", borderColorClass, "text-slate-400")}>
                 {weekDays.map((d, i) => (
-                    <div key={i} className={cn("py-0.5", i >= 5 && "text-red-400")}>{d}</div>
+                    <div key={i} className={cn("py-1", i >= 5 && "text-red-400")}>{d}</div>
                 ))}
             </div>
 
-            {/* Calendar Grid (Compact) */}
-            <div className="grid grid-cols-7 flex-1 auto-rows-fr gap-px bg-slate-200 dark:bg-slate-800 p-px overflow-y-auto">
-                {calendarDays.map((day, idx) => {
-                    const isCurrentMonth = isSameMonth(day, monthStart);
-                    const isSelected = selectedDate && isSameDay(day, selectedDate);
-                    const isPrep = prepDate && isSameDay(day, prepDate);
-                    const _isToday = isToday(day);
+            {/* Scrollable Calendar Grid */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-800 scrollbar-thin">
+                <div className="grid grid-cols-7 gap-px p-px">
+                    {calendarDays.map((day, idx) => {
+                        const isSelected = selectedDate && isSameDay(day, selectedDate);
+                        const isPrep = prepDate && isSameDay(day, prepDate);
+                        const _isToday = isToday(day);
+                        const isFirstOfMonth = day.getDate() === 1;
 
-                    // [MODIFIED] Use Shared Logic & Key
-                    // calculateDailyVolume uses toDateString() as key ("Wed Jan 21 2026")
-                    const dateKey = day.toDateString();
-                    const volume = dailyVolumes.get(dateKey) || 0;
+                        const dateKey = day.toDateString();
+                        const volume = dailyVolumes.get(dateKey) || 0;
+                        const bgIntensity = Math.min(volume * 15, 60);
 
-                    // QuantityCalendar logic (shared): returns Tailwind class string
-                    const volumeClass = (isCurrentMonth && !isSelected) ? getVolumeColorClass(volume) : "";
+                        return (
+                            <React.Fragment key={idx}>
+                                {/* Month Divider Trigger */}
+                                {isFirstOfMonth && (
+                                    <div className="col-span-7 py-1 px-2 mt-2 bg-slate-200/50 dark:bg-slate-800/80 text-[10px] font-bold text-slate-500">
+                                        {format(day, 'yyyy年 M月', { locale: ja })}
+                                    </div>
+                                )}
+                                <button
+                                    ref={_isToday ? (todayRef as any) : null}
+                                    onClick={() => onSelectDate(day)}
+                                    className={cn(
+                                        "relative h-12 flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-xs transition-colors outline-none hover:z-10",
+                                        isSelected && "bg-red-500 text-white z-20 font-bold !ring-2 !ring-red-400",
+                                        isPrep && !isSelected && "ring-2 ring-inset ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 font-bold text-indigo-700 dark:text-indigo-300 z-10",
+                                        !isSelected && "hover:bg-slate-100 dark:hover:bg-slate-800",
+                                        _isToday && !isSelected && "border-2 border-amber-300 dark:border-amber-700 font-bold"
+                                    )}
+                                >
+                                    {/* Heatmap Overlay */}
+                                    {!isSelected && (
+                                        <div
+                                            className="absolute inset-0 bg-amber-400/80 pointer-events-none transition-opacity"
+                                            style={{ opacity: bgIntensity / 100 }}
+                                        />
+                                    )}
 
-                    return (
-                        <button
-                            key={idx}
-                            onClick={() => onSelectDate(day)}
-                            className={cn(
-                                "relative flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-xs transition-colors outline-none focus:ring-1 focus:ring-indigo-400 focus:z-10",
-                                !isCurrentMonth ? "text-slate-300 dark:text-slate-700 bg-slate-50 dark:bg-slate-950" : "text-slate-700 dark:text-slate-200",
-
-                                // Heatmap Base
-                                volumeClass,
-
-                                // Selection Styles
-                                isSelected && "bg-red-500 text-white hover:bg-red-600 font-bold",
-                                isPrep && !isSelected && "ring-1 ring-inset ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 font-bold text-indigo-700 dark:text-indigo-300",
-
-                                !isSelected && "hover:bg-slate-100 dark:hover:bg-slate-800",
-                                _isToday && !isSelected && "bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 font-bold",
-                            )}
-                            tabIndex={0}
-                        >
-                            <span>{format(day, 'd')}</span>
-                        </button>
-                    );
-                })}
+                                    <span className="relative z-10">{format(day, 'd')}</span>
+                                    {volume > 0 && !isSelected && (
+                                        <span className="relative z-10 text-[8px] text-slate-400 mt-0.5 transform scale-75">
+                                            {volume.toFixed(1)}
+                                        </span>
+                                    )}
+                                </button>
+                            </React.Fragment>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Quick Actions (Compact) */}
-            <div className={cn("p-1 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t", borderColorClass)}>
-                {['today:今日', 'tomorrow:明日', 'next_mon:来週月', 'next_fri:次の金'].map(opt => {
+            {/* Quick Select Buttons (Sticky Bottom) */}
+            <div className={cn("p-1 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20", borderColorClass)}>
+                {['today:今日', 'tomorrow:明日', 'next_mon:来週月'].map(opt => {
                     const [key, label] = opt.split(':');
                     return (
                         <button
                             key={key}
-                            onClick={() => quickSelect(key as any)}
-                            className="px-2 py-0.5 text-[10px] border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-colors"
+                            onClick={() => {
+                                const d = (key === 'today' ? today : key === 'tomorrow' ? addDays(today, 1) : nextDay(today, 1 as Day));
+                                onSelectDate(d);
+                            }}
+                            className="px-2 py-1 text-[10px] border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-all font-bold"
                         >
                             {label}
                         </button>

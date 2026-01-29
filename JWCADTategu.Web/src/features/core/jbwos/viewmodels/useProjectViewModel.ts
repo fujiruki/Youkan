@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Project } from '../types';
+import { Project, Assignee } from '../types';
 import { ProjectService } from '../services/ProjectService';
 import { useToast } from '../../../../contexts/ToastContext';
+import { ApiClient } from '../../../../api/client';
 
 export const useProjectViewModel = () => {
     const [projects, setProjects] = useState<Project[]>([]);
+    const [members, setMembers] = useState<Assignee[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { showToast } = useToast();
@@ -29,11 +31,15 @@ export const useProjectViewModel = () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await ProjectService.getAll({ scope: activeScope });
-            setProjects(data);
+            const [projData, membersData] = await Promise.all([
+                ProjectService.getAll({ scope: activeScope }),
+                ApiClient.getAssignees()
+            ]);
+            setProjects(projData);
+            setMembers(membersData);
         } catch (err: any) {
             setError(err.message);
-            showToast({ title: 'エラー', message: 'プロジェクトの取得に失敗しました', type: 'error' });
+            showToast({ title: 'エラー', message: 'データの取得に失敗しました', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -95,14 +101,26 @@ export const useProjectViewModel = () => {
         }
     };
 
+    const assignProject = async (projectId: string, assigneeId: string | null) => {
+        try {
+            await ProjectService.update(projectId, { assigned_to: assigneeId || '' } as any);
+            showToast({ title: '割り当て完了', message: '担当者を更新しました', type: 'success' });
+            await fetchProjects();
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: '割り当てに失敗しました', type: 'error' });
+        }
+    };
+
     return {
         projects,
+        members,
         loading,
         error,
         fetchProjects,
         createProject,
         updateProject,
         deleteProject,
+        assignProject,
         activeScope,
         setActiveScope: handleSetScope
     };

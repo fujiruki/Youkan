@@ -29,6 +29,8 @@ export interface Project {
     color?: string;
     tenantId?: string;    // [NEW]
     tenantName?: string;  // [NEW]
+    assigned_to?: string; // [NEW]
+    assigneeName?: string; // [NEW]
     createdAt: number;
     updatedAt: number;
 }
@@ -97,6 +99,8 @@ export interface Item {
 
     // --- Delegation (外注) [NEW] ---
     assignedTo?: string;     // 外注先の担当者ID
+    assigneeName?: string;   // [NEW] Joined from assignees table
+    assigneeColor?: string;  // [NEW] Joined from assignees table
     delegation?: DelegationInfo; // 外注詳細情報
 
     // --- Reference ---
@@ -186,6 +190,7 @@ export interface Assignee {
     id: string;
     name: string;            // "太郎さん"
     type: 'internal' | 'external';  // 社内/社外
+    color?: string;          // [NEW] Badge background color
     contact?: string;        // 連絡先
     createdAt: number;
 }

@@ -42,14 +42,15 @@ class AssigneeController extends BaseController {
             $this->sendError(400, 'Name is required');
         }
 
-        $sql = "INSERT INTO assignees (tenant_id, name, type, email) VALUES (?, ?, ?, ?)";
+        $sql = "INSERT INTO assignees (tenant_id, name, type, email, color) VALUES (?, ?, ?, ?, ?)";
         try {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([
                 $this->currentTenantId,
                 $data['name'],
                 $data['type'] ?? 'external',
-                $data['email'] ?? null
+                $data['email'] ?? null,
+                $data['color'] ?? '#cccccc'
             ]);
             
             $id = $this->pdo->lastInsertId();
@@ -71,6 +72,7 @@ class AssigneeController extends BaseController {
         if (isset($data['name'])) { $fields[] = "name = ?"; $params[] = $data['name']; }
         if (isset($data['type'])) { $fields[] = "type = ?"; $params[] = $data['type']; }
         if (isset($data['email'])) { $fields[] = "email = ?"; $params[] = $data['email']; }
+        if (isset($data['color'])) { $fields[] = "color = ?"; $params[] = $data['color']; }
 
         if (empty($fields)) {
             $this->sendJSON(['success' => true]); // No-op

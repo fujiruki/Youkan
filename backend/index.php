@@ -109,12 +109,15 @@ error_log("Routing Path: " . $path);
 
 require_once 'db.php';
 require_once 'ItemController.php';
+require_once 'Constants.php';
+require_once 'ManufacturingSyncService.php';
 require_once 'DebugController.php';
 require_once 'DecisionController.php';
 require_once 'TodayController.php';
 require_once 'SideMemoController.php';
 require_once 'GdbController.php';
 require_once 'api/customers.php';
+require_once 'ManufacturingController.php';
 
 $db = getDB();
 
@@ -185,6 +188,16 @@ if (preg_match('#^(/api)?/user(/.*)$#', $path, $matches)) {
     $controller = new UserController();
     $subPath = $matches[2];
     $controller->handleRequest($method, $subPath);
+    exit;
+}
+
+// Manufacturing Plugin Routes
+if (preg_match('#^(/api)?/manufacturing(?:/([^/]+))?(?:/([^/]+))?$#', $path, $matches)) {
+    require_once 'ManufacturingController.php';
+    $controller = new ManufacturingController();
+    $subPath = $matches[2] ?? null;
+    $id = $matches[3] ?? null;
+    $controller->handleRequest($method, $subPath, $id);
     exit;
 }
 

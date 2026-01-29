@@ -126,12 +126,13 @@ function App() {
         const cloudProject: Project = {
             id: numericId,
             name: projectName || `[CLOUD:${projectId}]`, // Use actual title
+            cloudId: projectId, // [NEW] Store original UUID
             client: '',
             updatedAt: new Date(),
             createdAt: new Date()
         };
         setActiveProject(cloudProject);
-        setCurrentView('schedule');
+        setCurrentView('dashboard'); // [CHANGE] Go to Dashboard for Projects
     };
 
     // 3. To Editor (Directly from Global Board or Schedule)
@@ -406,7 +407,7 @@ const AppContent: React.FC<{
         return (
             <>
                 <UndoProvider>
-                    <div className="h-screen w-full bg-slate-950 text-slate-200 font-sans flex flex-col">
+                    <div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
 
                         <DebugBanner />
                         {/* New JBWOS Header */}
@@ -431,7 +432,7 @@ const AppContent: React.FC<{
                             />
                         )}
 
-                        <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#F8F9FA]' : ''}`}>
+                        <div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#FDFDFD]' : ''}`}>
 
                             {/* 1. Global Decision Board (Replaced by JBWOS) */}
                             {/* 
@@ -441,7 +442,7 @@ const AppContent: React.FC<{
 
                             {/* 0. JBWOS Dashboard - Unified View */}
                             {(currentView === 'jbwos' || currentView === 'dashboard') && (
-                                <DashboardScreen />
+                                <DashboardScreen activeProject={activeProject} />
                             )}
 
                             {/* 1.5 Project Registry (New) - Unified View */}
@@ -480,7 +481,7 @@ const AppContent: React.FC<{
                             {/* 4. Editor */}
                             {currentView === 'editor' && activeDoor && (
                                 <EditorScreen
-                                    doorId={activeDoor.id!}
+                                    doorId={String(activeDoor.id!)}
                                     onBack={handleBackToSchedule} // Or Back to Global if that's where we came from?
                                 // Ideally we remember previous view. For now Schedule is safe, 
                                 // but if we came from Global, we might want to go back there.

@@ -1,0 +1,6 @@
+﻿
+> jwcade-tategu-web@0.0.0 build
+> tsc -b && vite build
+
+src/features/core/jbwos/components/GlobalBoard/GlobalBoard.tsx(31,1): error TS6133: 'cn' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(16,41): error TS2307: Cannot find module '../../plugins/manufacturing/components/ManufacturingLoadWidget' or its corresponding type declarations.

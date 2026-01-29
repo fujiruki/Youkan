@@ -60,8 +60,13 @@ class ItemController extends BaseController {
 
         // [New Project Context]
         $item['clientName'] = $item['client_name'] ?? $item['client'] ?? null; 
+        $item['siteName'] = $item['site_name'] ?? $item['site'] ?? null;
         $item['grossProfitTarget'] = (int)($item['gross_profit_target'] ?? 0);
         
+        // [Assignee Information]
+        $item['assigneeName'] = $item['assignee_name'] ?? null;
+        $item['assigneeColor'] = $item['assignee_color'] ?? null;
+
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
@@ -141,36 +146,45 @@ class ItemController extends BaseController {
             }
             
             $sql = "
-                SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                       a.name as assignee_name, a.color as assignee_color
                 FROM items
                 LEFT JOIN items parent ON items.parent_id = parent.id
                 LEFT JOIN tenants t ON items.tenant_id = t.id
-                WHERE items.project_type IS NULL 
+                LEFT JOIN assignees a ON items.assigned_to = a.id
+                WHERE (items.project_type IS NULL OR items.project_type = '')
                 AND (
-                    -- 1. Personal Items (No Tenant)
-                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND items.created_by = ?)
+                    -- 1. Personal Items (Private context)
+                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
                     
                     OR
                     
-                    -- 2. Company Items (In Joined Tenants)
+                    -- 2. Company Items (Team context)
                     (
                         " . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . "
                         AND (
+                            -- Strictly ONLY items assigned to me for the unified dashboard
                             items.assigned_to = ?
-                            OR (items.project_id IS NULL AND items.created_by = ?)
                         )
                     )
                 )
-                ORDER BY items.is_project DESC, items.updated_at DESC
             ";
+
+            $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId]);
+
+            // [NEW] Project Filtering for Dashboard/Aggregate focus
+            $projectId = $_GET['project_id'] ?? null;
+            if ($projectId) {
+                // If projectId is provided, wrap the current SQL or append AND
+                // Simplest is to wrap? No, let's just append AND to the SQL before ORDER BY
+                $sql = str_replace("ORDER BY", "AND items.project_id = ? ORDER BY", $sql);
+                $params[] = $projectId;
+            }
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
             
-            // Params: [userId, ...tenantIds, userId, userId]
-            $params = array_merge([$this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
-            
-             $stmt = $this->pdo->prepare($sql);
-             $stmt->execute($params);
-             
-             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
              
              $this->sendJSON(array_map(function($row) {
                  $item = $this->mapRow($row);
@@ -219,10 +233,12 @@ class ItemController extends BaseController {
         // TODO: Future - Check user membership in project
         
         $sql = "
-            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title,
+                   a.name as assignee_name, a.color as assignee_color
             FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
             LEFT JOIN items proj ON items.project_id = proj.id
+            LEFT JOIN assignees a ON items.assigned_to = a.id
             WHERE items.tenant_id = ? 
             AND items.project_id = ?
             ORDER BY items.updated_at DESC
@@ -360,11 +376,11 @@ class ItemController extends BaseController {
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by, project_type, due_date, client_name, gross_profit_target
+                project_id, created_by, project_type, due_date, client_name, site_name, gross_profit_target
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?
             )
         ");
         
@@ -397,14 +413,17 @@ class ItemController extends BaseController {
                 $projectType,
                 $dueDate,
                 $data['clientName'] ?? $data['client'] ?? null,
+                $data['siteName'] ?? $data['site'] ?? null,
                 $data['grossProfitTarget'] ?? 0
             ]);
             
-            // [v21] Auto-promote parent to project if child was added
             if ($parentId) {
                 $this->pdo->prepare("UPDATE items SET is_project = 1 WHERE id = ?")
                     ->execute([$parentId]);
             }
+            
+            // [v23] Sync Manufacturing Data
+            ManufacturingSyncService::syncItem($this->pdo, $id, $data);
             
             $this->sendJSON(['id' => $id, 'success' => true]);
         } catch (PDOException $e) {
@@ -530,6 +549,10 @@ class ItemController extends BaseController {
         
         try {
             $this->pdo->prepare($sql)->execute($params);
+            
+            // [v23] Sync Manufacturing Data
+            ManufacturingSyncService::syncItem($this->pdo, $id, $data);
+            
             $this->sendJSON(['success' => true]);
         } catch (PDOException $e) {
             $this->sendError(500, 'Database Error: ' . $e->getMessage());

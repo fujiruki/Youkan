@@ -101,14 +101,14 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                 {...attributes}
                 {...listeners}
                 className={cn(
-                    "group relative flex items-start gap-2 rounded-lg transition-all", // Clean layout
-                    isCompact ? "px-2 py-0.5 mb-0" : "px-3 py-1 mb-0.5", // Compact Padding
-                    "bg-white/60 dark:bg-slate-800/60 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
+                    "group relative flex items-start gap-1 rounded transition-all", // Clean layout (gap reduced 2->1)
+                    "px-1 py-0.5 mb-[2px]", // Extreme Minimal Padding and 2px Margin
+                    "bg-white/40 dark:bg-slate-800/40 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
                     "border border-transparent hover:border-slate-100 dark:hover:border-slate-700", // Soft interactive border
                     item.interrupt && "bg-amber-50/80 dark:bg-amber-900/20",
                     "cursor-grab active:cursor-grabbing select-none",
-                    isCompact ? "text-[0.8em]" : "text-[0.95em]",
-                    isDragging && "opacity-50 z-50 ring-2 ring-indigo-400 bg-white shadow-lg"
+                    "text-[12px]", // Single fixed density for list overview
+                    isDragging && "opacity-50 z-50 ring-1 ring-indigo-400 bg-white shadow-md"
                 )}
                 onClick={() => onClick?.(item)}
                 onDoubleClick={handleDoubleClick}
@@ -139,12 +139,9 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                     {item.title}
                                 </span>
 
-                                {/* Project Badge (Moved to immediately follow title) */}
+                                {/* Project Name (Muted Gray, No background) */}
                                 {item.projectTitle && (
-                                    <span className={cn(
-                                        "px-1.5 py-0.5 rounded text-[0.75em] font-medium border max-w-[120px] truncate shrink-0",
-                                        "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
-                                    )} title={item.projectTitle}>
+                                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal max-w-[120px] truncate shrink-0 ml-1" title={item.projectTitle}>
                                         {item.projectTitle}
                                     </span>
                                 )}
@@ -152,9 +149,20 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                         )}
                     </div>
 
-                    {/* Right: Meta Badges (Date, Wait, etc) */}
-                    {(item.due_date || item.waitingReason || item.dueStatus) && !isEditing && (
+                    {/* Right: Meta Badges (Assignee, Date, Wait, etc) */}
+                    {(item.assigneeName || item.due_date || item.waitingReason || item.dueStatus) && !isEditing && (
                         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                            {/* Assignee Badge [NEW] */}
+                            {item.assigneeName && (
+                                <div
+                                    className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shadow-sm shrink-0"
+                                    style={{ backgroundColor: item.assigneeColor || '#ccc' }}
+                                    title={item.assigneeName}
+                                >
+                                    {item.assigneeName.charAt(0)}
+                                </div>
+                            )}
+
                             {/* Deadline Display */}
                             {item.due_date && (
                                 <span className={cn(

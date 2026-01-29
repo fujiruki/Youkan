@@ -172,18 +172,23 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             </div>
                         )}
 
-                        {/* Due Date */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">
-                                納期（オプション）
-                            </label>
-                            <input
-                                type="date"
-                                value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            />
-                        </div>
+                        {/* Conditional Fields (Only for non-general/business types if needed, but per request, local/personal usually hides them) */}
+                        {selectedCategoryId !== 'general' && selectedCategoryId !== 'private' && (
+                            <>
+                                {/* Due Date */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                                        納期（オプション）
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={(e) => setDueDate(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Footer */}

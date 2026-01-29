@@ -1,14 +1,8 @@
 <?php
 // backend/AuthController.php
-require_once 'db.php';
-require_once 'JWTService.php';
+require_once 'BaseController.php';
 
-class AuthController {
-    private $pdo;
-
-    public function __construct() {
-        $this->pdo = getDB();
-    }
+class AuthController extends BaseController {
 
     public function handleRequest($method, $path) {
         // [v22] /auth/login/user - User account login
@@ -279,21 +273,35 @@ class AuthController {
     }
 
     private function me() {
-        $token = JWTService::getBearerToken();
-        $payload = $token ? JWTService::decrypt($token) : null;
+        $this->authenticate();
 
-        if ($payload) {
+        if ($this->currentUser) {
+            // Fetch fresh user data from DB to ensure name is up to date
+            $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative FROM users WHERE id = ?");
+            $stmt->execute([$this->currentUserId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $this->sendError(401, 'User no longer exists');
+            }
+
+            // [FIX] Fallback for empty display name
+            if (empty($user['display_name'])) {
+                $parts = explode('@', $user['email']);
+                $user['display_name'] = $parts[0] ?? 'User';
+            }
+
             // Fetch tenant details if tenant_id is in payload
             $tenantInfo = null;
-            if (!empty($payload['tenant_id'])) {
+            if ($this->currentTenantId && $this->currentTenantId !== '') {
                 $stmt = $this->pdo->prepare("SELECT id, name FROM tenants WHERE id = ?");
-                $stmt->execute([$payload['tenant_id']]);
+                $stmt->execute([$this->currentTenantId]);
                 $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($tenant) {
                     $tenantInfo = [
                         'id' => $tenant['id'],
                         'name' => $tenant['name'],
-                        'role' => $payload['role'] ?? 'member'
+                        'role' => $this->currentUser['role'] ?? 'member'
                     ];
                 }
             }
@@ -305,16 +313,16 @@ class AuthController {
                 JOIN tenants t ON t.id = m.tenant_id
                 WHERE m.user_id = ?
             ");
-            $stmt->execute([$payload['sub']]);
+            $stmt->execute([$this->currentUserId]);
             $joinedTenants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             echo json_encode([
                 'valid' => true, 
                 'user' => [
-                    'id' => $payload['sub'],
-                    'name' => $payload['name'],
-                    'email' => $payload['email'],
-                    'is_representative' => $payload['is_representative'] ?? false
+                    'id' => $user['id'],
+                    'name' => $user['display_name'], // FRESH from DB
+                    'email' => $user['email'],
+                    'is_representative' => (bool)$user['is_representative']
                 ],
                 'tenant' => $tenantInfo,
                 'joinedTenants' => array_map(function($t) {
@@ -322,46 +330,60 @@ class AuthController {
                 }, $joinedTenants)
             ]);
         } else {
-            http_response_code(401);
-            echo json_encode(['valid' => false, 'error' => 'Invalid or expired token']);
+            $this->sendError(401, 'Invalid or expired token');
         }
     }
 
     // [v24] Switch Tenant: Issue new token for a different tenant context
     private function switchTenant() {
-        $token = JWTService::getBearerToken();
-        $payload = $token ? JWTService::decrypt($token) : null;
+        $this->authenticate();
         
-        if (!$payload) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Unauthorized']);
-            return;
+        if (!$this->currentUser) {
+            $this->sendError(401, 'Unauthorized');
         }
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = $this->getInput();
         $newTenantId = $input['tenant_id'] ?? null;
 
-        // If switching to null (Personal Mode), that's valid
+        // Verify membership
         if ($newTenantId) {
-            // Verify membership
             $stmt = $this->pdo->prepare("SELECT role FROM memberships WHERE user_id = ? AND tenant_id = ?");
-            $stmt->execute([$payload['sub'], $newTenantId]);
+            $stmt->execute([$this->currentUserId, $newTenantId]);
             $membership = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$membership) {
-                http_response_code(403);
-                echo json_encode(['error' => 'You are not a member of this tenant']);
-                return;
+                $this->sendError(403, 'You are not a member of this tenant');
             }
             $newRole = $membership['role'];
         } else {
             $newRole = 'user';
         }
 
-        // Issue new token with updated tenant context
-        $newPayload = $payload;
-        $newPayload['tenant_id'] = $newTenantId;
-        $newPayload['role'] = $newRole;
+        // Fetch fresh user data to include latest display_name in new token
+        $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative FROM users WHERE id = ?");
+        $stmt->execute([$this->currentUserId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            $this->sendError(401, 'User no longer exists');
+        }
+
+        // [FIX] Fallback for empty display name
+        if (empty($user['display_name'])) {
+            $parts = explode('@', $user['email']);
+            $user['display_name'] = $parts[0] ?? 'User';
+        }
+
+        // Issue new token with updated tenant context and fresh user info
+        $newPayload = [
+            'sub' => $user['id'],
+            'name' => $user['display_name'],
+            'email' => $user['email'],
+            'tenant_id' => $newTenantId,
+            'role' => $newRole,
+            'is_representative' => (bool)$user['is_representative'],
+            'account_type' => 'user'
+        ];
         
         $newToken = JWTService::encrypt($newPayload);
 

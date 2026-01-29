@@ -276,6 +276,7 @@ class ProjectController extends BaseController {
             'is_archived' => ($item['status'] === 'archive'),
             'grossProfitTarget' => (int)($item['gross_profit_target'] ?? $meta['gross_profit_target'] ?? 0),
             'color' => $meta['color'] ?? 'blue',
+            'assigned_to' => $item['assigned_to'] ?? null,
             'created_at' => $item['created_at'], 
             'updated_at' => $item['updated_at'],
             'type' => $item['project_type'] // Exposed

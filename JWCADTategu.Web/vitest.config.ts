@@ -6,5 +6,6 @@ export default defineConfig({
         globals: true, // Enable describe, it, expect globals
         environment: 'jsdom',
         setupFiles: [], // Add setup file if needed
+        pool: 'forks', // [FIX] Use forks for better stability on Windows
     },
 });

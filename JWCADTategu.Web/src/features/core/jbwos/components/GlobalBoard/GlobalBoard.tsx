@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     DndContext,
     DragOverlay,
@@ -16,27 +16,37 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
-import { BookOpen, AlertCircle, X, LayoutGrid, LayoutList, Calendar } from 'lucide-react';
+import {
+    CheckCircle2, AlertCircle, FolderPlus,
+    LayoutList, LayoutGrid, Calendar, BookOpen, X, Trash2, Edit2
+} from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
-import { ContextMenu } from './ContextMenu'; // [NEW]
+import { ContextMenu } from './ContextMenu';
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
-import { QuantityCalendar } from '../Calendar/QuantityCalendar'; // [NEW]
-import { useToast } from '../../../../../contexts/ToastContext'; // [NEW]
-import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog'; // [NEW]
+import { QuantityCalendar } from '../Calendar/QuantityCalendar';
+import { useToast } from '../../../../../contexts/ToastContext';
+import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
+
 
 interface GlobalBoardProps {
     onClose?: () => void;
     initialLayoutMode?: 'standard' | 'panorama'; // [NEW]
+    projectId?: string; // [NEW] Filter for specific project
 }
 
-export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode }) => {
+export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode, projectId }) => {
     const vm = useJBWOSViewModel();
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    // --- Help Guid Modal ---
+    // --- help Guid Modal ---
     const [showHelp, setShowHelp] = useState(false);
+
+    // [NEW] Refresh when project context changes
+    useEffect(() => {
+        vm.refreshGdb(projectId);
+    }, [projectId, vm.refreshGdb]);
 
     // --- Side Memo Logic in Global Board ---
     // Ideally this could be lifted to App level, but GDB is the main workspace.
@@ -190,18 +200,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
     // We listen globally or on the input? The requirement says "focusing the throw-in text box".
     // So let's add onKeyDown to the input.
     const handleInputKeyDown = (e: React.KeyboardEvent) => {
-        // Alt + D or Ctrl + Up? User suggested "Shortcut to open Detail of Last Added Item".
-        // Let's implement Alt + D as requested in previous turn context.
         if (e.altKey && e.key.toLowerCase() === 'd') {
             e.preventDefault();
             if (lastThrowInId) {
                 const item = findItem(lastThrowInId);
                 if (item) {
                     setDetailItem(item);
-                    // We need to pass a signal to focus date? 
-                    // We'll handle this by passing a separate prop or strict item state?
-                    // DecisionDetailModal detects Alt+D too, but here we just want to OPEN it.
-                    // The Modal's own useEffect for Alt+D will trigger focus if we ensure it opens.
+                    setInitialFocus('date'); // [NEW] Focus date for instant decision
                 }
             }
         }
@@ -210,11 +215,32 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
     // --- Context Menu Logic ---
     const [initialFocus, setInitialFocus] = useState<'date' | undefined>(undefined); // [NEW] moved to top
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+    const [lastInteractedItemId, setLastInteractedItemId] = useState<string | null>(null); // [NEW] Track for Del key
     const [modalHistory, setModalHistory] = useState<Item[]>([]); // [NEW] Navigation Stack
+
+    // [NEW] Global Key Listeners for Delete / Undo
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            // Delete key
+            if (e.key === 'Delete' && lastInteractedItemId) {
+                if (confirm('このアイテムを削除しますか？')) {
+                    vm.deleteItem(lastInteractedItemId);
+                    setLastInteractedItemId(null);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [lastInteractedItemId, vm]);
 
     const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY, itemId });
+        setLastInteractedItemId(itemId); // [NEW]
     };
 
     // [NEW] Open Item with History
@@ -285,14 +311,48 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                         await vm.deleteItem(id);
                         setContextMenu(null);
                     }}
-                    onEdit={(id) => {
-                        const item = findItem(id);
-                        if (item) {
-                            setDetailItem(item);
-                            setInitialFocus('date');
+                    actions={[
+                        {
+                            label: '詳細 / 名前変更',
+                            icon: <Edit2 size={14} />,
+                            onClick: () => {
+                                const item = findItem(contextMenu.itemId);
+                                if (item) {
+                                    setDetailItem(item);
+                                    setInitialFocus(undefined);
+                                }
+                            }
+                        },
+                        {
+                            label: 'プロジェクト化',
+                            icon: <FolderPlus size={14} />,
+                            onClick: async () => {
+                                await vm.updateItem(contextMenu.itemId, { isProject: true });
+                            }
+                        },
+                        {
+                            label: '今日やる (Done Today)',
+                            icon: <CheckCircle2 size={14} className="text-green-500" />,
+                            onClick: async () => {
+                                await vm.resolveDecision(contextMenu.itemId, 'yes');
+                            }
+                        },
+                        {
+                            label: '断る (Rejected)',
+                            icon: <AlertCircle size={14} className="text-amber-500" />,
+                            onClick: async () => {
+                                await vm.resolveDecision(contextMenu.itemId, 'no', 'history');
+                            }
+                        },
+                        {
+                            label: '完全削除 (Delete)',
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onClick: async () => {
+                                await vm.deleteItem(contextMenu.itemId);
+                            }
                         }
-                        setContextMenu(null);
-                    }}
+                    ]}
                 />
             )}
 
@@ -330,11 +390,12 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                 onDelegate={vm.delegateTask}
                 onCreateSubTask={vm.createSubTask}
                 onGetSubTasks={vm.getSubTasks}
+                members={vm.members}
             />
 
-            <div className="h-full w-full bg-slate-100 dark:bg-slate-950 flex flex-col relative overflow-hidden">
+            <div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
                 {/* Header */}
-                <div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-950/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">
+                <div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">
                     <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                         <span className="hidden md:inline">⚡ Today's Decision</span>
                         <span className="md:hidden">⚡</span>
@@ -412,7 +473,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                 </div>
 
                 {/* Main Content (Vertical Stack as "Desk" or Fluid Masonry) */}
-                <div className="flex-1 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 transition-colors duration-200">
                     {viewMode === 'board' ? (
                         <div className={layoutMode === 'panorama'
                             ? `block columns-1 ${getColumnClass(columnCount)} gap-2 md:gap-4 p-1 md:p-4 h-full overflow-y-auto scrollbar-thin` // Reduced gap/padding for mobile

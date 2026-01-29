@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Door } from '../db/db';
+import { Door } from '../api/DoorApiClient'; // [CLOUD] Use API Door type
 import { DoorDimensions } from '../features/plugins/tategu/domain/DoorDimensions';
 
 export const useDoorViewModel = (initialDoor: Door) => {
