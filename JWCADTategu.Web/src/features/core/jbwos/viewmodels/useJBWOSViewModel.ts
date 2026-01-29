@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
-import { Item, SideMemo, CapacityConfig, Member } from '../types';
+import { Item, SideMemo, CapacityConfig, Member, FilterMode } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
@@ -18,7 +18,7 @@ const getRepository = () => {
 };
 
 
-export const useJBWOSViewModel = () => {
+export const useJBWOSViewModel = (projectId?: string) => {
     // Phase 2: Dumb UI ViewModel (Server is the Brain)
 
     // Phase 2: Dumb UI ViewModel (Server is the Brain)
@@ -41,6 +41,16 @@ export const useJBWOSViewModel = () => {
 
     // [NEW] Members
     const [members, setMembers] = useState<Member[]>([]);
+
+    // [NEW] Filter Mode (Public/Private Filtering - Option 3)
+    const [filterMode, setFilterMode] = useState<FilterMode>(() => {
+        const saved = localStorage.getItem('jbwos_filter_mode');
+        return (saved === 'company' || saved === 'personal') ? saved as FilterMode : 'all';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_filter_mode', filterMode);
+    }, [filterMode]);
 
     // Loading & Error
     const [error, setError] = useState<string | null>(null);
@@ -164,13 +174,13 @@ export const useJBWOSViewModel = () => {
 
     const refreshAll = useCallback(async () => {
         await Promise.all([
-            refreshGdb(),
+            refreshGdb(projectId),
             refreshToday(),
             refreshMemos(),
-            refreshMembers(), // [NEW]
+            refreshMembers(),
             refreshCapacityConfig()
         ]);
-    }, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig]);
+    }, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig, projectId]);
 
     // Initial Load & Global Refresh Listener
     useEffect(() => {
@@ -649,7 +659,32 @@ export const useJBWOSViewModel = () => {
 
 
 
-    // ... (rest of the file) ...
+    // --- Computed Filtered Data & Ghost Counts ---
+    const filterItems = useCallback((items: Item[]) => {
+        if (filterMode === 'all') return items;
+        if (filterMode === 'company') {
+            return items.filter(i => i.domain === 'business' || !!i.tenantId || !!i.projectId);
+        }
+        if (filterMode === 'personal') {
+            return items.filter(i => i.domain === 'private' || (!i.tenantId && !i.projectId));
+        }
+        return items;
+    }, [filterMode]);
+
+    const filteredGdbActive = filterItems(gdbActive);
+    const filteredGdbPreparation = filterItems(gdbPreparation);
+    const filteredGdbIntent = filterItems(gdbIntent);
+    const filteredTodayCandidates = filterItems(todayCandidates);
+    const filteredTodayCommits = filterItems(todayCommits);
+
+    const ghostGdbCount = gdbActive.length + gdbPreparation.length + gdbIntent.length - (filteredGdbActive.length + filteredGdbPreparation.length + filteredGdbIntent.length);
+    const ghostTodayCount = todayCandidates.length + todayCommits.length - (filteredTodayCandidates.length + filteredTodayCommits.length);
+
+    // --- Capacity Used (Always Integrated/Unfiltered) ---
+    const capacityUsed = [...todayCommits, ...todayCandidates, ...(executionItem ? [executionItem] : [])]
+        .reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0);
+    const capacityLimit = capacityConfig.defaultDailyMinutes;
+    const isOverCapacity = capacityUsed > capacityLimit;
 
     // [NEW] Sub-Task Actions
     const createSubTask = async (parentId: string, title: string, initialDueDate?: string, domain: 'business' | 'general' | 'private' = 'general'): Promise<string | undefined> => { // [FIX] Added initialDueDate & domain
@@ -798,58 +833,65 @@ export const useJBWOSViewModel = () => {
         }
     };
 
+    // --- Return to UI (Aligned with Dashboard Requirements) ---
     return {
         // State
-        gdbActive,
-        gdbPreparation,
-        gdbIntent,
+        gdbActive: filteredGdbActive,
+        gdbPreparation: filteredGdbPreparation,
+        gdbIntent: filteredGdbIntent,
         gdbLog,
-        todayCandidates,
-        todayCommits,
+        todayCandidates: filteredTodayCandidates,
+        todayCommits: filteredTodayCommits,
         executionItem,
         memos,
-        members, // [NEW]
-        error,
+        members,
+
+        // Filter / Ghost Info
+        filterMode,
+        setFilterMode,
+        ghostGdbCount,
+        ghostTodayCount,
+
+        // Capacity
+        capacityUsed,
+        capacityLimit,
+        isOverCapacity,
         capacityConfig, // New state
 
+        // Meta
+        error,
+        isLoading: false, // Could add actual loading state tracking if needed
+
         // Actions
-        refresh: refreshAll,
-        refreshGdb, // [NEW] Exported for project filtering
+        refreshAll,
+        refreshGdb,
+        refreshToday,
+        refreshMembers,
         resolveDecision,
         commitToToday,
-        completeItem,
-        deleteItem,
-        returnToInbox,
-        updateItemTitle,
-        prioritizeTask,
         uncommitFromToday,
-        startImmediately, // [NEW]
-        updatePreparationDate,
-        moveToSomeday, // [NEW]
-        toggleHoliday, // [NEW] Exported
-        updateItem, // [NEW] Generic Update
-        updateCapacityConfig, // New action
-
-        // Memo Actions
+        completeItem,
         addSideMemo,
         deleteSideMemo,
         memoToInbox,
-
-        // Project Actions [NEW]
+        deleteItem,
+        returnToInbox,
+        prioritizeTask,
+        startImmediately,
+        updateItemTitle,
+        updateItem,
         createSubTask,
         getSubTasks,
-        createProject,
-
-        // Plugin Import [NEW]
-        importFromPlugin,
-
-        // Delegation Actions [NEW]
         delegateTask,
         reportDelegationCompletion,
         confirmDelegationCompletion,
-
-        // Helpers
+        createProject,
+        importFromPlugin,
+        toggleHoliday,
+        updatePreparationDate,
+        moveToSomeday,
         throwIn,
+        updateCapacityConfig,
         clearError: () => setError(null)
     };
 };

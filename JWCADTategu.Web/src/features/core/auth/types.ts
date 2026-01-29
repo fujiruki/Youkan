@@ -10,6 +10,8 @@ export interface Tenant {
     id: string;
     name: string;
     role: string;
+    representativeName?: string;
+    representativeEmail?: string;
 }
 
 export interface JbwosTenant extends Tenant {

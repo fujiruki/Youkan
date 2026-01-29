@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useVolumeCalendarViewModel } from '../viewmodels/useVolumeCalendarViewModel';
-import { QuantityCalendar } from '../../jbwos/components/Calendar/QuantityCalendar';
+import { RyokanCalendar } from '../../jbwos/components/Calendar/RyokanCalendar';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Item } from '../../jbwos/types';
 
@@ -93,15 +93,11 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                 </div>
             </div>
 
-            {/* Calendar Component Reused */}
             <div className="flex-1 overflow-hidden relative">
-                <QuantityCalendar
+                <RyokanCalendar
                     items={adapterResult.items}
-                    onItemClick={() => { }} // TODO: Handle click
-                    capacityConfig={{}}
+                    onItemClick={() => { }}
                     onToggleHoliday={() => { }}
-                    externalVolumeMap={adapterResult.volumeMap}
-                    intensityScale={45} // Tuning for Ratio (1.0 -> 45%)
                 />
             </div>
         </div>

@@ -7,7 +7,6 @@ import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
-import { calculateDailyVolume } from '../../logic/volumeCalculator';
 
 interface DecisionDetailModalProps {
     item: Item | null;
@@ -43,11 +42,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     const [subTasks, setSubTasks] = React.useState<Item[]>([]);
     const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
     const [isProject, setIsProject] = React.useState(false);
-
-    // [NEW] Calendar State
-    const [viewMonth, setViewMonth] = React.useState<Date>(new Date());
     const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
-    const [dailyVolumes, setDailyVolumes] = React.useState<Map<string, number>>(new Map());
 
     // Sync state when item changes
     React.useEffect(() => {
@@ -69,24 +64,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
     // Early return removed to allow hooks to run.
     // Null check moved to pre-render.
 
-    // [NEW] Fetch Heatmap Data when viewMonth changes
-    React.useEffect(() => {
-        const fetchLoad = async () => {
-            try {
-                const year = viewMonth.getFullYear();
-                const month = viewMonth.getMonth() + 1;
-                // Currently getCalendarLoad returns Promise<any[]> (Item objects with prep/due dates)
-                const items = await ApiClient.getCalendarLoad(year, month);
-
-                // Calculate volume using shared logic
-                const volMap = calculateDailyVolume(items);
-                setDailyVolumes(volMap);
-            } catch (e) {
-                console.error("Failed to load calendar volume:", e);
-            }
-        };
-        fetchLoad();
-    }, [viewMonth]);
 
 
     // [NEW] Load Sub-tasks & Optimistic Defaults
@@ -410,14 +387,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             onChange={async (d) => {
                                                                 const val = d ? format(d, 'yyyy-MM-dd') : '';
                                                                 setDueDate(val);
-                                                                if (d) setViewMonth(d);
                                                                 const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' };
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
                                                             onFocus={() => {
                                                                 setActiveDateInput('due');
-                                                                if (dueDate) setViewMonth(new Date(dueDate));
                                                             }}
                                                             autoFocus={initialFocus === 'date' || !dueDate}
                                                             className="text-xs py-1"
@@ -430,14 +405,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                             onChange={async (e) => {
                                                                 const val = e.target.value;
                                                                 setDueDate(val);
-                                                                if (val) setViewMonth(new Date(val));
                                                                 const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' as any };
                                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                                 else await ApiClient.updateItem(item.id, updates);
                                                             }}
                                                             onFocus={() => {
                                                                 setActiveDateInput('due');
-                                                                if (dueDate) setViewMonth(new Date(dueDate));
                                                             }}
                                                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs"
                                                         />
@@ -459,7 +432,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         onChange={async (d) => {
                                                             const val = d ? format(d, 'yyyy-MM-dd') : '';
                                                             setPrepDate(val);
-                                                            if (d) setViewMonth(d);
                                                             const dateObj = new Date(val);
                                                             const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
                                                             const updates = { prep_date: timestamp };
@@ -468,7 +440,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         }}
                                                         onFocus={() => {
                                                             setActiveDateInput('my');
-                                                            if (prepDate) setViewMonth(new Date(prepDate));
                                                         }}
                                                         placeholder="目標日..."
                                                         className={cn(
@@ -492,7 +463,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                         }}
                                                         onFocus={() => {
                                                             setActiveDateInput('my');
-                                                            if (prepDate) setViewMonth(new Date(prepDate));
                                                         }}
                                                         className={cn(
                                                             "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 w-full transition-colors",
@@ -508,6 +478,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
+                                        items={subTasks.length > 0 ? subTasks : (item ? [item] : [])} // 暫定的にサブタスクまたは自分自身を渡す。本来は全アイテム。
                                         selectedDate={dueDate ? new Date(dueDate) : null}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');
@@ -526,9 +497,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }
                                         }}
+                                        onItemClick={(selected) => onOpenItem?.(selected)}
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         targetMode={activeDateInput}
-                                        dailyVolumes={dailyVolumes} // [NEW] Pass heatmap data
+                                        filterMode={isProject ? 'all' : (item?.projectId ? 'company' : 'personal')}
                                     />
                                 </div>
 

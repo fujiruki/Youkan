@@ -294,14 +294,22 @@ class AuthController extends BaseController {
             // Fetch tenant details if tenant_id is in payload
             $tenantInfo = null;
             if ($this->currentTenantId && $this->currentTenantId !== '') {
-                $stmt = $this->pdo->prepare("SELECT id, name FROM tenants WHERE id = ?");
+                $stmt = $this->pdo->prepare("
+                    SELECT t.id, t.name, u.display_name as representative_name, u.email as representative_email
+                    FROM tenants t
+                    LEFT JOIN memberships m ON m.tenant_id = t.id AND m.role = 'owner'
+                    LEFT JOIN users u ON u.id = m.user_id
+                    WHERE t.id = ?
+                ");
                 $stmt->execute([$this->currentTenantId]);
                 $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($tenant) {
                     $tenantInfo = [
                         'id' => $tenant['id'],
                         'name' => $tenant['name'],
-                        'role' => $this->currentUser['role'] ?? 'member'
+                        'role' => $this->currentUser['role'] ?? 'member',
+                        'representativeName' => $tenant['representative_name'],
+                        'representativeEmail' => $tenant['representative_email']
                     ];
                 }
             }
@@ -315,6 +323,23 @@ class AuthController extends BaseController {
             ");
             $stmt->execute([$this->currentUserId]);
             $joinedTenants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // [NEW] Fetch Representative (Owner) info for current tenant
+            if ($tenantInfo && $this->currentTenantId) {
+                $stmt = $this->pdo->prepare("
+                    SELECT u.display_name, u.email 
+                    FROM memberships m
+                    JOIN users u ON u.id = m.user_id
+                    WHERE m.tenant_id = ? AND m.role = 'owner'
+                    LIMIT 1
+                ");
+                $stmt->execute([$this->currentTenantId]);
+                $rep = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($rep) {
+                    $tenantInfo['representativeName'] = $rep['display_name'];
+                    $tenantInfo['representativeEmail'] = $rep['email'];
+                }
+            }
 
             echo json_encode([
                 'valid' => true, 

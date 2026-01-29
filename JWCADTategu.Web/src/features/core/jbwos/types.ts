@@ -1,6 +1,7 @@
 export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
+export type FilterMode = 'all' | 'company' | 'personal';
 
 // --- JBWOS Enterprise Types ---
 export type StockStatus = 'open' | 'assigned' | 'archived';

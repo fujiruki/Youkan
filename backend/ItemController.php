@@ -241,12 +241,12 @@ class ItemController extends BaseController {
             LEFT JOIN items proj ON items.project_id = proj.id
             LEFT JOIN assignees a ON items.assigned_to = a.id
             WHERE items.tenant_id = ? 
-            AND items.project_id = ?
+            AND (items.project_id = ? OR items.parent_id = ?)
             ORDER BY items.updated_at DESC
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$this->currentTenantId, $projectId]);
+        $stmt->execute([$this->currentTenantId, $projectId, $projectId]);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->sendJSON(array_map([$this, 'mapRow'], $items));

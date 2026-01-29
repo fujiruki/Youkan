@@ -43,8 +43,11 @@ export const CloudJBWOSRepository = {
 
     // 5. GDB Shelf (Aggregated View)
     getGdbShelf: async (projectId?: string): Promise<GdbShelf> => {
-        // [Change] Use 'dashboard' scope to mix Personal and Company-Assigned items
-        const allItems = await ApiClient.getAllItems({ scope: 'dashboard', project_id: projectId });
+        // [FIX] If projectId is provided, do NOT use 'dashboard' scope.
+        // Dashboard scope filters items assigned to ME.
+        // Project scope should return ALL items in that project.
+        const scope = projectId ? undefined : 'dashboard';
+        const allItems = await ApiClient.getAllItems({ scope, project_id: projectId });
 
         // Categorize based on JBWOS Logic
         return {

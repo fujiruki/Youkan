@@ -25,7 +25,7 @@ import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu';
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
-import { QuantityCalendar } from '../Calendar/QuantityCalendar';
+import { RyokanCalendar } from '../Calendar/RyokanCalendar';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
 
@@ -37,7 +37,16 @@ interface GlobalBoardProps {
 }
 
 export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode, projectId }) => {
-    const vm = useJBWOSViewModel();
+    const vm = useJBWOSViewModel(projectId);
+    const {
+        gdbActive,
+        gdbPreparation,
+        gdbIntent,
+        todayCandidates,
+        todayCommits,
+        ghostGdbCount,
+        ghostTodayCount
+    } = vm;
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // --- help Guid Modal ---
@@ -150,7 +159,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
             // If just dragging, maybe we need a "reason"?
             // For now, simple move:
             await vm.updateItem(activeItemId, { status: 'waiting', waitingReason: 'Moved from board' });
-            vm.refresh();
+            vm.refreshAll();
         } else if (overContainerId === 'pending') {
             await vm.moveToSomeday(activeItemId);
         } else if (overContainerId === 'life') {
@@ -162,7 +171,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
             // Return to Inbox
             if (activeContainerId !== 'active') {
                 await vm.updateItem(activeItemId, { status: 'inbox' });
-                vm.refresh();
+                vm.refreshAll();
             }
         }
     };
@@ -371,7 +380,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                         }
                         // Move to Intent or Life (Status Update)
                         await ApiClient.updateItem(id, { status: note as any });
-                        vm.refresh();
+                        vm.refreshAll();
                     } else if (decision === 'no' && note === 'history') {
                         // Log to History (Standard Reject)
                         await vm.resolveDecision(id, 'no', undefined, updates);
@@ -489,7 +498,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                     <BucketColumn
                                         id="active"
                                         title="【今日やるか決める (Inbox)】"
-                                        items={vm.gdbActive}
+                                        items={gdbActive}
                                         description="ここにあるものを今日やるか決める"
                                         className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
                                         emptyMessage={<GentleMessage variant="inbox_clean" />}
@@ -523,7 +532,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                     <BucketColumn
                                         id="waiting"
                                         title="【待ち (Waiting)】"
-                                        items={vm.gdbPreparation} // Mapped to Waiting
+                                        items={gdbPreparation} // Mapped to Waiting
                                         description="他者や到着を待っている状態。"
                                         className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
                                         emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
@@ -544,7 +553,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                     <BucketColumn
                                         id="pending"
                                         title="【保留 (Pending)】"
-                                        items={vm.gdbIntent} // Mapped to Pending
+                                        items={gdbIntent} // Mapped to Pending
                                         description="今はやらないと決めたもの（棚）。"
                                         className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
                                         emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
@@ -575,11 +584,18 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                 </div>
                             </section>
 
+                            {(ghostGdbCount > 0 || ghostTodayCount > 0) && (
+                                <div className="col-span-full py-4 text-center border-t border-slate-100/50 dark:border-slate-800/50 animate-pulse">
+                                    <span className="text-[10px] text-slate-400 font-mono italic">
+                                        + {ghostGdbCount + ghostTodayCount} hidden items (コンテキスト外の現実はここにあります)
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="h-full w-full overflow-y-auto">
-                            <QuantityCalendar
-                                items={[...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbIntent, ...vm.todayCommits, ...vm.todayCandidates]}
+                            <RyokanCalendar
+                                items={[...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCommits, ...todayCandidates]}
                                 onItemClick={(item) => setDetailItem(item)}
                                 capacityConfig={vm.capacityConfig}
                                 onToggleHoliday={vm.toggleHoliday}

@@ -1,7 +1,7 @@
-import { Item } from '../types';
+import { Item, FilterMode } from '../types';
 import { isHoliday } from './capacity';
 
-// Default config matched with QuantityCalendar
+// Default config matched with RyokanCalendar
 export const DEFAULT_CAPACITY_CONFIG: any = {
     holidays: [
         { type: 'weekly', value: '0' }, // Sunday
@@ -18,18 +18,27 @@ const parseDateString = (dateStr: string | undefined | null): Date | null => {
 };
 
 /**
- * Calculates daily volume (load minutes) map based on items.
+ * Calculates daily volume (load minutes) map based on items and filtering context.
  * 
- * Logic Modified (2026-01-25): Back-fill Allocation
- * 各タスクは、期限日(prep_date)から過去に向かって、
- * 1日の最大稼働可能時間(dailyLimit)を上限に時間を割り振る。
- * 積み上げ式で計算し、合計負荷を算出する。
+ * [Ryokan (Volume) Logic]
+ * Allocated backwards from prep_date based on estimatedMinutes or workDays.
  */
-export const calculateDailyVolume = (items: Item[], capacityConfig: any = DEFAULT_CAPACITY_CONFIG): Map<string, number> => {
+export const calculateDailyVolume = (
+    items: Item[],
+    capacityConfig: any = DEFAULT_CAPACITY_CONFIG,
+    filterMode: FilterMode = 'all'
+): Map<string, number> => {
     const map = new Map<string, number>();
-    const dailyLimit = capacityConfig.defaultDailyMinutes || 480; // 1タスクあたり1日に費やせる最大時間（全力）
+    const dailyLimit = capacityConfig.defaultDailyMinutes || 480;
 
-    items.forEach(item => {
+    // Filter items based on context before calculation
+    const filteredItems = items.filter(item => {
+        if (filterMode === 'company') return !!item.tenantId || !!item.projectId;
+        if (filterMode === 'personal') return !item.tenantId && !item.projectId;
+        return true; // 'all'
+    });
+
+    filteredItems.forEach(item => {
         // 対象: prep_dateがあり、未完了のもの
         // （完了済みタスクも含めるべきかは議論があるが、負荷予測なら未完了メイン。
         //   ただし、過去日の実績を見るなら完了済みも必要。今回は「未来の負荷」重視で、一旦全タスク対象とする）

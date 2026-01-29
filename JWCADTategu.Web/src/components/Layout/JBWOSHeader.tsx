@@ -14,6 +14,8 @@ interface Tenant {
     id: string;
     name: string;
     role: string;
+    representativeName?: string;
+    representativeEmail?: string;
 }
 
 interface JBWOSHeaderProps {
@@ -98,7 +100,33 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
             />
 
             {/* Top Info Bar (For AI Awareness & Debugging) */}
-            <div className="bg-slate-900/80 px-4 py-0.5 flex flex-wrap justify-end gap-x-4 items-center text-[9px] text-slate-400 font-mono border-b border-slate-700/30 w-full select-none opacity-80 z-40">
+            <div className="bg-slate-900/90 px-4 py-1 flex flex-wrap justify-between gap-x-6 items-center text-[9px] text-slate-400 font-mono border-b border-slate-700/50 w-full select-none z-40">
+
+                {/* Left side: Context Info */}
+                <div className="flex items-center gap-4">
+                    <span className={tenant ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {tenant ? `[MEMBER OF: ${tenant.name.toUpperCase()}]` : '[PERSONAL_ACCOUNT]'}
+                    </span>
+                    {tenant && (
+                        <span>
+                            REP: <span className="text-slate-300">{tenant.representativeName || 'N/A'}</span>
+                            {tenant.representativeEmail && <span className="text-slate-500 ml-1">({tenant.representativeEmail})</span>}
+                        </span>
+                    )}
+                </div>
+
+                {/* Right side: User & Health */}
+                <div className="flex items-center gap-4">
+                    <span>
+                        LOGGED IN: <span className="text-slate-300">{(user?.name || getLegacyUserName()).toUpperCase()}</span>
+                        {user?.email && <span className="text-slate-500 ml-1">({user.email})</span>}
+                    </span>
+                    <HealthCheck />
+                </div>
+            </div>
+
+            {/* Main Header Bar */}
+            <div className="bg-slate-800/95 px-4 py-1 flex flex-wrap items-center gap-x-4 border-b border-slate-700/30 w-full shadow-lg z-40">
 
                 {/* Left: Logo/Home + Hamburger */}
                 <div className="flex items-center gap-2 shrink-0">

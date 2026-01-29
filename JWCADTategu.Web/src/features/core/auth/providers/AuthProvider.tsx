@@ -65,7 +65,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     email: data.user.email,
                     isRepresentative: data.user.is_representative
                 });
-                setTenant(data.tenant || null);
+                // Ensure tenant info includes representative info if present
+                setTenant(data.tenant ? {
+                    ...data.tenant,
+                    representativeName: (data.tenant as any).representativeName,
+                    representativeEmail: (data.tenant as any).representativeEmail
+                } : null);
                 setJoinedTenants(data.joinedTenants || []);
                 setIsAuthenticated(true);
             } else {
