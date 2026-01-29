@@ -12,7 +12,6 @@ interface RyokanCalendarProps {
     items: Item[];
     onItemClick: (item: Item) => void;
     capacityConfig?: any;
-    onToggleHoliday?: (date: Date) => void;
 
     // UI Options
     layoutMode?: 'panorama' | 'mini';
@@ -60,7 +59,6 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items,
     onItemClick,
     capacityConfig,
-    onToggleHoliday,
     layoutMode = 'panorama',
     filterMode = 'all',
     externalVolumeMap,
