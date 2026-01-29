@@ -53,3 +53,6 @@ Registering: Email=e2e_user_1769388275297@example.com, Name=E2E Tester, Type=use
 Registering: Email=e2e_user_1769388321258@example.com, Name=E2E Tester, Type=user
 Registering: Email=fjt.suntree@gmail.com, Name=藤田 晴樹, Type=user
 Registering: Email=door.fujita@gmail.com, Name=藤田 はるき, Type=company
+Registering: Email=debug@example.com, Name=デバッグ太郎, Type=proprietor
+Registering: Email=door.fujita@gmail.com, Name=藤田 晴樹, Type=proprietor
+Registering: Email=personal@example.com, Name=Personal Haruki, Type=user

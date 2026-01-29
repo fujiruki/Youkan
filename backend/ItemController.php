@@ -163,14 +163,15 @@ class ItemController extends BaseController {
                     (
                         " . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . "
                         AND (
-                            -- Strictly ONLY items assigned to me for the unified dashboard
-                            items.assigned_to = ?
+                            -- Strictly ONLY items assigned to me OR created by me for the unified dashboard
+                            items.assigned_to = ? OR items.created_by = ?
                         )
                     )
                 )
+                ORDER BY items.updated_at DESC
             ";
 
-            $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId]);
+            $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
             // [NEW] Project Filtering for Dashboard/Aggregate focus
             $projectId = $_GET['project_id'] ?? null;

@@ -58,12 +58,12 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+                className="fixed inset-0 bg-black/50 z-[90] animate-in fade-in duration-200"
                 onClick={onClose}
             />
 
             {/* Side Panel */}
-            <div className={`fixed top-0 bottom-0 w-72 bg-slate-50 dark:bg-slate-900 shadow-xl z-50 flex flex-col 
+            <div className={`fixed top-0 bottom-0 w-72 bg-slate-50 dark:bg-slate-900 shadow-xl z-[100] flex flex-col 
                 transition-transform duration-300 ease-in-out border-slate-200 dark:border-slate-800
                 /* Mobile: Right Side */
                 right-0 border-l animate-in slide-in-from-right

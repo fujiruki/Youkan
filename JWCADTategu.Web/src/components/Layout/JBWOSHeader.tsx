@@ -71,58 +71,34 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     const isProjects = currentView === 'projects';
     const isCalendar = currentView === 'calendar' || currentView === 'planning';
     return (
-        <div className="flex flex-col shrink-0 w-full">
+        <div className="flex flex-col shrink-0 w-full relative">
+            <MenuDrawer
+                isOpen={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                onNavigateToToday={() => { onNavigateToToday(); setMenuOpen(false); }}
+                onNavigateToHistory={() => { onNavigateToHistory(); setMenuOpen(false); }}
+                onNavigateToProjects={() => { onNavigateToProjects(); setMenuOpen(false); }}
+                onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
+                onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
+                onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
+                onNavigateToManual={() => { setMenuOpen(false); }}
+                onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
+                onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
+                onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
+                onLogout={() => {
+                    localStorage.removeItem('jbwos_token');
+                    localStorage.removeItem('jbwos_user');
+                    window.location.href = './';
+                }}
+                userName={user?.name || getLegacyUserName()}
+                user={user}
+                tenant={tenant}
+                joinedTenants={joinedTenants}
+                onSwitchTenant={onSwitchTenant}
+            />
+
             {/* Top Info Bar (For AI Awareness & Debugging) */}
             <div className="bg-slate-900/80 px-4 py-0.5 flex flex-wrap justify-end gap-x-4 items-center text-[9px] text-slate-400 font-mono border-b border-slate-700/30 w-full select-none opacity-80 z-40">
-                <div className="flex items-center gap-1">
-                    <span className="text-slate-500">TYPE:</span>
-                    <span className={tenant ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
-                        {tenant ? 'COMPANY_ACCOUNT' : 'PERSONAL_ACCOUNT'}
-                    </span>
-                </div>
-                {(!tenant && joinedTenants.length > 0) && (
-                    <div className="flex items-center gap-1">
-                        <span className="text-slate-500">MEMBER_OF:</span>
-                        <span className="text-slate-300">{joinedTenants.map(t => t.name).join(', ')}</span>
-                    </div>
-                )}
-                <div className="flex items-center gap-1">
-                    <span className="text-slate-500">EMAIL:</span>
-                    <span className="text-sky-300">{user?.email}</span>
-                </div>
-                {tenant && (
-                    <div className="flex items-center gap-1">
-                        <span className="text-slate-500">TENANT_NAME:</span>
-                        <span className="text-slate-200">{tenant.name}</span>
-                    </div>
-                )}
-            </div>
-
-            <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between shadow-md w-full relative z-30">
-                <MenuDrawer
-                    isOpen={menuOpen}
-                    onClose={() => setMenuOpen(false)}
-                    onNavigateToToday={() => { onNavigateToToday(); setMenuOpen(false); }}
-                    onNavigateToHistory={() => { onNavigateToHistory(); setMenuOpen(false); }}
-                    onNavigateToProjects={() => { onNavigateToProjects(); setMenuOpen(false); }}
-                    onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
-                    onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
-                    onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
-                    onNavigateToManual={() => { setMenuOpen(false); }}
-                    onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
-                    onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
-                    onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
-                    onLogout={() => {
-                        localStorage.removeItem('jbwos_token');
-                        localStorage.removeItem('jbwos_user');
-                        window.location.href = './';
-                    }}
-                    userName={user?.name || getLegacyUserName()}
-                    user={user}
-                    tenant={tenant}
-                    joinedTenants={joinedTenants}
-                    onSwitchTenant={onSwitchTenant}
-                />
 
                 {/* Left: Logo/Home + Hamburger */}
                 <div className="flex items-center gap-2 shrink-0">
