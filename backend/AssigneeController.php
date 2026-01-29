@@ -21,8 +21,28 @@ class AssigneeController extends BaseController {
     }
 
     private function index() {
+        // [Security Fix] Handle Personal Mode (Null/Empty currentTenantId)
+        // If in personal mode, allow fetching all assignees from JOINED tenants
+        
+        $tenantIds = $this->joinedTenants;
+        
+        if (empty($this->currentTenantId) && !empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+            $sql = "SELECT * FROM assignees WHERE tenant_id IN ($placeholders) OR tenant_id = '' OR tenant_id IS NULL ORDER BY created_at ASC";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($tenantIds);
+            $assignees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->sendJSON($assignees);
+            return;
+        }
+
         if (!$this->currentTenantId) {
-            $this->sendError(403, 'Tenant context required');
+             // If truly no tenants (just a solo user), allow fetching personal ones
+             $stmt = $this->pdo->prepare("SELECT * FROM assignees WHERE tenant_id = '' OR tenant_id IS NULL ORDER BY created_at ASC");
+             $stmt->execute();
+             $assignees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             $this->sendJSON($assignees);
+             return;
         }
 
         $stmt = $this->pdo->prepare("SELECT * FROM assignees WHERE tenant_id = ? ORDER BY created_at ASC");
@@ -33,9 +53,7 @@ class AssigneeController extends BaseController {
     }
 
     private function create() {
-        if (!$this->currentTenantId) {
-            $this->sendError(403, 'Tenant context required');
-        }
+        // [Security Rule] If no tenant, it becomes a Personal Assignee
 
         $data = $this->getInput();
         if (empty($data['name'])) {
