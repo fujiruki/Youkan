@@ -16,36 +16,28 @@ class MemberController extends BaseController {
             // "List Members" implies listing CO-WORKERS in the same tenant.
             
             if (!$this->currentTenantId) {
-                // Determine tenant from current user's membership (Pick the first one for now or use session if available)
-                // In a multi-tenant app, the tenant_id should be in the header or computed.
-                // Re-using simplified logic: Get the tenant of the current user.
-                $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ? LIMIT 1");
+                // If NO tenant (Personal Account), return ONLY the current user as a virtual team
+                $sql = "SELECT id as user_id, 'owner' as role, 1 as is_core, daily_capacity_minutes, display_name FROM users WHERE id = ?";
+                $stmt = $this->pdo->prepare($sql);
                 $stmt->execute([$this->currentUserId]);
-                $this->currentTenantId = $stmt->fetchColumn();
+                $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                // Query: Join memberships with users to get names
+                $sql = "
+                    SELECT 
+                        m.user_id, 
+                        m.role, 
+                        m.is_core, 
+                        u.daily_capacity_minutes,
+                        u.display_name
+                    FROM memberships m
+                    JOIN users u ON m.user_id = u.id
+                    WHERE m.tenant_id = ?
+                ";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$this->currentTenantId]);
+                $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
-
-            if (!$this->currentTenantId) {
-                http_response_code(400); // Bad Request (No Tenant Context)
-                echo json_encode(['error' => 'No active tenant found for user']);
-                return;
-            }
-
-            // Query: Join memberships with users to get names
-            $sql = "
-                SELECT 
-                    m.user_id, 
-                    m.role, 
-                    m.is_core, 
-                    u.daily_capacity_minutes,
-                    u.display_name
-                FROM memberships m
-                JOIN users u ON m.user_id = u.id
-                WHERE m.tenant_id = ?
-            ";
-
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([$this->currentTenantId]);
-            $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // Format response
             $response = array_map(function($row) {

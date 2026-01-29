@@ -447,10 +447,10 @@ const AppContent: React.FC<{
                                 <ProjectRegistryScreen
                                     onSelect={(project) => {
                                         console.log('[App] Selected Cloud Project:', project.id, project.name);
-                                        // Check if ID is numeric string
-                                        const numId = parseInt(project.id, 10);
-                                        if (!isNaN(numId)) {
-                                            handleOpenProject(numId);
+                                        // Fixed: Check if ID is a PURE numeric string before parsing
+                                        // Using regex /^\d+$/ instead of just isNaN to avoid mangled UUIDs
+                                        if (/^\d+$/.test(project.id)) {
+                                            handleOpenProject(parseInt(project.id, 10));
                                         } else {
                                             handleOpenCloudProject(project.id, project.name);
                                         }

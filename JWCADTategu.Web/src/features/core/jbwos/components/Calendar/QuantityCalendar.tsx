@@ -185,7 +185,7 @@ export const QuantityCalendar: React.FC<Props> = ({
     const todayRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (todayRef.current) {
-            todayRef.current.scrollIntoView({ block: 'center', behavior: 'auto' }); // Instant scroll, no animation
+            todayRef.current.scrollIntoView({ inline: 'center', behavior: 'auto' }); // Horizontal scroll
         }
     }, []);
 
@@ -283,68 +283,51 @@ export const QuantityCalendar: React.FC<Props> = ({
                 </AnimatePresence>
             </svg>
 
-            {/* Weekday Header (Sticky) */}
-            <div className="flex-none grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 text-center py-2 z-20 shadow-sm relative">
-                {['月', '火', '水', '木', '金', '土', '日'].map((day, i) => (
-                    <div key={i} className={`text-xs font-bold ${i === 6 ? 'text-red-500' : i === 5 ? 'text-blue-500' : 'text-slate-500'}`}>
-                        {day}
-                    </div>
-                ))}
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto relative z-10"
+            {/* Scrollable Content: Horizontal Timeline Mode */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden relative z-10 scrollbar-hide"
                 onClick={handleBackgroundClick}
             >
-                <div className="flex flex-col pb-32">
-                    {/* [MODIFIED] Layout Fix: Single Continuous Grid */}
-                    <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 leading-none">
+                <div className="flex h-full min-w-max pb-4">
+                    {allDays.map(date => {
+                        const dateKey = date.toDateString();
+                        const dayItems = itemsByDate.get(dateKey) || []; // ONLY Due items
+                        const allSigns = signsMap.get(dateKey) || []; // ALL items (Due + Prep)
+                        const isToday = isSameDate(date, today);
+                        const isFirstOfMonth = date.getDate() === 1;
+                        const isSunday = date.getDay() === 0;
 
-                        {/* Padding cells for the very first day only */}
-                        {Array.from({ length: (allDays[0].getDay() + 6) % 7 }).map((_, i) => (
-                            <div key={`pad-start-${i}`} className="bg-slate-50/50 dark:bg-slate-900/50 border-r border-b border-slate-100 dark:border-slate-800" />
-                        ))}
+                        // Volume Heatmap from heatMap
+                        const volume = heatMap.get(dateKey) || 0;
+                        const bgIntensity = Math.min(volume * intensityScale, 60);
 
-                        {allDays.map(date => {
-                            const dateKey = date.toDateString();
-                            const dayItems = itemsByDate.get(dateKey) || []; // ONLY Due items
-                            const allSigns = signsMap.get(dateKey) || []; // ALL items (Due + Prep)
-                            const isToday = isSameDate(date, today);
-                            const isFirstOfMonth = date.getDate() === 1;
-                            const isSunday = date.getDay() === 0;
-
-                            // Volume Heatmap from heatMap
-                            const volume = heatMap.get(dateKey) || 0;
-                            const bgIntensity = Math.min(volume * intensityScale, 60);
-
-                            return (
-                                <div
-                                    key={dateKey}
-                                    ref={isToday ? todayRef : null}
-                                    className={`min-h-[100px] border-r border-b border-slate-200 dark:border-slate-800 relative group ${isFirstOfMonth ? 'border-t-2 border-t-slate-400 dark:border-t-slate-600' : ''
-                                        }`}
-                                >
-
-                                    <CalendarCell
-                                        date={date}
-                                        items={dayItems}
-                                        allSigns={allSigns}
-                                        isToday={isToday}
-                                        isFirstOfMonth={isFirstOfMonth}
-                                        isSunday={isSunday}
-                                        bgIntensity={bgIntensity}
-                                        flashingItemIds={flashingItemIds}
-                                        isHovered={hoveredDate ? isSameDate(hoveredDate, date) : false}
-                                        onHoverChange={(isHovering) => setHoveredDate(isHovering ? date : null)}
-                                        onItemClick={onItemClick}
-                                        onCellAction={handleCellAction}
-                                        onContextMenu={handleContextMenu}
-                                        isHoliday={isHoliday(date, safeConfig)}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
+                        return (
+                            <div
+                                key={dateKey}
+                                ref={isToday ? todayRef : null}
+                                className={`w-32 h-full flex-shrink-0 border-r border-slate-200 dark:border-slate-800 relative group transition-all
+                                    ${isFirstOfMonth ? 'border-l-2 border-l-slate-400 dark:border-l-slate-600 bg-slate-50/30' : ''}
+                                    ${isSunday ? 'border-r-slate-300 dark:border-r-slate-700' : ''}
+                                `}
+                            >
+                                <CalendarCell
+                                    date={date}
+                                    items={dayItems}
+                                    allSigns={allSigns}
+                                    isToday={isToday}
+                                    isFirstOfMonth={isFirstOfMonth}
+                                    isSunday={isSunday}
+                                    bgIntensity={bgIntensity}
+                                    flashingItemIds={flashingItemIds}
+                                    isHovered={hoveredDate ? isSameDate(hoveredDate, date) : false}
+                                    onHoverChange={(isHovering) => setHoveredDate(isHovering ? date : null)}
+                                    onItemClick={onItemClick}
+                                    onCellAction={handleCellAction}
+                                    onContextMenu={handleContextMenu}
+                                    isHoliday={isHoliday(date, safeConfig)}
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

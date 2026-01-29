@@ -75,11 +75,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
             {/* Header Section (Simplified) */}
             <div className="flex-none p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    Volume Calendar
-                    <span className="text-sm font-normal text-slate-500">(Early Completion Game)</span>
-                </h2>
-
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <button onClick={prevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
