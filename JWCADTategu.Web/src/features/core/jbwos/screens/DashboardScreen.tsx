@@ -66,7 +66,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         createProject,
         createSubTask,
         getSubTasks,
-        throwIn
+        throwIn,
+        skipTask
     } = vm;
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
@@ -102,20 +103,24 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
             // ALT + D: Open Detail
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
-                if (lastInteractedItemId) {
+                const targetId = lastInteractedItemId || activeFocusItem?.id;
+                if (targetId) {
                     const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
-                    const item = all.find(i => i.id === lastInteractedItemId);
+                    const item = all.find(i => i.id === targetId);
                     if (item) setSelectedItem(item);
                 }
             }
-            // DELETE: Delete last interacted item
-            if (e.key === 'Delete' && lastInteractedItemId) {
-                // Skip if focus is on an input or textarea
-                if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            // DELETE: Delete last interacted item or active item
+            if (e.key === 'Delete') {
+                const targetId = lastInteractedItemId || activeFocusItem?.id;
+                if (targetId) {
+                    // Skip if focus is on an input or textarea
+                    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
-                deleteItem(lastInteractedItemId);
-                if (selectedItem?.id === lastInteractedItemId) setSelectedItem(null);
-                handleRefresh();
+                    deleteItem(targetId);
+                    if (selectedItem?.id === targetId) setSelectedItem(null);
+                    handleRefresh();
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -239,7 +244,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                             <div className="mb-2">
                                 {activeFocusItem ? (
-                                    <FocusCard item={activeFocusItem} onSetIntent={handleSetIntent} onComplete={handleComplete} onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }} onClick={() => setSelectedItem(activeFocusItem)} />
+                                    <FocusCard item={activeFocusItem} onSetIntent={handleSetIntent} onComplete={handleComplete} onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }} onSkip={async (id) => { await skipTask(id); }} onClick={() => setSelectedItem(activeFocusItem)} />
                                 ) : (
                                     <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4"><BarChart2 size={24} /></div>

@@ -496,6 +496,36 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
     };
 
+    // [NEW] Skip / Demote (Move to end of queue)
+    const skipTask = async (id: string) => {
+        // 1. If in Commits, uncommit first (demote to candidate)
+        const inCommits = todayCommits.find(i => i.id === id);
+        if (inCommits) {
+            await uncommitFromToday(id);
+            setTodayCandidates(prev => {
+                const updated = { ...inCommits, status: 'focus', flags: { ...inCommits.flags, is_today_commit: false } } as any;
+                return [...prev, updated];
+            });
+            return;
+        }
+
+        // 2. If in Candidates, rotate to end
+        const inCandidates = todayCandidates.find(i => i.id === id);
+        if (inCandidates) {
+            setTodayCandidates(prev => {
+                const others = prev.filter(i => i.id !== id);
+                return [...others, inCandidates];
+            });
+
+            // Auto-promote
+            if (executionItem?.id === id) {
+                const others = todayCandidates.filter(i => i.id !== id);
+                const nextTop = others.length > 0 ? others[0] : null;
+                setExecutionItem(todayCommits.length > 0 ? todayCommits[0] : nextTop);
+            }
+        }
+    };
+
     // [NEW] Robust Start (Commit + Prioritize Atomic Operation)
     const startImmediately = async (id: string) => {
         // 1. Client-side check
@@ -918,6 +948,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         moveToSomeday,
         throwIn,
         updateCapacityConfig,
-        clearError: () => setError(null)
+        clearError: () => setError(null),
+        skipTask // [NEW]
     };
 };
