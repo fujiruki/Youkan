@@ -10,6 +10,7 @@ interface SideCalendarPanelProps {
     onSelectDate: (date: Date) => void;
     onItemClick: (item: Item) => void;
     prepDate?: Date | null;
+    workDays?: number;
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
     className?: string;
@@ -21,6 +22,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     onSelectDate,
     onItemClick,
     prepDate,
+    workDays = 1,
     targetMode = 'due',
     filterMode = 'all',
     className
@@ -54,6 +56,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     filterMode={filterMode}
                     selectedDate={selectedDate}
                     prepDate={prepDate}
+                    workDays={workDays}
                     onSelectDate={onSelectDate}
                     displayMode="grid"
                 />

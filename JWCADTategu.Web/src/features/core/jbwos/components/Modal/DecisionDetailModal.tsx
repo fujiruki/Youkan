@@ -49,6 +49,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const [isProject, setIsProject] = React.useState(false);
     const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
 
+    // [NEW] Local state for Tenant/Project for immediate UI feedback
+    const [localTenantId, setLocalTenantId] = React.useState<string>('');
+    const [localProjectId, setLocalProjectId] = React.useState<string>('');
+
     // Sync state when item changes
     React.useEffect(() => {
         if (item) {
@@ -60,6 +64,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setEditedTitle(item.title);
             setEstimatedMinutes(item.estimatedMinutes ?? 0);
             setIsProject(item.isProject ?? false);
+            setLocalTenantId(item.tenantId || '');
+            setLocalProjectId(item.projectId || '');
             // Default subTasks to empty until fetched
             setSubTasks([]);
         }
@@ -197,6 +203,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             updates.title = editedTitle;
         }
 
+        // tenantId and projectId
+        if (localTenantId !== (item.tenantId || '')) {
+            updates.tenantId = localTenantId || undefined;
+        }
+        if (localProjectId !== (item.projectId || '')) {
+            updates.projectId = localProjectId || undefined;
+        }
+
         return updates;
     };
 
@@ -270,24 +284,37 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         <div className="flex items-center gap-2">
                                             <Folder size={18} className="text-slate-400" />
                                             <select
-                                                value={item.projectId || ''}
-                                                onChange={(e) => onUpdate?.(item.id, { projectId: e.target.value || undefined })}
-                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
-                                            >
-                                                <option value="">(なし / プライベート)</option>
-                                                {allProjects.map(p => (
-                                                    <option key={p.id} value={p.id}>{p.title}</option>
-                                                ))}
-                                            </select>
-                                            <select
-                                                value={item.tenantId || ''}
-                                                onChange={(e) => onUpdate?.(item.id, { tenantId: e.target.value || undefined })}
+                                                value={localTenantId}
+                                                onChange={(e) => {
+                                                    const nextTenantId = e.target.value;
+                                                    setLocalTenantId(nextTenantId);
+
+                                                    // Auto-reset project if incompatible
+                                                    if (localProjectId) {
+                                                        const p = allProjects.find(x => x.id === localProjectId);
+                                                        if (p && p.tenantId && p.tenantId !== nextTenantId) {
+                                                            setLocalProjectId('');
+                                                        }
+                                                    }
+                                                }}
                                                 className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
                                             >
                                                 <option value="">(会社未指定)</option>
                                                 {joinedTenants.map(t => (
                                                     <option key={t.id} value={t.id}>{t.name}</option>
                                                 ))}
+                                            </select>
+                                            <select
+                                                value={localProjectId}
+                                                onChange={(e) => setLocalProjectId(e.target.value)}
+                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
+                                            >
+                                                <option value="">(なし / プライベート)</option>
+                                                {allProjects
+                                                    .filter(p => !localTenantId || p.tenantId === localTenantId)
+                                                    .map(p => (
+                                                        <option key={p.id} value={p.id}>{p.title}</option>
+                                                    ))}
                                             </select>
                                         </div>
                                         <input

@@ -332,7 +332,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         onClose={() => setSelectedItem(null)}
                         onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
                         onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); handleRefresh(); }}
-                        onUpdate={async (id, updates) => { await updateItem(id, updates); }}
+                        onUpdate={async (id, updates) => { await updateItem(id, updates); handleRefresh(); }}
                         onCreateSubTask={createSubTask}
                         onGetSubTasks={getSubTasks}
                         members={vm.members}
