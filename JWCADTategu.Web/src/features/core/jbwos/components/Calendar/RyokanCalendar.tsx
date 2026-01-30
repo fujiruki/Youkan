@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Item, FilterMode } from '../../types';
-import { useDroppable } from '@dnd-kit/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isHoliday } from '../../logic/capacity';
 import { calculateDailyVolume, DEFAULT_CAPACITY_CONFIG } from '../../logic/volumeCalculator';
@@ -634,7 +633,7 @@ interface GanttViewProps {
 }
 
 const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
+    allDays, items, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);

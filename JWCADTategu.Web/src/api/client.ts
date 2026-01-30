@@ -162,7 +162,7 @@ export class ApiClient {
 
     public static async getJoinedTenants(): Promise<{ id: string; name: string; role: string }[]> {
         // /auth/me returns joinedTenants list
-        const res = await this.request('GET', '/auth/me');
+        const res = await this.request<{ joinedTenants: { id: string; name: string; role: string }[] }>('GET', '/auth/me');
         return res.joinedTenants || [];
     }
 
