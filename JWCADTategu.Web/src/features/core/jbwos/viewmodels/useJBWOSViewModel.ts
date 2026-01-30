@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
+import { ApiClient } from '../../../../api/client';
+import { useAuth } from '../../auth/providers/AuthProvider';
 import { Item, SideMemo, CapacityConfig, Member, FilterMode } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
@@ -96,6 +98,22 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
     }, []);
 
+    // [NEW] Master Data for Contexts
+    const [allProjects, setAllProjects] = useState<Item[]>([]);
+    const { joinedTenants: authTenants } = useAuth();
+
+    const refreshContextData = useCallback(async () => {
+        try {
+            const projects = await ApiClient.getProjects({ scope: 'aggregated' });
+            setAllProjects(projects);
+        } catch (e) {
+            console.error('Failed to fetch projects', e);
+        }
+    }, []);
+
+    useEffect(() => {
+        refreshContextData();
+    }, [refreshContextData]);
     const refreshMembers = useCallback(async () => {
         try {
             const data = await getRepository().getMembers();
@@ -505,35 +523,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
-    const throwIn = async (title: string) => {
+    const throwIn = async (title: string, tenantId?: string) => {
         if (!title.trim()) return null;
 
         // 1. Optimistic Update (Immediate Feedback)
-        // We don't have the ID yet if we wait for repo, but repo generates it client-side? 
-        // JBWOSRepository.addItemToInbox generates ID. But we need it to update state.
-        // Let's assume we can get it or generate temp one?
-        // Actually JBWOSRepository.addItemToInbox returns the ID.
-        // We can wait for that (fast local gen) then update state, OR update with temp ID then replace.
-        // Since Repo generates UUID synchronously (practically), checking the code...
-        // repository says `const id = uuidv4(); await ApiClient... return id;`
-        // So we have to wait for the API call in current Repo impl? 
-        // Wait, Repo implementation in Step 2225:
-        // `const id = uuidv4(); ... await ApiClient.createItem(newItem); return id;`
-        // It awaits API call. This causes the delay.
-
-        // Better: Generate ID here or split Repo method?
-        // For minimal change safest approach:
-        // Since `uuid` is not imported here, we rely on Repo.
-        // But preventing delay means we shouldn't await API.
-
-        // Let's rely on the fact that we can add it to state AFTER ID return (if fast enough)
-        // OR better: Create a "Pending" item if we want true instant.
-        // But the user issue is "Saved" (Toast) appears but list is empty.
-        // Toast appears AFTER await. So if we update state AFTER await (but BEFORE refresh), it should show up.
-        // The problem is likely `refreshGdb()` takes time or returns old data (race).
-
-        // So:
-        const id = await getRepository().addItemToInbox(title);
+        // ... (comment remains same or updated) ...
+        const id = await getRepository().addItemToInbox(title, tenantId);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -550,6 +545,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             category: 'door', // Default category
             type: 'start',
             memo: '',
+            tenantId, // [NEW] Link context
             projectId: undefined,
             focusOrder: 0,
             isIntent: false

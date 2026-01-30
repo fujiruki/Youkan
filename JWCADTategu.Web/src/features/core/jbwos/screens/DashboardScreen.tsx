@@ -96,9 +96,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
-    // [NEW] Shortcuts (Alt+D)
+    // [NEW] Shortcuts (Alt+D, Delete)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // ALT + D: Open Detail
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
                 if (lastInteractedItemId) {
@@ -107,10 +108,19 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     if (item) setSelectedItem(item);
                 }
             }
+            // DELETE: Delete last interacted item
+            if (e.key === 'Delete' && lastInteractedItemId) {
+                // Skip if focus is on an input or textarea
+                if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+                deleteItem(lastInteractedItemId);
+                if (selectedItem?.id === lastInteractedItemId) setSelectedItem(null);
+                handleRefresh();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [lastInteractedItemId, inboxItems, pendingItems, waitingItems, queueItems]);
+    }, [lastInteractedItemId, inboxItems, pendingItems, waitingItems, queueItems, selectedItem]);
 
     const handleSetIntent = async (id: string, isIntent: boolean) => {
         if (isIntent) {
@@ -207,6 +217,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 onClose={() => handleViewModeChange('stream')}
                                 projectId={activeProject?.cloudId}
                                 rowHeight={ganttRowHeight}
+                                hideHeader={true}
                             />
                         )}
                     </div>
@@ -221,19 +232,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             </div>
                         )}
                         <div className="max-w-3xl mx-auto pt-4">
-                            <header className="mb-6 flex justify-between items-center">
-                                <div className="flex bg-slate-200/60 p-1 rounded-lg">
-                                    <button onClick={() => handleViewModeChange('stream')} className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-white shadow-sm rounded-md transition-all">Focus</button>
-                                    <button onClick={() => handleViewModeChange('panorama')} className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all">Panorama</button>
-                                    <button onClick={() => handleViewModeChange('calendar')} className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-white/50 hover:text-slate-600 rounded-md transition-all">Calendar</button>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => setIsProjectModalOpen(true)} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-sm flex items-center gap-1 transition-colors">
-                                        <Plus size={14} strokeWidth={3} />プロジェクト
-                                    </button>
-                                </div>
-                            </header>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                                 <ManufacturingLoadWidget />
                             </div>
@@ -309,6 +307,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             onClose={() => setContextMenu(null)}
                             actions={[
                                 {
+                                    label: 'プロジェクト化',
+                                    icon: <ChevronRight size={14} className="text-blue-500" />,
+                                    onClick: () => { updateItem(contextMenu.itemId, { isProject: true }); handleRefresh(); }
+                                },
+                                {
                                     label: '今日やる (Intent)',
                                     icon: <Clock size={14} className="text-amber-500" />,
                                     onClick: () => handleSetIntent(contextMenu.itemId, true)
@@ -327,7 +330,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         item={selectedItem}
                         onClose={() => setSelectedItem(null)}
                         onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
-                        onDelete={async (id) => { if (confirm('本当に削除しますか?')) { await deleteItem(id); setSelectedItem(null); handleRefresh(); } }}
+                        onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); handleRefresh(); }}
                         onUpdate={async (id, updates) => { await updateItem(id, updates); }}
                         onCreateSubTask={createSubTask}
                         onGetSubTasks={getSubTasks}

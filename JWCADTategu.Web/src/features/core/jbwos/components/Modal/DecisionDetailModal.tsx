@@ -18,14 +18,19 @@ interface DecisionDetailModalProps {
     onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
     onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>; // [NEW]
     onOpenItem?: (item: Item) => void; // [NEW] Drill-down navigation
-    onOpenParent?: (parentId: string) => void; // [NEW] Drill-up navigation
     members?: Member[]; // [NEW]
+    allProjects?: Item[]; // [NEW] Project list
+    joinedTenants?: { id: string; name: string }[]; // [NEW] Company list
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
 }
 
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks, onDelegate, onOpenItem, onOpenParent, members = [], initialFocus, yesButtonLabel }) => {
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
+    item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
+    onDelegate, onOpenItem, members = [], allProjects = [], joinedTenants = [],
+    initialFocus, yesButtonLabel
+}) => {
     // [FIX] Hooks must be called unconditionally.
     // Initialize with safe defaults.
     const [note, setNote] = React.useState('');
@@ -260,73 +265,128 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                         <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
                             <div className="flex-1 min-w-0">
 
-                                {item.projectTitle && (
-                                    <div
-                                        onClick={() => item.parentId && onOpenParent?.(item.parentId)}
-                                        className={cn(
-                                            "flex items-center gap-2 text-lg font-bold text-slate-400 mb-1 leading-snug",
-                                            item.parentId && "cursor-pointer hover:text-blue-500 transition-colors"
-                                        )}
-                                        title={item.parentId ? "親プロジェクトを開く" : undefined}
-                                    >
-                                        <Folder size={18} />
-                                        <span>{item.projectTitle}</span>
-                                    </div>
-                                )}
                                 {isEditingTitle ? (
-                                    <input
-                                        ref={titleInputRef}
-                                        type="text"
-                                        value={editedTitle}
-                                        onChange={(e) => setEditedTitle(e.target.value)}
-                                        onBlur={async () => {
-                                            setIsEditingTitle(false);
-                                            if (editedTitle !== item.title) {
-                                                if (onUpdate) {
-                                                    await onUpdate(item.id, { title: editedTitle });
-                                                } else {
-                                                    await ApiClient.updateItem(item.id, { title: editedTitle });
-                                                }
-                                            }
-                                        }}
-                                        onKeyDown={async (e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const newTitle = editedTitle.trim();
-                                                if (!newTitle) {
-                                                    setEditedTitle(item.title);
-                                                    setIsEditingTitle(false);
-                                                    return;
-                                                }
+                                    <div className="flex flex-col gap-2 mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Folder size={18} className="text-slate-400" />
+                                            <select
+                                                value={item.projectId || ''}
+                                                onChange={(e) => onUpdate?.(item.id, { projectId: e.target.value || undefined })}
+                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
+                                            >
+                                                <option value="">(なし / プライベート)</option>
+                                                {allProjects.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.title}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={item.tenantId || ''}
+                                                onChange={(e) => onUpdate?.(item.id, { tenantId: e.target.value || undefined })}
+                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
+                                            >
+                                                <option value="">(会社未指定)</option>
+                                                {joinedTenants.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <input
+                                            ref={titleInputRef}
+                                            type="text"
+                                            className="w-full text-2xl font-bold bg-slate-100 dark:bg-slate-800 p-1 rounded"
+                                            value={editedTitle}
+                                            onChange={(e) => setEditedTitle(e.target.value)}
+                                            onBlur={async () => {
                                                 setIsEditingTitle(false);
-                                                if (newTitle !== item.title) {
-                                                    // [FIX] Update immediately and wait
-                                                    if (onUpdate) await onUpdate(item.id, { title: newTitle });
-                                                    else await ApiClient.updateItem(item.id, { title: newTitle });
+                                                if (editedTitle !== item.title) {
+                                                    await onUpdate?.(item.id, { title: editedTitle });
                                                 }
-                                            } else if (e.key === 'Escape') {
-                                                setEditedTitle(item.title);
-                                                setIsEditingTitle(false);
-                                            }
-                                        }}
-                                        className="w-full text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug bg-white dark:bg-slate-800 border-b-2 border-indigo-500 focus:outline-none px-2 rounded-t"
-                                        autoFocus
-                                    />
+                                            }}
+                                            onKeyDown={async (e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    titleInputRef.current?.blur();
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 ) : (
-                                    <h2
-                                        className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-snug cursor-pointer hover:text-indigo-600 transition-colors pl-0"
-                                        onClick={() => setIsEditingTitle(true)}
-                                        title="クリックして編集"
-                                    >
-                                        {item.title}
-                                    </h2>
+                                    <>
+                                        <div className="flex items-center gap-2 text-slate-400 mb-1">
+                                            <Folder size={16} />
+                                            <span className="text-xs uppercase tracking-wider font-semibold">
+                                                {allProjects.find(p => p.id === item.projectId)?.title || "Private"}
+                                                {item.tenantId && ` / ${joinedTenants.find(t => t.id === item.tenantId)?.name || 'Unknown'}`}
+                                            </span>
+                                            <button
+                                                onClick={() => setIsEditingTitle(true)}
+                                                className="ml-1 text-[10px] hover:text-blue-500 underline"
+                                            >
+                                                変更
+                                            </button>
+                                        </div>
+                                        <h2
+                                            className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 -ml-1 transition-colors"
+                                            onClick={() => setIsEditingTitle(true)}
+                                        >
+                                            {item.title}
+                                        </h2>
+                                    </>
                                 )}
                             </div>
 
-                            {/* Right: Quick Actions + Close */}
-                            <div className="flex items-start gap-2 ml-4">
-                                <button onClick={handleClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors">
-                                    <X size={20} className="text-slate-400" />
+                            <div className="flex items-center gap-2 flex-none ml-4"> {/* [FIX] flex-none + margin */}
+                                <div className="relative" ref={menuRef}>
+                                    <button
+                                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                    >
+                                        <CheckSquare size={20} />
+                                    </button>
+                                    <AnimatePresence>
+                                        {isMenuOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-700 p-2 z-50 overflow-hidden"
+                                            >
+                                                {confirmDelete ? (
+                                                    <div className="p-2 space-y-2">
+                                                        <p className="text-xs font-semibold text-red-500">本当に削除しますか？</p>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => onDelete(item.id)}
+                                                                className="flex-1 py-1 bg-red-500 text-white rounded text-xs font-bold"
+                                                            >
+                                                                OK
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setConfirmDelete(false)}
+                                                                className="flex-1 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold"
+                                                            >
+                                                                戻る
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setConfirmDelete(true)}
+                                                        className="w-full flex items-center gap-2 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-semibold transition-colors"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                        <span>削除する</span>
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                <button
+                                    onClick={handleClose}
+                                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                >
+                                    <X size={24} />
                                 </button>
                             </div>
                         </div>
@@ -852,16 +912,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({ item, 
                                             type="button"
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                if (confirmDelete) onDelete(item.id);
-                                                else setConfirmDelete(true);
+                                                onDelete(item.id);
                                             }}
-                                            className={cn(
-                                                "w-full text-left px-3 py-2 text-xs font-bold rounded flex items-center gap-2 transition-colors",
-                                                confirmDelete ? "bg-red-500 text-white" : "text-red-500 hover:bg-red-50"
-                                            )}
+                                            className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
                                         >
                                             <Trash2 size={12} />
-                                            {confirmDelete ? "本当に削除？" : "完全削除"}
+                                            完全削除
                                         </button>
                                     </div>
                                 </div>

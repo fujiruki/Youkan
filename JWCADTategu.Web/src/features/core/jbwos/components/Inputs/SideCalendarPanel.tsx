@@ -62,6 +62,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     selectedDate={selectedDate}
                     prepDate={prepDate}
                     onSelectDate={onSelectDate}
+                    displayMode="grid"
                 />
             </div>
 

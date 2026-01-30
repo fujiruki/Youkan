@@ -27,6 +27,7 @@ import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
+import { useAuth } from '../../../auth/providers/AuthProvider'; // [NEW]
 
 
 interface GlobalBoardProps {
@@ -34,9 +35,16 @@ interface GlobalBoardProps {
     initialLayoutMode?: 'standard' | 'panorama'; // [NEW]
     projectId?: string; // [NEW] Filter for specific project
     rowHeight?: number; // [NEW] Display density
+    hideHeader?: boolean; // [NEW]
 }
 
-export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode, projectId, rowHeight = 12 }) => {
+export const JbwosBoard: React.FC<GlobalBoardProps> = ({
+    onClose,
+    initialLayoutMode,
+    projectId,
+    rowHeight = 12,
+    hideHeader = false
+}) => {
     const vm = useJBWOSViewModel(projectId);
     const {
         gdbActive,
@@ -46,6 +54,25 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
         ghostTodayCount
     } = vm;
     const [activeId, setActiveId] = useState<string | null>(null);
+    const { joinedTenants } = useAuth(); // [NEW]
+    const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
+
+    // Default Selection Logic based on filterMode
+    useEffect(() => {
+        if (vm.filterMode === 'all') {
+            setSelectedTenantId(null); // Personal
+        } else if (vm.filterMode === 'company') {
+            if (joinedTenants.length > 0) {
+                // If already selecting a tenant but it's not in joinedTenants (unlikely), reset. 
+                // Or just pick first one if none selected and in company mode.
+                if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {
+                    setSelectedTenantId(joinedTenants[0].id);
+                }
+            }
+        } else if (vm.filterMode === 'personal') {
+            setSelectedTenantId(null);
+        }
+    }, [vm.filterMode, joinedTenants]);
 
     // --- help Guid Modal ---
     const [showHelp, setShowHelp] = useState(false);
@@ -188,7 +215,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
         e.preventDefault();
         if (!inputValue.trim()) return;
 
-        const newId = await vm.throwIn(inputValue);
+        const newId = await vm.throwIn(inputValue, selectedTenantId || undefined);
         if (newId) {
             setLastThrowInId(newId);
             showToast({ type: 'success', title: 'Inboxに保存しました', message: inputValue }); // [NEW] Feedback
@@ -398,56 +425,58 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
                 {/* Header */}
-                <div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">
-                    <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <span className="hidden md:inline">⚡ Today's Decision</span>
-                        <span className="md:hidden">⚡</span>
+                {!hideHeader && (
+                    <div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">
+                        <div className="text-xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <span className="hidden md:inline">⚡ Today's Decision</span>
+                            <span className="md:hidden">⚡</span>
 
-                        {/* Consistently using DashboardScreen's header for View Mode switching */}
+                            {/* Consistently using DashboardScreen's header for View Mode switching */}
 
-                        {/* Density Slider (Panorama Only) */}
-                        {layoutMode === 'panorama' && (
-                            <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full animate-in fade-in slide-in-from-left-2">
-                                <span className="text-[10px] font-bold text-slate-400">密度</span>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="5"
-                                    value={columnCount}
-                                    onChange={(e) => handleColumnChange(Number(e.target.value))}
-                                    className="w-20 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                                    title="列数を変更 (1-5)"
-                                />
-                                <span className="text-xs font-mono text-slate-500 w-3">{columnCount}</span>
+                            {/* Density Slider (Panorama Only) */}
+                            {layoutMode === 'panorama' && (
+                                <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full animate-in fade-in slide-in-from-left-2">
+                                    <span className="text-[10px] font-bold text-slate-400">密度</span>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="5"
+                                        value={columnCount}
+                                        onChange={(e) => handleColumnChange(Number(e.target.value))}
+                                        className="w-20 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                        title="列数を変更 (1-5)"
+                                    />
+                                    <span className="text-xs font-mono text-slate-500 w-3">{columnCount}</span>
+                                </div>
+                            )}
+
+                            <div className="flex-1 w-4"></div> {/* Spacer */}
+
+                            <button
+                                onClick={() => setShowProjectDialog(true)}
+                                className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2 whitespace-nowrap shadow-sm hover:shadow"
+                                title="新規プロジェクト作成"
+                            >
+                                <span className="hidden md:inline">+ プロジェクト</span>
+                                <span className="md:hidden">+</span>
+                            </button>
+                            <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full hidden md:block transition-colors" title="Help">
+                                <BookOpen size={18} className="text-slate-400" />
+                            </button>
+                        </div>
+                        {vm.error && (
+                            <div className="flex items-center gap-2 text-red-500 text-sm px-4 py-1 bg-red-50 rounded-full animate-pulse">
+                                <AlertCircle size={14} />
+                                {vm.error}
+                                <button onClick={vm.clearError} className="font-bold ml-2">×</button>
                             </div>
                         )}
-
-                        <div className="flex-1 w-4"></div> {/* Spacer */}
-
-                        <button
-                            onClick={() => setShowProjectDialog(true)}
-                            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all ml-2 whitespace-nowrap shadow-sm hover:shadow"
-                            title="新規プロジェクト作成"
-                        >
-                            <span className="hidden md:inline">+ プロジェクト</span>
-                            <span className="md:hidden">+</span>
-                        </button>
-                        <button onClick={() => setShowHelp(true)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full hidden md:block transition-colors" title="Help">
-                            <BookOpen size={18} className="text-slate-400" />
+                        <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                            <span className="hidden md:inline">CLOSE</span>
+                            <span className="md:hidden"><X size={18} /></span>
                         </button>
                     </div>
-                    {vm.error && (
-                        <div className="flex items-center gap-2 text-red-500 text-sm px-4 py-1 bg-red-50 rounded-full animate-pulse">
-                            <AlertCircle size={14} />
-                            {vm.error}
-                            <button onClick={vm.clearError} className="font-bold ml-2">×</button>
-                        </div>
-                    )}
-                    <button onClick={onClose} className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
-                        <span className="hidden md:inline">CLOSE</span>
-                        <span className="md:hidden"><X size={18} /></span>
-                    </button>
-                </div>
+                )}
 
                 {/* Main Content (Vertical Stack as "Desk" or Fluid Masonry) */}
                 <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 transition-colors duration-200">
@@ -472,8 +501,20 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                                     onClickItem={(item) => setDetailItem(item)}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
-                                    rowHeight={rowHeight} // [NEW]
-                                    onCreateSubTask={vm.createSubTask} // [NEW]
+                                    rowHeight={rowHeight}
+                                    onCreateSubTask={vm.createSubTask}
+                                    headerRight={
+                                        <select
+                                            value={selectedTenantId || ''}
+                                            onChange={(e) => setSelectedTenantId(e.target.value || null)}
+                                            className="text-[10px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-amber-400 font-bold text-slate-600 dark:text-slate-300 h-[22px]"
+                                        >
+                                            <option value="">Personal</option>
+                                            {joinedTenants.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    }
                                     footer={
                                         <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                                             <input

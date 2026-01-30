@@ -20,6 +20,7 @@ interface BucketColumnProps {
     inputRef?: React.RefObject<HTMLInputElement>;
     isCompact?: boolean; // [NEW] Super Compact Mode
     rowHeight?: number; // [NEW]
+    headerRight?: React.ReactNode; // [NEW]
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -35,7 +36,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     onClickItem, // [NEW]
     onCreateSubTask, // [NEW]
     isCompact = false, // [NEW]
-    rowHeight = 12
+    rowHeight = 12,
+    headerRight // [NEW]
 }) => {
     const MAX_VISIBLE = 5;
     const [expanded, setExpanded] = React.useState(false);
@@ -102,10 +104,11 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                         "font-bold text-slate-800 dark:text-slate-100",
                         isCompact ? "text-xs" : "text-[1.1em]"
                     )}>{title}</h2>
-                    {/* Count Badge REMOVED per spec to reduce pressure */}
                 </div>
+                {headerRight && <div className="flex items-center ml-2">{headerRight}</div>}
+                <div className="flex-1" />
                 {description && (
-                    <span className="text-slate-500 dark:text-slate-400 text-[0.7em]">{description}</span>
+                    <span className="text-slate-500 dark:text-slate-400 text-[0.7em] whitespace-nowrap">{description}</span>
                 )}
             </div>
 

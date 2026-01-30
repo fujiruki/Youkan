@@ -120,17 +120,37 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Auto-scroll to today (approx 3 days from left)
+    // Auto-scroll to strategic positions based on displayMode
     useEffect(() => {
-        if (scrollContainerRef.current && allDays.length > 0) {
-            const todayIndex = allDays.findIndex(d => isSameDate(d, today));
-            if (todayIndex !== -1) {
-                const cellWidth = 24; // w-6 = 24px
-                const scrollTarget = Math.max(0, (todayIndex - 3) * cellWidth);
-                scrollContainerRef.current.scrollLeft = scrollTarget;
+        if (!scrollContainerRef.current || allDays.length === 0) return;
+
+        let targetDate = today;
+        let offsetDays = 0;
+        let cellWidth = 24; // Default for timeline/gantt (w-6)
+
+        if (displayMode === 'gantt' || displayMode === 'timeline') {
+            cellWidth = 24;
+            if (displayMode === 'gantt') {
+                // [NEW] 3 days from left (offset = -3)
+                offsetDays = -3;
+            } else {
+                // 'timeline' -> Start of current week
+                targetDate = getStartOfWeek(today);
+                offsetDays = 0;
             }
+        } else if (displayMode === 'grid') {
+            cellWidth = 112; // Adjusted average
+            // 'grid' -> Start of current month
+            targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            offsetDays = 0;
         }
-    }, [allDays, today]);
+
+        const targetIndex = allDays.findIndex(d => isSameDate(d, targetDate));
+        if (targetIndex !== -1) {
+            const scrollTarget = Math.max(0, (targetIndex + offsetDays) * cellWidth);
+            scrollContainerRef.current.scrollLeft = scrollTarget;
+        }
+    }, [allDays, today, displayMode]);
 
     const itemsByDate = useMemo(() => {
         const map = new Map<string, Item[]>();
@@ -243,6 +263,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         today={today}
                         onItemClick={onItemClick}
                         safeConfig={safeConfig}
+                        isMini={isMini}
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -420,11 +441,20 @@ interface GridViewProps {
     today: Date;
     onItemClick: (item: Item) => void;
     safeConfig: any;
+    isMini?: boolean;
 }
 
 const RyokanGridView: React.FC<GridViewProps> = ({
-    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig
+    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, isMini
 }) => {
+    const todayGridRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (todayGridRef.current) {
+            todayGridRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+        }
+    }, [isMini]);
+
     // 7 columns fixed
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -450,8 +480,10 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                     return (
                         <div
                             key={dateKey}
+                            ref={isToday ? todayGridRef : null}
                             className={cn(
-                                "min-h-[100px] p-1 relative flex flex-col group transition-colors",
+                                isMini ? "min-h-[60px]" : "min-h-[100px]",
+                                "p-1 relative flex flex-col group transition-colors",
                                 isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
                             )}
                         >
@@ -606,6 +638,7 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
 
                                         // Check if date is in commit period
                                         const isCommit = commitStart && myDeadline && date >= commitStart && date <= myDeadline && !isHoliday(date, safeConfig);
+                                        const isFirstCommitDay = isCommit && (!commitStart || isSameDate(date, commitStart));
 
                                         // Due Date Marker
                                         const isDue = item.due_date && isSameDate(date, new Date(item.due_date));
@@ -613,7 +646,8 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         return (
                                             <div key={dateKey} className={cn(
                                                 "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative",
-                                                isToday ? "bg-blue-50/10" : ""
+                                                isToday ? "bg-blue-50/10" : "",
+                                                isDue ? "bg-red-50/50 dark:bg-red-900/20" : ""
                                             )}>
                                                 {/* Daily Heatmap (Atmosphere) */}
                                                 <div className="absolute inset-0 bg-amber-400/10" style={{ opacity: intensity / 100 }} />
@@ -621,9 +655,15 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 {/* Commit Period Bar */}
                                                 {isCommit && (
                                                     <div className={cn(
-                                                        "absolute inset-y-1 left-0 right-0 bg-red-400 dark:bg-red-500 rounded-sm shadow-sm",
-                                                        hoveredItemId === item.id ? "opacity-100" : "opacity-60"
-                                                    )} />
+                                                        "absolute inset-y-1 left-0 right-0 bg-indigo-400 dark:bg-indigo-500 rounded-sm shadow-sm flex items-center overflow-hidden",
+                                                        hoveredItemId === item.id ? "opacity-100" : "opacity-70"
+                                                    )}>
+                                                        {isFirstCommitDay && (
+                                                            <span className="ml-1 text-[7px] text-white font-bold whitespace-nowrap pointer-events-none select-none drop-shadow-sm">
+                                                                実制作
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
 
                                                 {/* Due Date Marker */}
@@ -645,9 +685,13 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
             {/* Legend / Info */}
             <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-bold">
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-2 bg-red-400 rounded-sm" />
-                        <span>コミット期間</span>
+                    <div className="flex items-center gap-1.5 text-indigo-500">
+                        <div className="w-3 h-2 bg-indigo-400 rounded-sm" />
+                        <span>実制作期間</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-red-500">
+                        <div className="w-3 h-2 bg-red-50 border border-red-200 dark:bg-red-900/40 rounded-sm" />
+                        <span>納期</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <div className="w-0.5 h-3 bg-red-600" />
