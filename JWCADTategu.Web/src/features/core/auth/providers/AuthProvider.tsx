@@ -36,10 +36,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('AuthProvider: Debug Token detected. Bypassing API check.');
             const storedUser = localStorage.getItem('jbwos_user');
             const storedTenant = localStorage.getItem('jbwos_tenant');
-            if (storedUser && storedTenant) {
+            if (storedUser) {
                 try {
-                    setUser(JSON.parse(storedUser));
-                    setTenant(JSON.parse(storedTenant));
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+
+                    if (storedTenant) {
+                        setTenant(JSON.parse(storedTenant));
+                    } else {
+                        setTenant(null);
+                    }
+
                     setIsAuthenticated(true);
                 } catch (e) {
                     console.error('Failed to parse debug user data', e);

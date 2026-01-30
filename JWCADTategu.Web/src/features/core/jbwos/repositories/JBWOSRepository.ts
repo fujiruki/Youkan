@@ -538,6 +538,15 @@ export const JBWOSRepository = {
 
     async getMembers() {
         return await ApiClient.getMembers();
+    },
+
+    getProjects: async (scope?: 'personal' | 'company' | 'dashboard' | 'aggregated'): Promise<Item[]> => {
+        // [Hybrid] Mock or use API if available
+        return ApiClient.getProjects({ scope });
+    },
+
+    getJoinedTenants: async (): Promise<{ id: string; name: string; role: string }[]> => {
+        return ApiClient.getJoinedTenants();
     }
 };
 

@@ -92,7 +92,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         setViewMode(mode);
         const basePath = import.meta.env.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        const urlMap = { 'stream': 'Focus', 'panorama': 'Panorama', 'calendar': 'Calendar' };
+        const urlMap = { 'stream': '登録と集中', 'panorama': '全体一覧', 'calendar': 'カレンダー' };
         window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
@@ -165,9 +165,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
             {/* Unified Local Header */}
             <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-between items-center shadow-sm z-10">
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                    <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Focus</button>
-                    <button onClick={() => handleViewModeChange('panorama')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Panorama</button>
-                    <button onClick={() => handleViewModeChange('calendar')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Calendar</button>
+                    <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>登録と集中</button>
+                    <button onClick={() => handleViewModeChange('panorama')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>全体一覧</button>
+                    <button onClick={() => handleViewModeChange('calendar')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>カレンダー</button>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -206,6 +206,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         {viewMode === 'calendar' ? (
                             <RyokanCalendar
                                 items={allItemsForCalendar}
+                                projects={allItemsForCalendar.filter(i => i.isProject)}
                                 onItemClick={setSelectedItem}
                                 filterMode={filterMode}
                                 displayMode="timeline"
@@ -335,6 +336,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         onCreateSubTask={createSubTask}
                         onGetSubTasks={getSubTasks}
                         members={vm.members}
+                        allProjects={vm.allProjects}
+                        joinedTenants={vm.joinedTenants}
+                        onOpenItem={setSelectedItem}
                     />
 
                     <SideMemoWidget />

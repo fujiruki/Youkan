@@ -7,6 +7,7 @@ import { calculateDailyVolume, DEFAULT_CAPACITY_CONFIG } from '../../logic/volum
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { ChevronRight } from 'lucide-react';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
@@ -29,6 +30,7 @@ interface RyokanCalendarProps {
     selectedDate?: Date | null;
     prepDate?: Date | null;
     rowHeight?: number;
+    projects?: any[]; // [NEW]
 }
 
 interface PressureConnection {
@@ -71,9 +73,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     onSelectDate,
     selectedDate: propSelectedDate,
     prepDate: propPrepDate,
-    rowHeight = 12
+    rowHeight = 12,
+    projects = []
 }) => {
-    const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || (layoutMode === 'mini' ? 'timeline' : 'grid'));
+    const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || 'grid');
     const today = getStartOfToday();
     const isMini = layoutMode === 'mini';
     const containerRef = useRef<HTMLDivElement>(null);
@@ -131,19 +134,21 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (displayMode === 'gantt' || displayMode === 'timeline') {
             cellWidth = 24;
             if (displayMode === 'gantt') {
-                // [NEW] Monday of this week at 3rd column (index 2 -> offset -2)
-                targetDate = getStartOfWeek(today);
+                // Today at 3rd column (index 2 -> offset -2)
+                targetDate = today;
                 offsetDays = -2;
             } else {
-                // 'timeline' -> Start of current week
+                // 'timeline' -> Start of current week at 1st column
                 targetDate = getStartOfWeek(today);
                 offsetDays = 0;
             }
         } else if (displayMode === 'grid') {
-            cellWidth = 112; // Adjusted average
-            // 'grid' -> Start of current month
+            cellWidth = 112;
+            // 'grid' -> Start of current month centered
             targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            offsetDays = 0;
+            const containerWidth = scrollContainerRef.current?.clientWidth || 0;
+            const visibleCells = Math.floor(containerWidth / cellWidth);
+            offsetDays = -Math.floor(visibleCells / 2);
         }
 
         const targetIndex = allDays.findIndex(d => isSameDate(d, targetDate));
@@ -265,6 +270,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         onItemClick={onItemClick}
                         safeConfig={safeConfig}
                         isMini={isMini}
+                        onSelectDate={onSelectDate}
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -276,6 +282,15 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         onItemClick={onItemClick}
                         safeConfig={safeConfig}
                         rowHeight={rowHeight}
+                        projects={projects}
+                        onJumpToDate={(date) => {
+                            const targetIndex = allDays.findIndex(d => isSameDate(d, date));
+                            if (targetIndex !== -1 && scrollContainerRef.current) {
+                                // 24 is w-6
+                                const targetScroll = Math.max(0, targetIndex * 24 - 48);
+                                scrollContainerRef.current.scrollTo({ left: targetScroll, behavior: 'smooth' });
+                            }
+                        }}
                     />
                 )}
             </div>
@@ -426,6 +441,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 ref={isToday ? todayRef : null}
                                 onAction={handleCellAction}
                                 onItemClick={onItemClick}
+                                onSelectDate={onSelectDate}
                             />
                         );
                     })}
@@ -445,10 +461,11 @@ interface GridViewProps {
     isMini?: boolean;
 }
 
-const RyokanGridView: React.FC<GridViewProps> = ({
-    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, isMini
+const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => void }> = ({
+    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, isMini, onSelectDate
 }) => {
     const todayGridRef = useRef<HTMLDivElement>(null);
+    const [popupContent, setPopupContent] = useState<{ date: Date, items: Item[] } | null>(null);
 
     useEffect(() => {
         if (todayGridRef.current) {
@@ -482,9 +499,16 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                         <div
                             key={dateKey}
                             ref={isToday ? todayGridRef : null}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onSelectDate) onSelectDate(date);
+                                if (dayItems.length > 0) {
+                                    setPopupContent({ date, items: dayItems });
+                                }
+                            }}
                             className={cn(
                                 isMini ? "min-h-[60px]" : "min-h-[100px]",
-                                "p-1 relative flex flex-col group transition-colors",
+                                "p-1 relative flex flex-col group transition-colors cursor-pointer",
                                 isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
                             )}
                         >
@@ -529,6 +553,56 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                     );
                 })}
             </div>
+
+            {/* Item List Popup for Grid View */}
+            <AnimatePresence>
+                {popupContent && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+                        onClick={() => setPopupContent(null)}
+                    >
+                        <div
+                            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{format(popupContent.date, 'yyyy/MM/dd')}</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">{popupContent.items.length} 個のアイテム</p>
+                                </div>
+                                <button onClick={() => setPopupContent(null)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto max-h-[60vh] p-2 space-y-1">
+                                {popupContent.items.map(item => (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => { onItemClick(item); setPopupContent(null); }}
+                                        className="p-3 bg-slate-50 dark:bg-slate-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg border border-slate-100 dark:border-slate-800 transition-all cursor-pointer group flex items-center justify-between"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                {item.title}
+                                            </div>
+                                            {item.is_boosted && <span className="text-[8px] text-amber-500 font-bold uppercase">Boosted</span>}
+                                        </div>
+                                        <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                                    </div>
+                                ))}
+                                {popupContent.items.length === 0 && (
+                                    <div className="p-8 text-center text-slate-400 text-xs italic">
+                                        関連するアイテムはありません
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
@@ -542,10 +616,12 @@ interface GanttViewProps {
     onItemClick: (item: Item) => void;
     safeConfig: any;
     rowHeight: number;
+    projects?: any[];
+    onJumpToDate?: (date: Date) => void;
 }
 
 const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap, today, onItemClick, safeConfig, rowHeight
+    allDays, items, heatMap, today, onItemClick, safeConfig, rowHeight, projects = [], onJumpToDate
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
@@ -566,8 +642,8 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                     {/* Header - Sticky top for vertical scrolling */}
                     <div className="sticky top-0 z-[30] flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                         {/* Corner - Sticky left and top */}
-                        <div className="sticky left-0 z-[40] w-48 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-400 uppercase">
-                            アイテム名
+                        <div className="sticky left-0 z-[40] w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-400 uppercase">
+                            アイテム名 + プロジェクト
                         </div>
                         {/* Day Header */}
                         <div className="flex">
@@ -605,31 +681,64 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                             }
                         }
 
+                        const project = projects.find(p => p.id === item.projectId);
+                        const deadlineDate = myDeadline || (item.due_date ? new Date(item.due_date) : null);
+
                         return (
                             <div key={item.id} className="flex border-b border-slate-50 dark:border-slate-800/20 group transition-all">
                                 {/* Fixed Label - Sticky left */}
                                 <div
                                     className={cn(
-                                        "sticky left-0 z-[10] w-48 flex-shrink-0 bg-slate-50/90 dark:bg-slate-900/90 border-r border-slate-200 dark:border-slate-800 px-2 truncate flex items-center shadow-[2px_0_5px_rgba(0,0,0,0.02)]",
-                                        hoveredItemId === item.id ? "text-xs font-bold text-indigo-600 dark:text-indigo-400" : "text-[8px] text-slate-400"
+                                        "sticky left-0 z-[10] w-64 flex-shrink-0 bg-slate-50/90 dark:bg-slate-900/90 border-r border-slate-200 dark:border-slate-800 px-2 flex items-center justify-between shadow-[2px_0_5px_rgba(0,0,0,0.02)] transition-colors",
+                                        hoveredItemId === item.id ? "bg-indigo-50 dark:bg-indigo-900/40" : ""
                                     )}
                                     style={{ height: `${rowHeight}px` }}
                                     onMouseEnter={() => setHoveredItemId(item.id)}
                                     onMouseLeave={() => setHoveredItemId(null)}
-                                    onClick={() => onItemClick(item)}
                                 >
-                                    {item.title}
+                                    <div
+                                        className="flex-1 min-w-0 pr-2 cursor-pointer flex items-baseline gap-1.5"
+                                        onClick={() => deadlineDate && onJumpToDate?.(deadlineDate)}
+                                        title={`${item.title} ${project ? `[${project.name}]` : ''} - クリックで納期へジャンプ`}
+                                    >
+                                        <span className={cn(
+                                            "truncate font-bold tracking-tight",
+                                            hoveredItemId === item.id ? "text-xs text-indigo-600 dark:text-indigo-400" : "text-[10px] text-slate-500"
+                                        )}>
+                                            {item.title}
+                                        </span>
+                                        {project && (
+                                            <span className="truncate text-[8px] text-slate-400 font-normal">
+                                                {project.name}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Quick Open Button */}
+                                    {hoveredItemId === item.id && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                                            className="p-1 rounded bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-500 hover:text-indigo-600 active:scale-95 transition-all"
+                                            title="詳細画面を開く"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Bars Area */}
                                 <div
                                     className={cn(
-                                        "flex relative transition-all",
+                                        "flex relative transition-all cursor-pointer",
                                         hoveredItemId === item.id ? "bg-indigo-50/20 dark:bg-indigo-900/10" : ""
                                     )}
                                     style={{ height: `${rowHeight}px` }}
                                     onMouseEnter={() => setHoveredItemId(item.id)}
                                     onMouseLeave={() => setHoveredItemId(null)}
+                                    onClick={() => onItemClick(item)}
                                 >
                                     {allDays.map(date => {
                                         const dateKey = date.toDateString();
@@ -669,7 +778,11 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
 
                                                 {/* Due Date Marker */}
                                                 {isDue && (
-                                                    <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600 dark:bg-red-400 z-[5] shadow-[0_0_8px_rgba(220,38,38,0.5)]">
+                                                    <div
+                                                        className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600 dark:bg-red-400 z-[5] shadow-[0_0_8px_rgba(220,38,38,0.5)] cursor-pointer"
+                                                        onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                                                        title="詳細を開く"
+                                                    >
                                                         <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full bg-red-600 dark:bg-red-400" />
                                                     </div>
                                                 )}
@@ -712,8 +825,8 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
 };
 
 const CalendarCell = React.forwardRef<HTMLDivElement, {
-    date: Date, items: Item[], allSigns: Item[], isToday: boolean, isFirst: boolean, intensity: number, isMini: boolean, isSelected: boolean, isPrep: boolean, isHoliday: boolean, flashingIds: Set<string>, onAction: any, onItemClick: any
-}>(({ date, items, allSigns, isToday, isFirst, intensity, isMini, isSelected, isPrep, isHoliday, flashingIds, onAction, onItemClick }, ref) => {
+    date: Date, items: Item[], allSigns: Item[], isToday: boolean, isFirst: boolean, intensity: number, isMini: boolean, isSelected: boolean, isPrep: boolean, isHoliday: boolean, flashingIds: Set<string>, onAction: any, onItemClick: any, onSelectDate?: (date: Date) => void
+}>(({ date, items, allSigns, isToday, isFirst, intensity, isMini, isSelected, isPrep, isHoliday, flashingIds, onAction, onItemClick, onSelectDate }, ref) => {
     const { setNodeRef, isOver } = useDroppable({ id: `ryokan-${date.getTime()}`, data: { date: date.getTime() } });
 
     return (
@@ -729,6 +842,7 @@ const CalendarCell = React.forwardRef<HTMLDivElement, {
             )}
             onClick={(e) => {
                 e.stopPropagation();
+                if (onSelectDate) onSelectDate(date);
                 onAction(date, allSigns, 'click', e.currentTarget.getBoundingClientRect());
             }}
             onDoubleClick={(e) => {

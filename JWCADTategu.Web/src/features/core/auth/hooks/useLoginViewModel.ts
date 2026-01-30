@@ -74,7 +74,11 @@ export const useLoginViewModel = () => {
         setIsLoading(true);
         const isTenant = type === 'tenant';
 
-        const dummyUser = {
+        const dummyUser = isTenant ? {
+            id: 'debug-tenant-dbg',
+            name: 'デバッグ社',
+            email: 'info@door-fujita.com'
+        } : {
             id: 'debug-user-fjt',
             name: '藤田ローカル',
             email: 'fjt.suntree@gmail.com'
@@ -83,13 +87,13 @@ export const useLoginViewModel = () => {
         const dummyTenant = isTenant ? {
             id: 'debug-tenant-dbg',
             name: 'デバッグ社',
-            role: 'admin',
+            role: 'owner', // 代表者
             config: { plugins: { manufacturing: true, tategu: true } }
         } : null;
 
         localStorage.setItem('jbwos_user', JSON.stringify(dummyUser));
 
-        if (dummyTenant) {
+        if (isTenant && dummyTenant) {
             localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
             localStorage.setItem('jbwos_account_type', 'tenant');
         } else {
@@ -101,7 +105,9 @@ export const useLoginViewModel = () => {
         localStorage.setItem('jbwos_token', 'mock-debug-token');
         localStorage.setItem('auth_token', 'mock-debug-token');
 
-        window.location.reload();
+        // Redirect with environment consideration
+        const basePath = window.location.pathname.replace(/\/login\/?$/, '') || '/';
+        window.location.href = basePath;
     };
 
     return {

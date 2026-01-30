@@ -70,6 +70,25 @@ class ProjectController extends BaseController {
             ";
             $params = $this->joinedTenants;
 
+        } elseif ($scope === 'aggregated') {
+            // Aggregated: Personal + All joined companies
+            $tenantIds = $this->joinedTenants;
+            $placeholders = !empty($tenantIds) ? implode(',', array_fill(0, count($tenantIds), '?')) : "'__NONE__'";
+            
+            $sql = "
+                SELECT items.*, t.name as tenant_name
+                FROM items 
+                LEFT JOIN tenants t ON items.tenant_id = t.id
+                WHERE items.is_project = 1 
+                AND (
+                    ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
+                    OR
+                    (items.tenant_id IN ($placeholders))
+                )
+                ORDER BY items.updated_at DESC
+            ";
+            $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds);
+
         } else { // scope === 'personal'
             // Personal Tab: Strictly Personal items
             $sql = "
@@ -91,7 +110,6 @@ class ProjectController extends BaseController {
         $this->sendJSON(array_map(function($row) {
             $proj = $this->mapItemToProject($row);
             $proj['tenantName'] = $row['tenant_name'] ?? ($row['tenant_id'] ? 'Company' : 'Personal');
-            // If fetching 'dashboard', we might want to know if it's personal or company visually
             return $proj;
         }, $items));
     }
@@ -276,7 +294,8 @@ class ProjectController extends BaseController {
         return [
             'id' => $item['id'],
             'tenant_id' => $item['tenant_id'],
-            'name' => $item['title'], // Map title -> name
+            'name' => $item['title'], // Map title -> name (Legacy compatibility)
+            'title' => $item['title'], // [FIX] Added for Frontend Item type compatibility
             'client' => $item['client_name'] ?? $item['client'] ?? '',
             'settings_json' => json_encode($meta['settings'] ?? []),
             'dxf_config_json' => json_encode($meta['dxf_config'] ?? []),

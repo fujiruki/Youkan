@@ -54,7 +54,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
         ghostTodayCount
     } = vm;
     const [activeId, setActiveId] = useState<string | null>(null);
-    const { joinedTenants } = useAuth(); // [NEW]
+    const { joinedTenants } = useAuth(); // [RESTORED]
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
 
     // Default Selection Logic based on filterMode
@@ -63,8 +63,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
             setSelectedTenantId(null); // Personal
         } else if (vm.filterMode === 'company') {
             if (joinedTenants.length > 0) {
-                // If already selecting a tenant but it's not in joinedTenants (unlikely), reset. 
-                // Or just pick first one if none selected and in company mode.
                 if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {
                     setSelectedTenantId(joinedTenants[0].id);
                 }
@@ -282,13 +280,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
         setDetailItem(item);
     };
 
-    // [NEW] Open Parent (Drill-up / Context Switch)
-    const handleOpenParent = (parentId: string) => {
-        const parent = findItem(parentId);
-        if (parent) {
-            handleOpenItem(parent);
-        }
-    };
 
     const handleCloseModal = () => {
         if (modalHistory.length > 0) {
@@ -321,7 +312,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
             <ProjectCreationDialog
                 isOpen={showProjectDialog}
                 onClose={() => setShowProjectDialog(false)}
-                onCreate={async (project, defaultTasks) => {
+                onCreate={async (project: any, defaultTasks: any[]) => {
                     // Ensure required fields are present
                     if (!project.title) return;
                     await vm.createProject(project as Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'>, defaultTasks);
@@ -391,7 +382,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                 initialFocus={initialFocus}
                 onClose={handleCloseModal}
                 onOpenItem={handleOpenItem}
-                onOpenParent={handleOpenParent} // [NEW]
                 onDecision={async (id, decision, note, updates) => {
                     // [NEW] Custom Routing for "Not This Time" (No)
                     if (decision === 'no' && (note === 'intent' || note === 'life')) {
@@ -510,7 +500,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                             className="text-[10px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-amber-400 font-bold text-slate-600 dark:text-slate-300 h-[22px]"
                                         >
                                             <option value="">Personal</option>
-                                            {joinedTenants.map(t => (
+                                            {joinedTenants.map((t: any) => (
                                                 <option key={t.id} value={t.id}>{t.name}</option>
                                             ))}
                                         </select>

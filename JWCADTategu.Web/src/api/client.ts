@@ -71,7 +71,14 @@ export class ApiClient {
 
         const startTime = performance.now();
         try {
-            const response = await fetch(`${API_BASE}${path}`, config);
+            // [Debug/Repair] Append token to URL as query param for environments where headers are stripped
+            let url = `${API_BASE}${path}`;
+            if (token) {
+                const separator = url.includes('?') ? '&' : '?';
+                url += `${separator}token=${encodeURIComponent(token)}`;
+            }
+
+            const response = await fetch(url, config);
             const duration = Math.round(performance.now() - startTime);
 
             if (!response.ok) {
@@ -151,6 +158,12 @@ export class ApiClient {
     public static async getProjects(options?: { scope?: 'personal' | 'company' | 'dashboard' | 'aggregated' }): Promise<any[]> {
         const query = options?.scope ? `?scope=${options.scope}` : '';
         return this.request('GET', `/projects${query}`);
+    }
+
+    public static async getJoinedTenants(): Promise<{ id: string; name: string; role: string }[]> {
+        // /auth/me returns joinedTenants list
+        const res = await this.request('GET', '/auth/me');
+        return res.joinedTenants || [];
     }
 
     // --- Phase 2: Decision API ---

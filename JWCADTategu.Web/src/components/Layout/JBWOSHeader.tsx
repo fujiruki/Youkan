@@ -169,10 +169,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                             onClick={onNavigateToProjects}
                         />
 
-                        {/* Calendar Tab */}
+                        {/* Capacity Tab (formerly Calendar) */}
                         <NavTab
                             icon={<CalendarDays size={16} />}
-                            label="Calendar"
+                            label="カレンダー"
                             isActive={isCalendar}
                             onClick={onNavigateToCalendar || (() => { })}
                         />

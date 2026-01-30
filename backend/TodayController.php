@@ -36,7 +36,7 @@ class TodayController extends BaseController {
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE $whereClause AND items.status = 'today_commit' 
+            WHERE $whereClause AND items.status IN ('today_commit', 'focus')
             ORDER BY items.sort_order ASC
         ";
         $stmtCommits = $this->pdo->prepare($sqlCommits);
@@ -66,7 +66,7 @@ class TodayController extends BaseController {
                 $whereClause AND
                 ((items.status IN ('confirmed', 'ready')) 
                 OR 
-                (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'execution_in_progress', 'execution_paused')))
+                (items.is_boosted = 1 AND items.status NOT IN ('done', 'archive', 'today_commit', 'focus', 'execution_in_progress', 'execution_paused')))
             ORDER BY items.is_boosted DESC, items.rdd_date ASC
         ";
         $stmtCandidates = $this->pdo->prepare($sqlCandidates);

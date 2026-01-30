@@ -56,3 +56,17 @@ Registering: Email=door.fujita@gmail.com, Name=藤田 はるき, Type=company
 Registering: Email=debug@example.com, Name=デバッグ太郎, Type=proprietor
 Registering: Email=door.fujita@gmail.com, Name=藤田 晴樹, Type=proprietor
 Registering: Email=personal@example.com, Name=Personal Haruki, Type=user
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/today?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/categories?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/items?scope=dashboard&token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/members?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/projects?scope=aggregated&token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/today?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/categories?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/items?scope=dashboard&token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/members?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/projects?scope=aggregated&token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/auth/me?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/today?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/today?token=mock-debug-token
+[2026-01-30 15:59:02] Auth Check: TokenFromHeader=mock-debug-token, TokenFromGet=mock-debug-token, URI=/auth/me?token=mock-debug-token

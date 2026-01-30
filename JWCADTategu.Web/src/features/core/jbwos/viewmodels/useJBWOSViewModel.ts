@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
-import { ApiClient } from '../../../../api/client';
-import { useAuth } from '../../auth/providers/AuthProvider';
 import { Item, SideMemo, CapacityConfig, Member, FilterMode } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
@@ -44,6 +42,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
     // [NEW] Members
     const [members, setMembers] = useState<Member[]>([]);
 
+    // [NEW] All Projects & Tenants
+    const [allProjects, setAllProjects] = useState<Item[]>([]);
+    const [joinedTenants, setJoinedTenants] = useState<{ id: string; name: string; role: string }[]>([]);
+
     // [NEW] Filter Mode (Public/Private Filtering - Option 3)
     const [filterMode, setFilterMode] = useState<FilterMode>(() => {
         const saved = localStorage.getItem('jbwos_filter_mode');
@@ -52,6 +54,20 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     useEffect(() => {
         localStorage.setItem('jbwos_filter_mode', filterMode);
+        // Dispatch global event
+        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
+    }, [filterMode]);
+
+    // Listen for global changes from other components
+    useEffect(() => {
+        const handleGlobalFilterChange = (e: any) => {
+            const newMode = e.detail?.mode;
+            if (newMode && newMode !== filterMode) {
+                setFilterMode(newMode);
+            }
+        };
+        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
+        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
     }, [filterMode]);
 
     // Loading & Error
@@ -98,17 +114,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
     }, []);
 
-    // [NEW] Master Data for Contexts
-    const [allProjects, setAllProjects] = useState<Item[]>([]);
-    const { joinedTenants: authTenants } = useAuth();
-
+    // [NEW] Refresh context data
     const refreshContextData = useCallback(async () => {
-        try {
-            const projects = await ApiClient.getProjects({ scope: 'aggregated' });
-            setAllProjects(projects);
-        } catch (e) {
-            console.error('Failed to fetch projects', e);
-        }
+        // Fetching context-related data if needed in future
     }, []);
 
     useEffect(() => {
@@ -120,6 +128,20 @@ export const useJBWOSViewModel = (projectId?: string) => {
             setMembers(data);
         } catch (e) {
             console.error('Failed to fetch Members:', e);
+        }
+    }, []);
+
+    const refreshContextMetadata = useCallback(async () => {
+        try {
+            // Fetch all projects for selection in modals
+            const projs = await getRepository().getProjects('aggregated');
+            setAllProjects(projs);
+
+            // Fetch joined tenants
+            const tenants = await getRepository().getJoinedTenants();
+            setJoinedTenants(tenants);
+        } catch (e) {
+            console.error('Failed to fetch context metadata:', e);
         }
     }, []);
 
@@ -196,9 +218,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
             refreshToday(),
             refreshMemos(),
             refreshMembers(),
-            refreshCapacityConfig()
+            refreshCapacityConfig(),
+            refreshContextMetadata()
         ]);
-    }, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig, projectId]);
+    }, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig, refreshContextMetadata, projectId]);
 
     // Initial Load & Global Refresh Listener
     useEffect(() => {
@@ -248,12 +271,17 @@ export const useJBWOSViewModel = (projectId?: string) => {
             // Repository.resolveDecision might map it.
             // But we should send status update explicitly if we want strict control.
             // For now, assume Repository is smart or updated.
+            // [FIX] Status logic: 'yes' (Today) must set is_today_commit flag to appear in Commits
             if (decision === 'hold') {
-                await getRepository().updateItem(id, { status: 'pending' });
+                await getRepository().updateItem(id, { ...updates, status: 'pending' });
             } else if (decision === 'yes') {
-                await getRepository().updateItem(id, { status: 'focus' });
+                await getRepository().updateItem(id, {
+                    ...updates,
+                    status: 'focus',
+                    flags: { ...(updates?.flags || {}), is_today_commit: true }
+                });
             } else {
-                await getRepository().updateItem(id, { status: 'done' }); // or delete? user wants "finished decision"
+                await getRepository().updateItem(id, { ...updates, status: 'done' });
             }
 
             // await getRepository().resolveDecision(id, decision, note); // Legacy API might be confusing?
@@ -883,6 +911,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
         confirmDelegationCompletion,
         createProject,
         importFromPlugin,
+        allProjects,
+        joinedTenants,
         toggleHoliday,
         updatePreparationDate,
         moveToSomeday,

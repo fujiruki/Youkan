@@ -140,6 +140,14 @@ export const CloudJBWOSRepository = {
         return { defaultDailyMinutes: 480, holidays: [], exceptions: {} };
     },
 
+    getProjects: async (scope?: 'personal' | 'company' | 'dashboard' | 'aggregated'): Promise<JudgableItem[]> => {
+        return await ApiClient.getProjects({ scope });
+    },
+
+    getJoinedTenants: async (): Promise<{ id: string; name: string; role: string }[]> => {
+        return await ApiClient.getJoinedTenants();
+    },
+
     saveCapacityConfig: async (_config: any) => {
         // TODO
     }

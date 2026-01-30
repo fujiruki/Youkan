@@ -16,18 +16,23 @@ class BaseController {
 
     protected function authenticate() {
         $token = JWTService::getBearerToken();
+        
+        // [Debug/Repair] Also check query param if header fails (useful for debugging/some environments)
+        if (!$token && isset($_GET['token'])) {
+            $token = $_GET['token'];
+        }
 
         // [Debug Mode] Accept mock token for offline development
         if ($token === 'mock-debug-token') {
             $this->currentUser = [
-                'sub' => 'u_default', // [FIX] Match existing default user ID
+                'sub' => 'u_697b2af132f4f', 
                 'name' => 'Debug User',
-                'tenant_id' => 't_default',
+                'tenant_id' => 't_697b2af180467',
                 'role' => 'admin'
             ];
-            $this->currentTenantId = 't_default';
-            $this->currentUserId = 'u_default'; // [FIX] Match DB
-            $this->joinedTenants = ['t_default']; // [FIX] Ensure joinedTenants is populated in debug mode
+            $this->currentTenantId = 't_697b2af180467';
+            $this->currentUserId = 'u_697b2af132f4f'; 
+            $this->joinedTenants = ['t_697b2af180467']; 
             return;
         }
 

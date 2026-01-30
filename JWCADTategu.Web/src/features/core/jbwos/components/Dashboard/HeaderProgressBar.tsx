@@ -30,6 +30,29 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
     const progress = Math.min((usedMinutes / limitMinutes) * 100, 100);
     const isOver = usedMinutes > limitMinutes;
 
+    // Listen for global filter changes
+    React.useEffect(() => {
+        const handleGlobalFilterChange = (e: any) => {
+            const newMode = e.detail?.mode;
+            if (newMode && newMode !== filterMode && onFilterChange) {
+                // We don't call onFilterChange here to avoid loops if both are syncing,
+                // but HeaderProgressBar usually is the one triggering it.
+                // Actually, HeaderProgressBar prop 'filterMode' should come from the parent (ViewModel).
+                // So we just need to make sure the trigger dispatches the event.
+            }
+        };
+        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
+        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
+    }, [filterMode, onFilterChange]);
+
+    const handleFilterClick = (mode: FilterMode) => {
+        if (onFilterChange) {
+            onFilterChange(mode);
+            // Dispatching is handled by the ViewModel effect, but we can do it here for immediate feedback if needed.
+            // However, since ViewModel handles it, we'll let it flow through props.
+        }
+    };
+
     return (
         <div className={cn("sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-2 shadow-sm transition-all", className)}>
             <div className="max-w-4xl mx-auto flex flex-col gap-2">
@@ -91,19 +114,19 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
                             <span className="text-[9px] font-bold text-slate-400 px-2 uppercase tracking-tight">フィルタ:</span>
                             <FilterButton
                                 active={filterMode === 'all'}
-                                onClick={() => onFilterChange?.('all')}
+                                onClick={() => handleFilterClick('all')}
                                 icon={<Layers size={14} />}
                                 label="Integrated"
                             />
                             <FilterButton
                                 active={filterMode === 'company'}
-                                onClick={() => onFilterChange?.('company')}
+                                onClick={() => handleFilterClick('company')}
                                 icon={<Briefcase size={14} />}
                                 label="Company"
                             />
                             <FilterButton
                                 active={filterMode === 'personal'}
-                                onClick={() => onFilterChange?.('personal')}
+                                onClick={() => handleFilterClick('personal')}
                                 icon={<User size={14} />}
                                 label="Personal"
                             />
