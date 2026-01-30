@@ -174,52 +174,52 @@ const ProjectCard: React.FC<{
     return (
         <div
             onClick={onSelect}
-            className="group bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden cursor-pointer"
+            className="group bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden cursor-pointer"
         >
             {/* Color accent */}
-            <div className="absolute top-0 left-0 w-2 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
+            <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
 
-            <div className="pl-4">
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
+            <div className="pl-3">
+                <div className="flex justify-between items-start mb-1">
+                    <div className="flex items-center gap-1.5">
                         {project.color && (
-                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
+                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
                         )}
-                        <span className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 truncate max-w-[120px]">
                             {project.clientName || project.client || '自社・個人'}
                         </span>
                     </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors">
-                            <Edit2 className="w-4 h-4" />
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors">
+                            <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors">
-                            <Trash2 className="w-4 h-4" />
+                        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1 truncate">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-0.5 truncate">
                     {project.name}
                 </h3>
 
-                <div className="flex items-center gap-4 mt-6 text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-3 mt-4 text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex flex-col">
-                        <span className="text-xs text-slate-400">目標粗利</span>
-                        <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
+                        <span className="text-[10px] text-slate-400">目標粗利</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
                             ¥{project.grossProfitTarget?.toLocaleString() ?? 0}
                         </span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xs text-slate-400">状態</span>
-                        <span className="capitalize">{project.judgmentStatus || '未分類'}</span>
+                        <span className="text-[10px] text-slate-400">状態</span>
+                        <span className="capitalize text-[11px]">{project.judgmentStatus || '未分類'}</span>
                     </div>
                 </div>
 
                 {/* Assignment Selector */}
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">担当:</span>
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400">担当:</span>
                         <select
                             value={project.assigned_to || ''}
                             onClick={(e) => e.stopPropagation()}
@@ -227,7 +227,7 @@ const ProjectCard: React.FC<{
                                 e.stopPropagation();
                                 onAssign?.(e.target.value || null);
                             }}
-                            className="text-xs bg-slate-100 dark:bg-slate-700 border-none rounded px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-400"
+                            className="text-[10px] bg-slate-100 dark:bg-slate-700 border-none rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-400"
                         >
                             <option value="">未割当</option>
                             {members.map(m => (
@@ -237,7 +237,7 @@ const ProjectCard: React.FC<{
                     </div>
                     {project.assigned_to && (
                         <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] text-white font-bold"
                             style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
                             title={members.find(m => m.id === project.assigned_to)?.name}
                         >

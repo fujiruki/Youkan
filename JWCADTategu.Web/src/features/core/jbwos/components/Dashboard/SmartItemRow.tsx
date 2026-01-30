@@ -84,30 +84,38 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
             </div>
 
             {/* Metadata (Tenant, Due, Time) */}
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto mr-1">
-                {/* Tenant Badge (Badge style) */}
+            <div className="flex items-center flex-shrink-0 ml-auto mr-1 gap-1">
+                {/* Tenant Badge */}
                 {item.tenantName && !item.tenantId?.startsWith('p_') && (
-                    <span className="hidden lg:inline-block text-[8px] px-1 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-sm border border-slate-100 dark:border-slate-700 truncate max-w-[50px]">
+                    <span className="hidden xl:inline-block text-[8px] px-1 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-sm border border-slate-100 dark:border-slate-700 truncate max-w-[40px]">
                         {item.tenantName}
                     </span>
                 )}
 
-                {/* Due Date */}
-                {item.due_date && (
-                    <span className={cn(
-                        "text-[10px] font-bold whitespace-nowrap",
-                        new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
-                    )}>
-                        {format(new Date(item.due_date), 'M/d')}
-                    </span>
-                )}
+                {/* Due Date - Fixed width to align vertically */}
+                <div className="w-8 flex justify-center">
+                    {item.due_date ? (
+                        <span className={cn(
+                            "text-[10px] font-bold whitespace-nowrap",
+                            new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
+                        )}>
+                            {format(new Date(item.due_date), 'M/d')}
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-slate-200 dark:text-slate-800 text-center">-</span>
+                    )}
+                </div>
 
-                {/* Estimated Time */}
-                {item.estimatedMinutes ? (
-                    <span className="text-[10px] font-mono text-slate-300 dark:text-slate-600 whitespace-nowrap group-hover:text-slate-500 transition-colors">
-                        {item.estimatedMinutes}m
-                    </span>
-                ) : null}
+                {/* Estimated Time - Fixed width to align vertically */}
+                <div className="w-10 flex justify-end">
+                    {item.estimatedMinutes ? (
+                        <span className="text-[10px] font-mono text-slate-300 dark:text-slate-600 whitespace-nowrap group-hover:text-slate-500 transition-colors">
+                            {item.estimatedMinutes}m
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-slate-200 dark:text-slate-800">-</span>
+                    )}
+                </div>
             </div>
 
             {/* Actions (Hover only) */}

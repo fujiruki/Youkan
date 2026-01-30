@@ -509,73 +509,70 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
 
     return (
         <div className="w-full h-full flex flex-col bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-            {/* Header / Weekdays */}
-            <div className="flex-none flex border-b border-slate-200 dark:border-slate-800">
-                <div className="w-48 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-400 uppercase">
-                    アイテム名
-                </div>
-                <div className="flex-1 overflow-x-auto scrollbar-hide flex">
-                    {allDays.map(date => {
-                        const isMon = date.getDay() === 1;
-                        return (
-                            <div key={date.toDateString()} className={cn(
-                                "w-6 flex-shrink-0 text-center py-1 border-r border-slate-100 dark:border-slate-800 text-[8px] font-mono",
-                                isMon ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold" : "text-slate-300"
-                            )}>
-                                {isMon ? format(date, 'MM/dd') : date.getDate()}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Scrollable Area */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Fixed Labels */}
-                <div className="w-48 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-800 overflow-y-auto scrollbar-hide">
-                    {sortedItems.map(item => (
-                        <div
-                            key={item.id}
-                            className={cn(
-                                "px-2 truncate transition-all flex items-center border-b border-transparent",
-                                hoveredItemId === item.id ? "h-6 bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200" : "h-[9px] text-[8px] text-slate-400 group-hover:bg-slate-100"
-                            )}
-                            onMouseEnter={() => setHoveredItemId(item.id)}
-                            onMouseLeave={() => setHoveredItemId(null)}
-                            onClick={() => onItemClick(item)}
-                        >
-                            {item.title}
+            {/* Unified Scrollable Container */}
+            <div className="flex-1 overflow-auto scrollbar-thin relative select-none">
+                <div className="min-w-max">
+                    {/* Header - Sticky top for vertical scrolling */}
+                    <div className="sticky top-0 z-[30] flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                        {/* Corner - Sticky left and top */}
+                        <div className="sticky left-0 z-[40] w-48 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-400 uppercase">
+                            アイテム名
                         </div>
-                    ))}
-                </div>
+                        {/* Day Header */}
+                        <div className="flex">
+                            {allDays.map(date => {
+                                const isMon = date.getDay() === 1;
+                                return (
+                                    <div key={date.toDateString()} className={cn(
+                                        "w-6 flex-shrink-0 text-center py-1 border-r border-slate-100 dark:border-slate-800 text-[8px] font-mono",
+                                        isMon ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold" : "text-slate-300"
+                                    )}>
+                                        {isMon ? format(date, 'MM/dd') : date.getDate()}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                {/* Grid / Bars */}
-                <div className="flex-1 overflow-auto scrollbar-thin">
-                    <div className="relative min-w-max">
-                        {sortedItems.map(item => {
-                            // Commmit Period Calculation
-                            const myDeadline = item.prep_date ? new Date(item.prep_date * 1000) : (item.due_date ? new Date(item.due_date) : null);
-                            const workDays = item.work_days || Math.ceil((item.estimatedMinutes || 0) / 480) || 1;
+                    {/* Body */}
+                    {sortedItems.map(item => {
+                        // Commmit Period Calculation
+                        const myDeadline = item.prep_date ? new Date(item.prep_date * 1000) : (item.due_date ? new Date(item.due_date) : null);
+                        const workDays = item.work_days || Math.ceil((item.estimatedMinutes || 0) / 480) || 1;
 
-                            const commitStart = myDeadline ? new Date(myDeadline) : null;
-                            if (commitStart) {
-                                // Backtrack workDays skipping holidays
-                                let c = 0;
-                                let safety = 0;
-                                while (c < workDays && safety < 60) {
-                                    safety++;
-                                    if (!isHoliday(commitStart, safeConfig)) {
-                                        c++;
-                                    }
-                                    if (c < workDays) commitStart.setDate(commitStart.getDate() - 1);
+                        const commitStart = myDeadline ? new Date(myDeadline) : null;
+                        if (commitStart) {
+                            // Backtrack workDays skipping holidays
+                            let c = 0;
+                            let safety = 0;
+                            while (c < workDays && safety < 60) {
+                                safety++;
+                                if (!isHoliday(commitStart, safeConfig)) {
+                                    c++;
                                 }
+                                if (c < workDays) commitStart.setDate(commitStart.getDate() - 1);
                             }
+                        }
 
-                            return (
+                        return (
+                            <div key={item.id} className="flex border-b border-slate-50 dark:border-slate-800/20 group transition-all">
+                                {/* Fixed Label - Sticky left */}
                                 <div
-                                    key={item.id}
                                     className={cn(
-                                        "flex group transition-all relative border-b border-slate-50 dark:border-slate-800/20",
+                                        "sticky left-0 z-[10] w-48 flex-shrink-0 bg-slate-50/90 dark:bg-slate-900/90 border-r border-slate-200 dark:border-slate-800 px-2 truncate flex items-center shadow-[2px_0_5px_rgba(0,0,0,0.02)]",
+                                        hoveredItemId === item.id ? "h-6 text-xs font-bold text-indigo-600 dark:text-indigo-400" : "h-[9px] text-[8px] text-slate-400"
+                                    )}
+                                    onMouseEnter={() => setHoveredItemId(item.id)}
+                                    onMouseLeave={() => setHoveredItemId(null)}
+                                    onClick={() => onItemClick(item)}
+                                >
+                                    {item.title}
+                                </div>
+
+                                {/* Bars Area */}
+                                <div
+                                    className={cn(
+                                        "flex relative transition-all",
                                         hoveredItemId === item.id ? "h-6 bg-indigo-50/20 dark:bg-indigo-900/10" : "h-[9px]"
                                     )}
                                     onMouseEnter={() => setHoveredItemId(item.id)}
@@ -611,7 +608,7 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
 
                                                 {/* Due Date Marker */}
                                                 {isDue && (
-                                                    <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600 dark:bg-red-400 z-10 shadow-[0_0_8px_rgba(220,38,38,0.5)]">
+                                                    <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600 dark:bg-red-400 z-[5] shadow-[0_0_8px_rgba(220,38,38,0.5)]">
                                                         <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full bg-red-600 dark:bg-red-400" />
                                                     </div>
                                                 )}
@@ -619,9 +616,9 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         );
                                     })}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

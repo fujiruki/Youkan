@@ -4,7 +4,7 @@ import { Project as LocalProject } from '../../../../db/db';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
-import { Clock, Users, ChevronDown, ChevronRight, Plus, BarChart2, Briefcase } from 'lucide-react';
+import { Clock, Users, ChevronDown, ChevronRight, Plus, BarChart2, Briefcase, Trash2 } from 'lucide-react';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { HeaderProgressBar } from '../components/Dashboard/HeaderProgressBar';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
@@ -272,7 +272,19 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             y={contextMenu.y}
                             itemId={contextMenu.itemId}
                             onClose={() => setContextMenu(null)}
-                            onDelete={async (id) => { if (confirm('削除しますか?')) { await deleteItem(id); handleRefresh(); } }}
+                            actions={[
+                                {
+                                    label: '今日やる (Intent)',
+                                    icon: <Clock size={14} className="text-amber-500" />,
+                                    onClick: () => handleSetIntent(contextMenu.itemId, true)
+                                },
+                                {
+                                    label: '削除',
+                                    icon: <Trash2 size={14} className="text-red-500" />,
+                                    danger: true,
+                                    onClick: () => { deleteItem(contextMenu.itemId); handleRefresh(); }
+                                }
+                            ]}
                         />
                     )}
 

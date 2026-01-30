@@ -112,7 +112,7 @@ class ProjectController extends BaseController {
         // Auth Check
         $itemTenantId = (string)($item['tenant_id'] ?? '');
         if ($itemTenantId !== '') {
-            if ($itemTenantId != (string)$this->currentTenantId) {
+            if (!in_array($itemTenantId, $this->joinedTenants)) {
                 $this->sendError(403, 'Access Denied (Company Mismatch)');
             }
         } else {
@@ -193,7 +193,7 @@ class ProjectController extends BaseController {
         // Auth Logic same as show (simplified)
         $itemTenantId = (string)($item['tenant_id'] ?? '');
         if ($itemTenantId !== '') {
-            if ($itemTenantId != (string)$this->currentTenantId) {
+            if (!in_array($itemTenantId, $this->joinedTenants)) {
                 $this->sendError(403, 'Access Denied');
             }
         } else {
@@ -246,15 +246,24 @@ class ProjectController extends BaseController {
     }
 
     private function delete($id) {
-        // Access Check Omitted for brevity, assume similar to update
-        // We should verify project_type IS NOT NULL to avoid deleting tasks via this API?
-        // Or just allow it.
-        $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ? AND (tenant_id = ? OR (tenant_id IS NULL AND created_by = ?))");
-        $stmt->execute([$id, $this->currentTenantId, $this->currentUserId]);
+        // Access Check
+        $tenantIds = $this->joinedTenants;
+        if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
         
-        if ($stmt->rowCount() === 0) {
+        $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        $sql = "SELECT * FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR (tenant_id IS NULL AND created_by = ?))";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(array_merge([$id], $tenantIds, [$this->currentUserId]));
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
             $this->sendError(404, 'Project not found or denied');
         }
+
+        // Delete project item (cascade depends on DB, but usually we just delete the row)
+        $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ?");
+        $stmt->execute([$id]);
+        
         $this->sendJSON(['success' => true]);
     }
 
