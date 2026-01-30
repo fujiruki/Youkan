@@ -43,8 +43,8 @@ export const LoginScreen: React.FC = () => {
                             type="button"
                             onClick={() => setActiveTab('user')}
                             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md transition-all ${activeTab === 'user'
-                                    ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                                 }`}
                         >
                             <User size={16} />
@@ -54,8 +54,8 @@ export const LoginScreen: React.FC = () => {
                             type="button"
                             onClick={() => setActiveTab('tenant')}
                             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-md transition-all ${activeTab === 'tenant'
-                                    ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-white'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                                 }`}
                         >
                             <Building2 size={16} />
@@ -116,14 +116,22 @@ export const LoginScreen: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                    <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-2">
                         <button
                             type="button"
-                            onClick={debugLogin}
-                            className="w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center justify-center gap-2"
+                            onClick={() => debugLogin('tenant')}
+                            className="w-full text-center text-[10px] text-slate-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2 py-1 px-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/10"
                         >
-                            <span className="p-1 bg-slate-100 dark:bg-slate-700 rounded">🛠</span>
-                            <span>Debug Login (Dev Mode)</span>
+                            <span className="p-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[8px]">🏢</span>
+                            <span>デバッグ用会社アカウントとしてログイン</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => debugLogin('user')}
+                            className="w-full text-center text-[10px] text-slate-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2 py-1 px-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/10"
+                        >
+                            <span className="p-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[8px]">👤</span>
+                            <span>デバッグ用ユーザーアカウントとしてログイン</span>
                         </button>
                     </div>
                 </div>

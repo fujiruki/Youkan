@@ -131,8 +131,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (displayMode === 'gantt' || displayMode === 'timeline') {
             cellWidth = 24;
             if (displayMode === 'gantt') {
-                // [NEW] 3 days from left (offset = -3)
-                offsetDays = -3;
+                // [NEW] Monday of this week at 3rd column (index 2 -> offset -2)
+                targetDate = getStartOfWeek(today);
+                offsetDays = -2;
             } else {
                 // 'timeline' -> Start of current week
                 targetDate = getStartOfWeek(today);

@@ -70,22 +70,32 @@ export const useLoginViewModel = () => {
     const clearError = () => setError(null);
 
     // Keep debug login for verification
-    const debugLogin = () => {
+    const debugLogin = (type: 'user' | 'tenant' = 'user') => {
         setIsLoading(true);
+        const isTenant = type === 'tenant';
+
         const dummyUser = {
-            id: 'debug-user-001',
-            name: 'Debug User',
-            email: 'debug@example.com'
-        };
-        const dummyTenant = {
-            id: 'debug-tenant-001',
-            name: '株式会社 デバッグ建具',
-            role: 'admin',
-            config: { plugins: { manufacturing: true, tategu: true } } // Debug with plugins
+            id: 'debug-user-fjt',
+            name: '藤田ローカル',
+            email: 'fjt.suntree@gmail.com'
         };
 
+        const dummyTenant = isTenant ? {
+            id: 'debug-tenant-dbg',
+            name: 'デバッグ社',
+            role: 'admin',
+            config: { plugins: { manufacturing: true, tategu: true } }
+        } : null;
+
         localStorage.setItem('jbwos_user', JSON.stringify(dummyUser));
-        localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
+
+        if (dummyTenant) {
+            localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
+            localStorage.setItem('jbwos_account_type', 'tenant');
+        } else {
+            localStorage.removeItem('jbwos_tenant');
+            localStorage.setItem('jbwos_account_type', 'user');
+        }
 
         // [FIX] Inject Token for AuthProvider
         localStorage.setItem('jbwos_token', 'mock-debug-token');
