@@ -165,6 +165,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 items={allItemsForCalendar}
                                 onItemClick={setSelectedItem}
                                 filterMode={filterMode}
+                                displayMode="timeline"
                             />
                         ) : (
                             <JbwosBoard

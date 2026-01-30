@@ -8,6 +8,8 @@ import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
+export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
+
 interface RyokanCalendarProps {
     items: Item[];
     onItemClick: (item: Item) => void;
@@ -15,6 +17,7 @@ interface RyokanCalendarProps {
 
     // UI Options
     layoutMode?: 'panorama' | 'mini';
+    displayMode?: RyokanDisplayMode; // [NEW]
     filterMode?: FilterMode;
 
     // External Volume Mapping
@@ -60,6 +63,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     onItemClick,
     capacityConfig,
     layoutMode = 'panorama',
+    displayMode: propDisplayMode,
     filterMode = 'all',
     externalVolumeMap,
     intensityScale = 15,
@@ -67,6 +71,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     selectedDate: propSelectedDate,
     prepDate: propPrepDate
 }) => {
+    const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || (layoutMode === 'mini' ? 'timeline' : 'grid'));
     const today = getStartOfToday();
     const isMini = layoutMode === 'mini';
     const containerRef = useRef<HTMLDivElement>(null);
@@ -159,7 +164,129 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         return map;
     }, [items, safeConfig]);
 
+    // ViewDispatcher にロジックを委譲。メインのステートは props または共通の計算結果から取得
+
+    return (
+        <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")} ref={containerRef}>
+            {/* Mode Switcher (Visible in Full View) */}
+            {!isMini && (
+                <div className="flex-none px-4 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 mr-2">表示モード:</span>
+                        {[
+                            { id: 'grid', label: 'グリッド', icon: '📅' },
+                            { id: 'timeline', label: 'タイムライン', icon: '↔️' },
+                            { id: 'gantt', label: 'ガント', icon: '📊' }
+                        ].map(mode => (
+                            <button
+                                key={mode.id}
+                                onClick={() => setDisplayMode(mode.id as RyokanDisplayMode)}
+                                className={cn(
+                                    "px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-1",
+                                    displayMode === mode.id
+                                        ? "bg-indigo-500 text-white shadow-md"
+                                        : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-300"
+                                )}
+                            >
+                                <span>{mode.icon}</span>
+                                <span>{mode.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* View Dispatcher */}
+            <div className="flex-1 overflow-hidden relative">
+                {displayMode === 'timeline' && (
+                    <RyokanTimelineView
+                        allDays={allDays}
+                        itemsByDate={itemsByDate}
+                        signsMap={signsMap}
+                        heatMap={heatMap}
+                        today={today}
+                        selectedDate={propSelectedDate}
+                        prepDate={propPrepDate}
+                        intensityScale={intensityScale}
+                        isMini={isMini}
+                        flashingItemIds={flashingItemIds}
+                        pressureConnections={pressureConnections}
+                        onItemClick={onItemClick}
+                        onSelectDate={onSelectDate}
+                        setPressureConnections={setPressureConnections}
+                        setFlashingItemIds={setFlashingItemIds}
+                        setSelectedSigns={setSelectedSigns}
+                        safeConfig={safeConfig}
+                    />
+                )}
+                {displayMode === 'grid' && (
+                    <RyokanGridView
+                        allDays={allDays}
+                        itemsByDate={itemsByDate}
+                        heatMap={heatMap}
+                        today={today}
+                        onItemClick={onItemClick}
+                        safeConfig={safeConfig}
+                    />
+                )}
+                {displayMode === 'gantt' && (
+                    <RyokanGanttView
+                        allDays={allDays}
+                        items={items}
+                        heatMap={heatMap}
+                        today={today}
+                        onItemClick={onItemClick}
+                        safeConfig={safeConfig}
+                    />
+                )}
+            </div>
+
+            {/* Modal for detail view */}
+            {selectedSigns.length > 0 && !onSelectDate && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSigns([])}>
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">この期間の気配</h3>
+                        <div className="space-y-2">
+                            {selectedSigns.map(s => (
+                                <div key={s.id} onClick={() => { onItemClick(s); setSelectedSigns([]); }} className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-bold">{s.title}</div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+interface TimelineViewProps {
+    allDays: Date[];
+    itemsByDate: Map<string, Item[]>;
+    signsMap: Map<string, Item[]>;
+    heatMap: Map<string, number>;
+    today: Date;
+    selectedDate: Date | null | undefined;
+    prepDate: Date | null | undefined;
+    intensityScale: number;
+    isMini: boolean;
+    flashingItemIds: Set<string>;
+    pressureConnections: PressureConnection[];
+    onItemClick: (item: Item) => void;
+    onSelectDate?: (date: Date) => void;
+    setPressureConnections: (conns: PressureConnection[]) => void;
+    setFlashingItemIds: (ids: Set<string>) => void;
+    setSelectedSigns: (items: Item[]) => void;
+    safeConfig: any;
+}
+
+const RyokanTimelineView: React.FC<TimelineViewProps> = ({
+    allDays, itemsByDate, signsMap, heatMap, today,
+    selectedDate, prepDate, intensityScale, isMini,
+    flashingItemIds, pressureConnections, onItemClick, onSelectDate,
+    setPressureConnections, setFlashingItemIds, setSelectedSigns, safeConfig
+}) => {
     const todayRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         if (todayRef.current) {
             todayRef.current.scrollIntoView({ inline: 'center', block: 'center', behavior: 'auto' });
@@ -207,7 +334,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     };
 
     return (
-        <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")} ref={containerRef}>
+        <div className="w-full h-full relative overflow-hidden" ref={containerRef}>
             {/* SVG Layer for Pressure Lines */}
             {!isMini && (
                 <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
@@ -230,8 +357,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                 </svg>
             )}
 
-            {/* Continuous Stream Flow */}
-            <div className={cn("flex-1 overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")}>
+            <div className={cn("flex-1 h-full overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")}>
                 <div className={cn("flex min-w-max h-full", isMini ? "flex-col w-full" : "flex-row")}>
                     {allDays.map(date => {
                         const dateKey = date.toDateString();
@@ -241,8 +367,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         const isFirst = date.getDate() === 1;
                         const volume = heatMap.get(dateKey) || 0;
                         const intensity = Math.min(volume * intensityScale, 60);
-                        const isS = propSelectedDate ? isSameDate(date, propSelectedDate) : false;
-                        const isP = propPrepDate ? isSameDate(date, propPrepDate) : false;
+                        const isS = selectedDate ? isSameDate(date, selectedDate) : false;
+                        const isP = prepDate ? isSameDate(date, prepDate) : false;
 
                         return (
                             <CalendarCell
@@ -266,20 +392,259 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                     })}
                 </div>
             </div>
+        </div>
+    );
+};
 
-            {/* Modal for detail view in Panorama Mode */}
-            {selectedSigns.length > 0 && !onSelectDate && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSigns([])}>
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">この期間の気配</h3>
-                        <div className="space-y-2">
-                            {selectedSigns.map(s => (
-                                <div key={s.id} onClick={() => { onItemClick(s); setSelectedSigns([]); }} className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-bold">{s.title}</div>
-                            ))}
+interface GridViewProps {
+    allDays: Date[];
+    itemsByDate: Map<string, Item[]>;
+    heatMap: Map<string, number>;
+    today: Date;
+    onItemClick: (item: Item) => void;
+    safeConfig: any;
+}
+
+const RyokanGridView: React.FC<GridViewProps> = ({
+    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig
+}) => {
+    // 7 columns fixed
+    const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
+
+    return (
+        <div className="w-full h-full overflow-y-auto p-4 bg-white dark:bg-slate-900 select-none">
+            <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
+                {/* Header */}
+                {weekDays.map(d => (
+                    <div key={d} className="bg-slate-100 dark:bg-slate-800 p-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter border-b border-slate-200 dark:border-slate-700">
+                        {d}
+                    </div>
+                ))}
+
+                {/* Days */}
+                {allDays.map(date => {
+                    const dateKey = date.toDateString();
+                    const dayItems = itemsByDate.get(dateKey) || [];
+                    const isToday = isSameDate(date, today);
+                    const volume = heatMap.get(dateKey) || 0;
+                    const intensity = Math.min(volume * 15, 60);
+                    const isHol = isHoliday(date, safeConfig);
+
+                    return (
+                        <div
+                            key={dateKey}
+                            className={cn(
+                                "min-h-[100px] p-1 relative flex flex-col group transition-colors",
+                                isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            )}
+                        >
+                            {/* Heatmap Layer */}
+                            <div
+                                className="absolute inset-0 bg-amber-500/30 dark:bg-amber-400/20 pointer-events-none transition-opacity"
+                                style={{ opacity: intensity / 100 }}
+                            />
+
+                            <div className="relative z-10 flex justify-between items-start mb-1">
+                                <span className={cn(
+                                    "text-xs font-mono font-bold",
+                                    isToday ? "bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center -mt-0.5" : "text-slate-400"
+                                )}>
+                                    {date.getDate()}
+                                </span>
+                                {date.getDate() === 1 && (
+                                    <span className="text-[10px] font-bold text-indigo-400 uppercase">
+                                        {format(date, 'MMM')}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="relative z-10 space-y-1">
+                                {dayItems.slice(0, 4).map(item => (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => onItemClick(item)}
+                                        className="px-1.5 py-0.5 bg-red-50 dark:bg-red-900/30 border-l-2 border-red-500 text-[10px] font-bold text-red-900 dark:text-red-200 rounded-sm truncate cursor-pointer hover:shadow-sm transition-shadow"
+                                        title={item.title}
+                                    >
+                                        {item.title}
+                                    </div>
+                                ))}
+                                {dayItems.length > 4 && (
+                                    <div className="text-[9px] text-slate-400 font-bold pl-1">
+                                        +{dayItems.length - 4} items
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+
+interface GanttViewProps {
+    allDays: Date[];
+    items: Item[];
+    heatMap: Map<string, number>;
+    today: Date;
+    onItemClick: (item: Item) => void;
+    safeConfig: any;
+}
+
+const RyokanGanttView: React.FC<GanttViewProps> = ({
+    allDays, items, heatMap, today, onItemClick, safeConfig
+}) => {
+    const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+
+    // Sort items by due date (default)
+    const sortedItems = useMemo(() => {
+        return [...items].sort((a, b) => {
+            const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+            const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+            return da - db;
+        });
+    }, [items]);
+
+    return (
+        <div className="w-full h-full flex flex-col bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+            {/* Header / Weekdays */}
+            <div className="flex-none flex border-b border-slate-200 dark:border-slate-800">
+                <div className="w-48 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-400 uppercase">
+                    アイテム名
+                </div>
+                <div className="flex-1 overflow-x-auto scrollbar-hide flex">
+                    {allDays.map(date => {
+                        const isMon = date.getDay() === 1;
+                        return (
+                            <div key={date.toDateString()} className={cn(
+                                "w-6 flex-shrink-0 text-center py-1 border-r border-slate-100 dark:border-slate-800 text-[8px] font-mono",
+                                isMon ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold" : "text-slate-300"
+                            )}>
+                                {isMon ? format(date, 'MM/dd') : date.getDate()}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Scrollable Area */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Fixed Labels */}
+                <div className="w-48 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-800 overflow-y-auto scrollbar-hide">
+                    {sortedItems.map(item => (
+                        <div
+                            key={item.id}
+                            className={cn(
+                                "px-2 truncate transition-all flex items-center border-b border-transparent",
+                                hoveredItemId === item.id ? "h-6 bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200" : "h-[9px] text-[8px] text-slate-400 group-hover:bg-slate-100"
+                            )}
+                            onMouseEnter={() => setHoveredItemId(item.id)}
+                            onMouseLeave={() => setHoveredItemId(null)}
+                            onClick={() => onItemClick(item)}
+                        >
+                            {item.title}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Grid / Bars */}
+                <div className="flex-1 overflow-auto scrollbar-thin">
+                    <div className="relative min-w-max">
+                        {sortedItems.map(item => {
+                            // Commmit Period Calculation
+                            const myDeadline = item.prep_date ? new Date(item.prep_date * 1000) : (item.due_date ? new Date(item.due_date) : null);
+                            const workDays = item.work_days || Math.ceil((item.estimatedMinutes || 0) / 480) || 1;
+
+                            const commitStart = myDeadline ? new Date(myDeadline) : null;
+                            if (commitStart) {
+                                // Backtrack workDays skipping holidays
+                                let c = 0;
+                                let safety = 0;
+                                while (c < workDays && safety < 60) {
+                                    safety++;
+                                    if (!isHoliday(commitStart, safeConfig)) {
+                                        c++;
+                                    }
+                                    if (c < workDays) commitStart.setDate(commitStart.getDate() - 1);
+                                }
+                            }
+
+                            return (
+                                <div
+                                    key={item.id}
+                                    className={cn(
+                                        "flex group transition-all relative border-b border-slate-50 dark:border-slate-800/20",
+                                        hoveredItemId === item.id ? "h-6 bg-indigo-50/20 dark:bg-indigo-900/10" : "h-[9px]"
+                                    )}
+                                    onMouseEnter={() => setHoveredItemId(item.id)}
+                                    onMouseLeave={() => setHoveredItemId(null)}
+                                >
+                                    {allDays.map(date => {
+                                        const dateKey = date.toDateString();
+                                        const isToday = isSameDate(date, today);
+                                        const vol = heatMap.get(dateKey) || 0;
+                                        const intensity = Math.min(vol * 15, 60);
+
+                                        // Check if date is in commit period
+                                        const isCommit = commitStart && myDeadline && date >= commitStart && date <= myDeadline && !isHoliday(date, safeConfig);
+
+                                        // Due Date Marker
+                                        const isDue = item.due_date && isSameDate(date, new Date(item.due_date));
+
+                                        return (
+                                            <div key={dateKey} className={cn(
+                                                "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative",
+                                                isToday ? "bg-blue-50/10" : ""
+                                            )}>
+                                                {/* Daily Heatmap (Atmosphere) */}
+                                                <div className="absolute inset-0 bg-amber-400/10" style={{ opacity: intensity / 100 }} />
+
+                                                {/* Commit Period Bar */}
+                                                {isCommit && (
+                                                    <div className={cn(
+                                                        "absolute inset-y-1 left-0 right-0 bg-red-400 dark:bg-red-500 rounded-sm shadow-sm",
+                                                        hoveredItemId === item.id ? "opacity-100" : "opacity-60"
+                                                    )} />
+                                                )}
+
+                                                {/* Due Date Marker */}
+                                                {isDue && (
+                                                    <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600 dark:bg-red-400 z-10 shadow-[0_0_8px_rgba(220,38,38,0.5)]">
+                                                        <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full bg-red-600 dark:bg-red-400" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
+            </div>
+
+            {/* Legend / Info */}
+            <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-bold">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-2 bg-red-400 rounded-sm" />
+                        <span>コミット期間</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-0.5 h-3 bg-red-600" />
+                        <span>納期マーカー</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-2 bg-amber-400/20" />
+                        <span>全体量感（背景ヒートマップ）</span>
+                    </div>
+                </div>
+                <div className="italic">
+                    ※行をホバーすると詳細を確認できます
+                </div>
+            </div>
         </div>
     );
 };
