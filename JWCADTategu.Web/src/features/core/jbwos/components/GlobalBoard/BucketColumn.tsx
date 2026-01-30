@@ -19,6 +19,7 @@ interface BucketColumnProps {
     onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
     inputRef?: React.RefObject<HTMLInputElement>;
     isCompact?: boolean; // [NEW] Super Compact Mode
+    rowHeight?: number; // [NEW]
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -34,6 +35,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     onClickItem, // [NEW]
     onCreateSubTask, // [NEW]
     isCompact = false, // [NEW]
+    rowHeight = 12
 }) => {
     const MAX_VISIBLE = 5;
     const [expanded, setExpanded] = React.useState(false);
@@ -149,6 +151,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                     isCompact={isCompact}
                                     depth={depth} // [NEW] Pass depth
                                     onCreateSubTask={onCreateSubTask} // [NEW] Connect function
+                                    rowHeight={rowHeight} // [FIX] Required for density sync
                                 />
                             ))}
                         </SortableContext>

@@ -69,6 +69,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         throwIn
     } = vm;
 
+    const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
+        const saved = localStorage.getItem('jbwos_gantt_row_height');
+        return saved ? parseInt(saved, 10) : 12;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_gantt_row_height', ganttRowHeight.toString());
+    }, [ganttRowHeight]);
+
     const queueItems = [...todayCommits, ...todayCandidates];
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -143,22 +152,46 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 isProjectContext={!!activeProject}
             />
 
+            {/* Unified Local Header */}
+            <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-between items-center shadow-sm z-10">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Focus</button>
+                    <button onClick={() => handleViewModeChange('panorama')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Panorama</button>
+                    <button onClick={() => handleViewModeChange('calendar')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Calendar</button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {/* Row Height Slider (Only for Gantt views) */}
+                    {(viewMode === 'calendar' || viewMode === 'panorama') && (
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-right-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
+                            <input
+                                type="range"
+                                min="12"
+                                max="32"
+                                value={ganttRowHeight}
+                                onChange={(e) => setGanttRowHeight(parseInt(e.target.value))}
+                                className="w-16 h-1 accent-blue-500 cursor-pointer"
+                            />
+                            <span className="text-[10px] font-mono text-slate-500 w-4">{ganttRowHeight}</span>
+                        </div>
+                    )}
+
+                    {activeProject && (
+                        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+                            <Briefcase size={12} className="text-blue-500" />
+                            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.name}</span>
+                        </div>
+                    )}
+
+                    <button onClick={() => setIsProjectModalOpen(true)} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-sm flex items-center gap-1 transition-colors">
+                        <Plus size={14} strokeWidth={3} />プロジェクト
+                    </button>
+                </div>
+            </header>
+
             {(viewMode === 'calendar' || viewMode === 'panorama') ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <header className="flex-none bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-center shadow-sm z-10">
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
-                            <button onClick={() => handleViewModeChange('stream')} className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-md hover:bg-white/50 transition-all">Focus</button>
-                            <button onClick={() => handleViewModeChange('panorama')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white shadow-sm text-slate-700 font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Panorama</button>
-                            <button onClick={() => handleViewModeChange('calendar')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-slate-700 font-bold' : 'text-slate-500 hover:bg-white/50'}`}>Calendar</button>
-                        </div>
-                        {activeProject && (
-                            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
-                                <Briefcase size={12} className="text-blue-500" />
-                                <span className="text-[11px] font-bold text-blue-700">Project: {activeProject.name}</span>
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                            </div>
-                        )}
-                    </header>
                     <div className="flex-1 overflow-hidden">
                         {viewMode === 'calendar' ? (
                             <RyokanCalendar
@@ -166,12 +199,14 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 onItemClick={setSelectedItem}
                                 filterMode={filterMode}
                                 displayMode="timeline"
+                                rowHeight={ganttRowHeight}
                             />
                         ) : (
                             <JbwosBoard
                                 initialLayoutMode="panorama"
                                 onClose={() => handleViewModeChange('stream')}
                                 projectId={activeProject?.cloudId}
+                                rowHeight={ganttRowHeight}
                             />
                         )}
                     </div>

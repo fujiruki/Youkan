@@ -11,12 +11,13 @@ interface ItemCardProps {
     onClick?: (item: Item) => void;
     onRename?: (id: string, newTitle: string) => void;
     onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
-    isCompact?: boolean; // [NEW]
-    depth?: number; // [NEW]
-    onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
+    isCompact?: boolean;
+    depth?: number;
+    onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>;
+    rowHeight?: number;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onContextMenu, isCompact, depth = 0, onCreateSubTask }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onContextMenu, isCompact, depth = 0, onCreateSubTask, rowHeight = 12 }) => {
     const {
         attributes,
         listeners,
@@ -93,6 +94,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
         }
     };
 
+    const cardPadding = rowHeight <= 14 ? 'py-0.5 px-1' : (rowHeight >= 24 ? 'py-1.5 px-2.5' : 'py-1 px-1.5');
+
     return (
         <>
             <div
@@ -102,7 +105,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                 {...listeners}
                 className={cn(
                     "group relative flex items-start gap-1 rounded transition-all", // Clean layout (gap reduced 2->1)
-                    "px-1 py-0.5 mb-[2px]", // Extreme Minimal Padding and 2px Margin
+                    "mb-[2px]", // 2px Vertical Margin
+                    cardPadding,
                     "bg-white/40 dark:bg-slate-800/40 hover:bg-white hover:shadow-sm dark:hover:bg-slate-800", // Minimal borders
                     "border border-transparent hover:border-slate-100 dark:hover:border-slate-700", // Soft interactive border
                     item.interrupt && "bg-amber-50/80 dark:bg-amber-900/20",
@@ -142,7 +146,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 {/* Project Name (Muted Gray, No background) */}
                                 {item.projectTitle && (
                                     <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal max-w-[120px] truncate shrink-0 ml-1" title={item.projectTitle}>
-                                        {item.projectTitle}
+                                        {item.projectTitle.length > 4 ? `${item.projectTitle.substring(0, 4)}...` : item.projectTitle}
                                     </span>
                                 )}
                             </>
@@ -169,7 +173,6 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                     "flex items-center gap-1 text-[0.75em] font-medium px-1.5 py-0.5 rounded border",
                                     "text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800"
                                 )}>
-                                    <Calendar size={10} className="shrink-0" />
                                     <span className="whitespace-nowrap">
                                         {new Date(item.due_date).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' })}
                                     </span>
@@ -226,22 +229,24 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
             </div>
 
             {/* [NEW] Inline Sub-task Creator */}
-            {isAddingSubTask && (
-                <div
-                    style={{ marginLeft: `${(depth + 1) * 1.5}em` }}
-                    className="flex items-center gap-2 mb-1 px-2 py-1 animate-in fade-in slide-in-from-top-1"
-                >
-                    <span className="text-slate-400">↳</span>
-                    <input
-                        autoFocus
-                        value={subTaskTitle}
-                        onChange={(e) => setSubTaskTitle(e.target.value)}
-                        onKeyDown={handleSubTaskKeyDown}
-                        placeholder="小タスク名を入力..."
-                        className="flex-1 bg-transparent border-b border-indigo-300 dark:border-indigo-700 text-[0.8em] focus:outline-none p-0.5"
-                    />
-                </div>
-            )}
+            {
+                isAddingSubTask && (
+                    <div
+                        style={{ marginLeft: `${(depth + 1) * 1.5}em` }}
+                        className="flex items-center gap-2 mb-1 px-2 py-1 animate-in fade-in slide-in-from-top-1"
+                    >
+                        <span className="text-slate-400">↳</span>
+                        <input
+                            autoFocus
+                            value={subTaskTitle}
+                            onChange={(e) => setSubTaskTitle(e.target.value)}
+                            onKeyDown={handleSubTaskKeyDown}
+                            placeholder="小タスク名を入力..."
+                            className="flex-1 bg-transparent border-b border-indigo-300 dark:border-indigo-700 text-[0.8em] focus:outline-none p-0.5"
+                        />
+                    </div>
+                )
+            }
         </>
     );
 };

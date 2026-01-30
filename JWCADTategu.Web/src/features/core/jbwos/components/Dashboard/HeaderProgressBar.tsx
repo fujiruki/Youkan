@@ -87,7 +87,8 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
 
                     {/* Right: Filter Lens (Option 3 Implementation) - Hide if in project context */}
                     {!isProjectContext ? (
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+                            <span className="text-[9px] font-bold text-slate-400 px-2 uppercase tracking-tight">フィルタ:</span>
                             <FilterButton
                                 active={filterMode === 'all'}
                                 onClick={() => onFilterChange?.('all')}

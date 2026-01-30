@@ -28,6 +28,7 @@ interface RyokanCalendarProps {
     onSelectDate?: (date: Date) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
+    rowHeight?: number;
 }
 
 interface PressureConnection {
@@ -69,7 +70,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     intensityScale = 15,
     onSelectDate,
     selectedDate: propSelectedDate,
-    prepDate: propPrepDate
+    prepDate: propPrepDate,
+    rowHeight = 12
 }) => {
     const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || (layoutMode === 'mini' ? 'timeline' : 'grid'));
     const today = getStartOfToday();
@@ -115,6 +117,20 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (externalVolumeMap) return externalVolumeMap;
         return calculateDailyVolume(items, safeConfig, filterMode);
     }, [items, safeConfig, filterMode, externalVolumeMap]);
+
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to today (approx 3 days from left)
+    useEffect(() => {
+        if (scrollContainerRef.current && allDays.length > 0) {
+            const todayIndex = allDays.findIndex(d => isSameDate(d, today));
+            if (todayIndex !== -1) {
+                const cellWidth = 24; // w-6 = 24px
+                const scrollTarget = Math.max(0, (todayIndex - 3) * cellWidth);
+                scrollContainerRef.current.scrollLeft = scrollTarget;
+            }
+        }
+    }, [allDays, today]);
 
     const itemsByDate = useMemo(() => {
         const map = new Map<string, Item[]>();
@@ -237,6 +253,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         today={today}
                         onItemClick={onItemClick}
                         safeConfig={safeConfig}
+                        rowHeight={rowHeight}
                     />
                 )}
             </div>
@@ -491,10 +508,11 @@ interface GanttViewProps {
     today: Date;
     onItemClick: (item: Item) => void;
     safeConfig: any;
+    rowHeight: number;
 }
 
 const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap, today, onItemClick, safeConfig
+    allDays, items, heatMap, today, onItemClick, safeConfig, rowHeight
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
@@ -560,8 +578,9 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                 <div
                                     className={cn(
                                         "sticky left-0 z-[10] w-48 flex-shrink-0 bg-slate-50/90 dark:bg-slate-900/90 border-r border-slate-200 dark:border-slate-800 px-2 truncate flex items-center shadow-[2px_0_5px_rgba(0,0,0,0.02)]",
-                                        hoveredItemId === item.id ? "h-6 text-xs font-bold text-indigo-600 dark:text-indigo-400" : "h-[9px] text-[8px] text-slate-400"
+                                        hoveredItemId === item.id ? "text-xs font-bold text-indigo-600 dark:text-indigo-400" : "text-[8px] text-slate-400"
                                     )}
+                                    style={{ height: `${rowHeight}px` }}
                                     onMouseEnter={() => setHoveredItemId(item.id)}
                                     onMouseLeave={() => setHoveredItemId(null)}
                                     onClick={() => onItemClick(item)}
@@ -573,8 +592,9 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                 <div
                                     className={cn(
                                         "flex relative transition-all",
-                                        hoveredItemId === item.id ? "h-6 bg-indigo-50/20 dark:bg-indigo-900/10" : "h-[9px]"
+                                        hoveredItemId === item.id ? "bg-indigo-50/20 dark:bg-indigo-900/10" : ""
                                     )}
+                                    style={{ height: `${rowHeight}px` }}
                                     onMouseEnter={() => setHoveredItemId(item.id)}
                                     onMouseLeave={() => setHoveredItemId(null)}
                                 >

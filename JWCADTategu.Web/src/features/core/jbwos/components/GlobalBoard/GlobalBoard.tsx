@@ -18,14 +18,13 @@ import { GentleMessage } from './GentleMessage';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import {
     CheckCircle2, AlertCircle, FolderPlus,
-    LayoutList, LayoutGrid, Calendar, BookOpen, X, Trash2, Edit2
+    BookOpen, X, Trash2, Edit2
 } from 'lucide-react';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu';
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
-import { RyokanCalendar } from '../Calendar/RyokanCalendar';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
 
@@ -34,16 +33,15 @@ interface GlobalBoardProps {
     onClose?: () => void;
     initialLayoutMode?: 'standard' | 'panorama'; // [NEW]
     projectId?: string; // [NEW] Filter for specific project
+    rowHeight?: number; // [NEW] Display density
 }
 
-export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode, projectId }) => {
+export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutMode, projectId, rowHeight = 12 }) => {
     const vm = useJBWOSViewModel(projectId);
     const {
         gdbActive,
         gdbPreparation,
         gdbIntent,
-        todayCandidates,
-        todayCommits,
         ghostGdbCount,
         ghostTodayCount
     } = vm;
@@ -73,19 +71,15 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
     );
 
     // --- View Mode ---
-    const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
     // [NEW] Layout Mode for Board: 'standard' (Vertical) or 'panorama' (Grid)
     const [layoutMode, setLayoutMode] = useState<'standard' | 'panorama'>(initialLayoutMode || 'standard');
 
     // [NEW] URL Synchronization - Uses Vite base path for production compatibility
-    const switchLayoutMode = (mode: 'standard' | 'panorama') => {
-        setLayoutMode(mode);
-        // Get base path from Vite config (e.g., './' or '/contents/TateguDesignStudio/')
-        const basePath = import.meta.env.BASE_URL || '/';
-        const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        const path = mode === 'panorama' ? normalizedBase + 'JBWOS/Panorama' : normalizedBase + 'JBWOS/Focus';
-        window.history.pushState({ layoutMode: mode }, '', path);
-    };
+    useEffect(() => {
+        if (initialLayoutMode) {
+            setLayoutMode(initialLayoutMode);
+        }
+    }, [initialLayoutMode]);
 
     // [NEW] Column Count for Panorama Mode
     const [columnCount, setColumnCount] = useState<number>(() => {
@@ -409,36 +403,10 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
                         <span className="hidden md:inline">⚡ Today's Decision</span>
                         <span className="md:hidden">⚡</span>
 
-                        {/* Unified Tabs (Focus / Panorama / Calendar) */}
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1 ml-2 md:ml-4">
-                            <button
-                                onClick={() => { setViewMode('board'); switchLayoutMode('standard'); }}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'board' && layoutMode === 'standard' ? 'bg-white dark:bg-slate-600 shadow text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                                title="Focus View (Vertical)"
-                            >
-                                <LayoutList size={14} className="md:hidden" />
-                                <span className="hidden md:inline">Focus</span>
-                            </button>
-                            <button
-                                onClick={() => { setViewMode('board'); switchLayoutMode('panorama'); }}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'board' && layoutMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                                title="Panorama View (Grid)"
-                            >
-                                <LayoutGrid size={14} className="md:hidden" />
-                                <span className="hidden md:inline">Panorama</span>
-                            </button>
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}
-                                title="Calendar View"
-                            >
-                                <Calendar size={14} className="md:hidden" />
-                                <span className="hidden md:inline">Calendar</span>
-                            </button>
-                        </div>
+                        {/* Consistently using DashboardScreen's header for View Mode switching */}
 
                         {/* Density Slider (Panorama Only) */}
-                        {viewMode === 'board' && layoutMode === 'panorama' && (
+                        {layoutMode === 'panorama' && (
                             <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full animate-in fade-in slide-in-from-left-2">
                                 <span className="text-[10px] font-bold text-slate-400">密度</span>
                                 <input
@@ -483,125 +451,118 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({ onClose, initialLayoutM
 
                 {/* Main Content (Vertical Stack as "Desk" or Fluid Masonry) */}
                 <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 transition-colors duration-200">
-                    {viewMode === 'board' ? (
-                        <div className={layoutMode === 'panorama'
-                            ? `block columns-1 ${getColumnClass(columnCount)} gap-2 md:gap-4 p-1 md:p-4 h-full overflow-y-auto scrollbar-thin` // Reduced gap/padding for mobile
-                            : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin"
+                    <div className={layoutMode === 'panorama'
+                        ? `block columns-1 ${getColumnClass(columnCount)} gap-2 md:gap-4 p-1 md:p-4 h-full overflow-y-auto scrollbar-thin` // Reduced gap/padding for mobile
+                        : "max-w-4xl mx-auto w-full p-4 md:p-6 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin"
+                    }>
+
+                        {/* 1. Active Shelf (Today's Judgment) */}
+                        <section className={layoutMode === 'panorama'
+                            ? "mb-2 break-inside-avoid bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" // Dense: rounded-sm, mb-2
+                            : ""
                         }>
+                            <div>
+                                <BucketColumn
+                                    id="active"
+                                    title="【今日やるか決める (Inbox)】"
+                                    items={gdbActive}
+                                    description="ここにあるものを今日やるか決める"
+                                    className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
+                                    emptyMessage={<GentleMessage variant="inbox_clean" />}
+                                    onClickItem={(item) => setDetailItem(item)}
+                                    onContextMenu={handleContextMenu}
+                                    isCompact={layoutMode === 'panorama'}
+                                    rowHeight={rowHeight} // [NEW]
+                                    onCreateSubTask={vm.createSubTask} // [NEW]
+                                    footer={
+                                        <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+                                            <input
+                                                ref={inputRef}
+                                                type="text"
+                                                value={inputValue}
+                                                onChange={(e) => setInputValue(e.target.value)}
+                                                onKeyDown={handleInputKeyDown}
+                                                placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
+                                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
+                                            />
+                                        </form>
+                                    }
+                                />
+                            </div>
+                        </section>
 
-                            {/* 1. Active Shelf (Today's Judgment) */}
-                            <section className={layoutMode === 'panorama'
-                                ? "mb-2 break-inside-avoid bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" // Dense: rounded-sm, mb-2
-                                : ""
-                            }>
-                                <div>
-                                    <BucketColumn
-                                        id="active"
-                                        title="【今日やるか決める (Inbox)】"
-                                        items={gdbActive}
-                                        description="ここにあるものを今日やるか決める"
-                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
-                                        emptyMessage={<GentleMessage variant="inbox_clean" />}
-                                        onClickItem={(item) => setDetailItem(item)}
-                                        onContextMenu={handleContextMenu}
-                                        isCompact={layoutMode === 'panorama'}
-                                        onCreateSubTask={vm.createSubTask} // [NEW]
-                                        footer={
-                                            <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
-                                                <input
-                                                    ref={inputRef}
-                                                    type="text"
-                                                    value={inputValue}
-                                                    onChange={(e) => setInputValue(e.target.value)}
-                                                    onKeyDown={handleInputKeyDown}
-                                                    placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
-                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
-                                                />
-                                            </form>
-                                        }
-                                    />
-                                </div>
-                            </section>
+                        {/* 2. Waiting Shelf (External/Blocked) */}
+                        <section className={layoutMode === 'panorama'
+                            ? "mb-4 break-inside-avoid bg-slate-100/80 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
+                            : "opacity-90"
+                        }>
+                            <div>
+                                <BucketColumn
+                                    id="waiting"
+                                    title="【待ち (Waiting)】"
+                                    items={gdbPreparation} // Mapped to Waiting
+                                    description="他者や到着を待っている状態。"
+                                    className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
+                                    emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
+                                    onClickItem={(item) => setDetailItem(item)}
+                                    onContextMenu={handleContextMenu}
+                                    isCompact={layoutMode === 'panorama'}
+                                    rowHeight={rowHeight} // [NEW]
+                                    onCreateSubTask={vm.createSubTask}
+                                />
+                            </div>
+                        </section>
 
-                            {/* 2. Waiting Shelf (External/Blocked) */}
-                            <section className={layoutMode === 'panorama'
-                                ? "mb-4 break-inside-avoid bg-slate-100/80 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
-                                : "opacity-90"
-                            }>
-                                <div>
-                                    <BucketColumn
-                                        id="waiting"
-                                        title="【待ち (Waiting)】"
-                                        items={gdbPreparation} // Mapped to Waiting
-                                        description="他者や到着を待っている状態。"
-                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
-                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
-                                        onClickItem={(item) => setDetailItem(item)}
-                                        onContextMenu={handleContextMenu}
-                                        isCompact={layoutMode === 'panorama'}
-                                        onCreateSubTask={vm.createSubTask}
-                                    />
-                                </div>
-                            </section>
+                        {/* 3. Pending Shelf (The "Shelf") */}
+                        <section className={layoutMode === 'panorama'
+                            ? "mb-4 break-inside-avoid bg-amber-50/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+                            : "opacity-80"
+                        }>
+                            <div>
+                                <BucketColumn
+                                    id="pending"
+                                    title="【保留 (Pending)】"
+                                    items={gdbIntent} // Mapped to Pending
+                                    description="今はやらないと決めたもの（棚）。"
+                                    className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
+                                    emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
+                                    onClickItem={(item) => setDetailItem(item)}
+                                    onContextMenu={handleContextMenu}
+                                    isCompact={layoutMode === 'panorama'}
+                                    rowHeight={rowHeight} // [NEW]
+                                    onCreateSubTask={vm.createSubTask}
+                                />
+                            </div>
+                        </section>
 
-                            {/* 3. Pending Shelf (The "Shelf") */}
-                            <section className={layoutMode === 'panorama'
-                                ? "mb-4 break-inside-avoid bg-amber-50/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
-                                : "opacity-80"
-                            }>
-                                <div>
-                                    <BucketColumn
-                                        id="pending"
-                                        title="【保留 (Pending)】"
-                                        items={gdbIntent} // Mapped to Pending
-                                        description="今はやらないと決めたもの（棚）。"
-                                        className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
-                                        emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
-                                        onClickItem={(item) => setDetailItem(item)}
-                                        onContextMenu={handleContextMenu}
-                                        isCompact={layoutMode === 'panorama'}
-                                        onCreateSubTask={vm.createSubTask}
-                                    />
-                                </div>
-                            </section>
+                        {/* 4. Log (The "History") */}
+                        <section className={layoutMode === 'panorama'
+                            ? "mb-4 break-inside-avoid bg-slate-200/50 dark:bg-slate-800/30 rounded-lg border border-slate-300/50 dark:border-slate-700"
+                            : "opacity-60 hover:opacity-100 transition-opacity pb-20"
+                        }>
+                            <div>
+                                <BucketColumn
+                                    id="log"
+                                    title="【履歴】"
+                                    items={vm.gdbLog}
+                                    description="完了・断った記録。"
+                                    className={layoutMode === 'panorama' ? "p-2" : "w-full border-t border-slate-200 dark:border-slate-800 pt-4"}
+                                    emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
+                                    onContextMenu={handleContextMenu}
+                                    isCompact={layoutMode === 'panorama'}
+                                    rowHeight={rowHeight} // [NEW]
+                                />
+                            </div>
+                        </section>
 
-                            {/* 4. Log (The "History") */}
-                            <section className={layoutMode === 'panorama'
-                                ? "mb-4 break-inside-avoid bg-slate-200/50 dark:bg-slate-800/30 rounded-lg border border-slate-300/50 dark:border-slate-700"
-                                : "opacity-60 hover:opacity-100 transition-opacity pb-20"
-                            }>
-                                <div>
-                                    <BucketColumn
-                                        id="log"
-                                        title="【履歴】"
-                                        items={vm.gdbLog}
-                                        description="完了・断った記録。"
-                                        className={layoutMode === 'panorama' ? "p-2" : "w-full border-t border-slate-200 dark:border-slate-800 pt-4"}
-                                        emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
-                                        onContextMenu={handleContextMenu}
-                                        isCompact={layoutMode === 'panorama'}
-                                    />
-                                </div>
-                            </section>
-
-                            {(ghostGdbCount > 0 || ghostTodayCount > 0) && (
-                                <div className="col-span-full py-4 text-center border-t border-slate-100/50 dark:border-slate-800/50 animate-pulse">
-                                    <span className="text-[10px] text-slate-400 font-mono italic">
-                                        + {ghostGdbCount + ghostTodayCount} hidden items (コンテキスト外の現実はここにあります)
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="h-full w-full overflow-y-auto">
-                            <RyokanCalendar
-                                items={[...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCommits, ...todayCandidates]}
-                                onItemClick={(item) => setDetailItem(item)}
-                                capacityConfig={vm.capacityConfig}
-                                displayMode="timeline"
-                            />
-                        </div>
-                    )}
+                        {(ghostGdbCount > 0 || ghostTodayCount > 0) && (
+                            <div className="col-span-full py-4 text-center border-t border-slate-100/50 dark:border-slate-800/50 animate-pulse">
+                                <span className="text-[10px] text-slate-400 font-mono italic">
+                                    + {ghostGdbCount + ghostTodayCount} hidden items (コンテキスト外の現実はここにあります)
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Side Memo Panel (Always Visible in GDB) */}
