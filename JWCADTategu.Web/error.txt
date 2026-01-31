@@ -1,0 +1,22 @@
+﻿src/features/core/jbwos/screens/DashboardScreen.tsx(7,5): error TS6133: 'Inbox' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(7,12): error TS6133: 'Sun' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(7,17): error TS6133: 'Calendar' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(7,27): error TS6133: 'CheckCircle2' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(7,41): error TS6133: 'AlertCircle' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(8,5): error TS6133: 'MoreHorizontal' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,5): error TS6133: 'Layout' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,13): error TS6133: 'Filter' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,21): error TS6133: 'ArrowUpRight' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,35): error TS6133: 'Target' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,51): error TS6133: 'Edit2' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(9,58): error TS6133: 'Play' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(10,5): error TS6133: 'AlertTriangle' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(10,20): error TS6133: 'Box' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(10,36): error TS6133: 'Download' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(11,5): error TS6133: 'Maximize2' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(11,16): error TS6133: 'Minimize2' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(11,27): error TS6133: 'MessageSquare' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(11,42): error TS6133: 'Zap' is declared but its value is never read.
+src/features/core/jbwos/screens/DashboardScreen.tsx(323,26): error TS2552: Cannot find name 'ContextMenu'. Did you mean 'contextMenu'?
+src/features/plugins/manufacturing/StockIntegrationService.ts(43,17): error TS2353: Object literal may only specify known properties, and 'isIntent' does not exist in type 'Omit<Item, "id" | "createdAt" | "updatedAt" | "statusUpdatedAt">'.
+src/features/plugins/manufacturing/StockIntegrationService.ts(79,17): error TS2353: Object literal may only specify known properties, and 'isIntent' does not exist in type 'Omit<Item, "id" | "createdAt" | "updatedAt" | "statusUpdatedAt">'.

@@ -213,6 +213,12 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
         e.preventDefault();
         if (!inputValue.trim()) return;
 
+        // [FIX] Pass projectId context explicitly if helpful, or rely on VM scope
+        // VM is init with projectId, so it should work.
+        // User reported fail. Why?
+        // Maybe GlobalBoard is used in Dashboard WITHOUT projectId prop, but VM has it?
+        // No, UI splits: Dashboard -> GlobalBoard.
+        // Let's verify VM init line.
         const newId = await vm.throwIn(inputValue, selectedTenantId || undefined);
         if (newId) {
             setLastThrowInId(newId);

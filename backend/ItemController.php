@@ -1,6 +1,7 @@
 <?php
 // backend/ItemController.php
 require_once 'BaseController.php';
+require_once 'ManufacturingSyncService.php';
 
 class ItemController extends BaseController {
 
@@ -386,8 +387,7 @@ class ItemController extends BaseController {
         ");
         
         try {
-            // [v21] If parent_id is provided, inherit tenant_id from parent and auto-promote parent
-            $effectiveTenantId = $this->currentTenantId;
+            $effectiveTenantId = null; // Default to Private
             if ($parentId) {
                 $parentStmt = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
                 $parentStmt->execute([$parentId]);
@@ -395,6 +395,8 @@ class ItemController extends BaseController {
                 if ($parent) {
                     $effectiveTenantId = $parent['tenant_id']; // Inherit from parent
                 }
+            } else if (isset($data['tenantId'])) {
+                $effectiveTenantId = $data['tenantId'];
             }
 
             $stmt->execute([
@@ -444,7 +446,7 @@ class ItemController extends BaseController {
         $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
         
         // Fetch item's actual tenant_id
-        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND tenant_id IN ($placeholders)");
+        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL)");
         $check->execute(array_merge([$id], $tenantIds));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
@@ -471,7 +473,7 @@ class ItemController extends BaseController {
             'title', 'status', 'memo', 'due_date', // Removed 'due_status'
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
             'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
-            'project_type', 'client_name', 'gross_profit_target'
+            'project_type', 'client_name', 'gross_profit_target', 'tenant_id'
         ];
 
         foreach ($simpleFields as $f) {
@@ -487,6 +489,7 @@ class ItemController extends BaseController {
             if ($f === 'project_type') $inputKey = 'projectType';
             if ($f === 'client_name') $inputKey = 'clientName';
             if ($f === 'gross_profit_target') $inputKey = 'grossProfitTarget';
+            if ($f === 'tenant_id') $inputKey = 'tenantId';
 
             if (array_key_exists($inputKey, $data)) {
                 $val = $data[$inputKey];
@@ -544,9 +547,10 @@ class ItemController extends BaseController {
         $params[] = time();
 
         $params[] = $id;
-        $params[] = $existing['tenant_id']; // Use the item's REAL tenant_id
+        $params[] = $existing['tenant_id'];
+        $params[] = $existing['tenant_id']; // For NULL-safe check
 
-        $sql = "UPDATE items SET " . implode(', ', $fields) . " WHERE id = ? AND tenant_id = ?";
+        $sql = "UPDATE items SET " . implode(', ', $fields) . " WHERE id = ? AND (tenant_id = ? OR (tenant_id IS NULL AND ? IS NULL))";
         
         try {
             $this->pdo->prepare($sql)->execute($params);

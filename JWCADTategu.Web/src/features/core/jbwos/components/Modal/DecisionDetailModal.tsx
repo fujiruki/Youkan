@@ -27,10 +27,34 @@ interface DecisionDetailModalProps {
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
-    item, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
-    onDelegate, onOpenItem, members = [], allProjects = [], joinedTenants = [],
+    item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
+    onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     initialFocus, yesButtonLabel
 }) => {
+    // [NEW] History Stack for Drill-Down
+    const [history, setHistory] = React.useState<Item[]>([]);
+
+    // Derived Current Item
+    const item = React.useMemo(() => {
+        if (history.length > 0) return history[history.length - 1];
+        return propItem;
+    }, [history, propItem]);
+
+    // Reset history if propItem changes (external navigation)
+    React.useEffect(() => {
+        setHistory([]);
+    }, [propItem?.id]);
+
+    const handleDrillDown = (subItem: Item) => {
+        setHistory(prev => [...prev, subItem]);
+    };
+
+    const handleBack = async () => {
+        // [FIX] Save changes before navigating back
+        await saveChanges();
+        setHistory(prev => prev.slice(0, -1));
+    };
+
     // [FIX] Hooks must be called unconditionally.
     // Initialize with safe defaults.
     const [note, setNote] = React.useState('');
@@ -205,10 +229,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
         // tenantId and projectId
         if (localTenantId !== (item.tenantId || '')) {
-            updates.tenantId = localTenantId || undefined;
+            updates.tenantId = localTenantId || null as any; // Map empty to null for private
         }
         if (localProjectId !== (item.projectId || '')) {
-            updates.projectId = localProjectId || undefined;
+            updates.projectId = localProjectId || null as any;
+            updates.parentId = localProjectId || null as any; // [FIX] Sync parentId for hierarchy
         }
 
         return updates;
@@ -278,6 +303,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         {/* Header Area */}
                         <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
                             <div className="flex-1 min-w-0">
+
+                                {/* [NEW] Back Button (Drill-Down) */}
+                                {history.length > 0 && (
+                                    <button
+                                        onClick={handleBack}
+                                        className="mb-2 flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-indigo-500 transition-colors"
+                                    >
+                                        <div className="p-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                        </div>
+                                        <span>親アイテムに戻る</span>
+                                    </button>
+                                )}
 
                                 {isEditingTitle ? (
                                     <div className="flex flex-col gap-2 mb-2">
@@ -565,7 +603,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
-                                        items={subTasks.length > 0 ? subTasks : (item ? [item] : [])} // 暫定的にサブタスクまたは自分自身を渡す。本来は全アイテム。
+                                        items={subTasks.length > 0 ? subTasks : (item ? [item] : [])}
                                         selectedDate={dueDate ? new Date(dueDate) : null}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');
@@ -584,7 +622,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }
                                         }}
-                                        onItemClick={(selected) => onOpenItem?.(selected)}
+                                        onItemClick={(selected) => handleDrillDown(selected)}
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         targetMode={activeDateInput}
                                         filterMode={isProject ? 'all' : (item?.projectId ? 'company' : 'personal')}
@@ -782,7 +820,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             {subTasks.map(sub => (
                                                 <div
                                                     key={sub.id}
-                                                    onClick={() => onOpenItem?.(sub)}
+                                                    onClick={() => handleDrillDown(sub)}
                                                     className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all group"
                                                 >
                                                     <CheckSquare size={14} className={cn(
@@ -928,11 +966,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             </button>
                                         )}
                                         <button
-                                            onClick={() => onDecision(item.id, 'no', 'intent')}
+                                            onClick={() => onDecision(item.id, 'no', 'someday')}
                                             className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
                                         >
                                             <span className="w-2 h-2 rounded-full bg-amber-400" />
-                                            Intent (やれたらいい)
+                                            Someday (いつかやる)
                                         </button>
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                                         <button

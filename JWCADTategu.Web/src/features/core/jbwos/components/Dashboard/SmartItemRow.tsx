@@ -6,21 +6,21 @@ import { Folder } from 'lucide-react';
 
 interface SmartItemRowProps {
     item: Item;
-    onFocus: (id: string, isIntent: boolean) => void;
+    onFocus: (id: string, isEngaged: boolean) => void;
     onClick: () => void;
     onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
     index?: number;
     isRecommended?: boolean;
 }
 
-const StatusBadge = ({ status, isIntent }: { status: string, isIntent?: boolean }) => {
+const StatusBadge = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
     const base = "text-[9px] px-1 py-0 rounded-sm font-bold whitespace-nowrap uppercase tracking-tighter";
     if (status === 'inbox') return <span className={cn(base, "bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400")}>受信</span>;
     if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
     if (status === 'waiting') return <span className={cn(base, "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
     if (status === 'focus') {
-        return isIntent
-            ? <span className={cn(base, "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50")}>今日</span>
+        return isEngaged
+            ? <span className={cn(base, "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50")}>実行中</span>
             : <span className={cn(base, "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400")}>Focus</span>;
     }
     return <span className={cn(base, "bg-gray-100 text-gray-500")}>{status}</span>;
@@ -64,7 +64,7 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
             )}
 
             {/* Status */}
-            <StatusBadge status={item.status} isIntent={item.isIntent} />
+            <StatusBadge status={item.status} isEngaged={item.isEngaged} />
 
             {/* Title & Project context */}
             <div className="flex-1 flex items-center min-w-0 gap-1.5 overflow-hidden">
@@ -125,7 +125,7 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
                         onClick={(e) => { e.stopPropagation(); onFocus(item.id, true); }}
                         className="text-[9px] bg-indigo-500 text-white px-1.5 py-0 rounded-sm hover:bg-indigo-600 font-bold h-5 shadow-sm"
                     >
-                        今日
+                        今日やる
                     </button>
                 )}
             </div>

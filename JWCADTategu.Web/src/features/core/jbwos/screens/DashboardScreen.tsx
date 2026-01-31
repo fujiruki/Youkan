@@ -3,8 +3,11 @@ import { Item } from '../types';
 import { Project as LocalProject } from '../../../../db/db';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
+import {
+    Plus, ChevronRight, ChevronDown, Clock, Trash2,
+    Briefcase, BarChart2, Users, X
+} from 'lucide-react';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
-import { Clock, Users, ChevronDown, ChevronRight, Plus, BarChart2, Briefcase, Trash2 } from 'lucide-react';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { HeaderProgressBar } from '../components/Dashboard/HeaderProgressBar';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
@@ -61,13 +64,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         updateItem,
         deleteItem,
         completeItem,
-        commitToToday,
-        uncommitFromToday,
         createProject,
         createSubTask,
         getSubTasks,
         throwIn,
-        skipTask
+        skipTask,
+        setEngaged // [NEW] Use Engage Logic
     } = vm;
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
@@ -127,12 +129,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [lastInteractedItemId, inboxItems, pendingItems, waitingItems, queueItems, selectedItem]);
 
-    const handleSetIntent = async (id: string, isIntent: boolean) => {
-        if (isIntent) {
-            await commitToToday(id);
-        } else {
-            await uncommitFromToday(id);
-        }
+    const handleSetEngaged = async (id: string, isEngaged: boolean) => {
+        await setEngaged(id, isEngaged);
+        // Note: setEngaged already calls setTodayCommits etc optimistically, but handleRefresh ensures sync.
+        // We can skip handleRefresh if we trust setEngaged's internal refresh or optimistic logic
+        // But handleRefresh updates capacityUsed etc.
         handleRefresh();
     };
 
@@ -168,6 +169,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
             />
 
             {/* Unified Local Header */}
+            {/* ... (Header content unchanged) ... */}
             <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-between items-center shadow-sm z-10">
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                     <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>登録と集中</button>
@@ -196,6 +198,16 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
                             <Briefcase size={12} className="text-blue-500" />
                             <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.name}</span>
+                            <button
+                                onClick={() => {
+                                    // Navigate back to Dashboard Root (Clear Project Context)
+                                    // Use absolute path or strict navigation logic
+                                    window.location.href = '/contents/TateguDesignStudio/';
+                                }}
+                                className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-full transition-colors"
+                            >
+                                <X size={12} className="text-blue-400" />
+                            </button>
                         </div>
                     )}
 
@@ -244,7 +256,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                             <div className="mb-2">
                                 {activeFocusItem ? (
-                                    <FocusCard item={activeFocusItem} onSetIntent={handleSetIntent} onComplete={handleComplete} onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }} onSkip={async (id) => { await skipTask(id); }} onClick={() => setSelectedItem(activeFocusItem)} />
+                                    <FocusCard item={activeFocusItem} onSetEngaged={handleSetEngaged} onComplete={handleComplete} onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }} onSkip={async (id) => { await skipTask(id); }} onClick={() => setSelectedItem(activeFocusItem)} />
                                 ) : (
                                     <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4"><BarChart2 size={24} /></div>
@@ -258,7 +270,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1 pl-2">次に控えているタスク</h3>
                                     <div className="flex flex-col">
                                         {remainingQueue.map((item, index) => (
-                                            <SmartItemRow key={item.id} item={item} index={index + 1} onClick={() => setSelectedItem(item)} onFocus={handleSetIntent} onContextMenu={handleContextMenu} />
+                                            <SmartItemRow key={item.id} item={item} index={index + 1} onClick={() => setSelectedItem(item)} onFocus={handleSetEngaged} onContextMenu={handleContextMenu} />
                                         ))}
                                         {ghostTodayCount > 0 && (
                                             <div className="px-4 py-2 text-[10px] text-slate-300 font-mono italic">
@@ -318,9 +330,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     onClick: () => { updateItem(contextMenu.itemId, { isProject: true }); handleRefresh(); }
                                 },
                                 {
-                                    label: '今日やる (Intent)',
+                                    label: '実行中 (Engage)',
                                     icon: <Clock size={14} className="text-amber-500" />,
-                                    onClick: () => handleSetIntent(contextMenu.itemId, true)
+                                    onClick: () => handleSetEngaged(contextMenu.itemId, true)
                                 },
                                 {
                                     label: '削除',

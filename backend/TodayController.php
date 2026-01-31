@@ -18,6 +18,20 @@ class TodayController extends BaseController {
     public function getToday() {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
+        $projectId = $_GET['project_id'] ?? null;
+
+        // [Fix] Context Switch: If Project Focus, use Project's Tenant
+        if ($projectId) {
+             $stmtP = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
+             $stmtP->execute([$projectId]);
+             $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
+             if ($pObj) {
+                 $pTenant = $pObj['tenant_id'] ?? '';
+                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants)) {
+                     $tenantId = $pTenant;
+                 }
+             }
+        }
 
         // [New] Auto-reset "Intent Boost" items from previous days
         $this->resetExpiredBoosts();
@@ -31,16 +45,32 @@ class TodayController extends BaseController {
              $params = [$this->currentUserId];
         }
 
+        // [Fix] Project Focus Filter (Recursive)
+        $projectParams = [];
+        if ($projectId) {
+            $descendants = $this->getProjectDescendantIds($projectId);
+            if (!empty($descendants)) {
+                $placeholders = implode(',', array_fill(0, count($descendants), '?'));
+                $whereClause .= " AND items.id IN ($placeholders) ";
+                $projectParams = $descendants;
+            } else {
+                $whereClause .= " AND 0 "; // Found nothing, show nothing
+            }
+        }
+
+        // Merge params
+        $queryParams = array_merge($params, $projectParams);
+
         // Zone 1: Commit (Status: today_commit)
         $sqlCommits = "
             SELECT items.*, parent.title as parent_title 
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE $whereClause AND items.status IN ('today_commit', 'focus')
-            ORDER BY items.sort_order ASC
+            ORDER BY items.sort_order ASC, items.updated_at DESC
         ";
         $stmtCommits = $this->pdo->prepare($sqlCommits);
-        $stmtCommits->execute($params);
+        $stmtCommits->execute($queryParams);
         $commits = array_map([$this, 'mapRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
@@ -52,7 +82,7 @@ class TodayController extends BaseController {
             ORDER BY items.updated_at DESC
         ";
         $stmtExec = $this->pdo->prepare($sqlExec);
-        $stmtExec->execute($params);
+        $stmtExec->execute($queryParams);
         $executionsRaw = $stmtExec->fetchAll(PDO::FETCH_ASSOC);
         $executions = array_map([$this, 'mapRow'], $executionsRaw);
 
@@ -70,7 +100,7 @@ class TodayController extends BaseController {
             ORDER BY items.is_boosted DESC, items.rdd_date ASC
         ";
         $stmtCandidates = $this->pdo->prepare($sqlCandidates);
-        $stmtCandidates->execute($params);
+        $stmtCandidates->execute($queryParams);
         $candidates = array_map([$this, 'mapRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
 
 

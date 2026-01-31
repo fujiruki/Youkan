@@ -17,30 +17,33 @@ interface UseFocusQueueResult {
     // Actions
     reorder: (newOrder: Item[]) => Promise<void>;
     refresh: () => Promise<void>;
-    setIntent: (id: string, isIntent: boolean) => Promise<void>;
+    setEngaged: (id: string, isEngaged: boolean) => Promise<void>;
 }
 
 export const useFocusQueue = (currentCapacityLimit: number = 480, projectId?: string): UseFocusQueueResult => {
+    // ... (unchanged)
     const [items, setItems] = useState<Item[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchQueue = useCallback(async () => {
+        // ... (unchanged)
         setLoading(true);
-        // Scope 'dashboard' aggregates personal + company items (Life-Work Integration)
         try {
-            // Fetch items using static class method
             const data = await ApiClient.getAllItems({ scope: 'dashboard', project_id: projectId });
-
-            // Filter focus/judgable items
-            // Assuming data is JudgableItem[] which extends Item (or compatible)
             const sorted = (data || [])
                 .filter(i => ['focus', 'ready', 'pending'].includes(i.status))
                 .sort((a, b) => (a.focusOrder || 0) - (b.focusOrder || 0));
 
-            setItems(sorted as Item[]);
+            // Map API 'isIntent' to 'isEngaged' if necessary, assuming API returns 'isIntent'
+            const mappedItems = sorted.map((item: any) => ({
+                ...item,
+                isEngaged: item.isIntent ?? item.isEngaged // Support both
+            }));
+
+            setItems(mappedItems as Item[]);
             setError(null);
-        } catch (err: any) {
+        } catch (err: any) { // ...
             console.error(err);
             setError('Failed to load focus queue');
         } finally {
@@ -79,25 +82,22 @@ export const useFocusQueue = (currentCapacityLimit: number = 480, projectId?: st
             fetchQueue();
         }
     };
-
-    const setIntent = async (id: string, isIntent: boolean) => {
+    const setEngaged = async (id: string, isEngaged: boolean) => {
         // Optimistic
         setItems(prev => prev.map(item =>
-            item.id === id ? { ...item, isIntent, status: isIntent ? 'focus' : item.status } : item
+            item.id === id ? { ...item, isEngaged, status: isEngaged ? 'focus' : item.status } : item
         ));
-
-        // Also update local list status to ensure UI responsiveness?
-        // Actually intent implies "Focus" and "Due Today".
 
         try {
             // Use updateItem wrapper - IMPORTANT: Include status change to 'focus'
+            // Map 'isEngaged' back to 'isIntent' for API compatibility
             await ApiClient.updateItem(id, {
-                isIntent,
-                status: isIntent ? 'focus' : undefined,
-                dueStatus: isIntent ? 'today' : undefined
-            });
+                ['isIntent' as keyof Item]: isEngaged, // Force key if strict, or use cast
+                status: isEngaged ? 'focus' : undefined,
+                dueStatus: isEngaged ? 'today' : undefined
+            } as any);
         } catch (err) {
-            console.error('Set Intent failed', err);
+            console.error('Set Engaged failed', err);
             fetchQueue();
         }
     };
@@ -111,6 +111,6 @@ export const useFocusQueue = (currentCapacityLimit: number = 480, projectId?: st
         isOverCapacity,
         reorder,
         refresh: fetchQueue,
-        setIntent
+        setEngaged
     };
 };

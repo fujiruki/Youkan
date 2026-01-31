@@ -111,12 +111,19 @@
 - [ ] **フェーズ 5: Haruki Status Model Refactoring (思想の統一)** <!-- id: 170 -->
     - [x] **定義**: `STATUS_MODEL_HARUKI.md` の策定 <!-- id: 171 -->
     - [ ] **マイグレーション計画**: DB/Frontendの移行設計 (`implementation_plan_migration.md`) <!-- id: 172 -->
-    - [ ] **Frontend**: `types.ts` の厳格化 (5 Statuses) <!-- id: 173 -->
-    - [ ] **Backend**: DBマイグレーションスクリプト作成 & 実行 <!-- id: 174 -->
-    - [ ] **UI修正**: JBWOS / Today / FutureBoard のロジック更新 <!-- id: 175 -->
+    - [x] **マイグレーション計画**: DB/Frontendの移行設計 (`implementation_plan_migration.md`) <!-- id: 172 -->
+    - [x] **Frontend**: `types.ts` の厳格化 (5 Statuses) <!-- id: 173 -->
+    - [x] **Backend**: DBマイグレーションスクリプト作成 & 実行 <!-- id: 174 -->
+    - [x] **UI修正**: JBWOS / Today / FutureBoard のロジック更新 <!-- id: 175 -->
 
 - [x] **ドキュメント整理・日本語化** <!-- id: 115 -->
     - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
+    - [x] API 500エラーの調査と特定 (ItemController.php での ManufacturingSyncService 読み込み漏れ)
+- [x] 修正計画の策定 (implementation_plan.md)
+- [x] ItemController.php の修正: `require_once` の追加
+- [x] ItemController.php の修正: `UPDATE` クエリの `NULL` 安全化
+- [x] ブラウザサブエージェントによる動作検証
+- [x] 完了報告の作成 (walkthrough.md)
     - [x] `docs` フォルダの整理 (アーカイブ化) <!-- id: 117 -->
     - [x] 計画書の日本語化 (`implementation_plan.md`, `task.md`) <!-- id: 119 -->
 

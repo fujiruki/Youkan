@@ -5,15 +5,15 @@ import { addMinutes, format } from 'date-fns';
 
 interface FocusCardProps {
     item: Item;
-    onSetIntent: (id: string, isIntent: boolean) => void;
+    onSetEngaged: (id: string, isEngaged: boolean) => void;
     onComplete: (id: string) => void;
     onDrop: (id: string) => void; // Move to Inbox
     onSkip: (id: string) => void; // Skip/Demote
     onClick: () => void;
 }
 
-export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onComplete, onDrop, onSkip, onClick }) => {
-    const isIntent = item.isIntent;
+export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComplete, onDrop, onSkip, onClick }) => {
+    const isEngaged = item.isEngaged;
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -32,7 +32,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
         <div
             className={`
                 relative w-full p-6 rounded-2xl shadow-sm border transition-all duration-300 group
-                ${isIntent
+                ${isEngaged
                     ? 'bg-gradient-to-br from-indigo-500 to-violet-600 border-transparent shadow-lg shadow-indigo-200 text-white'
                     : 'bg-white border-slate-200 hover:border-indigo-200'
                 }
@@ -44,12 +44,12 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                 <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
                         {item.dueStatus === 'today' && (
-                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isIntent ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-600'}`}>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isEngaged ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-600'}`}>
                                 今日
                             </span>
                         )}
                         {item.tenantName && (
-                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isIntent ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isEngaged ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                                 {item.tenantName}
                             </span>
                         )}
@@ -57,7 +57,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                 </div>
 
                 {/* Estimate & Forecast Information */}
-                <div className={`flex flex-col items-end text-right ${isIntent ? 'text-indigo-100' : 'text-slate-500'}`}>
+                <div className={`flex flex-col items-end text-right ${isEngaged ? 'text-indigo-100' : 'text-slate-500'}`}>
                     <div className="flex items-center gap-3 mb-1">
                         {/* Work Days */}
                         {workDays > 0 && (
@@ -76,7 +76,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                     </div>
                     {/* Forecast */}
                     {predictedFinish && (
-                        <div className={`text-[10px] font-mono flex items-center gap-1 ${isIntent ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        <div className={`text-[10px] font-mono flex items-center gap-1 ${isEngaged ? 'text-indigo-200' : 'text-slate-400'}`}>
                             <span>予想完了: {format(predictedFinish, 'HH:mm')}</span>
                             <span className="opacity-70">(あと{estimatedMins}分)</span>
                         </div>
@@ -85,7 +85,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
             </div>
 
             {/* Main Title */}
-            <h3 className={`text-2xl font-bold leading-tight mb-8 ${isIntent ? 'text-white' : 'text-slate-800'}`}>
+            <h3 className={`text-2xl font-bold leading-tight mb-8 ${isEngaged ? 'text-white' : 'text-slate-800'}`}>
                 {item.title}
             </h3>
 
@@ -93,17 +93,17 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
             <div className="flex items-center gap-3">
                 {/* Primary Action: Do Today (Intent) */}
                 <button
-                    onClick={(e) => { e.stopPropagation(); onSetIntent(item.id, !isIntent); }}
+                    onClick={(e) => { e.stopPropagation(); onSetEngaged(item.id, !isEngaged); }}
                     className={`
                         flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all
-                        ${isIntent
+                        ${isEngaged
                             ? 'bg-white text-indigo-600 shadow-md hover:bg-slate-50'
                             : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200'
                         }
                     `}
                 >
-                    <Zap size={18} className={isIntent ? 'fill-indigo-600' : 'fill-amber-400 text-amber-400'} />
-                    {isIntent ? '実行中' : '今日やる!'}
+                    <Zap size={18} className={isEngaged ? 'fill-indigo-600' : 'fill-amber-400 text-amber-400'} />
+                    {isEngaged ? '実行中' : '今日やる!'}
                 </button>
 
                 {/* Secondary: Done */}
@@ -111,7 +111,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                     onClick={(e) => { e.stopPropagation(); onComplete(item.id); }}
                     className={`
                         w-12 h-12 flex items-center justify-center rounded-xl transition-colors
-                        ${isIntent
+                        ${isEngaged
                             ? 'bg-white/20 text-white hover:bg-white/30'
                             : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
                         }
@@ -127,7 +127,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                     onClick={(e) => { e.stopPropagation(); onSkip(item.id); }}
                     className={`
                         w-12 h-12 flex items-center justify-center rounded-xl transition-colors
-                        ${isIntent
+                        ${isEngaged
                             ? 'bg-white/10 text-indigo-100 hover:bg-white/20'
                             : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-200'
                         }
@@ -142,7 +142,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetIntent, onCompl
                     onClick={(e) => { e.stopPropagation(); onDrop(item.id); }}
                     className={`
                         w-12 h-12 flex items-center justify-center rounded-xl transition-colors
-                        ${isIntent
+                        ${isEngaged
                             ? 'bg-white/10 text-indigo-100 hover:bg-white/20'
                             : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-200'
                         }

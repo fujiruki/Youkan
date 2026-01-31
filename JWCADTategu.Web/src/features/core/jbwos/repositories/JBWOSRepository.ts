@@ -38,13 +38,16 @@ export const JBWOSRepository = {
     },
 
     // 2. Add Item (To API)
-    async addItemToInbox(title: string): Promise<string> {
+    async addItemToInbox(title: string, tenantId?: string, projectId?: string): Promise<string> {
         const id = uuidv4();
 
         const newItem: Partial<JudgableItem> = {
             id,
             title,
-            status: 'inbox'
+            status: 'inbox',
+            tenantId,
+            projectId,
+            parentId: projectId // [FIX] Set parentId to link to Project (v21 Item-based Project)
         };
 
         try {
@@ -194,13 +197,26 @@ export const JBWOSRepository = {
     // --- Phase 2: Backend Intelligence Methods ---
 
     // GDB Shelf View
-    async getGdbShelf() {
+    // GDB Shelf View
+    async getGdbShelf(projectId?: string) {
         // 1. Fetch Server Data
-        let apiShelf = { active: [], preparation: [], intent: [], history: [] };
+        let apiShelf: { active: any[], preparation: any[], intent: any[], history: any[] } = { active: [], preparation: [], intent: [], history: [] };
+
+        const mapApiItems = (items: any[]) => items.map(i => ({
+            ...i,
+            isEngaged: i.isIntent ?? i.isEngaged ?? false
+        }));
 
         try {
-            const res = await ApiClient.getGdbShelf();
-            if (res) apiShelf = res as any;
+            const res = await ApiClient.getGdbShelf(projectId); // Pass Project ID
+            if (res) {
+                apiShelf = {
+                    active: mapApiItems(res.active || []),
+                    preparation: mapApiItems(res.preparation || []),
+                    intent: mapApiItems(res.intent || []),
+                    history: mapApiItems(res.history || [])
+                };
+            }
         } catch (e) {
             console.warn('Failed to fetch GDB from Server:', e);
         }
@@ -217,6 +233,11 @@ export const JBWOSRepository = {
 
             // A. Projects (Treat as Inbox/Active if not archived)
             // Filter by userId
+            // [NOTE] Projects themselves are not usually filtered by project (recursive?), 
+            // but if we are in Project Focus, we probably don't want to see OTHER projects?
+            // Let's assume we exclude Projects from Project Focus view for simplicity, or only show sub-projects?
+            // Current spec: "そのプロジェクトに関するものだけが表示される"
+            // So if projectId is set, we likely hide other project roots.
             const projects = await db.projects
                 .where('userId').equals(userId)
                 .filter(p => !p.isArchived)
@@ -225,7 +246,7 @@ export const JBWOSRepository = {
             // Fallback: If no userId index yet (or migrated legacy), try filtering manually for legacy
             // Actually indexed query is safer if migrated.
 
-            const projectItems = projects.map(p => ({
+            let projectItems = projects.map(p => ({
                 id: `project-${p.id}`,
                 title: `📁 ${p.name}`, // Add icon to distinguish
                 status: (p.judgmentStatus || 'inbox') as JudgmentStatus, // [FIX] Use persisted status
@@ -235,16 +256,48 @@ export const JBWOSRepository = {
                 type: 'project',
                 isProject: true,
                 focusOrder: 0,
-                isIntent: false
+                isEngaged: false
             } as JudgableItem));
+
+            if (projectId) {
+                // Hide other projects in project focus mode
+                // Actually maybe we should hide projects entirely in project focus?
+                // Or only show the current project?
+                projectItems = projectItems.filter(p => p.id === `project-${projectId}`);
+            }
 
             // B. Deliverables
             const deliverables = await db.deliverables.toArray();
-            const deliverableItems = await Promise.all(deliverables.map(d => convertDeliverableToItem(d)));
+            let deliverableItems = await Promise.all(deliverables.map(d => convertDeliverableToItem(d)));
 
             // [Migration/Fallback]
             const legacyDoors = await db.doors.filter(d => !d.deliverableId).toArray();
-            const legacyDoorItems = await Promise.all(legacyDoors.map(d => convertDoorToItem(d)));
+            let legacyDoorItems = await Promise.all(legacyDoors.map(d => convertDoorToItem(d)));
+
+            // Filter Local Items by Project
+            if (projectId) {
+                // Need to filter deliverableItems and legacyDoorItems
+                // But we need to resolve project name to project ID or vice versa?
+                // convert functions return Item with projectId as NAME string... not ID.
+                // Re-fetch project to get name?
+                // Hack: Local items store projectId as ID integer usually in indexedDB.
+                // deliverable.projectId is number.
+                const pid = parseInt(projectId, 10);
+                if (!isNaN(pid)) {
+                    deliverableItems = deliverableItems.filter(d => {
+                        // Deliverable source object (not Item) had projectId. We need to check source again?
+                        // Actually convertDeliverableToItem maps projectId -> project?.name.
+                        // We lost the ID in the Item conversion.
+                        // For correct filtering, we should filter BEFORE conversion or update conversion.
+                        // Since we have the raw arrays:
+                        // Use loose equality for safety against string/number mismatch in types vs runtime
+                        return (deliverables.find(raw => `deliverable-${raw.id}` === d.id)?.projectId as any) == pid;
+                    });
+                    legacyDoorItems = legacyDoorItems.filter(d => {
+                        return (legacyDoors.find(raw => `door-${raw.id}` === d.id)?.projectId as any) == pid;
+                    });
+                }
+            }
 
             localItems = [...projectItems, ...deliverableItems, ...legacyDoorItems];
         } catch (e) {
@@ -290,16 +343,29 @@ export const JBWOSRepository = {
     },
 
     // Today View
-    async getTodayView() {
+    async getTodayView(projectId?: string) {
+        const mapApiItems = (items: any[]) => items.map(i => ({
+            ...i,
+            isEngaged: i.isIntent ?? i.isEngaged ?? false
+        }));
+
         try {
-            return await ApiClient.getTodayView();
+            const res = await ApiClient.getTodayView(projectId);
+            if (res) {
+                return {
+                    commits: mapApiItems(res.commits || []),
+                    candidates: mapApiItems(res.candidates || []),
+                    execution: res.execution ? { ...res.execution, isEngaged: res.execution.isIntent ?? res.execution.isEngaged ?? false } : undefined
+                };
+            }
+            return { commits: [], candidates: [], execution: undefined };
         } catch (e) {
             console.warn('Failed to fetch Today View from API, using Local Fallback:', e);
 
             try {
                 // --- Local Fallback Logic (Hybrid) ---
                 // Use explicit reference to allow mocking via object mutation in tests
-                const localItems = await JBWOSRepository.getGdbShelf();
+                const localItems = await JBWOSRepository.getGdbShelf(projectId); // [FIX] Pass Project ID
 
                 if (!localItems || !localItems.active) {
                     return { commits: [], candidates: [], execution: undefined };
@@ -575,7 +641,7 @@ async function convertDoorToItem(door: Door): Promise<Item> {
         updatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
         memo: door.tag + (project ? ` @${project.name}` : ''),
         focusOrder: 0,
-        isIntent: false
+        isEngaged: false
     };
 }
 
@@ -610,6 +676,6 @@ async function convertDeliverableToItem(deliverable: Deliverable): Promise<Item>
         dueStatus: undefined,
         memo: (deliverable.description || '') + (project ? ` @${project.name}` : ''),
         focusOrder: 0,
-        isIntent: false
+        isEngaged: false
     };
 }

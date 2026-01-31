@@ -16,15 +16,49 @@ class GdbController extends BaseController {
         $this->authenticate();
         $now = time();
         $tenantId = $this->currentTenantId;
+        $projectId = $_GET['project_id'] ?? null;
         
-        // 1. Active Section (Judgment Candidates)
+        // [Fix] Context Switch: If Project Focus, use Project's Tenant
+        if ($projectId) {
+             $stmtP = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
+             $stmtP->execute([$projectId]);
+             $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
+             if ($pObj) {
+                 $pTenant = $pObj['tenant_id'] ?? '';
+                 // If the project's tenant is the current one, or one the user belongs to, switch context
+                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants)) {
+                     $tenantId = $pTenant;
+                 }
+             }
+        }
+        
+        // [Fix] Project Focus Filter (Recursive)
+        $whereSuffix = "";
+        $projectParams = [];
+        if ($projectId) {
+            $descendants = $this->getProjectDescendantIds($projectId);
+            if (!empty($descendants)) {
+                $placeholders = implode(',', array_fill(0, count($descendants), '?'));
+                $whereSuffix = " AND items.id IN ($placeholders) ";
+                $projectParams = $descendants;
+            } else {
+                $whereSuffix = " AND 0 "; // Found nothing
+            }
+        }
+
+        // Helper parameters
+        $baseParams = [$tenantId];
+        $timeParams = [$now];
+        
+        // Active
         $sqlActive = "
             SELECT items.*, parent.title as parent_title
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? AND
-                items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
+                items.tenant_id = ? 
+                $whereSuffix
+                AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
                 AND (
                     items.status = 'inbox' 
                     OR (items.rdd_date IS NOT NULL AND items.rdd_date <= ?)
@@ -33,52 +67,62 @@ class GdbController extends BaseController {
         ";
         
         $stmtActive = $this->pdo->prepare($sqlActive);
-        $stmtActive->execute([$tenantId, $now]);
+        // Params: tenantId, ...projectIds..., now
+        // Be careful with param order.
+        // SQL: WHERE tenant_id = ? ... IN (...) ... <= ?
+        $paramsActive = array_merge($baseParams, $projectParams, $timeParams);
+        $stmtActive->execute($paramsActive);
         $activeItems = array_map([$this, 'mapRow'], $stmtActive->fetchAll(PDO::FETCH_ASSOC));
 
-        // 2. Preparation Section (Formerly Hold)
+        // Preparation
         $sqlPrep = "
             SELECT items.*, parent.title as parent_title
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? AND
-                items.status = 'decision_hold'
+                items.tenant_id = ? 
+                $whereSuffix
+                AND items.status = 'decision_hold'
                 AND (items.rdd_date IS NULL OR items.rdd_date > ?)
             ORDER BY items.prep_date ASC, items.updated_at DESC
         ";
         
+        $paramsPrep = array_merge($baseParams, $projectParams, $timeParams);
         $stmtPrep = $this->pdo->prepare($sqlPrep);
-        $stmtPrep->execute([$tenantId, $now]);
+        $stmtPrep->execute($paramsPrep);
         $prepItems = array_map([$this, 'mapRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
 
-        // 3. Intent Section (Nice to do)
+        // Intent
         $sqlIntent = "
             SELECT items.*, parent.title as parent_title
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? AND
-                items.status = 'intent' 
+                items.tenant_id = ? 
+                $whereSuffix
+                AND items.status = 'intent' 
             ORDER BY items.updated_at DESC
         ";
+        $paramsIntent = array_merge($baseParams, $projectParams);
         $stmtIntent = $this->pdo->prepare($sqlIntent);
-        $stmtIntent->execute([$tenantId]);
+        $stmtIntent->execute($paramsIntent);
         $intentItems = array_map([$this, 'mapRow'], $stmtIntent->fetchAll(PDO::FETCH_ASSOC));
 
-        // 4. History Section (Log)
+        // History
         $sqlLog = "
             SELECT items.*, parent.title as parent_title
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? AND
-                items.status IN ('decision_rejected') 
+                items.tenant_id = ? 
+                $whereSuffix
+                AND items.status IN ('decision_rejected') 
             ORDER BY items.updated_at DESC 
             LIMIT 20
         ";
+        $paramsLog = array_merge($baseParams, $projectParams);
         $stmtLog = $this->pdo->prepare($sqlLog);
-        $stmtLog->execute([$tenantId]);
+        $stmtLog->execute($paramsLog);
         $logItems = array_map([$this, 'mapRow'], $stmtLog->fetchAll(PDO::FETCH_ASSOC));
 
         return [

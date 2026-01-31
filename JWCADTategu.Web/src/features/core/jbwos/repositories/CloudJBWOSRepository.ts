@@ -76,9 +76,9 @@ export const CloudJBWOSRepository = {
     },
 
     // Today View Specific
-    getTodayView: async () => {
+    getTodayView: async (projectId?: string) => {
         // Backend should have /api/today endpoint
-        return ApiClient.getTodayView();
+        return ApiClient.getTodayView(projectId);
     },
 
     // Decisions

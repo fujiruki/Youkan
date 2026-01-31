@@ -40,7 +40,7 @@ export async function syncStockFromDeliverable(
                 // Link to Deliverable
                 doorId: String(deliverable.id),
                 focusOrder: 0,
-                isIntent: false
+                isEngaged: false
             };
 
             const newId = await JBWOSRepository.createItem(newItem);
@@ -76,7 +76,7 @@ export async function syncStockFromDeliverable(
                 memo: `[Auto Generated]\nEstimated Site Work: ${deliverable.estimatedSiteMinutes} min`,
                 doorId: String(deliverable.id),
                 focusOrder: 0,
-                isIntent: false
+                isEngaged: false
             };
 
             const newId = await JBWOSRepository.createItem(newItem);

@@ -87,4 +87,31 @@ class BaseController {
     protected function getInput() {
         return json_decode(file_get_contents('php://input'), true) ?? [];
     }
+
+    /**
+     * Helper: Get all descendant IDs for a project (Recursive CTE)
+     */
+    protected function getProjectDescendantIds($projectId) {
+        // SQLite Recursive Query to get tree
+        $sql = "
+            WITH RECURSIVE project_tree AS (
+                SELECT id FROM items WHERE id = ?
+                UNION ALL
+                SELECT i.id FROM items i
+                JOIN project_tree pt ON i.parent_id = pt.id
+            )
+            SELECT id FROM project_tree
+        ";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$projectId]);
+        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Ensure source ID is included (if valid)
+        if (!in_array($projectId, $ids)) {
+            $ids[] = $projectId;
+        }
+        
+        return $ids;
+    }
 }

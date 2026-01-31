@@ -172,8 +172,9 @@ export class ApiClient {
     }
 
     // --- Phase 2: Today API ---
-    public static async getTodayView(): Promise<any> { // Replace 'any' with proper type later
-        return this.request('GET', '/today', undefined, true);
+    public static async getTodayView(projectId?: string): Promise<any> { // Replace 'any' with proper type later
+        const query = projectId ? `?project_id=${projectId}` : '';
+        return this.request('GET', `/today${query}`, undefined, true);
     }
 
     public static async commitToToday(id: string): Promise<{ success: boolean }> {
@@ -228,9 +229,10 @@ export class ApiClient {
         return `${API_BASE}/backup`;
     }
 
-    // --- Phase 2: GDB API ---
-    public static async getGdbShelf(): Promise<any> { // Replace 'any' with proper type
-        return this.request('GET', '/gdb', undefined, true);
+    // --- GDB Shelf API ---
+    public static async getGdbShelf(projectId?: string): Promise<{ active: JudgableItem[]; preparation: JudgableItem[]; intent: JudgableItem[]; history: JudgableItem[] }> {
+        const query = projectId ? `?project_id=${projectId}` : '';
+        return this.request('GET', `/gdb/shelf${query}`);
     }
 
     // --- Calendar Load API ---

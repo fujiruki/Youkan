@@ -96,14 +96,14 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     const refreshToday = useCallback(async () => {
         try {
-            const today = await getRepository().getTodayView();
+            const today = await getRepository().getTodayView(projectId);
             setTodayCommits(today.commits || []);
             setExecutionItem(today.execution || null);
             setTodayCandidates(today.candidates || []);
         } catch (e) {
             console.error('Failed to fetch Today:', e);
         }
-    }, []);
+    }, [projectId]);
 
     const refreshMemos = useCallback(async () => {
         try {
@@ -242,7 +242,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
     const { addUndoAction } = useUndo();
 
     // 1. Decision (Yes/No/Hold)
-    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', _note?: string, updates?: Partial<Item>) => {
+    const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
         // Optimistic Update: Remove from Active immediate
         setGdbActive(prev => prev.filter(i => i.id !== id));
 
@@ -251,14 +251,15 @@ export const useJBWOSViewModel = (projectId?: string) => {
             // ...
         }
 
-        // const newStatus = decision === 'yes' ? 'focus' : decision === 'hold' ? 'pending' : 'done';
-
         // [Undo] Register Action
+        let statusLabel = decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'Done';
+        if (decision === 'no' && (note === 'someday' || note === 'intent')) statusLabel = 'Someday (保留)';
+
         addUndoAction({
             type: 'decision',
             id,
             previousStatus: 'inbox',
-            description: `「${decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'Done'}」と判断しました`
+            description: `「${statusLabel}」と判断しました`
         });
 
         try {
@@ -267,11 +268,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
                 await getRepository().updateItem(id, updates);
             }
 
-            // Backend likely needs update to accept 'pending' instead of 'hold' logic?
-            // Repository.resolveDecision might map it.
-            // But we should send status update explicitly if we want strict control.
-            // For now, assume Repository is smart or updated.
-            // [FIX] Status logic: 'yes' (Today) must set is_today_commit flag to appear in Commits
+            // [FIX] Status logic
             if (decision === 'hold') {
                 await getRepository().updateItem(id, { ...updates, status: 'pending' });
             } else if (decision === 'yes') {
@@ -280,12 +277,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
                     status: 'focus',
                     flags: { ...(updates?.flags || {}), is_today_commit: true }
                 });
+            } else if (decision === 'no' && (note === 'someday' || note === 'intent')) {
+                // [NEW] Someday -> Pending (Shelf)
+                await getRepository().updateItem(id, { ...updates, status: 'pending' });
             } else {
                 await getRepository().updateItem(id, { ...updates, status: 'done' });
             }
-
-            // await getRepository().resolveDecision(id, decision, note); // Legacy API might be confusing?
-            // Let's rely on standard updateItem for Status Model.
 
             refreshAll();
         } catch (e) {
@@ -582,11 +579,21 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
     const throwIn = async (title: string, tenantId?: string) => {
-        if (!title.trim()) return null;
+        if (!title.trim()) return null; // Empty check
+
+        // [FIX] Resolve Tenant ID: Use arg if provided, otherwise inherit from Focused Project. Default to Private (null).
+        let resolvedTenantId: string | null = tenantId || null;
+        if (!resolvedTenantId && projectId) {
+            const p = allProjects.find(pro => pro.id === projectId);
+            if (p) resolvedTenantId = p.tenantId || null;
+        }
 
         // 1. Optimistic Update (Immediate Feedback)
-        // ... (comment remains same or updated) ...
-        const id = await getRepository().addItemToInbox(title, tenantId);
+        // Note: For now we don't know the ID yet, but we will add it after API call or use temp ID?
+        // Actually JBWOSRepository.addItemToInbox returns ID synchronously (mock) or after (real).
+        // Let's rely on Repo.
+
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId as any, projectId || undefined);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -603,10 +610,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
             category: 'door', // Default category
             type: 'start',
             memo: '',
-            tenantId, // [NEW] Link context
-            projectId: undefined,
+            tenantId: resolvedTenantId, // [NEW] Link context
+            projectId: projectId || undefined, // Use explicit undefined if null/empty
             focusOrder: 0,
-            isIntent: false
+            isEngaged: false
         };
 
         setGdbActive(prev => [newItem, ...prev]);
@@ -685,7 +692,52 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
     };
 
+    const setEngaged = async (id: string, isEngaged: boolean) => {
+        // Optimistic
+        const updates = { isEngaged, status: isEngaged ? 'focus' : undefined } as Partial<Item>;
+
+        // Update all local lists
+        const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
+        setTodayCommits(prev => updateList(prev));
+        setTodayCandidates(prev => updateList(prev));
+        setGdbActive(prev => updateList(prev));
+
+        if (executionItem?.id === id) {
+            setExecutionItem(prev => prev ? { ...prev, isEngaged } : null);
+        }
+
+        try {
+            // Map 'isEngaged' back to 'isIntent' for API compatibility
+            await getRepository().updateItem(id, {
+                isIntent: isEngaged,
+                status: isEngaged ? 'focus' : undefined,
+                dueStatus: isEngaged ? 'today' : undefined
+            } as any);
+        } catch (e) {
+            console.error('Set Engaged failed', e);
+            refreshToday();
+        }
+    };
+
     const updateItem = async (id: string, updates: Partial<Item>) => {
+        // [NEW] Resolve Persistence Names related to IDs (Immediate UI Feedback)
+        if (updates.projectId) {
+            const p = allProjects.find(pro => pro.id === updates.projectId);
+            if (p) {
+                (updates as any).projectTitle = p.title;
+                // Auto-sync tenant if project has one and item doesn't override (or matches old)
+                if (p.tenantId && !updates.tenantId) {
+                    updates.tenantId = p.tenantId;
+                    const t = joinedTenants.find(ten => ten.id === p.tenantId);
+                    if (t) (updates as any).tenantName = t.name;
+                }
+            }
+        }
+        if (updates.tenantId) {
+            const t = joinedTenants.find(ten => ten.id === updates.tenantId);
+            if (t) (updates as any).tenantName = t.name;
+        }
+
         // Helper to update a list
         const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
 
@@ -757,7 +809,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             type: 'generic',
             domain, // [NEW] Link domain
             focusOrder: 0,
-            isIntent: false
+            isEngaged: false
         };
 
         try {
@@ -836,7 +888,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             domain: domain || 'general',
             status: 'inbox',      // Default to inbox
             focusOrder: 0,
-            isIntent: false
+            isEngaged: false
         };
 
         const projectId = await getRepository().createItem(projectItem);
@@ -875,7 +927,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             type: 'generic',
             memo: `Imported from ${source?.name}`,
             focusOrder: 0,
-            isIntent: false
+            isEngaged: false
         };
 
         try {
@@ -946,6 +998,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         toggleHoliday,
         updatePreparationDate,
         moveToSomeday,
+        setEngaged,
         throwIn,
         updateCapacityConfig,
         clearError: () => setError(null),
