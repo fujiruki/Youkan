@@ -2,9 +2,16 @@
 // backend/index.php
 
 // 0. Robust Migration Trigger (Bypass routing)
-if (isset($_GET['trigger_migration_secret']) && $_GET['trigger_migration_secret'] === 'v20') {
-    require_once 'migrate_v20_project_context.php';
-    exit;
+if (isset($_GET['trigger_migration_secret'])) {
+    if ($_GET['trigger_migration_secret'] === 'v20') {
+        require_once 'migrate_v20_project_context.php';
+        exit;
+    }
+    if ($_GET['trigger_migration_secret'] === 'v23') {
+        // [v23] Tenant ID Nullable (Private Items)
+        require_once 'migrate_v23_tenant_id_nullable.php';
+        exit;
+    }
 }
 
 // 1. Error Handling for AI Autonomy
