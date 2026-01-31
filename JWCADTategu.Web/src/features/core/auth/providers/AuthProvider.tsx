@@ -31,8 +31,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
-        // --- DEBUG BYPASS ---
-        if (token === 'mock-debug-token') {
+        // --- DEBUG BYPASS (Dev Only) ---
+        if (import.meta.env.DEV && token === 'mock-debug-token') {
             console.log('AuthProvider: Debug Token detected. Bypassing API check.');
             const storedUser = localStorage.getItem('jbwos_user');
             const storedTenant = localStorage.getItem('jbwos_tenant');

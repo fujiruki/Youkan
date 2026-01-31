@@ -1,12 +1,13 @@
 import { ExternalSource, ManufacturingPlugin } from '../types';
-import { MockManufacturingPlugin } from '../../../plugins/mock/MockManufacturingPlugin';
+// import { MockManufacturingPlugin } from '../../../plugins/mock/MockManufacturingPlugin';
 
 class ManufacturingBusService {
     private plugins: Map<string, ManufacturingPlugin> = new Map();
 
     constructor() {
         // [Auto-Register] Ensure Mock Plugin is always available for now
-        this.registerPlugin(new MockManufacturingPlugin());
+        // REMOVED for Production Fix: Mock Plugin should not be auto-registered in production.
+        // this.registerPlugin(new MockManufacturingPlugin());
     }
 
     registerPlugin(plugin: ManufacturingPlugin) {
