@@ -248,14 +248,17 @@ class ItemController extends BaseController {
     // --- Archive & Trash Actions ---
 
     public function archive($id) {
+        $this->authenticate(); // Ensure Auth
         $this->updateStatus($id, 'archive');
     }
 
     public function trash($id) {
+        $this->authenticate(); // Ensure Auth
         $this->updateStatus($id, 'trash');
     }
 
     public function restore($id) {
+        $this->authenticate(); // Ensure Auth
         $this->updateStatus($id, 'restore');
     }
 
@@ -708,6 +711,7 @@ class ItemController extends BaseController {
     
     // Physical Delete (Destroy)
     private function delete($id) {
+        $this->authenticate(); // Ensure Auth
         // Same permission checks as before...
         $tenantIds = $this->joinedTenants;
         if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
-import { Plus, Edit2, Trash2, ArrowLeft, Building2, Briefcase, Archive } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, Building2, Briefcase, Archive, LayoutGrid, List, MoreVertical, Calendar } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog'; // Unified Dialog
@@ -28,17 +28,28 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     // Context Menu State
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; project: Project } | null>(null); // Fixed type
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // [RESTORED]
 
     // Auth for resolving tenants list
     const { joinedTenants } = useAuth();
+
+    // [RESTORED] Filtering Logic
+    const filteredProjects = activeScope === 'company'
+        ? projects.filter(p => p.tenantId)
+        : projects.filter(p => !p.tenantId);
+
+    // [RESTORED] Alias
+    const handleCreateProject = () => {
+        setEditingProject(null);
+        setIsModalOpen(true);
+    };
 
 
     useEffect(() => {
         fetchProjects();
     }, [fetchProjects]);
 
-    // Grouping logic for Company scope
     const groupedProjects = projects.reduce((acc, proj) => {
         const key = proj.tenantName || 'Others';
         if (!acc[key]) acc[key] = [];
@@ -46,10 +57,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         return acc;
     }, {} as Record<string, Project[]>);
 
-    const handleCreate = () => {
-        setEditingProject(null);
-        setIsModalOpen(true);
-    };
+    const handleCreate = handleCreateProject; // Alias for consistency
 
     const handleEdit = (project: Project) => {
         setEditingProject(project);
@@ -67,128 +75,209 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     };
 
     // Context Menu Handler
-    const handleContextMenu = (e: React.MouseEvent, projectId: string) => {
+    const handleContextMenu = (e: React.MouseEvent, project: Project) => {
         e.preventDefault();
         setContextMenu({
             x: e.clientX,
             y: e.clientY,
-            projectId
+            project
         });
     };
 
-    const handleArchive = (id: string) => {
-        archiveProject(id);
-        setContextMenu(null);
+    // [NEW] Confirmation Modal State from Implementation Plan
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        action: 'archive' | 'trash' | 'destroy';
+        targetId: string;
+        danger?: boolean;
+    }>({ isOpen: false, title: '', message: '', action: 'trash', targetId: '' });
+
+    const handleConfirmAction = () => {
+        if (!confirmDialog.isOpen) return;
+
+        const { action, targetId } = confirmDialog;
+        if (action === 'archive') {
+            archiveProject(targetId);
+        } else if (action === 'trash') {
+            trashProject(targetId);
+        } else if (action === 'destroy') {
+            deleteProject(targetId);
+        }
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
     };
 
-    const handleTrash = (id: string) => {
-        trashProject(id);
-        setContextMenu(null);
+    const openConfirm = (action: 'archive' | 'trash' | 'destroy', project: Project) => {
+        let title = '';
+        let message = '';
+        let danger = false;
+
+        switch (action) {
+            case 'archive':
+                title = 'アーカイブ';
+                message = `プロジェクト「${project.name}」をアーカイブしますか？\nアーカイブされたプロジェクトは一覧から非表示になります。`;
+                break;
+            case 'trash':
+                title = 'ゴミ箱へ移動';
+                message = `プロジェクト「${project.name}」をゴミ箱へ移動しますか？`;
+                danger = true;
+                break;
+            case 'destroy':
+                title = '完全削除';
+                message = `【警告】プロジェクト「${project.name}」を完全に削除しますか？\nこの操作は取り消せません。`;
+                danger = true;
+                break;
+        }
+
+        setConfirmDialog({
+            isOpen: true,
+            title,
+            message,
+            action,
+            targetId: String(project.id), // Ensure string
+            danger
+        });
     };
 
     return (
-        <div
-            className="min-h-screen bg-slate-50 dark:bg-slate-900 p-8 pb-24"
-            onClick={() => setContextMenu(null)} // Close menu on click outside
-        >
-            <div className="max-w-7xl mx-auto space-y-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <button onClick={onBack} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
-                            <ArrowLeft className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+        <div className="h-full w-full bg-[#FAFAFA] dark:bg-slate-900 flex flex-col font-sans text-slate-800 dark:text-slate-200">
+            {/* Header */}
+            <div className="flex-none px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
+                <div className="flex items-center gap-4">
+                    {onBack && (
+                        <button onClick={onBack} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
+                            <ArrowLeft size={20} />
                         </button>
-                        <div>
-                            <h1 className="text-3xl font-light text-slate-800 dark:text-slate-100 tracking-tight">
-                                プロジェクト一覧
-                            </h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1">
-                                創造と収益の源泉（コンテキスト）を定義します
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {/* Scope Tabs */}
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
-                            <button
-                                onClick={() => setActiveScope('personal')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeScope === 'personal'
-                                    ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-                                    }`}
-                            >
-                                基本 (Personal)
-                            </button>
-                            <button
-                                onClick={() => setActiveScope('company')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeScope === 'company'
-                                    ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-white'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-                                    }`}
-                            >
-                                会社 (Company)
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={handleCreate}
-                            className="hidden md:flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span>新規プロジェクト</span>
-                        </button>
-                        {/* Mobile Add Button */}
-                        <button
-                            onClick={handleCreate}
-                            className="md:hidden flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white w-12 h-12 rounded-full shadow-lg transition-all"
-                        >
-                            <Plus className="w-6 h-6" />
-                        </button>
+                    )}
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            プロジェクト一覧
+                            <span className="text-sm font-normal text-slate-400 ml-2">({filteredProjects.length})</span>
+                        </h1>
+                        <p className="text-xs text-slate-400 mt-1">案件の管理と進捗状況</p>
                     </div>
                 </div>
+                <div className="flex items-center gap-2">
+                    {/* View Toggle */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            <List size={18} />
+                        </button>
+                    </div>
 
-                {/* Grid */}
-                {loading && projects.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">読み込み中...</div>
-                ) : activeScope === 'company' ? (
-                    <div className="space-y-12">
-                        {Object.entries(groupedProjects).map(([tenantName, tenantProjects]) => (
-                            <div key={tenantName} className="space-y-6">
-                                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                                    <Building2 className="w-5 h-5 text-indigo-500" />
-                                    <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200">{tenantName}</h2>
-                                    <span className="bg-slate-200 dark:bg-slate-800 text-slate-500 text-xs px-2 py-0.5 rounded-full">
-                                        {tenantProjects.length}
-                                    </span>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {tenantProjects.map(project => (
-                                        <ProjectCard
-                                            key={project.id}
-                                            project={project}
-                                            onSelect={() => onSelect(project)}
-                                            onEdit={() => handleEdit(project)}
-                                            onContextMenu={(e) => handleContextMenu(e, project.id)}
-                                            members={members}
-                                            onAssign={(id) => assignProject(project.id, id)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                    <button
+                        onClick={handleCreateProject}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-95"
+                    >
+                        <Plus size={18} />
+                        新規作成
+                    </button>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6" onClick={() => setContextMenu(null)}>
+                {loading ? (
+                    <div className="flex justify-center items-center h-40">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                ) : filteredProjects.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400">
+                        プロジェクトがありません
+                    </div>
+                ) : viewMode === 'list' ? (
+                    // List View (Minimal)
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-xs uppercase text-slate-500 font-medium">
+                                <tr>
+                                    <th className="px-6 py-3">プロジェクト名</th>
+                                    <th className="px-6 py-3">クライアント</th>
+                                    <th className="px-6 py-3">更新日</th>
+                                    <th className="px-6 py-3">アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {filteredProjects.map((project) => (
+                                    <tr
+                                        key={project.id}
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                                        onClick={() => onSelect(project)}
+                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                    >
+                                        <td className="px-6 py-3 font-medium text-slate-700 dark:text-slate-200">
+                                            {project.name}
+                                        </td>
+                                        <td className="px-6 py-3 text-slate-500">
+                                            {project.client || '-'}
+                                        </td>
+                                        <td className="px-6 py-3 text-slate-400 text-xs">
+                                            {new Date(project.updatedAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                            <button className="text-slate-400 hover:text-slate-600 p-1">
+                                                <MoreVertical size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {projects.map(project => (
-                            <ProjectCard
+                    // Grid View
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredProjects.map((project) => (
+                            <div
                                 key={project.id}
-                                project={project}
-                                onSelect={() => onSelect(project)}
-                                onEdit={() => handleEdit(project)}
-                                onContextMenu={(e) => handleContextMenu(e, project.id)}
-                                members={members}
-                                onAssign={(id) => assignProject(project.id, id)}
-                            />
+                                className="group relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col h-[200px]"
+                                onClick={() => onSelect(project)}
+                                onContextMenu={(e) => handleContextMenu(e, project)}
+                            >
+                                {/* Color Bar */}
+                                <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 to-cyan-400" />
+
+                                <div className="p-5 flex-1 flex flex-col">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                            {project.name}
+                                        </h3>
+                                        <button className="text-slate-300 hover:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <MoreVertical size={18} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                                            {project.tenantId ? 'Company' : 'Personal'}
+                                        </span>
+                                        {project.client && (
+                                            <span className="flex items-center gap-1">
+                                                <span className="w-1 h-1 rounded-full bg-slate-400" />
+                                                {project.client}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-auto flex items-center justify-between text-xs text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                        <span className="flex items-center gap-1">
+                                            <Calendar size={12} />
+                                            {new Date(project.updatedAt).toLocaleDateString()}
+                                        </span>
+                                        {/* Status Tag or Count could go here */}
+                                    </div>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -211,23 +300,58 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId={contextMenu.projectId}
+                    itemId="" // Not used in Generic Actions mode
                     onClose={() => setContextMenu(null)}
-                    // Legacy props not needed if actions provided
                     actions={[
                         {
-                            label: 'アーカイブ (Archive)',
-                            icon: <Briefcase size={14} />,
-                            onClick: () => handleArchive(contextMenu.projectId)
+                            label: '開く',
+                            icon: <LayoutGrid size={14} />,
+                            onClick: () => onSelect(contextMenu.project)
                         },
                         {
-                            label: 'ゴミ箱へ移動 (Trash)',
+                            label: 'アーカイブ (Archive)',
+                            icon: <Archive size={14} />,
+                            onClick: () => openConfirm('archive', contextMenu.project)
+                        },
+                        {
+                            label: 'ゴミ箱へ移動 (Move to Trash)',
                             icon: <Trash2 size={14} />,
                             danger: true,
-                            onClick: () => handleTrash(contextMenu.projectId)
+                            onClick: () => openConfirm('trash', contextMenu.project)
                         }
                     ]}
                 />
+            )}
+
+            {/* Confirmation Modal */}
+            {confirmDialog.isOpen && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700 scale-100 animate-in zoom-in-95 duration-200">
+                        <h3 className={`text-lg font-bold mb-3 ${confirmDialog.danger ? 'text-red-600' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {confirmDialog.title}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 text-sm whitespace-pre-wrap mb-6 leading-relaxed">
+                            {confirmDialog.message}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleConfirmAction}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition-all active:scale-95 ${confirmDialog.danger
+                                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
+                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                                    }`}
+                            >
+                                実行する
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

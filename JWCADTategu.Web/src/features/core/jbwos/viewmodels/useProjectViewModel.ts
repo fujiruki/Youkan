@@ -88,8 +88,6 @@ export const useProjectViewModel = () => {
 
     const deleteProject = async (id: string) => {
         // Legacy: Physical Delete
-        if (!window.confirm('【警告】プロジェクトを完全に削除しますか？復元できません！')) return;
-
         setLoading(true);
         try {
             await ProjectService.destroy(id); // Use destroy (permanent)
@@ -103,8 +101,6 @@ export const useProjectViewModel = () => {
     };
 
     const trashProject = async (id: string) => {
-        if (!window.confirm('プロジェクトをゴミ箱へ移動しますか？')) return;
-
         setLoading(true);
         try {
             await ProjectService.trash(id);
@@ -118,8 +114,6 @@ export const useProjectViewModel = () => {
     };
 
     const archiveProject = async (id: string) => {
-        if (!window.confirm('プロジェクトをアーカイブしますか？')) return;
-
         setLoading(true);
         try {
             await ProjectService.archive(id);
