@@ -71,6 +71,8 @@ class ItemController extends BaseController {
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
+        $item['tenantId'] = $item['tenant_id'] ?? null;
+        $item['projectId'] = $item['project_id'] ?? null;
         return $item;
     }
 
@@ -147,10 +149,11 @@ class ItemController extends BaseController {
             }
             
             $sql = "
-                SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name,
                        a.name as assignee_name, a.color as assignee_color
                 FROM items
                 LEFT JOIN items parent ON items.parent_id = parent.id
+                LEFT JOIN items proj ON items.project_id = proj.id -- [FIX] Join Project to get real_project_title
                 LEFT JOIN tenants t ON items.tenant_id = t.id
                 LEFT JOIN assignees a ON items.assigned_to = a.id
                 WHERE (items.project_type IS NULL OR items.project_type = '')
@@ -394,6 +397,19 @@ class ItemController extends BaseController {
                 $parent = $parentStmt->fetch(PDO::FETCH_ASSOC);
                 if ($parent) {
                     $effectiveTenantId = $parent['tenant_id']; // Inherit from parent
+                }
+            } else if (!empty($data['projectId'])) {
+                $projStmt = $this->pdo->prepare("SELECT tenant_id, client_name, site_name FROM items WHERE id = ?");
+                $projStmt->execute([$data['projectId']]);
+                $proj = $projStmt->fetch(PDO::FETCH_ASSOC);
+                if ($proj) {
+                    $effectiveTenantId = $proj['tenant_id']; // Inherit from project
+                    if (empty($data['clientName']) && empty($data['client'])) {
+                        $data['clientName'] = $proj['client_name'];
+                    }
+                    if (empty($data['siteName']) && empty($data['site'])) {
+                        $data['siteName'] = $proj['site_name'];
+                    }
                 }
             } else if (isset($data['tenantId'])) {
                 $effectiveTenantId = $data['tenantId'];

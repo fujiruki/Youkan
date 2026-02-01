@@ -106,7 +106,12 @@
         - [x] Fix: 複数日背景色の描画 <!-- id: 1531 -->
     - [x] **API Resilience** <!-- id: 154 -->
         - [x] Fix: Backend接続 (Port 8000 & Proxy Config) <!-- id: 1541 -->
+
         - [x] Test: JBWOSRepository 単体テスト (Vitest) <!-- id: 1542 -->
+    - [x] **Bug Fix**: プロジェクトフォーカス時のアイテム所属不具合
+        - [x] Frontend: `App.tsx` / `DashboardScreen.tsx` での `tenantId` 伝搬
+        - [x] Backend: `ProjectController` / `ItemController` の camelCase 対応と自動継承ロジック
+        - [x] Fix: プロジェクトフォーカス作成時のタスク所属表示 (Backend JOIN不足対応)
 
 - [ ] **フェーズ 5: Haruki Status Model Refactoring (思想の統一)** <!-- id: 170 -->
     - [x] **定義**: `STATUS_MODEL_HARUKI.md` の策定 <!-- id: 171 -->

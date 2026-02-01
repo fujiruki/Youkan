@@ -32,6 +32,8 @@ export interface Project {
     tenantName?: string;  // [NEW]
     assigned_to?: string; // [NEW]
     assigneeName?: string; // [NEW]
+    parentId?: string;    // [NEW] Sub-project support
+    parentTitle?: string; // [NEW]
     createdAt: number;
     updatedAt: number;
 }
@@ -91,6 +93,7 @@ export interface Item {
     projectType?: 'general' | 'manufacturing' | string; // [NEW] Project Type for Unified Items
     tenantId?: string | null; // [NEW] To distinguish company vs personal
     tenantName?: string;      // [NEW] Display Name of the Tenant (for Badges)
+    clientName?: string;      // [NEW] Client Name / Contractor for Business Items
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
 

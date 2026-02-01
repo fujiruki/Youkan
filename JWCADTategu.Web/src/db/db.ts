@@ -17,6 +17,7 @@ export interface Project {
     viewMode?: 'internal' | 'external'; // [NEW]
     judgmentStatus?: 'inbox' | 'decision_hold' | 'someday' | 'active'; // [NEW] For GDB persistence
     userId?: string; // [NEW] Owner User ID
+    tenantId?: string; // [NEW] Company/Tenant ID
     cloudId?: string; // [NEW] Original Cloud UUID for Project Dashboard
     updatedAt: Date;
     createdAt: Date;

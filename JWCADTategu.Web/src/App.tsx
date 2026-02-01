@@ -113,8 +113,8 @@ function App() {
     };
 
     // 2.5. To Cloud Project (From ProjectRegistryScreen)
-    const handleOpenCloudProject = (projectId: string, projectName?: string) => {
-        console.log('[App] Opening Cloud Project:', projectId);
+    const handleOpenCloudProject = (projectId: string, projectName?: string, tenantId?: string) => {
+        console.log('[App] Opening Cloud Project:', projectId, 'Tenant:', tenantId);
         // Create a minimal Project object for JoineryScheduleScreen
         // Use the cloud ID as both:
         // - id: Generate a numeric ID from the string for local compatibility
@@ -124,6 +124,7 @@ function App() {
             id: numericId,
             name: projectName || `[CLOUD:${projectId}]`, // Use actual title
             cloudId: projectId, // [NEW] Store original UUID
+            tenantId: tenantId, // [fix] Pass tenantId
             client: '',
             updatedAt: new Date(),
             createdAt: new Date()
@@ -358,7 +359,7 @@ const AppContent: React.FC<{
     activeDoor: Door | null;
     handleNavigateToProjects: () => void;
     handleOpenProject: (id: number) => Promise<void>;
-    handleOpenCloudProject: (id: string, name?: string) => void;
+    handleOpenCloudProject: (id: string, name?: string, tenantId?: string) => void;
     handleOpenDoor: (door: Door) => void;
     handleBackToDashboard: () => void;
     handleBackToProjectList: () => void;
@@ -452,7 +453,7 @@ const AppContent: React.FC<{
                                         if (/^\d+$/.test(project.id)) {
                                             handleOpenProject(parseInt(project.id, 10));
                                         } else {
-                                            handleOpenCloudProject(project.id, project.name);
+                                            handleOpenCloudProject(project.id, project.name, project.tenantId);
                                         }
                                     }}
                                     onBack={handleBackToDashboard}

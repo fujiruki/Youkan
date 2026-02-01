@@ -7,7 +7,7 @@ $serverPort = "8022"
 # Target Project Directory
 $remoteDir = "public_html/door-fujita.com/contents/TateguDesignStudio"
 # SSH Key Path (Relative to project root)
-$sshKeyPath = "docs/AI_DEVELOP_RULES/UPLOAD/key-2025-11-29-07-10.pem"
+$sshKeyPath = "docs/01_RULES/UPLOAD/key-2025-11-29-07-10.pem"
 $archiveName = "deploy.tar.gz"
 
 Write-Host "🚀 Starting Deployment Process..." -ForegroundColor Cyan

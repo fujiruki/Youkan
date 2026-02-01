@@ -599,7 +599,23 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
 
         // Ensure we pass null if we want Private, NOT some accidental company ID.
-        if (!resolvedTenantId) resolvedTenantId = null;
+        if (!resolvedTenantId && !projectId) resolvedTenantId = null;
+
+        // [NEW] Find Project Metadata for Optimistic UI
+        let projectTitle = undefined;
+        if (projectId) {
+            const p = allProjects.find(pro => pro.id === projectId);
+            if (p) {
+                projectTitle = p.title; // Note: 'title' property in Item, 'name' in Project but allProjects is Item[] here
+            }
+        }
+
+        // [NEW] Find Tenant Metadata for Optimistic UI
+        let tenantName = undefined;
+        if (resolvedTenantId) {
+            const t = joinedTenants.find(ten => ten.id === resolvedTenantId);
+            if (t) tenantName = t.name;
+        }
 
         // 1. Optimistic Update (Immediate Feedback)
         // Repo now accepts null for tenantId/projectId
@@ -622,7 +638,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
             type: 'start',
             memo: '',
             tenantId: resolvedTenantId, // [NEW] Link context
+            tenantName, // [NEW] Optimistic Tenant Name
             projectId: projectId || null, // [FIX] Use explicit null
+            projectTitle, // [NEW] Optimistic Project Title
             focusOrder: 0,
             isEngaged: false
         };

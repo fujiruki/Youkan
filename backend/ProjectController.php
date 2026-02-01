@@ -294,9 +294,11 @@ class ProjectController extends BaseController {
         return [
             'id' => $item['id'],
             'tenant_id' => $item['tenant_id'],
+            'tenantId' => $item['tenant_id'], // [FIX] Added for Frontend compatibility
             'name' => $item['title'], // Map title -> name (Legacy compatibility)
             'title' => $item['title'], // [FIX] Added for Frontend Item type compatibility
             'client' => $item['client_name'] ?? $item['client'] ?? '',
+            'clientName' => $item['client_name'] ?? $item['client'] ?? '', // [FIX] Added
             'settings_json' => json_encode($meta['settings'] ?? []),
             'dxf_config_json' => json_encode($meta['dxf_config'] ?? []),
             'view_mode' => $meta['view_mode'] ?? 'internal',
@@ -305,6 +307,7 @@ class ProjectController extends BaseController {
             'grossProfitTarget' => (int)($item['gross_profit_target'] ?? $meta['gross_profit_target'] ?? 0),
             'color' => $meta['color'] ?? 'blue',
             'assigned_to' => $item['assigned_to'] ?? null,
+            'assignedTo' => $item['assigned_to'] ?? null, // [FIX] Added
             'created_at' => $item['created_at'], 
             'updated_at' => $item['updated_at'],
             'type' => $item['project_type'] // Exposed

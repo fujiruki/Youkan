@@ -51,26 +51,32 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
         gdbPreparation,
         gdbIntent,
         ghostGdbCount,
-        ghostTodayCount
+        ghostTodayCount,
+        allProjects // [NEW] Needed for logic
     } = vm;
     const [activeId, setActiveId] = useState<string | null>(null);
     const { joinedTenants } = useAuth(); // [RESTORED]
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
 
     // Default Selection Logic based on filterMode
+    // [FIX] Determine Focused Project & Effective Tenant
+    const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
+    const effectiveTenantId = focusedProject ? (focusedProject.tenantId || null) : selectedTenantId;
+
+    // Default Selection Logic based on filterMode
     useEffect(() => {
-        if (vm.filterMode === 'all') {
+        if (!focusedProject && vm.filterMode === 'all') {
             setSelectedTenantId(null); // Personal
-        } else if (vm.filterMode === 'company') {
+        } else if (!focusedProject && vm.filterMode === 'company') {
             if (joinedTenants.length > 0) {
                 if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {
                     setSelectedTenantId(joinedTenants[0].id);
                 }
             }
-        } else if (vm.filterMode === 'personal') {
+        } else if (!focusedProject && vm.filterMode === 'personal') {
             setSelectedTenantId(null);
         }
-    }, [vm.filterMode, joinedTenants]);
+    }, [vm.filterMode, joinedTenants, focusedProject, selectedTenantId]);
 
     // --- help Guid Modal ---
     const [showHelp, setShowHelp] = useState(false);
@@ -219,7 +225,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
         // Maybe GlobalBoard is used in Dashboard WITHOUT projectId prop, but VM has it?
         // No, UI splits: Dashboard -> GlobalBoard.
         // Let's verify VM init line.
-        const newId = await vm.throwIn(inputValue, selectedTenantId || undefined);
+        // [FIX] Use effectiveTenantId to guarantee correct association
+        const newId = await vm.throwIn(inputValue, effectiveTenantId || undefined);
         if (newId) {
             setLastThrowInId(newId);
             showToast({ type: 'success', title: 'Inboxに保存しました', message: inputValue }); // [NEW] Feedback
@@ -417,6 +424,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                 onCreateSubTask={vm.createSubTask}
                 onGetSubTasks={vm.getSubTasks}
                 members={vm.members}
+                joinedTenants={joinedTenants}
             />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
@@ -500,16 +508,27 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     rowHeight={rowHeight}
                                     onCreateSubTask={vm.createSubTask}
                                     headerRight={
-                                        <select
-                                            value={selectedTenantId || ''}
-                                            onChange={(e) => setSelectedTenantId(e.target.value || null)}
-                                            className="text-[10px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-amber-400 font-bold text-slate-600 dark:text-slate-300 h-[22px]"
-                                        >
-                                            <option value="">Personal</option>
-                                            {joinedTenants.map((t: any) => (
-                                                <option key={t.id} value={t.id}>{t.name}</option>
-                                            ))}
-                                        </select>
+                                        focusedProject ? (
+                                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 border border-slate-200 dark:border-slate-600" >
+                                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">To:</span>
+                                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[100px]">
+                                                    {focusedProject.tenantId
+                                                        ? (joinedTenants.find((t: any) => t.id === focusedProject.tenantId)?.name || 'Unknown')
+                                                        : 'Personal'}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={selectedTenantId || ''}
+                                                onChange={(e) => setSelectedTenantId(e.target.value || null)}
+                                                className="text-[10px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-amber-400 font-bold text-slate-600 dark:text-slate-300 h-[22px]"
+                                            >
+                                                <option value="">Personal</option>
+                                                {joinedTenants.map((t: any) => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        )
                                     }
                                     footer={
                                         <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
@@ -610,11 +629,11 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                     onMoveToInbox={vm.memoToInbox}
                 />
 
-            </div>
+            </div >
 
             <DragOverlay>
                 {activeItem ? <ItemCard item={activeItem} isCompact={layoutMode === 'panorama'} /> : null}
             </DragOverlay>
-        </DndContext>
+        </DndContext >
     );
 };

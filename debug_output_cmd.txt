@@ -1,0 +1,59 @@
+--- Tables ---
+Count: 21
+Array
+(
+    [0] => system_logs
+    [1] => sqlite_sequence
+    [2] => events
+    [3] => daily_logs
+    [4] => side_memos
+    [5] => stocks
+    [6] => user_configs
+    [7] => daily_volumes
+    [8] => users
+    [9] => tenants
+    [10] => memberships
+    [11] => api_tokens
+    [12] => assignees
+    [13] => project_categories
+    [14] => life_logs
+    [15] => doors
+    [16] => deliverables
+    [17] => customers
+    [18] => manufacturing_items
+    [19] => company_members
+    [20] => items
+)
+
+--- User Info (users) ---
+Array
+(
+    [id] => u_697b2af132f4f
+    [email] => debug@example.com
+    [display_name] => デバッグ太郎
+)
+
+--- Memberships (memberships) ---
+Array
+(
+    [0] => Array
+        (
+            [user_id] => u_697b2af132f4f
+            [tenant_id] => t_697b2af180467
+            [role] => owner
+            [joined_at] => 2026-01-29 09:40:01
+            [is_core] => 1
+        )
+
+)
+
+--- Related Organizations ---
+Tenant: Array
+(
+    [id] => t_697b2af180467
+    [name] => 株式会社デバッグ
+    [domain] => 
+    [created_at] => 2026-01-29 09:40:01
+    [email] => debug@example.com
+    [password_hash] => $2y$12$pjFhDOzTg5gTOrx4sR6epeRhhvZ21Oy8mKf0Ny60l0wW4CgxB5l0a
+)

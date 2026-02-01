@@ -3,12 +3,17 @@ import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
 import { Plus, Edit2, Trash2, ArrowLeft, Building2 } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
-import { JbwosTenant } from '../../auth/types';
+
+import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog'; // Unified Dialog
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
     const { projects, members, loading, fetchProjects, createProject, updateProject, deleteProject, assignProject, activeScope, setActiveScope } = useProjectViewModel();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+    // Auth for resolving tenants list
+    const { joinedTenants } = useAuth();
+
 
     useEffect(() => {
         fetchProjects();
@@ -30,6 +35,19 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const handleEdit = (project: Project) => {
         setEditingProject(project);
         setIsModalOpen(true);
+    };
+
+    const handleDialogSave = async (payload: Partial<Project>) => {
+        if (editingProject) {
+            await updateProject(editingProject.id, payload);
+        } else {
+            // Creation
+            // ensure activeScope logic is respected if payload doesn't have tenantId set?
+            // ViewModel in Dialog handles tenantId logic (getEffectiveTenantId).
+            // So payload.tenantId should be correct.
+            await createProject(payload);
+        }
+        setIsModalOpen(false);
     };
 
     return (
@@ -137,24 +155,15 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 )}
             </div>
 
-            {/* Modal */}
+            {/* Unified Dialog */}
             {isModalOpen && (
-                <ProjectModal
-                    project={editingProject}
-                    activeScope={activeScope}
+                <ProjectCreationDialog
+                    isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
-                    onSave={async (data) => {
-                        const payload = { ...data };
-                        if (activeScope === 'personal') {
-                            (payload as any).isPersonal = true;
-                        }
-                        if (editingProject) {
-                            await updateProject(editingProject.id, payload);
-                        } else {
-                            await createProject(payload);
-                        }
-                        setIsModalOpen(false);
-                    }}
+                    onCreate={handleDialogSave}
+                    activeScope={activeScope}
+                    tenants={joinedTenants}
+                    project={editingProject}
                 />
             )}
         </div>
@@ -248,117 +257,4 @@ const ProjectCard: React.FC<{
             </div>
         </div>
     );
-};
-
-const ProjectModal: React.FC<{
-    project: Project | null;
-    activeScope: 'personal' | 'company';
-    onClose: () => void;
-    onSave: (data: Partial<Project>) => Promise<void>;
-}> = ({ project, activeScope, onClose, onSave }) => {
-    const { tenant } = useAuth();
-    const jbwosTenant = tenant as JbwosTenant;
-    const isManufacturing = jbwosTenant?.config?.plugins?.manufacturing ?? false;
-
-    const [name, setName] = useState(project?.name || '');
-    const [clientName, setClientName] = useState(project?.clientName || project?.client || '');
-    const [target, setTarget] = useState(project?.grossProfitTarget?.toString() || '0');
-    const [color, setColor] = useState(project?.color || '#6366f1');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await onSave({
-                name,
-                clientName,
-                grossProfitTarget: parseInt(target) || 0,
-                color
-            });
-            // We need a state for tenantId. 
-            // Let's add it. 
-            // See logic below for replacement content.
-        }}
-    className = "w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-        >
-    {
-        joinedTenants.map(t => (
-            <option key={t.id} value={t.id}>
-                {t.name}
-            </option>
-        ))
-    }
-    </select >
-            </div >
-        )}
-
-{
-    activeScope === 'company' && isManufacturing && (
-        <div className="grid grid-cols-2 gap-4">
-            <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    顧客名 / 現場名
-                </label>
-                <input
-                    type="text"
-                    value={clientName}
-                    onChange={e => setClientName(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    placeholder="例: 田中邸"
-                />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    目標粗利 (円)
-                </label>
-                <input
-                    type="number"
-                    value={target}
-                    onChange={e => setTarget(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                />
-            </div>
-        </div>
-    )
-}
-
-        <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                カラーラベル
-            </label>
-            <div className="flex gap-2 flex-wrap">
-                {['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'].map(c => (
-                    <button
-                        key={c}
-                        type="button"
-                        onClick={() => setColor(c)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? 'border-indigo-500 scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                        style={{ backgroundColor: c }}
-                    />
-                ))}
-            </div>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-4">
-            <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            >
-                キャンセル
-            </button>
-            <button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"
-            >
-                {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {project ? '変更を保存' : '作成する'}
-            </button>
-        </div>
-    </form >
-        </div >
-    </div >
-);
 };

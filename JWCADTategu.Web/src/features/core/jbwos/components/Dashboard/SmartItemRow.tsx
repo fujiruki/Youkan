@@ -40,7 +40,18 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
 }) => {
     return (
         <div
-            onClick={onClick}
+            onClick={() => {
+                console.group(`🔍 Debug: Click Item (${item.title})`);
+                console.log('Item ID:', item.id);
+                console.log('Project ID:', item.projectId);
+                console.log('Project Title:', item.projectTitle);
+                console.log('Tenant ID:', item.tenantId);
+                console.log('Tenant Name:', item.tenantName);
+                console.log('Client Name:', item.clientName);
+                console.groupEnd();
+
+                onClick();
+            }}
             onContextMenu={(e) => {
                 if (onContextMenu) {
                     e.preventDefault();

@@ -32,6 +32,9 @@ export const useLoginViewModel = () => {
                 localStorage.setItem('jbwos_tenant', JSON.stringify(res.tenant));
             }
             localStorage.setItem('jbwos_account_type', accountType);
+            if ((res as any).joinedTenants) {
+                localStorage.setItem('jbwos_joined_tenants', JSON.stringify((res as any).joinedTenants));
+            }
             window.location.reload();
         } catch (e) {
             setError(accountType === 'tenant'
@@ -96,9 +99,15 @@ export const useLoginViewModel = () => {
         if (isTenant && dummyTenant) {
             localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
             localStorage.setItem('jbwos_account_type', 'tenant');
+            localStorage.setItem('jbwos_joined_tenants', JSON.stringify([dummyTenant]));
         } else {
             localStorage.removeItem('jbwos_tenant');
             localStorage.setItem('jbwos_account_type', 'user');
+            localStorage.setItem('jbwos_joined_tenants', JSON.stringify([{
+                id: 'debug-tenant-dbg',
+                name: 'デバッグ社',
+                role: 'owner'
+            }]));
         }
 
         // [FIX] Inject Token for AuthProvider
