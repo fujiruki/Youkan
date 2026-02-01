@@ -1,56 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
-import { Plus, Trash2, ArrowLeft, Archive, LayoutGrid, List, MoreVertical, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, Building2, Briefcase, Archive, LayoutGrid, List, MoreVertical, Calendar } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
-import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog'; // Unified Dialog
-import { ContextMenu } from '../components/GlobalBoard/ContextMenu'; // [NEW]
+import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
+import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
     const {
         projects,
+        members,
         loading,
         fetchProjects,
         createProject,
         updateProject,
-        deleteProject, // Now destroy
-        trashProject,  // New
-        archiveProject, // New
-        activeScope
+        deleteProject,
+        trashProject,
+        archiveProject,
+        assignProject,
+        activeScope,
+        setActiveScope
     } = useProjectViewModel();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
 
-    // Context Menu State
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; project: Project } | null>(null); // Fixed type
-    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // [RESTORED]
-
-    // Auth for resolving tenants list
     const { joinedTenants } = useAuth();
 
-    // [RESTORED] Filtering Logic
+    // Derived state for filtering
     const filteredProjects = activeScope === 'company'
         ? projects.filter(p => p.tenantId)
         : projects.filter(p => !p.tenantId);
 
-    // [RESTORED] Alias
-    const handleCreateProject = () => {
+    useEffect(() => {
+        fetchProjects();
+    }, [fetchProjects, activeScope]);
+
+    const handleCreate = () => {
         setEditingProject(null);
         setIsModalOpen(true);
     };
 
-
-    useEffect(() => {
-        fetchProjects();
-    }, [fetchProjects]);
-
-
-
-
-
-
+    const handleEdit = (project: Project) => {
+        setEditingProject(project);
+        setIsModalOpen(true);
+        setContextMenu(null);
+    };
 
     const handleDialogSave = async (payload: Partial<Project>) => {
         if (editingProject) {
@@ -61,7 +59,6 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         setIsModalOpen(false);
     };
 
-    // Context Menu Handler
     const handleContextMenu = (e: React.MouseEvent, project: Project) => {
         e.preventDefault();
         setContextMenu({
@@ -71,7 +68,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         });
     };
 
-    // [NEW] Confirmation Modal State from Implementation Plan
+    // [NEW] Confirmation Modal State
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
         title: string;
@@ -122,7 +119,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             title,
             message,
             action,
-            targetId: String(project.id), // Ensure string
+            targetId: String(project.id),
             danger
         });
     };
@@ -145,6 +142,31 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                         <p className="text-xs text-slate-400 mt-1">案件の管理と進捗状況</p>
                     </div>
                 </div>
+
+                {/* Scope Tabs */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                    <button
+                        onClick={() => setActiveScope('company')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'company'
+                                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Building2 size={16} />
+                        Company
+                    </button>
+                    <button
+                        onClick={() => setActiveScope('personal')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'personal'
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Briefcase size={16} />
+                        Personal
+                    </button>
+                </div>
+
                 <div className="flex items-center gap-2">
                     {/* View Toggle */}
                     <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
@@ -163,7 +185,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     </div>
 
                     <button
-                        onClick={handleCreateProject}
+                        onClick={handleCreate}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-95"
                     >
                         <Plus size={18} />
@@ -191,6 +213,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                     <th className="px-6 py-3">プロジェクト名</th>
                                     <th className="px-6 py-3">クライアント</th>
                                     <th className="px-6 py-3">更新日</th>
+                                    <th className="px-6 py-3">担当</th>
                                     <th className="px-6 py-3">アクション</th>
                                 </tr>
                             </thead>
@@ -212,7 +235,18 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                             {new Date(project.updatedAt).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-3">
-                                            <button className="text-slate-400 hover:text-slate-600 p-1">
+                                            {project.assigned_to && (
+                                                <div
+                                                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                                                    style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
+                                                    title={members.find(m => m.id === project.assigned_to)?.name}
+                                                >
+                                                    {members.find(m => m.id === project.assigned_to)?.name?.charAt(0)}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                            <button className="text-slate-400 hover:text-slate-600 p-1" onClick={(e) => { e.stopPropagation(); handleContextMenu(e, project); }}>
                                                 <MoreVertical size={16} />
                                             </button>
                                         </td>
@@ -222,49 +256,18 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                         </table>
                     </div>
                 ) : (
-                    // Grid View
+                    // Grid View - Use Rich Card
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredProjects.map((project) => (
-                            <div
+                            <ProjectCard
                                 key={project.id}
-                                className="group relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col h-[200px]"
-                                onClick={() => onSelect(project)}
+                                project={project}
+                                members={members}
+                                onSelect={() => onSelect(project)}
+                                onEdit={() => handleEdit(project)}
                                 onContextMenu={(e) => handleContextMenu(e, project)}
-                            >
-                                {/* Color Bar */}
-                                <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 to-cyan-400" />
-
-                                <div className="p-5 flex-1 flex flex-col">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                            {project.name}
-                                        </h3>
-                                        <button className="text-slate-300 hover:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MoreVertical size={18} />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                                            {project.tenantId ? 'Company' : 'Personal'}
-                                        </span>
-                                        {project.client && (
-                                            <span className="flex items-center gap-1">
-                                                <span className="w-1 h-1 rounded-full bg-slate-400" />
-                                                {project.client}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="mt-auto flex items-center justify-between text-xs text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-700">
-                                        <span className="flex items-center gap-1">
-                                            <Calendar size={12} />
-                                            {new Date(project.updatedAt).toLocaleDateString()}
-                                        </span>
-                                        {/* Status Tag or Count could go here */}
-                                    </div>
-                                </div>
-                            </div>
+                                onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
+                            />
                         ))}
                     </div>
                 )}
@@ -287,13 +290,18 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId="" // Not used in Generic Actions mode
+                    itemId=""
                     onClose={() => setContextMenu(null)}
                     actions={[
                         {
                             label: '開く',
                             icon: <LayoutGrid size={14} />,
                             onClick: () => onSelect(contextMenu.project)
+                        },
+                        {
+                            label: '編集',
+                            icon: <Edit2 size={14} />,
+                            onClick: () => handleEdit(contextMenu.project)
                         },
                         {
                             label: 'アーカイブ (Archive)',
@@ -330,8 +338,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                             <button
                                 onClick={handleConfirmAction}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition-all active:scale-95 ${confirmDialog.danger
-                                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
-                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                                        ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
+                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                                     }`}
                             >
                                 実行する
@@ -344,6 +352,98 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     );
 };
 
-// Sub-components
+// Rich Project Card Component
+const ProjectCard: React.FC<{
+    project: Project;
+    onSelect: () => void;
+    onEdit: () => void;
+    onContextMenu: (e: React.MouseEvent) => void;
+    members?: any[];
+    onAssign?: (id: string | null) => void;
+}> = ({ project, onSelect, onEdit, onContextMenu, members = [], onAssign }) => {
+    return (
+        <div
+            onClick={onSelect}
+            onContextMenu={onContextMenu}
+            className="group bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden cursor-pointer h-[200px] flex flex-col"
+        >
+            {/* Color accent */}
+            <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
 
+            <div className="pl-3 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-1">
+                    <div className="flex items-center gap-1.5">
+                        {project.color && (
+                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
+                        )}
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 truncate max-w-[120px]">
+                            {project.clientName || project.client || '自社・個人'}
+                        </span>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors">
+                            <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
 
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-0.5 truncate">
+                    {project.name}
+                </h3>
+
+                <div className="flex items-center gap-3 mt-4 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400">目標粗利</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
+                            ¥{project.grossProfitTarget?.toLocaleString() ?? 0}
+                        </span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400">状態</span>
+                        <span className="capitalize text-[11px]">{project.judgmentStatus || '未分類'}</span>
+                    </div>
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Assignment Selector & Date */}
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400">担当:</span>
+                        <select
+                            value={project.assigned_to || ''}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onAssign?.(e.target.value || null);
+                            }}
+                            className="text-[10px] bg-slate-100 dark:bg-slate-700 border-none rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-400 max-w-[80px]"
+                        >
+                            <option value="">未割当</option>
+                            {members.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {project.assigned_to && (
+                            <div
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] text-white font-bold"
+                                style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
+                                title={members.find(m => m.id === project.assigned_to)?.name}
+                            >
+                                {members.find(m => m.id === project.assigned_to)?.name?.charAt(0)}
+                            </div>
+                        )}
+                        <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                            <Calendar size={10} />
+                            {new Date(project.updatedAt).toLocaleDateString()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
