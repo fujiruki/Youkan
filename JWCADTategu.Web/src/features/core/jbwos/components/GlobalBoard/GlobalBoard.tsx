@@ -28,6 +28,7 @@ import { Item } from '../../types';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
 import { useAuth } from '../../../auth/providers/AuthProvider'; // [NEW]
+import { QuickInputWidget } from '../Inputs/QuickInputWidget'; // [NEW]
 
 
 interface GlobalBoardProps {
@@ -59,9 +60,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
 
     // Default Selection Logic based on filterMode
-    // [FIX] Determine Focused Project & Effective Tenant
+    // Default Selection Logic based on filterMode
+    // [FIX] Determine Focused Project
     const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
-    const effectiveTenantId = focusedProject ? (focusedProject.tenantId || null) : selectedTenantId;
 
     // Default Selection Logic based on filterMode
     useEffect(() => {
@@ -208,50 +209,13 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
     const activeItem = activeId ? findItem(activeId) : null;
 
     // --- Quick Input (ThrowIn) ---
-    const [inputValue, setInputValue] = useState('');
+    // [REPLACED] Logic moved to QuickInputWidget
+
     const [detailItem, setDetailItem] = useState<Item | null>(null);
-    const [lastThrowInId, setLastThrowInId] = useState<string | null>(null); // [NEW] Track last added item
-    const inputRef = React.useRef<HTMLInputElement>(null); // [NEW] Ref for keeping focus
-    const { showToast } = useToast(); // [NEW] Toast
-    const [showProjectDialog, setShowProjectDialog] = useState(false); // [NEW] Project creation dialog
+    const { showToast } = useToast();
+    const [showProjectDialog, setShowProjectDialog] = useState(false);
 
-    const handleThrowIn = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!inputValue.trim()) return;
 
-        // [FIX] Pass projectId context explicitly if helpful, or rely on VM scope
-        // VM is init with projectId, so it should work.
-        // User reported fail. Why?
-        // Maybe GlobalBoard is used in Dashboard WITHOUT projectId prop, but VM has it?
-        // No, UI splits: Dashboard -> GlobalBoard.
-        // Let's verify VM init line.
-        // [FIX] Use effectiveTenantId to guarantee correct association
-        const newId = await vm.throwIn(inputValue, effectiveTenantId || undefined);
-        if (newId) {
-            setLastThrowInId(newId);
-            showToast({ type: 'success', title: 'Inboxに保存しました', message: inputValue }); // [NEW] Feedback
-            // setDetailItem(optimItem); // Removed: Don't open modal automatically
-        }
-        setInputValue('');
-        // Ensure focus remains on input (it should by default, but to be safe)
-        inputRef.current?.focus();
-    };
-
-    // [NEW] Shortcut Handler (Alt+D)
-    // We listen globally or on the input? The requirement says "focusing the throw-in text box".
-    // So let's add onKeyDown to the input.
-    const handleInputKeyDown = (e: React.KeyboardEvent) => {
-        if (e.altKey && e.key.toLowerCase() === 'd') {
-            e.preventDefault();
-            if (lastThrowInId) {
-                const item = findItem(lastThrowInId);
-                if (item) {
-                    setDetailItem(item);
-                    setInitialFocus('date'); // [NEW] Focus date for instant decision
-                }
-            }
-        }
-    };
 
     // --- Context Menu Logic ---
     const [initialFocus, setInitialFocus] = useState<'date' | undefined>(undefined); // [NEW] moved to top
@@ -262,7 +226,22 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
     // [NEW] Global Key Listeners for Delete / Undo
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in input
+            // ALT + D: Open Detail (Global Fallback)
+            if (e.altKey && e.key.toLowerCase() === 'd') {
+                // If focus is on input, let the input handle it (QuickInputWidget)
+                if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) return;
+
+                e.preventDefault();
+                if (lastInteractedItemId) {
+                    const item = findItem(lastInteractedItemId);
+                    if (item) {
+                        setDetailItem(item);
+                        setInitialFocus('date');
+                    }
+                }
+            }
+
+            // Ignore if typing in input (for Delete)
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
             // Delete key
@@ -304,8 +283,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
             // Fully close
             setDetailItem(null);
             setInitialFocus(undefined);
-            // [FIX] Restore focus to input after modal closes
-            setTimeout(() => inputRef.current?.focus(), 100);
+            setInitialFocus(undefined);
+            // [Fix] Focus restoration removed as we moved input logic
         }
     };
 
@@ -502,7 +481,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="ここにあるものを今日やるか決める"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
                                     emptyMessage={<GentleMessage variant="inbox_clean" />}
-                                    onClickItem={(item) => setDetailItem(item)}
+                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight}
@@ -531,17 +510,29 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                         )
                                     }
                                     footer={
-                                        <form onSubmit={handleThrowIn} className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
-                                            <input
-                                                ref={inputRef}
-                                                type="text"
-                                                value={inputValue}
-                                                onChange={(e) => setInputValue(e.target.value)}
-                                                onKeyDown={handleInputKeyDown}
-                                                placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
-                                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm focus:ring-2 focus:ring-amber-400 focus:outline-none transition-all placeholder:text-slate-400 text-sm text-slate-900 dark:text-slate-100"
-                                            />
-                                        </form>
+                                        <QuickInputWidget
+                                            className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700"
+                                            viewModel={vm}
+                                            projectContext={focusedProject ? {
+                                                id: String(focusedProject.id),
+                                                name: focusedProject.title || 'Project', // [FIX] Item uses title
+                                                tenantId: focusedProject.tenantId
+                                            } : selectedTenantId ? {
+                                                name: joinedTenants.find((t: any) => t.id === selectedTenantId)?.name || 'Unknown',
+                                                tenantId: selectedTenantId
+                                            } : null}
+                                            onRequestFallbackOpen={() => {
+                                                if (lastInteractedItemId) {
+                                                    const item = findItem(lastInteractedItemId);
+                                                    if (item) {
+                                                        setDetailItem(item);
+                                                        setInitialFocus('date');
+                                                    }
+                                                }
+                                            }}
+                                            onOpenItem={(item) => setDetailItem(item)}
+                                            placeholder="ここに吐き出す... (EnterでInboxへ / Alt+Dで直前の詳細)"
+                                        />
                                     }
                                 />
                             </div>
@@ -560,7 +551,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="他者や到着を待っている状態。"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
                                     emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
-                                    onClickItem={(item) => setDetailItem(item)}
+                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight} // [NEW]
@@ -582,7 +573,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="今はやらないと決めたもの（棚）。"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
                                     emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
-                                    onClickItem={(item) => setDetailItem(item)}
+                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight} // [NEW]

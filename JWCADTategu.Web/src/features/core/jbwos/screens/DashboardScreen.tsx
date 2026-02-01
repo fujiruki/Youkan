@@ -13,6 +13,7 @@ import { HeaderProgressBar } from '../components/Dashboard/HeaderProgressBar';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
+import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { ManufacturingLoadWidget } from '../../../plugins/manufacturing/components/ManufacturingLoadWidget';
@@ -92,7 +93,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     ];
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-    const [newItemTitle, setNewItemTitle] = useState('');
     const [isPendingExpanded, setIsPendingExpanded] = useState(false);
     const [isWaitingExpanded, setIsWaitingExpanded] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
@@ -305,58 +305,27 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                     <div className="max-w-3xl mx-auto px-4 md:px-6">
                         <SectionHeader title="受信箱 (Inbox)" count={inboxItems.length} icon={<BarChart2 size={14} />} />
-                        {/* [MODIFIED] Throw In Input with Explicit Context Label */}
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            if (!newItemTitle.trim()) return;
+                        <SectionHeader title="受信箱 (Inbox)" count={inboxItems.length} icon={<BarChart2 size={14} />} />
 
-                            // Debug logs preserved
-                            console.group('🔍 Debug: Throw In (Dashboard)');
-                            console.log('Active Project Context:', activeProject ? activeProject.name : 'None');
-
-                            try {
-                                // Resolving Tenant ID logic handled in ViewModel
-                                await vm.throwIn(newItemTitle, activeProject?.tenantId);
-                            } catch (e) {
-                                console.error('❌ Throw In Failed:', e);
-                            } finally {
-                                console.groupEnd();
-                            }
-
-                            setNewItemTitle('');
-                            handleRefresh();
-                        }} className="mb-4 relative group">
-                            {/* Context Label Badge - Explicitly Rendered */}
-                            <div className="absolute -top-5 right-0 flex items-center gap-1">
-                                {activeProject ? (
-                                    <span className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                        <Briefcase size={10} />
-                                        To: {activeProject.name}
-                                    </span>
-                                ) : (
-                                    <span className="bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                                        To: Inbox
-                                    </span>
-                                )}
-                            </div>
-
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={newItemTitle}
-                                    onChange={(e) => setNewItemTitle(e.target.value)}
-                                    placeholder={activeProject ? `${activeProject.name} にタスクを追加...` : "思いついたことを入力..."}
-                                    className="w-full pl-3 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-800 focus:border-blue-300 transition-all text-sm"
-                                />
-                                <button
-                                    type="submit"
-                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${newItemTitle.trim() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-slate-100 text-slate-300 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}
-                                    disabled={!newItemTitle.trim()}
-                                >
-                                    <Plus size={16} />
-                                </button>
-                            </div>
-                        </form>
+                        {/* [MODIFIED] Unified Quick Input Widget */}
+                        <QuickInputWidget
+                            className="mb-4"
+                            viewModel={vm}
+                            projectContext={activeProject ? {
+                                id: String(activeProject.id),
+                                name: activeProject.name,
+                                tenantId: activeProject.tenantId
+                            } : null}
+                            onOpenItem={(item) => setSelectedItem(item)}
+                            onRequestFallbackOpen={() => {
+                                if (lastInteractedItemId) {
+                                    const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
+                                    const item = all.find(i => i.id === lastInteractedItemId);
+                                    if (item) setSelectedItem(item);
+                                }
+                            }}
+                            placeholder={activeProject ? `${activeProject.name} にタスクを追加...` : "思いついたことを入力..."}
+                        />
 
                         <div className="flex flex-col mb-4">
                             {inboxItems.map(item => (
