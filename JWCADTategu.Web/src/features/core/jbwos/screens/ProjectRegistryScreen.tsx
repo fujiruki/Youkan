@@ -1,15 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
-import { Plus, Edit2, Trash2, ArrowLeft, Building2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, Building2, Briefcase, Archive } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog'; // Unified Dialog
+import { ContextMenu } from '../components/GlobalBoard/ContextMenu'; // [NEW]
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
-    const { projects, members, loading, fetchProjects, createProject, updateProject, deleteProject, assignProject, activeScope, setActiveScope } = useProjectViewModel();
+    // [UPDATE] destructured new methods
+    const {
+        projects,
+        members,
+        loading,
+        fetchProjects,
+        createProject,
+        updateProject,
+        deleteProject, // Now destroy
+        trashProject,  // New
+        archiveProject, // New
+        assignProject,
+        activeScope,
+        setActiveScope
+    } = useProjectViewModel();
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string } | null>(null);
 
     // Auth for resolving tenants list
     const { joinedTenants } = useAuth();
@@ -35,23 +54,43 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const handleEdit = (project: Project) => {
         setEditingProject(project);
         setIsModalOpen(true);
+        setContextMenu(null);
     };
 
     const handleDialogSave = async (payload: Partial<Project>) => {
         if (editingProject) {
             await updateProject(editingProject.id, payload);
         } else {
-            // Creation
-            // ensure activeScope logic is respected if payload doesn't have tenantId set?
-            // ViewModel in Dialog handles tenantId logic (getEffectiveTenantId).
-            // So payload.tenantId should be correct.
             await createProject(payload);
         }
         setIsModalOpen(false);
     };
 
+    // Context Menu Handler
+    const handleContextMenu = (e: React.MouseEvent, projectId: string) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            projectId
+        });
+    };
+
+    const handleArchive = (id: string) => {
+        archiveProject(id);
+        setContextMenu(null);
+    };
+
+    const handleTrash = (id: string) => {
+        trashProject(id);
+        setContextMenu(null);
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-8 pb-24">
+        <div
+            className="min-h-screen bg-slate-50 dark:bg-slate-900 p-8 pb-24"
+            onClick={() => setContextMenu(null)} // Close menu on click outside
+        >
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -129,7 +168,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                             project={project}
                                             onSelect={() => onSelect(project)}
                                             onEdit={() => handleEdit(project)}
-                                            onDelete={() => deleteProject(project.id)}
+                                            onContextMenu={(e) => handleContextMenu(e, project.id)}
                                             members={members}
                                             onAssign={(id) => assignProject(project.id, id)}
                                         />
@@ -146,7 +185,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                 project={project}
                                 onSelect={() => onSelect(project)}
                                 onEdit={() => handleEdit(project)}
-                                onDelete={() => deleteProject(project.id)}
+                                onContextMenu={(e) => handleContextMenu(e, project.id)}
                                 members={members}
                                 onAssign={(id) => assignProject(project.id, id)}
                             />
@@ -166,6 +205,30 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     project={editingProject}
                 />
             )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    itemId={contextMenu.projectId}
+                    onClose={() => setContextMenu(null)}
+                    // Legacy props not needed if actions provided
+                    actions={[
+                        {
+                            label: 'アーカイブ (Archive)',
+                            icon: <Briefcase size={14} />,
+                            onClick: () => handleArchive(contextMenu.projectId)
+                        },
+                        {
+                            label: 'ゴミ箱へ移動 (Trash)',
+                            icon: <Trash2 size={14} />,
+                            danger: true,
+                            onClick: () => handleTrash(contextMenu.projectId)
+                        }
+                    ]}
+                />
+            )}
         </div>
     );
 };
@@ -176,13 +239,14 @@ const ProjectCard: React.FC<{
     project: Project;
     onSelect: () => void;
     onEdit: () => void;
-    onDelete: () => void;
+    onContextMenu: (e: React.MouseEvent) => void; // [NEW]
     members?: any[];
     onAssign?: (id: string | null) => void;
-}> = ({ project, onSelect, onEdit, onDelete, members = [], onAssign }) => {
+}> = ({ project, onSelect, onEdit, onContextMenu, members = [], onAssign }) => {
     return (
         <div
             onClick={onSelect}
+            onContextMenu={onContextMenu} // [NEW] Right click handler
             className="group bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden cursor-pointer"
         >
             {/* Color accent */}
@@ -202,9 +266,7 @@ const ProjectCard: React.FC<{
                         <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors">
                             <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* [UPDATE] Removed Delete Button as requested */}
                     </div>
                 </div>
 

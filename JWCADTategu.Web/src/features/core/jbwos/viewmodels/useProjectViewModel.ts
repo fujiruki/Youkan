@@ -87,12 +87,43 @@ export const useProjectViewModel = () => {
     };
 
     const deleteProject = async (id: string) => {
-        if (!window.confirm('本当にこのプロジェクトを削除しますか？')) return;
+        // Legacy: Physical Delete
+        if (!window.confirm('【警告】プロジェクトを完全に削除しますか？復元できません！')) return;
 
         setLoading(true);
         try {
-            await ProjectService.delete(id);
-            showToast({ title: '成功', message: 'プロジェクトを削除しました', type: 'success' });
+            await ProjectService.destroy(id); // Use destroy (permanent)
+            showToast({ title: '成功', message: 'プロジェクトを完全に削除しました', type: 'success' });
+            await fetchProjects();
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: err.message, type: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const trashProject = async (id: string) => {
+        if (!window.confirm('プロジェクトをゴミ箱へ移動しますか？')) return;
+
+        setLoading(true);
+        try {
+            await ProjectService.trash(id);
+            showToast({ title: '成功', message: 'プロジェクトをゴミ箱へ移動しました', type: 'success' });
+            await fetchProjects();
+        } catch (err: any) {
+            showToast({ title: 'エラー', message: err.message, type: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const archiveProject = async (id: string) => {
+        if (!window.confirm('プロジェクトをアーカイブしますか？')) return;
+
+        setLoading(true);
+        try {
+            await ProjectService.archive(id);
+            showToast({ title: '成功', message: 'プロジェクトをアーカイブしました', type: 'success' });
             await fetchProjects();
         } catch (err: any) {
             showToast({ title: 'エラー', message: err.message, type: 'error' });
@@ -119,7 +150,9 @@ export const useProjectViewModel = () => {
         fetchProjects,
         createProject,
         updateProject,
-        deleteProject,
+        deleteProject, // Now handles permanent destroy
+        trashProject, // [New]
+        archiveProject, // [New]
         assignProject,
         activeScope,
         setActiveScope: handleSetScope
