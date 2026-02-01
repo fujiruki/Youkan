@@ -625,8 +625,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
-    const throwIn = async (title: string, tenantId?: string) => {
+    const throwIn = async (title: string, tenantId?: string | null, targetProjectId?: string | null) => {
         if (!title.trim()) return null; // Empty check
+
+        // [FIX] Resolve Project ID:
+        // Use targetProjectId if explicitly provided (including null), otherwise fallback to scope projectId
+        const activeProjectId = targetProjectId !== undefined ? targetProjectId : projectId;
 
         // [FIX] Resolve Tenant ID: 
         // 1. If tenantId explicitly provided -> Use it.
@@ -634,28 +638,20 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // 3. Else (Inbox) -> Default to PRIVATE (null).
         let resolvedTenantId: string | null | undefined = tenantId;
 
-        if (!resolvedTenantId && projectId) {
-            const p = allProjects.find(pro => pro.id === projectId);
-            // [FIX] If project found, use its tenant. If not found (Local?), default to null (Private) but KEEP projectId.
-            // Previously we might have been losing context if p was not found? 
-            // Actually, if p was found, we set resolvedTenantId. 
-            // If p was NOT found, resolvedTenantId remains undefined -> null. 
-            // BUT projectId is passed to addItemToInbox, so it should be fine?
-            // User says "Yamauchi" (Personal) failed.
-            // If Yamauchi is Personal, p.tenantId is undefined/null.
-            // So resolvedTenantId becomes null. 
+        if (!resolvedTenantId && activeProjectId) {
+            const p = allProjects.find(pro => pro.id === activeProjectId);
             if (p) resolvedTenantId = p.tenantId || null;
         }
 
         // Ensure we pass null if we want Private, NOT some accidental company ID.
-        if (!resolvedTenantId && !projectId) resolvedTenantId = null;
+        if (!resolvedTenantId && !activeProjectId) resolvedTenantId = null;
 
         // [NEW] Find Project Metadata for Optimistic UI
         let projectTitle = undefined;
-        if (projectId) {
-            const p = allProjects.find(pro => pro.id === projectId);
+        if (activeProjectId) {
+            const p = allProjects.find(pro => pro.id === activeProjectId);
             if (p) {
-                projectTitle = p.title; // Note: 'title' property in Item, 'name' in Project but allProjects is Item[] here
+                projectTitle = p.title;
             }
         }
 
@@ -667,9 +663,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
 
         // 1. Optimistic Update (Immediate Feedback)
-        // Repo now accepts null for tenantId/projectId
-        // [CRITICAL FIX] Ensure projectId is passed even if tenant is null
-        const id = await getRepository().addItemToInbox(title, resolvedTenantId, projectId || null);
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId, activeProjectId || null);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -688,7 +682,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             memo: '',
             tenantId: resolvedTenantId, // [NEW] Link context
             tenantName, // [NEW] Optimistic Tenant Name
-            projectId: projectId || null, // [FIX] Use explicit null
+            projectId: activeProjectId || null, // [FIX] Use explicit null
             projectTitle, // [NEW] Optimistic Project Title
             focusOrder: 0,
             isEngaged: false
