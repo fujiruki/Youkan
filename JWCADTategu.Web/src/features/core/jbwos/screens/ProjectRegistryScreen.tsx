@@ -276,99 +276,89 @@ const ProjectModal: React.FC<{
                 grossProfitTarget: parseInt(target) || 0,
                 color
             });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+            // We need a state for tenantId. 
+            // Let's add it. 
+            // See logic below for replacement content.
+        }}
+    className = "w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+        >
+    {
+        joinedTenants.map(t => (
+            <option key={t.id} value={t.id}>
+                {t.name}
+            </option>
+        ))
+    }
+    </select >
+            </div >
+        )}
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-in">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                        {project ? 'プロジェクト編集' : '新規プロジェクト'}
-                    </h2>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            プロジェクト名
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            required
-                            className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            placeholder="例: 玄関ドア新規製作"
-                        />
-                    </div>
-
-                    {activeScope === 'company' && isManufacturing && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    顧客名 / 現場名
-                                </label>
-                                <input
-                                    type="text"
-                                    value={clientName}
-                                    onChange={e => setClientName(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                    placeholder="例: 田中邸"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    目標粗利 (円)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={target}
-                                    onChange={e => setTarget(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            カラーラベル
-                        </label>
-                        <div className="flex gap-2 flex-wrap">
-                            {['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'].map(c => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setColor(c)}
-                                    className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? 'border-indigo-500 scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                                    style={{ backgroundColor: c }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                        >
-                            キャンセル
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"
-                        >
-                            {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                            {project ? '変更を保存' : '作成する'}
-                        </button>
-                    </div>
-                </form>
+{
+    activeScope === 'company' && isManufacturing && (
+        <div className="grid grid-cols-2 gap-4">
+            <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    顧客名 / 現場名
+                </label>
+                <input
+                    type="text"
+                    value={clientName}
+                    onChange={e => setClientName(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="例: 田中邸"
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    目標粗利 (円)
+                </label>
+                <input
+                    type="number"
+                    value={target}
+                    onChange={e => setTarget(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                />
             </div>
         </div>
-    );
+    )
+}
+
+        <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                カラーラベル
+            </label>
+            <div className="flex gap-2 flex-wrap">
+                {['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'].map(c => (
+                    <button
+                        key={c}
+                        type="button"
+                        onClick={() => setColor(c)}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? 'border-indigo-500 scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                        style={{ backgroundColor: c }}
+                    />
+                ))}
+            </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+            <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+                キャンセル
+            </button>
+            <button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"
+            >
+                {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {project ? '変更を保存' : '作成する'}
+            </button>
+        </div>
+    </form >
+        </div >
+    </div >
+);
 };

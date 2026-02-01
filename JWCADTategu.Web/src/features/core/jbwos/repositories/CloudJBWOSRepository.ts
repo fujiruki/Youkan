@@ -31,7 +31,7 @@ export const CloudJBWOSRepository = {
     },
 
     // 3. Add Item (Inbox)
-    addItemToInbox: async (title: string, tenantId?: string, projectId?: string): Promise<string> => {
+    addItemToInbox: async (title: string, tenantId?: string | null, projectId?: string | null): Promise<string> => {
         const res = await ApiClient.createItem({ title, status: 'inbox', tenantId, projectId });
         return res.id;
     },

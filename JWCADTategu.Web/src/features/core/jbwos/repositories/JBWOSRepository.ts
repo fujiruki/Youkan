@@ -38,7 +38,7 @@ export const JBWOSRepository = {
     },
 
     // 2. Add Item (To API)
-    async addItemToInbox(title: string, tenantId?: string, projectId?: string): Promise<string> {
+    async addItemToInbox(title: string, tenantId?: string | null, projectId?: string | null): Promise<string> {
         const id = uuidv4();
 
         const newItem: Partial<JudgableItem> = {

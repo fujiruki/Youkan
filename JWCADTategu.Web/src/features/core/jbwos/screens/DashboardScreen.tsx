@@ -243,7 +243,17 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 hideHeader={true}
                             />
                         )}
-                    </div>
+                        {isProjectModalOpen && (
+                            <ProjectCreationDialog
+                                isOpen={isProjectModalOpen}
+                                onClose={() => setIsProjectModalOpen(false)}
+                                onCreate={async (proj, tasks) => {
+                                    await createProject(proj, tasks);
+                                    setIsProjectModalOpen(false);
+                                }}
+                                tenants={vm.joinedTenants} // [NEW] Pass tenants for company selection
+                            />
+                        )}</div>
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto pb-20">

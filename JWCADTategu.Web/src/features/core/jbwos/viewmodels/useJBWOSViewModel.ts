@@ -115,13 +115,11 @@ export const useJBWOSViewModel = (projectId?: string) => {
     }, []);
 
     // [NEW] Refresh context data
-    const refreshContextData = useCallback(async () => {
-        // Fetching context-related data if needed in future
-    }, []);
+    // const refreshContextData = useCallback(async () => {
+    //     // Fetching context-related data if needed in future
+    // }, []);
 
-    useEffect(() => {
-        refreshContextData();
-    }, [refreshContextData]);
+
     const refreshMembers = useCallback(async () => {
         try {
             const data = await getRepository().getMembers();
@@ -584,24 +582,29 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // [FIX] Resolve Tenant ID: 
         // 1. If tenantId explicitly provided -> Use it.
         // 2. If Project Focused -> Use Project's Tenant ID.
-        // 3. Else (Inbox) -> Default to PRIVATE (undefined/null).
-        let resolvedTenantId: string | undefined = tenantId;
+        // 3. Else (Inbox) -> Default to PRIVATE (null).
+        let resolvedTenantId: string | null | undefined = tenantId;
 
         if (!resolvedTenantId && projectId) {
             const p = allProjects.find(pro => pro.id === projectId);
-            if (p) resolvedTenantId = p.tenantId || undefined; // [FIX] Handle null
+            // [FIX] If project found, use its tenant. If not found (Local?), default to null (Private) but KEEP projectId.
+            // Previously we might have been losing context if p was not found? 
+            // Actually, if p was found, we set resolvedTenantId. 
+            // If p was NOT found, resolvedTenantId remains undefined -> null. 
+            // BUT projectId is passed to addItemToInbox, so it should be fine?
+            // User says "Yamauchi" (Personal) failed.
+            // If Yamauchi is Personal, p.tenantId is undefined/null.
+            // So resolvedTenantId becomes null. 
+            if (p) resolvedTenantId = p.tenantId || null;
         }
 
-        // Ensure we pass undefined if we want Private, NOT some accidental company ID.
-        // If resolvedTenantId is falsy (empty string or null), make it undefined for API to see "no tenant".
-        if (!resolvedTenantId) resolvedTenantId = undefined;
+        // Ensure we pass null if we want Private, NOT some accidental company ID.
+        if (!resolvedTenantId) resolvedTenantId = null;
 
         // 1. Optimistic Update (Immediate Feedback)
-        // Note: For now we don't know the ID yet, but we will add it after API call or use temp ID?
-        // Actually JBWOSRepository.addItemToInbox returns ID synchronously (mock) or after (real).
-        // Let's rely on Repo.
-
-        const id = await getRepository().addItemToInbox(title, resolvedTenantId, projectId || undefined);
+        // Repo now accepts null for tenantId/projectId
+        // [CRITICAL FIX] Ensure projectId is passed even if tenant is null
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId, projectId || null);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -619,7 +622,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             type: 'start',
             memo: '',
             tenantId: resolvedTenantId, // [NEW] Link context
-            projectId: projectId || undefined, // Use explicit undefined if null/empty
+            projectId: projectId || null, // [FIX] Use explicit null
             focusOrder: 0,
             isEngaged: false
         };
@@ -966,7 +969,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
             domain: domain || 'general',
             status: 'inbox',      // Default to inbox
             focusOrder: 0,
-            isEngaged: false
+            isEngaged: false,
+            // tenantId is already in ...project if passed from dialog
         };
 
         const projectId = await getRepository().createItem(projectItem);

@@ -323,17 +323,23 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <Folder size={18} className="text-slate-400" />
                                             <select
                                                 value={localTenantId}
-                                                onChange={(e) => {
+                                                onChange={async (e) => {
                                                     const nextTenantId = e.target.value;
                                                     setLocalTenantId(nextTenantId);
 
                                                     // Auto-reset project if incompatible
+                                                    let nextProjectId = localProjectId;
                                                     if (localProjectId) {
                                                         const p = allProjects.find(x => x.id === localProjectId);
                                                         if (p && p.tenantId && p.tenantId !== nextTenantId) {
                                                             setLocalProjectId('');
+                                                            nextProjectId = '';
                                                         }
                                                     }
+                                                    // [FIX] Immediate Update
+                                                    const updates: Partial<Item> = { tenantId: nextTenantId || null, projectId: nextProjectId || null };
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
                                                 }}
                                                 className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
                                             >
@@ -344,7 +350,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             </select>
                                             <select
                                                 value={localProjectId}
-                                                onChange={(e) => setLocalProjectId(e.target.value)}
+                                                onChange={async (e) => {
+                                                    const nextVal = e.target.value;
+                                                    setLocalProjectId(nextVal);
+                                                    // [FIX] Immediate Update
+                                                    const updates: Partial<Item> = { projectId: nextVal || null };
+                                                    // Implicitly link tenant if project selected and tenant is empty? 
+                                                    // Actually onUpdate Logic in useJBWOSViewModel handles this?
+                                                    // Yes, updateItem logic already sets projectTitle and auto-sets tenant if logical.
+                                                    if (onUpdate) await onUpdate(item.id, updates);
+                                                    else await ApiClient.updateItem(item.id, updates);
+                                                }}
                                                 className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
                                             >
                                                 <option value="">(なし / プライベート)</option>

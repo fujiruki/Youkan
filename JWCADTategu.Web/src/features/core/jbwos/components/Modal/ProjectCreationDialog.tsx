@@ -9,15 +9,18 @@ interface ProjectCreationDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onCreate: (project: Partial<Item>, defaultTasks: TaskTemplate[]) => Promise<void>;
+    tenants?: { id: string; name: string; role: string }[]; // [NEW]
 }
 
 export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     isOpen,
     onClose,
-    onCreate
+    onCreate,
+    tenants = [] // [NEW]
 }) => {
     const [projectName, setProjectName] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState('general');
+    const [selectedTenantId, setSelectedTenantId] = useState(''); // [NEW]
     const [useTemplate, setUseTemplate] = useState(true);
     const [dueDate, setDueDate] = useState('');
 
@@ -43,7 +46,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 weight: 1,
                 interrupt: false,
                 domain: selectedCategory?.domain, // Inherit domain
-                pluginId: selectedCategory?.pluginId // Inherit pluginId
+                pluginId: selectedCategory?.pluginId, // Inherit pluginId
+                tenantId: selectedTenantId || null // [NEW] Link to Company
             };
 
             const defaultTasks = useTemplate && selectedCategory
@@ -118,6 +122,29 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                                 autoFocus
                             />
                         </div>
+
+
+
+                        {/* Company Selection [NEW] */}
+                        {tenants && tenants.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    所属 (Company)
+                                </label>
+                                <select
+                                    value={selectedTenantId}
+                                    onChange={(e) => setSelectedTenantId(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                >
+                                    <option value="">(なし / プライベート)</option>
+                                    {tenants.map(t => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* Project Category */}
                         <div>
