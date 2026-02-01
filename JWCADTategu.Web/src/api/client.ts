@@ -132,15 +132,32 @@ export class ApiClient {
         }
     }
 
-    public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string, project_id?: string }): Promise<JudgableItem[]> {
-        let query = '';
+    public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string, project_id?: string, show_archived?: boolean, show_trash?: boolean }): Promise<JudgableItem[]> {
         const params = new URLSearchParams();
         if (options?.scope) params.append('scope', options.scope);
         if (options?.parentId) params.append('parent_id', options.parentId);
         if (options?.project_id) params.append('project_id', options.project_id);
+        if (options?.show_archived) params.append('show_archived', '1');
+        if (options?.show_trash) params.append('show_trash', '1');
 
-        query = params.toString() ? `?${params.toString()}` : '';
+        const query = params.toString() ? `?${params.toString()}` : '';
         return this.request<JudgableItem[]>('GET', `/items${query}`);
+    }
+
+    public static async archiveItem(id: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('POST', `/items/${id}/archive`);
+    }
+
+    public static async trashItem(id: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('POST', `/items/${id}/trash`);
+    }
+
+    public static async restoreItem(id: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('POST', `/items/${id}/restore`);
+    }
+
+    public static async destroyItem(id: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('POST', `/items/${id}/destroy`);
     }
 
     public static async createItem(item: Partial<JudgableItem>): Promise<{ id: string; success: boolean }> {

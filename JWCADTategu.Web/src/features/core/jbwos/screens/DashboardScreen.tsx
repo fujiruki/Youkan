@@ -403,7 +403,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     onClick: () => handleSetEngaged(contextMenu.itemId, true)
                                 },
                                 {
-                                    label: '削除',
+                                    label: 'アーカイブ (History)',
+                                    icon: <Briefcase size={14} className="text-slate-500" />,
+                                    onClick: () => { vm.archiveItem(contextMenu.itemId); handleRefresh(); }
+                                },
+                                {
+                                    label: 'ゴミ箱 (Trash)',
                                     icon: <Trash2 size={14} className="text-red-500" />,
                                     danger: true,
                                     onClick: () => { deleteItem(contextMenu.itemId); handleRefresh(); }

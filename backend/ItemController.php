@@ -68,6 +68,10 @@ class ItemController extends BaseController {
         $item['assigneeName'] = $item['assignee_name'] ?? null;
         $item['assigneeColor'] = $item['assignee_color'] ?? null;
 
+        // [Archive & Trash]
+        $item['isArchived'] = (bool)($item['is_archived'] ?? 0);
+        $item['deletedAt'] = $item['deleted_at'] ?? null;
+
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
@@ -83,6 +87,18 @@ class ItemController extends BaseController {
         // [New] Aggregated Mode for Life-Work Integration
         $scope = $_GET['scope'] ?? '';
         
+        // --- Filter Logic ---
+        // Default: Active only (not archived, not deleted)
+        // ?show_archived=1: Show ONLY archived (history)
+        // ?show_trash=1: Show ONLY trash
+        $filterClause = " AND items.is_archived = 0 AND items.deleted_at IS NULL ";
+        
+        if (isset($_GET['show_trash']) && $_GET['show_trash'] == 1) {
+            $filterClause = " AND items.deleted_at IS NOT NULL ";
+        } elseif (isset($_GET['show_archived']) && $_GET['show_archived'] == 1) {
+            $filterClause = " AND items.is_archived = 1 AND items.deleted_at IS NULL ";
+        }
+
         if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
              // Fetch Personal Items + Company Items (Assigned/Created by me)
              $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
@@ -101,9 +117,6 @@ class ItemController extends BaseController {
                     -- 1. If map to my Personal Tenant -> All.
                     -- 2. If map to Company Tenant -> Only Assigned OR CreatedBy.
                     -- HOWEVER, for simplicity in SQL:
-                    -- If user is OWNER of tenant (Personal), they likely see everything in Inbox?
-                    -- But in Company, Owner sees everything? Maybe too much noise.
-                    -- Let's stick to Haruki Model:
                     -- 'My Items' = Items I need to worry about.
                     --   1. Items in my Personal Tenant (Everything).
                     --   2. Items in Company Tenant assigned to me OR created by me (and not in project?).
@@ -113,6 +126,7 @@ class ItemController extends BaseController {
                     (items.project_id IS NULL AND items.created_by = ?) -- Private/Inbox Items
                     OR items.assigned_to = ? -- Explicitly assigned to me (Project or not)
                 )
+                $filterClause
                 ORDER BY items.updated_at DESC
              ";
              
@@ -172,6 +186,7 @@ class ItemController extends BaseController {
                         )
                     )
                 )
+                $filterClause
                 ORDER BY items.updated_at DESC
             ";
 
@@ -213,6 +228,7 @@ class ItemController extends BaseController {
                     OR items.assigned_to = ? -- Explicitly assigned to me
                     OR items.created_by = ? -- Created by me
                 )
+                $filterClause
                 ORDER BY items.updated_at DESC
             ";
             
@@ -226,6 +242,105 @@ class ItemController extends BaseController {
             
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $this->sendJSON(array_map([$this, 'mapRow'], $items));
+        }
+    }
+
+    // --- Archive & Trash Actions ---
+
+    public function archive($id) {
+        $this->updateStatus($id, 'archive');
+    }
+
+    public function trash($id) {
+        $this->updateStatus($id, 'trash');
+    }
+
+    public function restore($id) {
+        $this->updateStatus($id, 'restore');
+    }
+
+    private function updateStatus($id, $action) {
+        // Shared Logic for State Transitions
+        if (!$id) {
+            $this->sendError(400, 'ID required');
+        }
+
+        // 1. Determine SQL updates based on action
+        $updates = "";
+        $params = [];
+        
+        switch ($action) {
+            case 'archive':
+                $updates = "is_archived = 1, deleted_at = NULL"; // Ensure not in trash when archiving
+                break;
+            case 'trash':
+                // Move to trash = set deleted_at
+                $updates = "deleted_at = " . time() . ", is_archived = 0"; // Ensure not archived when trashing
+                break;
+            case 'restore':
+                // Restore = clear all flags
+                $updates = "is_archived = 0, deleted_at = NULL";
+                break;
+            default:
+                $this->sendError(400, 'Invalid action');
+                return;
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+
+            // 2. Perform Update on Target Item
+            // Security check: Ensure user has access to this item
+            $tenantIds = $this->joinedTenants;
+            if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
+            if (!in_array($this->currentTenantId, $tenantIds)) $tenantIds[] = $this->currentTenantId;
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+
+            $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id, is_project FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '')");
+            $check->execute(array_merge([$id], $tenantIds));
+            $existing = $check->fetch(PDO::FETCH_ASSOC);
+
+            if (!$existing) {
+                 $this->sendError(404, 'Item not found or access denied');
+                 return;
+            }
+
+            // Permission Logic (simplified for this context, assuming user can modify their items or project items in their tenant)
+            $isAdmin = ($this->currentUser['role'] ?? '') === 'admin';
+            $itemTenantId = (string)($existing['tenant_id'] ?? '');
+
+            if (!$isAdmin) {
+                if ($itemTenantId !== '' && !in_array($itemTenantId, $this->joinedTenants)) {
+                    $this->sendError(403, 'Access Denied: Organization mismatch');
+                    return;
+                }
+                // For personal items (tenant_id IS NULL or ''), check created_by
+                if (($itemTenantId === '' || is_null($existing['tenant_id'])) && $existing['created_by'] !== $this->currentUserId) {
+                    $this->sendError(403, 'Access Denied: Personal item ownership mismatch');
+                    return;
+                }
+            }
+
+            $sql = "UPDATE items SET $updates, updated_at = " . time() . " WHERE id = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(array_merge($params, [$id]));
+
+            // 3. Recursive Cascade for Projects
+            // If the item acts as a project (is_project=1) OR has sub-items (parent_id linkage in project context)
+            // actually, 'project_id' linkage is stronger.
+            
+            // IF this item IS a project, update all items BELONGING to it.
+            if ($existing['is_project']) {
+                $cascadeSql = "UPDATE items SET $updates, updated_at = " . time() . " WHERE project_id = ?";
+                $this->pdo->prepare($cascadeSql)->execute(array_merge($params, [$id]));
+            }
+
+            $this->pdo->commit();
+            $this->sendJSON(['success' => true]);
+
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->sendError(500, 'Action Failed: ' . $e->getMessage());
         }
     }
 
@@ -246,6 +361,7 @@ class ItemController extends BaseController {
             LEFT JOIN assignees a ON items.assigned_to = a.id
             WHERE items.tenant_id = ? 
             AND (items.project_id = ? OR items.parent_id = ?)
+            AND items.is_archived = 0 AND items.deleted_at IS NULL -- Only active project items
             ORDER BY items.updated_at DESC
         ";
         
@@ -265,6 +381,7 @@ class ItemController extends BaseController {
             FROM items
             WHERE items.tenant_id = ? 
             AND items.parent_id = ?
+            AND items.is_archived = 0 AND items.deleted_at IS NULL -- Only active subtasks
             ORDER BY items.created_at ASC
         ";
         
@@ -299,6 +416,7 @@ class ItemController extends BaseController {
             WHERE tenant_id = ? 
             AND (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
             AND status != 'done' -- Only active items
+            AND is_archived = 0 AND deleted_at IS NULL -- Only active, non-archived, non-deleted items
         ";
         
         $stmt = $this->pdo->prepare($sql);
@@ -333,6 +451,7 @@ class ItemController extends BaseController {
                 OR items.created_by = ?          -- My Item
                 OR items.assigned_to = ?         -- Assigned to Me
             )
+            AND items.deleted_at IS NULL -- Do not show deleted items via direct access
         ";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id, $this->currentTenantId, $this->currentUserId, $this->currentUserId]);
@@ -381,11 +500,13 @@ class ItemController extends BaseController {
             INSERT INTO items (
                 id, tenant_id, title, status, created_at, updated_at, status_updated_at,
                 parent_id, is_project, project_category, estimated_minutes, assigned_to, delegation,
-                project_id, created_by, project_type, due_date, client_name, site_name, gross_profit_target
+                project_id, created_by, project_type, due_date, client_name, site_name, gross_profit_target,
+                is_archived, deleted_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?
             )
         ");
         
@@ -433,7 +554,9 @@ class ItemController extends BaseController {
                 $dueDate,
                 $data['clientName'] ?? $data['client'] ?? null,
                 $data['siteName'] ?? $data['site'] ?? null,
-                $data['grossProfitTarget'] ?? 0
+                $data['grossProfitTarget'] ?? 0,
+                0, // is_archived default to 0
+                null // deleted_at default to NULL
             ]);
             
             if ($parentId) {
@@ -489,7 +612,8 @@ class ItemController extends BaseController {
             'title', 'status', 'memo', 'due_date', // Removed 'due_status'
             'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
             'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
-            'project_type', 'client_name', 'gross_profit_target', 'tenant_id'
+            'project_type', 'client_name', 'gross_profit_target', 'tenant_id',
+            'is_archived', 'deleted_at' // Add new fields
         ];
 
         foreach ($simpleFields as $f) {
@@ -506,6 +630,8 @@ class ItemController extends BaseController {
             if ($f === 'client_name') $inputKey = 'clientName';
             if ($f === 'gross_profit_target') $inputKey = 'grossProfitTarget';
             if ($f === 'tenant_id') $inputKey = 'tenantId';
+            if ($f === 'is_archived') $inputKey = 'isArchived';
+            if ($f === 'deleted_at') $inputKey = 'deletedAt';
 
             if (array_key_exists($inputKey, $data)) {
                 $val = $data[$inputKey];
@@ -580,14 +706,14 @@ class ItemController extends BaseController {
         }
     }
     
+    // Physical Delete (Destroy)
     private function delete($id) {
-        // Verify ownership (Same rule as update)
+        // Same permission checks as before...
         $tenantIds = $this->joinedTenants;
         if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
-
         $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
 
-        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '')");
+        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id, is_project FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '')");
         $check->execute(array_merge([$id], $tenantIds));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
@@ -616,9 +742,25 @@ class ItemController extends BaseController {
             }
         }
 
-        $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ?");
-        $stmt->execute([$id]);
-        $this->sendJSON(['success' => true]);
+        try {
+            $this->pdo->beginTransaction();
+
+            // 1. Delete the item
+            $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ?");
+            $stmt->execute([$id]);
+
+            // 2. Cascade Delete if it's a Project
+            if ($existing['is_project']) {
+                $cStmt = $this->pdo->prepare("DELETE FROM items WHERE project_id = ?");
+                $cStmt->execute([$id]);
+            }
+
+            $this->pdo->commit();
+            $this->sendJSON(['success' => true]);
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->sendError(500, 'Delete Failed: ' . $e->getMessage());
+        }
     }
     
     private function toCamel($snake) {

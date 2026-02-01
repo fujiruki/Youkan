@@ -163,7 +163,7 @@ export const JBWOSRepository = {
         }
     },
 
-    // 7. Archive
+    // 7. Archive & Trash
     async archiveItem(id: string): Promise<void> {
         if (id.startsWith('door-')) {
             const doorId = parseInt(id.replace('door-', ''), 10);
@@ -177,9 +177,56 @@ export const JBWOSRepository = {
         }
 
         try {
-            await ApiClient.updateItem(id, { status: 'done' }); // Map archive to done
+            await ApiClient.archiveItem(id);
         } catch (e) {
             console.warn('Failed to archiveItem via API:', e);
+        }
+    },
+
+    async trashItem(id: string): Promise<void> {
+        // [Hybrid] Legacy doors: Hard delete? Or implement local trash?
+        // Legacy doors usually just use deleteItem.
+        if (id.startsWith('door-')) {
+            return this.deleteItem(id); // Legacy behavior
+        }
+        try {
+            await ApiClient.trashItem(id);
+        } catch (e) {
+            console.warn('Failed to trashItem via API:', e);
+        }
+    },
+
+    async restoreItem(id: string): Promise<void> {
+        try {
+            await ApiClient.restoreItem(id);
+        } catch (e) {
+            console.warn('Failed to restoreItem via API:', e);
+        }
+    },
+
+    async destroyItem(id: string): Promise<void> {
+        try {
+            await ApiClient.destroyItem(id);
+        } catch (e) {
+            console.warn('Failed to destroyItem via API:', e);
+        }
+    },
+
+    async getArchivedItems(projectId?: string): Promise<Item[]> {
+        try {
+            return await ApiClient.getAllItems({ project_id: projectId, show_archived: true });
+        } catch (e) {
+            console.error('Failed to getArchivedItems:', e);
+            return [];
+        }
+    },
+
+    async getTrashedItems(projectId?: string): Promise<Item[]> {
+        try {
+            return await ApiClient.getAllItems({ project_id: projectId, show_trash: true });
+        } catch (e) {
+            console.error('Failed to getTrashedItems:', e);
+            return [];
         }
     },
 

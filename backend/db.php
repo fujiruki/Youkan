@@ -44,7 +44,9 @@ function getDB() {
             'client_name' => 'TEXT DEFAULT NULL', // [v20]
             'site_name' => 'TEXT DEFAULT NULL', // [v23]
             'gross_profit_target' => 'INTEGER DEFAULT 0', // [v20]
-            'meta' => 'TEXT DEFAULT NULL' // [FIX] Added for Project Settings/Config
+            'meta' => 'TEXT DEFAULT NULL', // [FIX] Added for Project Settings/Config
+            'is_archived' => 'INTEGER DEFAULT 0', // [v25] Archive
+            'deleted_at' => 'INTEGER DEFAULT NULL' // [v25] Trash
         ];
 
         // 1.2 Check 'users' table columns

@@ -72,7 +72,27 @@ export const CloudJBWOSRepository = {
     },
 
     archiveItem: async (id: string) => {
-        await ApiClient.updateItem(id, { status: 'done' }); // Use done for archive for now, or specific status
+        await ApiClient.archiveItem(id);
+    },
+
+    trashItem: async (id: string) => {
+        await ApiClient.trashItem(id);
+    },
+
+    restoreItem: async (id: string) => {
+        await ApiClient.restoreItem(id);
+    },
+
+    destroyItem: async (id: string) => {
+        await ApiClient.destroyItem(id);
+    },
+
+    getArchivedItems: async (projectId?: string) => {
+        return await ApiClient.getAllItems({ project_id: projectId, show_archived: true });
+    },
+
+    getTrashedItems: async (projectId?: string) => {
+        return await ApiClient.getAllItems({ project_id: projectId, show_trash: true });
     },
 
     // Today View Specific

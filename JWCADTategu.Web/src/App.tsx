@@ -12,8 +12,9 @@ import { DashboardScreen } from './features/core/jbwos/screens/DashboardScreen';
 // import { TodayScreen } from './features/core/jbwos/components/Today/TodayScreen'; // [REPLACED]
 import { FutureBoard } from './features/core/planning/FutureBoard'; // [Keep for now]
 import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
-import { ProjectRegistryScreen } from './features/core/jbwos/screens/ProjectRegistryScreen'; // [NEW] Project Registry
-import { CustomerList } from './features/plugins/customer'; // [NEW] Customer Plugin
+import { ArchiveTrashScreen } from './features/core/jbwos/screens/ArchiveTrashScreen'; // [NEW]
+import { ProjectRegistryScreen } from './features/core/jbwos/screens/ProjectRegistryScreen'; // [RESTORED]
+import { CustomerList } from './features/plugins/customer'; // [RESTORED]
 
 import { UndoProvider } from './features/core/jbwos/contexts/UndoContext';
 import { UndoToast } from './features/core/jbwos/components/UI/UndoToast';
@@ -37,7 +38,7 @@ import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
 
 function App() {
     // Default is now Dashboard
@@ -70,6 +71,12 @@ function App() {
         } else if (matches('history')) {
             console.log('[Router] Detected History URL');
             setCurrentView('history');
+        } else if (matches('archive')) {
+            console.log('[Router] Detected Archive URL');
+            setCurrentView('archive');
+        } else if (matches('trash')) {
+            console.log('[Router] Detected Trash URL');
+            setCurrentView('trash');
         } else if (matches('settings/profile') || matches('personalsettings')) {
             console.log('[Router] Detected Personal Settings URL');
             setCurrentView('personalSettings');
@@ -545,6 +552,14 @@ const AppContent: React.FC<{
                                 <div className="h-full w-full overflow-auto">
                                     <ManualScreen />
                                 </div>
+                            )}
+
+                            {/* 13. Archive & Trash */}
+                            {currentView === 'archive' && (
+                                <ArchiveTrashScreen mode="archive" onBack={handleBackToDashboard} />
+                            )}
+                            {currentView === 'trash' && (
+                                <ArchiveTrashScreen mode="trash" onBack={handleBackToDashboard} />
                             )}
 
                             {/* 11. User Management (Admin) */}

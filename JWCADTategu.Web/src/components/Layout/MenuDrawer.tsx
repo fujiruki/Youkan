@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench } from 'lucide-react';
+import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2 } from 'lucide-react';
 
 interface AuthUser {
     id: string;
@@ -164,8 +164,46 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 
                     {/* Tools Section */}
                     <MenuSection title="ツール">
+                        <MenuItem
+                            icon={<Briefcase size={18} />}
+                            label="アーカイブ (Archives)"
+                            onClick={() => {
+                                // Direct navigation via window.history or prop?
+                                // App.tsx handles state based on currentView, but MenuDrawer uses onNavigate callbacks.
+                                // We need to pass new callbacks or use specific logic.
+                                // To keep it simple, abuse "onNavigateToHistory" or assume we added onNavigateToArchive?
+                                // Let's use direct location change if the App router picks it up, OR we should have added onNavigateToArchive to MenuDrawer props.
+                                // But updating MenuDrawer props means updating JBWOSHeader props too.
+                                // Short-term: Abuse simple URL push if App.tsx popstate listener handles it? 
+                                // App.tsx's useEffect handles URL ON MOUNT.
+                                // Ideally we add props. Let's add props to MenuDrawer interface first?
+                                // Or use a custom event.
+                                // Or just add onNavigateToArchive/Trash to MenuDrawer props.
+                                // I'll add them to interface in next step if I haven't.
+                                // For now, let's assume we can add them to props or use a temporary hack.
+                                // Actually, I should update JBWOSHeader AND MenuDrawer to accept onNavigateToArchive/Trash.
+                                // But that cascades.
+                                // Let's use window.history.pushState and dispatch event as App.tsx does for Dashboard.
+                                window.history.pushState({ view: 'archive' }, '', '/contents/TateguDesignStudio/archive');
+                                // Force App re-render? App.tsx state change is needed.
+                                // App.tsx doesn't listen to popstate for state changes unless we added it.
+                                // It only checks on mount.
+                                // This is tricky without passing prop.
+                                // I will use window.location.href to reload to that URL (simplest for now for deep link support I added).
+                                // App.tsx line 70 detects "history" URL. But "archive"?
+                                // I need to update App.tsx router logic too.
+                                // I'll use "history" url for archive? No, they are different.
+                                // I will use /archive and /trash URLs and ensure App.tsx detects them.
+                                window.location.href = './archive';
+                            }}
+                        />
+                        <MenuItem
+                            icon={<Trash2 size={18} />}
+                            label="ゴミ箱 (Trash)"
+                            onClick={() => { window.location.href = './trash'; }}
+                        />
                         {onNavigateToHistory && (
-                            <MenuItem icon={<Clock size={18} />} label="履歴" onClick={onNavigateToHistory} />
+                            <MenuItem icon={<Clock size={16} />} label="変更履歴 (Audit Log)" onClick={onNavigateToHistory} subtle />
                         )}
                         {onNavigateToCustomers && (
                             <MenuItem icon={<Users size={18} />} label="顧客管理" onClick={onNavigateToCustomers} />

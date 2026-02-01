@@ -26,6 +26,7 @@ export interface Project {
     viewMode: 'internal' | 'external' | 'mixed';
     judgmentStatus: JudgmentStatus;
     isArchived: boolean;
+    deletedAt?: number | null; // [NEW]
     grossProfitTarget: number;
     color?: string;
     tenantId?: string;    // [NEW]
@@ -112,6 +113,10 @@ export interface Item {
 
     createdAt: number;
     updatedAt: number;
+
+    // --- Archive & Trash ---
+    isArchived?: boolean;    // [NEW]
+    deletedAt?: number | null; // [NEW] If set, it's in trash
 
     // --- Decision Layer Integration [NEW] ---
     type?: 'start' | 'material' | 'order' | 'estimate' | 'exception' | 'generic' | 'project'; // [NEW] 'project' type added

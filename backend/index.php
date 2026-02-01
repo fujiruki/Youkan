@@ -483,6 +483,27 @@ if (preg_match('#^(/api)?/users/([^/]+)/capacity$#', $path, $matches) && $method
     exit;
 }
 
+// Item Actions (Archive, Trash, Restore, Destroy)
+if (preg_match('#^(/api)?/items/([^/]+)/(archive|trash|restore|destroy)$#', $path, $matches) && ($method === 'POST' || $method === 'DELETE')) {
+    $controller = new ItemController();
+    $id = $matches[2];
+    $action = $matches[3];
+    // Map action if needed
+    if ($action === 'destroy') $action = 'destroy_permanent'; // Use internal method name if different, or ensure Controller has 'destroy'
+    
+    // Check if method exists
+    if (!method_exists($controller, $action) && $action !== 'destroy_permanent') {
+         // Default fallback if map fails?
+         // But we defined archive/trash/restore in Controller previously.
+    }
+    
+    // If action is destroy/destroy_permanent, we might use DELETE method or POST.
+    // Let's assume POST for all actions for simplicity/safety, except destroy might allow DELETE.
+    
+    $controller->$action($id);
+    exit;
+}
+
 // Item Routes (Scoped & Secure)
 // New Logic: Instantiates ItemController extends BaseController
 if (preg_match('#^(/api)?/items(?:/([^/]+))?$#', $path, $matches)) {

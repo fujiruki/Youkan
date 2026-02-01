@@ -379,7 +379,33 @@ export const useJBWOSViewModel = (projectId?: string) => {
         refreshGdb(); // Will appear in Inbox
     };
 
-    const deleteItem = async (id: string) => {
+    // 4. Archive, Trash, Restore
+    const archiveItem = async (id: string) => {
+        // Optimistic: Remove from all active lists
+        setGdbActive(prev => prev.filter(i => i.id !== id));
+        setGdbPreparation(prev => prev.filter(i => i.id !== id));
+        setGdbIntent(prev => prev.filter(i => i.id !== id));
+        setTodayCandidates(prev => prev.filter(i => i.id !== id));
+        setTodayCommits(prev => prev.filter(i => i.id !== id));
+        if (executionItem?.id === id) setExecutionItem(null);
+
+        // [Undo] Register Action
+        addUndoAction({
+            type: 'delete', // Treat as delete for undo purposes (restore)
+            id,
+            previousStatus: 'inbox', // Simplify
+            description: 'アーカイブしました'
+        });
+
+        try {
+            await getRepository().archiveItem(id);
+        } catch (e) {
+            console.error('Archive failed', e);
+            refreshAll();
+        }
+    };
+
+    const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
         // Find item to save for undo
         const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
         const itemToDelete = allItems.find(i => i.id === id);
@@ -390,7 +416,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
                 type: 'delete',
                 id,
                 previousData: itemToDelete,
-                description: `「${itemToDelete.title}」を削除しました`
+                description: `「${itemToDelete.title}」をゴミ箱へ移動しました`
             });
         }
 
@@ -400,12 +426,35 @@ export const useJBWOSViewModel = (projectId?: string) => {
         setGdbIntent(prev => prev.filter(i => i.id !== id));
         setTodayCandidates(prev => prev.filter(i => i.id !== id));
         setTodayCommits(prev => prev.filter(i => i.id !== id));
+        if (executionItem?.id === id) setExecutionItem(null);
 
         try {
-            await getRepository().deleteItem(id);
+            await getRepository().trashItem(id); // [Changed] Use trash instead of delete
         } catch (e) {
-            console.error('Delete item failed', e);
+            console.error('Trash item failed', e);
             refreshAll();
+        }
+    };
+
+    const restoreItem = async (id: string) => {
+        // Optimistic: Hard to know where it goes back to without previous state.
+        // Usually goes to Inbox.
+        // We can wait for refresh or try to add to Inbox?
+        // Let's just refresh for now as it's from distinct screen usually.
+        try {
+            await getRepository().restoreItem(id);
+            refreshAll();
+        } catch (e) {
+            console.error('Restore failed', e);
+        }
+    };
+
+    const destroyItem = async (id: string) => {
+        try {
+            await getRepository().destroyItem(id);
+            // No local state update needed if called from Trash Screen (separate state)
+        } catch (e) {
+            console.error('Destroy failed', e);
         }
     };
 
@@ -1080,7 +1129,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
         addSideMemo,
         deleteSideMemo,
         memoToInbox,
-        deleteItem,
+        deleteItem, // Now behaves as "Move to Trash" or "Trash"
+        archiveItem, // [NEW]
+        restoreItem, // [NEW]
+        destroyItem, // [NEW]
         returnToInbox,
         prioritizeTask,
         startImmediately,
