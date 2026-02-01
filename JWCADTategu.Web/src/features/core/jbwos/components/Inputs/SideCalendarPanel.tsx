@@ -34,18 +34,14 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         ? "border-indigo-200 dark:border-indigo-800"
         : "border-slate-100 dark:border-slate-800";
 
-    const labelColor = targetMode === 'my' ? "text-indigo-500" : "text-slate-400";
+    // [NEW] Determine focus date for auto-scroll
+    const focusDate = targetMode === 'my'
+        ? (prepDate || null)
+        : (selectedDate || null);
 
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
-            {/* Header - Simple indicator for active mode */}
-            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100/30 dark:bg-slate-800/30 border-b border-slate-200/50">
-                <div className="flex items-baseline gap-2">
-                    <span className={cn("text-[10px] font-bold tracking-tight", labelColor)}>
-                        {targetMode === 'my' ? 'My期限を設定' : '納期を設定'}
-                    </span>
-                </div>
-            </div>
+            {/* Header Removed */}
 
             {/* RyokanCalendar (Mini Mode) */}
             <div className="flex-1 overflow-hidden">
@@ -56,6 +52,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     filterMode={filterMode}
                     selectedDate={selectedDate}
                     prepDate={prepDate}
+                    focusDate={focusDate} // [NEW]
                     workDays={workDays}
                     onSelectDate={onSelectDate}
                     displayMode="grid"

@@ -28,6 +28,7 @@ interface RyokanCalendarProps {
     onSelectDate?: (date: Date) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
+    focusDate?: Date | null; // [NEW] Focus Date for auto-scrolling
     workDays?: number;
     rowHeight?: number;
     projects?: any[];
@@ -73,6 +74,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     onSelectDate,
     selectedDate: propSelectedDate,
     prepDate: propPrepDate,
+    focusDate: propFocusDate, // [NEW]
     workDays = 1,
     rowHeight = 12,
     projects = []
@@ -141,25 +143,34 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // [FIX] Enhanced Scroll Logic
     useEffect(() => {
         if (!scrollContainerRef.current || allDays.length === 0) return;
 
-        let targetDate = today;
-        let offsetDays = 0;
+        // Determine target date: explicit focusDate > selected > prep > today
+        let targetDate = propFocusDate || propSelectedDate || today;
+
+        // If in Gantt/Timeline, we might default to today if no explicit focus
+        if (!propFocusDate && !propSelectedDate) {
+            if (displayMode === 'gantt') targetDate = today;
+            else if (displayMode === 'timeline') targetDate = getStartOfWeek(today);
+            else targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        }
+
         let cellWidth = 24;
+        let offsetDays = 0;
 
         if (displayMode === 'gantt' || displayMode === 'timeline') {
             cellWidth = 24;
             if (displayMode === 'gantt') {
-                targetDate = today;
                 offsetDays = -2;
             } else {
-                targetDate = getStartOfWeek(today);
                 offsetDays = 0;
             }
         } else if (displayMode === 'grid') {
-            cellWidth = 112;
-            targetDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            cellWidth = 112; // Approximation, actual width varies
+            // For grid, targetDate should be month start for better alignment
+            targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
             const containerWidth = scrollContainerRef.current?.clientWidth || 0;
             const visibleCells = Math.floor(containerWidth / cellWidth);
             offsetDays = -Math.floor(visibleCells / 2);
@@ -167,10 +178,18 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         const targetIndex = allDays.findIndex(d => isSameDate(d, targetDate));
         if (targetIndex !== -1) {
-            const scrollTarget = Math.max(0, (targetIndex + offsetDays) * cellWidth);
-            scrollContainerRef.current.scrollLeft = scrollTarget;
+            if (displayMode === 'grid') {
+                // Fallback vertical scroll for grid
+                const row = Math.floor(targetIndex / 7);
+                const scrollTop = row * 100; // approx
+                // Apply to both possible scroll containers for safety
+                scrollContainerRef.current.scrollTop = scrollTop;
+            } else {
+                const scrollTarget = Math.max(0, (targetIndex + offsetDays) * cellWidth);
+                scrollContainerRef.current.scrollLeft = scrollTarget;
+            }
         }
-    }, [allDays, today, displayMode]);
+    }, [allDays, today, displayMode, propFocusDate]); // [FIX] Removed propSelectedDate to prevent jump on click
 
     const itemsByDate = useMemo(() => {
         const map = new Map<string, Item[]>();
@@ -276,15 +295,17 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                     <RyokanGridView
                         allDays={allDays}
                         itemsByDate={itemsByDate}
+                        signsMap={signsMap} // [NEW]
                         heatMap={heatMap}
                         today={today}
                         onItemClick={onItemClick}
                         safeConfig={safeConfig}
-                        isMini={isMini}
                         onSelectDate={onSelectDate}
                         selectedDate={propSelectedDate}
                         prepDate={propPrepDate}
                         commitPeriod={commitPeriod}
+                        scrollRef={scrollContainerRef as any}
+                        onDayClick={(items) => setSelectedSigns(items)} // [NEW]
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -311,10 +332,13 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             {selectedSigns.length > 0 && !onSelectDate && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSigns([])}>
                     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">この期間の気配</h3>
-                        <div className="space-y-2">
+                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">この期間の気配 ({selectedSigns.length})</h3> {/* [FIX] Added Count */}
+                        <div className="space-y-2 max-h-[60vh] overflow-y-auto"> {/* [FIX] Scrollable */}
                             {selectedSigns.map(s => (
-                                <div key={s.id} onClick={() => { onItemClick(s); setSelectedSigns([]); }} className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-bold">{s.title}</div>
+                                <div key={s.id} onClick={() => { onItemClick(s); setSelectedSigns([]); }} className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-bold bg-white dark:bg-slate-800 flex items-center justify-between">
+                                    <span>{s.title}</span>
+                                    {s.due_date && <span className="text-[10px] text-slate-400">{format(new Date(s.due_date), 'MM/dd')}</span>}
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -542,30 +566,28 @@ interface GridViewProps {
     today: Date;
     onItemClick: (item: Item) => void;
     safeConfig: any;
-    isMini?: boolean;
     selectedDate?: Date | null;
     prepDate?: Date | null;
     commitPeriod?: Date[];
+    scrollRef?: React.RefObject<HTMLDivElement>; // [NEW]
+    signsMap?: Map<string, Item[]>; // [NEW]
+    onDayClick?: (items: Item[]) => void; // [NEW]
 }
 
 const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => void }> = ({
-    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, isMini, onSelectDate,
-    selectedDate, prepDate, commitPeriod = []
+    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, onSelectDate,
+    selectedDate, prepDate, commitPeriod = [], scrollRef, signsMap, onDayClick
 }) => {
-    const todayGridRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (todayGridRef.current) {
-            todayGridRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
-        }
-    }, [isMini]);
-
     return (
-        <div className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide">
+        <div
+            ref={scrollRef} // [FIX] Attached Ref
+            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide"
+        >
             <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
                 {allDays.map(date => {
                     const dateKey = date.toDateString();
                     const dayItems = itemsByDate.get(dateKey) || [];
+                    const allSigns = signsMap?.get(dateKey) || []; // [NEW]
                     const isToday = isSameDate(date, today);
                     const isHol = isHoliday(date, safeConfig);
                     const vol = heatMap.get(dateKey) || 0;
@@ -577,8 +599,10 @@ const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => 
                     return (
                         <div
                             key={dateKey}
-                            ref={isToday ? todayGridRef : null}
-                            onClick={() => onSelectDate?.(date)}
+                            onClick={() => {
+                                if (onSelectDate) onSelectDate(date);
+                                else if (onDayClick) onDayClick(allSigns.length > 0 ? allSigns : dayItems);
+                            }}
                             className={cn(
                                 "min-h-[100px] p-2 relative transition-all group",
                                 isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
@@ -689,9 +713,22 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                     onMouseEnter={() => setHoveredItemId(item.id)}
                                     onMouseLeave={() => setHoveredItemId(null)}
                                 >
-                                    <div className="flex-1 min-w-0 pr-2 cursor-pointer flex items-baseline gap-1.5" onClick={() => deadlineDate && onJumpToDate?.(deadlineDate)}>
-                                        <span className={cn("truncate font-bold tracking-tight", hoveredItemId === item.id ? "text-xs text-indigo-600 dark:text-indigo-400" : "text-[10px] text-slate-500")}>{item.title}</span>
-                                        {project && <span className="truncate text-[8px] text-slate-400 font-normal">{project.name}</span>}
+                                    <div className="flex-1 min-w-0 pr-2 cursor-pointer" onClick={() => deadlineDate && onJumpToDate?.(deadlineDate)}>
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className={cn("truncate font-bold tracking-tight", hoveredItemId === item.id ? "text-xs text-indigo-600 dark:text-indigo-400" : "text-[10px] text-slate-500")}>{item.title}</span>
+                                            {project && <span className="truncate text-[9px] text-slate-400 ml-1">{project.name}</span>}
+                                        </div>
+                                        {/* [NEW] Subtly display My Due & Work Days */}
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            {item.prep_date && (
+                                                <span className="text-[9px] text-slate-400 font-mono tracking-tighter">My: {format(new Date(item.prep_date * 1000), 'MM/dd')}</span>
+                                            )}
+                                            {item.work_days ? (
+                                                <span className="text-[9px] text-slate-400 font-mono tracking-tighter">工: {item.work_days}d</span>
+                                            ) : item.estimatedMinutes ? (
+                                                <span className="text-[9px] text-slate-400 font-mono tracking-tighter">工: {item.estimatedMinutes}m</span>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     {hoveredItemId === item.id && (
                                         <button onClick={(e) => { e.stopPropagation(); onItemClick(item); }} className="p-1 rounded bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-500 hover:text-indigo-600"><ChevronRight size={10} /></button>
@@ -702,7 +739,7 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         const isDue = item.due_date && isSameDate(date, new Date(item.due_date));
                                         const isCommit = commitStart && myDeadline && date >= commitStart && date <= myDeadline && !isHoliday(date, safeConfig);
                                         return (
-                                            <div key={date.toDateString()} className={cn("w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative", isDue ? "bg-red-50/50" : "")}>
+                                            <div key={date.toDateString()} className={cn("w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative", isDue ? "bg-red-50/50" : "")} onClick={(e) => { e.stopPropagation(); onItemClick(item); /* [FIX] Click on flag/bar space opens detail */ }}>
                                                 {isCommit && <div className="absolute inset-y-1 left-0 right-0 bg-indigo-400 dark:bg-indigo-500 rounded-sm" />}
                                                 {isDue && <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600" />}
                                             </div>

@@ -581,19 +581,27 @@ export const useJBWOSViewModel = (projectId?: string) => {
     const throwIn = async (title: string, tenantId?: string) => {
         if (!title.trim()) return null; // Empty check
 
-        // [FIX] Resolve Tenant ID: Use arg if provided, otherwise inherit from Focused Project. Default to Private (null).
-        let resolvedTenantId: string | null = tenantId || null;
+        // [FIX] Resolve Tenant ID: 
+        // 1. If tenantId explicitly provided -> Use it.
+        // 2. If Project Focused -> Use Project's Tenant ID.
+        // 3. Else (Inbox) -> Default to PRIVATE (undefined/null).
+        let resolvedTenantId: string | undefined = tenantId;
+
         if (!resolvedTenantId && projectId) {
             const p = allProjects.find(pro => pro.id === projectId);
-            if (p) resolvedTenantId = p.tenantId || null;
+            if (p) resolvedTenantId = p.tenantId || undefined; // [FIX] Handle null
         }
+
+        // Ensure we pass undefined if we want Private, NOT some accidental company ID.
+        // If resolvedTenantId is falsy (empty string or null), make it undefined for API to see "no tenant".
+        if (!resolvedTenantId) resolvedTenantId = undefined;
 
         // 1. Optimistic Update (Immediate Feedback)
         // Note: For now we don't know the ID yet, but we will add it after API call or use temp ID?
         // Actually JBWOSRepository.addItemToInbox returns ID synchronously (mock) or after (real).
         // Let's rely on Repo.
 
-        const id = await getRepository().addItemToInbox(title, resolvedTenantId as any, projectId || undefined);
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId, projectId || undefined);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -694,16 +702,39 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     const setEngaged = async (id: string, isEngaged: boolean) => {
         // Optimistic
-        const updates = { isEngaged, status: isEngaged ? 'focus' : undefined } as Partial<Item>;
+        const updates = {
+            isEngaged,
+            status: isEngaged ? 'focus' : undefined,
+            flags: { is_today_commit: true } // [FIX] Ensure it appears in Today Commits
+        } as Partial<Item>;
 
-        // Update all local lists
-        const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
-        setTodayCommits(prev => updateList(prev));
-        setTodayCandidates(prev => updateList(prev));
-        setGdbActive(prev => updateList(prev));
+        // [FIX] List Movement Logic
+        const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
+        const target = allLocal.find(i => i.id === id);
 
-        if (executionItem?.id === id) {
-            setExecutionItem(prev => prev ? { ...prev, isEngaged } : null);
+        if (target) {
+            const updatedItem = { ...target, ...updates };
+
+            // 1. Remove from ALL lists first
+            setGdbActive(prev => prev.filter(i => i.id !== id));
+            setGdbPreparation(prev => prev.filter(i => i.id !== id));
+            setGdbIntent(prev => prev.filter(i => i.id !== id));
+            setTodayCandidates(prev => prev.filter(i => i.id !== id));
+            setTodayCommits(prev => prev.filter(i => i.id !== id));
+
+            // 2. Add to appropriate list
+            if (isEngaged) {
+                // Add to Today Commits
+                setTodayCommits(prev => [updatedItem, ...prev]);
+                // Update Execution Item
+                setExecutionItem(updatedItem);
+            } else {
+                // Return to Inbox? or just Focus (Candidate)?
+                // If checking OFF, usually implies -> Candidate or Inbox.
+                // For now, assume Candidate (Focus)
+                setTodayCandidates(prev => [updatedItem, ...prev]);
+                if (executionItem?.id === id) setExecutionItem(null);
+            }
         }
 
         try {
@@ -711,46 +742,93 @@ export const useJBWOSViewModel = (projectId?: string) => {
             await getRepository().updateItem(id, {
                 isIntent: isEngaged,
                 status: isEngaged ? 'focus' : undefined,
-                dueStatus: isEngaged ? 'today' : undefined
+                dueStatus: isEngaged ? 'today' : undefined,
+                flags: { is_today_commit: true } // [FIX] Persist
             } as any);
         } catch (e) {
             console.error('Set Engaged failed', e);
             refreshToday();
+            refreshGdb();
         }
     };
 
     const updateItem = async (id: string, updates: Partial<Item>) => {
         // [NEW] Resolve Persistence Names related to IDs (Immediate UI Feedback)
-        if (updates.projectId) {
-            const p = allProjects.find(pro => pro.id === updates.projectId);
-            if (p) {
-                (updates as any).projectTitle = p.title;
-                // Auto-sync tenant if project has one and item doesn't override (or matches old)
-                if (p.tenantId && !updates.tenantId) {
-                    updates.tenantId = p.tenantId;
-                    const t = joinedTenants.find(ten => ten.id === p.tenantId);
-                    if (t) (updates as any).tenantName = t.name;
+        // Check for existence of key to handle clearing (null/undefined)
+        if ('projectId' in updates) {
+            if (updates.projectId) {
+                const p = allProjects.find(pro => pro.id === updates.projectId);
+                if (p) {
+                    (updates as any).projectTitle = p.title;
+                    // Auto-sync tenant if project has one and tenantId isn't explicitly being set/cleared in this update
+                    // This ensures "Project = X" implies "Tenant = X's Tenant" unless user overrides
+                    if (!('tenantId' in updates) && p.tenantId) {
+                        updates.tenantId = p.tenantId;
+                    }
                 }
+            } else {
+                // Clearing Project
+                (updates as any).projectTitle = undefined;
+                // We do NOT auto-clear tenant here, as item might remain in Company but lose Project.
             }
         }
-        if (updates.tenantId) {
-            const t = joinedTenants.find(ten => ten.id === updates.tenantId);
-            if (t) (updates as any).tenantName = t.name;
+
+        // Handle Tenant Updates (including those set by Project logic above)
+        if ('tenantId' in updates) {
+            if (updates.tenantId) {
+                const t = joinedTenants.find(ten => ten.id === updates.tenantId);
+                if (t) (updates as any).tenantName = t.name;
+            } else {
+                // Clearing Tenant (Private)
+                (updates as any).tenantName = undefined;
+            }
         }
 
-        // Helper to update a list
-        const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
+        // [FIX] Lists Selection & Movement Logic
+        const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
+        const target = allLocal.find(i => i.id === id);
 
-        // Optimistic Updates across all lists
-        setTodayCandidates(prev => updateList(prev));
-        setTodayCommits(prev => updateList(prev));
-        setGdbActive(prev => updateList(prev));
-        setGdbPreparation(prev => updateList(prev));
-        setGdbIntent(prev => updateList(prev));
+        if (target) {
+            const updatedItem = { ...target, ...updates };
 
-        // Update Execution Item if active
-        if (executionItem && executionItem.id === id) {
-            setExecutionItem(prev => prev ? { ...prev, ...updates } : null);
+            // Determine Destination List based on Status
+            const newStatus = updates.status || target.status;
+
+            // If status changed, we need to MOVE
+            if (newStatus !== target.status) {
+                // Remove from OLD
+                setGdbActive(prev => prev.filter(i => i.id !== id));
+                setGdbPreparation(prev => prev.filter(i => i.id !== id));
+                setGdbIntent(prev => prev.filter(i => i.id !== id));
+                setTodayCandidates(prev => prev.filter(i => i.id !== id));
+                setTodayCommits(prev => prev.filter(i => i.id !== id));
+
+                // Add to NEW
+                if (newStatus === 'inbox') setGdbActive(prev => [updatedItem, ...prev]);
+                else if (newStatus === 'pending') setGdbActive(prev => [updatedItem, ...prev]); // Pending stays in GDB Active shelf usually? Or separate? 
+                // Wait, useJBWOSViewModel separates Active (Inbox) and Pending?
+                // Looking at init: gdbActive is Inbox+Decision. 
+                // Let's stick to: Inbox->Active, Pending->Active (or Intent/Prep if designated).
+                // Actually GDB Active usually holds Inbox & Pending.
+                else if (newStatus === 'focus') {
+                    // Focus means Candidate OR Commit (if today flag)
+                    // We assume Candidate by default for simple 'focus' update
+                    setTodayCandidates(prev => [updatedItem, ...prev]);
+                }
+            } else {
+                // Just property update, no move (except maybe sort order?)
+                const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
+                setTodayCandidates(prev => updateList(prev));
+                setTodayCommits(prev => updateList(prev));
+                setGdbActive(prev => updateList(prev));
+                setGdbPreparation(prev => updateList(prev));
+                setGdbIntent(prev => updateList(prev));
+            }
+
+            // Update Execution Item if active
+            if (executionItem && executionItem.id === id) {
+                setExecutionItem(prev => prev ? { ...prev, ...updates } : null);
+            }
         }
 
         try {

@@ -46,7 +46,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_view_mode', viewMode);
     }, [viewMode]);
 
-    const vm = useJBWOSViewModel(activeProject?.cloudId);
+    const vm = useJBWOSViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
     const {
         gdbActive: inboxItems,
@@ -60,6 +60,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         setFilterMode,
         ghostGdbCount,
         ghostTodayCount,
+        executionItem, // [FIX] Add executionItem
         refreshAll: handleRefresh,
         updateItem,
         deleteItem,
@@ -81,7 +82,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_gantt_row_height', ganttRowHeight.toString());
     }, [ganttRowHeight]);
 
-    const queueItems = [...todayCommits, ...todayCandidates];
+    const queueItems = [
+        ...(executionItem ? [executionItem] : []),
+        ...todayCommits.filter(i => i.id !== executionItem?.id),
+        ...todayCandidates.filter(i => i.id !== executionItem?.id)
+    ];
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [newItemTitle, setNewItemTitle] = useState('');
@@ -298,7 +303,13 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                         <div className="flex flex-col mb-4">
                             {inboxItems.map(item => (
-                                <SmartItemRow key={item.id} item={item} onFocus={handleMoveToFocus} onClick={() => setSelectedItem(item)} onContextMenu={handleContextMenu} />
+                                <SmartItemRow
+                                    key={item.id}
+                                    item={item}
+                                    onFocus={(id) => handleSetEngaged(id, true)} // [FIX] Use Engage (Today Commit) instead of just Focus
+                                    onClick={() => setSelectedItem(item)}
+                                    onContextMenu={handleContextMenu}
+                                />
                             ))}
                         </div>
 
