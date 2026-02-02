@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JBWOS User Manual - 取扱説明書</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+
+        .sidebar-link.active {
+            background-color: #eff6ff;
+            color: #3b82f6;
+            border-right: 3px solid #3b82f6;
+        }
+
+        h2 {
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 0.5rem;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+        }
+
+        h3 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            rounded: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #0f172a;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            rounded: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .bg-inbox {
+            background-color: #e2e8f0;
+            color: #64748b;
+        }
+
+        .bg-focus {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+
+        .bg-waiting {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px dashed #94a3b8;
+        }
+
+        .bg-pending {
+            background-color: #fef3c7;
+            color: #d97706;
+        }
+
+        .bg-done {
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-slate-800">
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar Navigation -->
+        <nav class="w-64 bg-white border-r border-slate-200 fixed h-full overflow-y-auto hidden md:block z-10">
+            <div class="p-6">
+                <a href="./landing.html"
+                    class="block text-2xl font-black text-slate-900 mb-8 hover:text-indigo-600 transition-colors">JBWOS
+                    Doc</a>
+                <ul class="space-y-1 text-sm font-medium text-slate-600">
+                    <li><a href="#quick-start"
+                            class="block py-2 px-3 hover:bg-slate-50 rounded transition-colors sidebar-link">⚡
+                            クイックスタート</a></li>
+                    <li>
+                        <span class="block py-2 px-3 text-xs font-bold text-slate-400 mt-4 uppercase">基本概念</span>
+                        <ul class="pl-2 space-y-1">
+                            <li><a href="#structure"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">システム構造</a></li>
+                            <li><a href="#status-definition"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">状態 (Status) の定義</a>
+                            </li>
+                            <li><a href="#views"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">4つの画面</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <span class="block py-2 px-3 text-xs font-bold text-slate-400 mt-4 uppercase">ケース別ガイド</span>
+                        <ul class="pl-2 space-y-1">
+                            <li><a href="#case1-inbox"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">1. 思いつきを放り込む</a>
+                            </li>
+                            <li><a href="#case2-interrupt"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">2. 割り込みタスク</a></li>
+                            <li><a href="#case3-focus"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">3. 今日やることを決める</a>
+                            </li>
+                            <li><a href="#case4-project"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">4. プロジェクトで束ねる</a>
+                            </li>
+                            <li><a href="#case5-deadline"
+                                    class="block py-1.5 px-3 hover:bg-slate-50 rounded sidebar-link">5. 期限と見積り</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#glossary"
+                            class="block py-2 px-3 hover:bg-slate-50 rounded transition-colors mt-4 sidebar-link">📚 用語集
+                            / FAQ</a></li>
+                    <li class="mt-8 pt-8 border-t border-slate-100">
+                        <a href="./landing.html" class="flex items-center gap-2 text-slate-400 hover:text-indigo-500">
+                            <span>← LPに戻る</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="md:ml-64 flex-1 p-8 md:p-12 lg:p-16 max-w-5xl">
+
+            <header class="mb-12">
+                <h1 class="text-4xl font-bold mb-4">取扱説明書 (User Manual)</h1>
+                <p class="text-lg text-slate-600">JBWOSの操作方法、概念、そして「思考のフロー」を解説します。</p>
+            </header>
+
+            <!-- Quick Start -->
+            <section id="quick-start" class="scroll-mt-24">
+                <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-8">
+                    <h2 class="text-2xl font-bold text-indigo-900 !mt-0 !mb-6 !border-none">⚡ クイックスタート (最初の5分)</h2>
+                    <ol class="space-y-6">
+                        <li class="flex gap-4">
+                            <div
+                                class="flex-none w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold">
+                                1</div>
+                            <div>
+                                <h3 class="font-bold text-lg text-indigo-900 !m-0">すべてをInboxへ</h3>
+                                <p class="text-indigo-800/80 mt-1">
+                                    「Stream」画面の入力欄に、今頭にある"やること"、"悩み"、"単なるメモ"を全部書き出します。<br>Enterで連続投稿できます。まずは頭を空っぽにしましょう。
+                                </p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <div
+                                class="flex-none w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold">
+                                2</div>
+                            <div>
+                                <h3 class="font-bold text-lg text-indigo-900 !m-0">詳細を開く</h3>
+                                <p class="text-indigo-800/80 mt-1">リストのアイテムをクリック（または<code>Alt+D</code>）して詳細画面を開きます。</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-4">
+                            <div
+                                class="flex-none w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold">
+                                3</div>
+                            <div>
+                                <h3 class="font-bold text-lg text-indigo-900 !m-0">Yes / No / Hold</h3>
+                                <p class="text-indigo-800/80 mt-1">
+                                    <strong>「今日やる？」</strong>と自問自答してください。<br>
+                                    <span
+                                        class="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-bold text-xs">Yes</span>なら「Focus」へ。<br>
+                                    <span
+                                        class="inline-block px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded font-bold text-xs">Hold</span>なら「後でやる（Pending）」か「待ち（Waiting）」へ。<br>
+                                    これでInboxが空になれば、今日のセットアップは完了です。
+                                </p>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Status Definitions -->
+            <section id="status-definition" class="scroll-mt-24">
+                <h2>状態 (Status) の定義</h2>
+                <p class="mb-6">JBWOSは、タスクを以下の5つの状態だけで管理します。複雑なタグ管理は不要です。</p>
+
+                <div class="overflow-hidden border border-slate-200 rounded-xl">
+                    <table class="min-w-full divide-y divide-slate-200 bg-white">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">状態 (ID)</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">表示名</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">あなたの認識</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">システム上の扱い</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <tr>
+                                <td class="px-6 py-4"><span class="status-badge bg-inbox">inbox</span></td>
+                                <td class="px-6 py-4 font-bold">受信</td>
+                                <td class="px-6 py-4 text-sm">思いつき。未判断。</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">Stream画面の左側に滞留。</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4"><span class="status-badge bg-focus">focus</span></td>
+                                <td class="px-6 py-4 font-bold">今日やる</td>
+                                <td class="px-6 py-4 text-sm">今日実行する意志がある。</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">Stream画面の中央（メイン）に表示。完了対象。</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4"><span class="status-badge bg-waiting">waiting</span></td>
+                                <td class="px-6 py-4 font-bold">待機 (Waiting)</td>
+                                <td class="px-6 py-4 text-sm">他者からの返信待ち、または開始日待ち。</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">自動的に非表示になり、条件を満たすと再浮上。</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4"><span class="status-badge bg-pending">pending</span></td>
+                                <td class="px-6 py-4 font-bold">保留 (Someday)</td>
+                                <td class="px-6 py-4 text-sm">いつかやる。今はやらない。</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">視界から消してよい。「棚」にしまわれる。</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4"><span class="status-badge bg-done">done</span></td>
+                                <td class="px-6 py-4 font-bold">完了</td>
+                                <td class="px-6 py-4 text-sm">終わった事実。</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">履歴（Log）として保存される。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-4 text-sm text-slate-500">
+                    ※ 内部コード上の <code>status="pending"</code> が、ユーザーから見た <strong>"Someday (いつかやる)"</strong> に相当します。<br>
+                    ※ 内部コード上の <code>status="waiting"</code> が、ユーザーから見た <strong>"Waiting (待ち)"</strong> に相当します。
+                </p>
+            </section>
+
+            <!-- Views -->
+            <section id="views" class="scroll-mt-24">
+                <h2>4つの主要画面 (Views)</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                        <h3 class="!mt-0 font-bold text-indigo-600">Stream (登録と集中)</h3>
+                        <p class="text-sm text-slate-600 mt-2">日々のメイン画面。「今日やること(Focus)」と「Inbox」しかないコックピットです。</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                        <h3 class="!mt-0 font-bold text-blue-600">Panorama (全体一覧)</h3>
+                        <p class="text-sm text-slate-600 mt-2">プロジェクトの進行状況を時系列（ガントチャート風）で確認する画面。「俯瞰」用です。</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                        <h3 class="!mt-0 font-bold text-emerald-600">Newspaper (全体一覧２)</h3>
+                        <p class="text-sm text-slate-600 mt-2">タスクを「情報の塊」として新聞のように並べる画面。直感で「量」を感じ取るのに適しています。</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                        <h3 class="!mt-0 font-bold text-amber-600">Calendar (カレンダー)</h3>
+                        <p class="text-sm text-slate-600 mt-2">旅館の予約台帳のようなリソース管理画面。あなたの「空き時間（部屋）」の状況を確認します。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Case Guides -->
+            <section class="mt-20">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="h-px bg-slate-200 flex-1"></div>
+                    <h2 class="!m-0 text-3xl font-bold text-slate-800">ケース別ガイド (How-to)</h2>
+                    <div class="h-px bg-slate-200 flex-1"></div>
+                </div>
+
+                <!-- Case 1 -->
+                <article id="case1-inbox" class="scroll-mt-24 mb-16">
+                    <h3 class="text-xl font-bold border-l-4 border-indigo-500 pl-4 py-1">Case 1. 思いついたタスクを一瞬で放り込む</h3>
+                    <div class="pl-5 mt-4 space-y-4">
+                        <p><strong>状況:</strong> 作業中、ふと「あ、銀行行かなきゃ」と思い出した。</p>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                            <p><strong>操作:</strong></p>
+                            <ol class="list-decimal list-inside space-y-1 ml-2 text-slate-700">
+                                <li><code>Stream</code>画面を開く（または常に開いておく）。</li>
+                                <li>「思いついたことを入力...」欄に「銀行へ行く」とタイプして <code>Enter</code>。</li>
+                                <li>以上。</li>
+                            </ol>
+                        </div>
+                        <p class="text-sm text-slate-600"><strong>結果:</strong> タスクは <code>Inbox</code>
+                            に入ります。今の作業を中断せず、忘却できます。</p>
+                    </div>
+                </article>
+
+                <!-- Case 2 -->
+                <article id="case2-interrupt" class="scroll-mt-24 mb-16">
+                    <h3 class="text-xl font-bold border-l-4 border-indigo-500 pl-4 py-1">Case 2. 途中で別タスクを思いついたときの扱い</h3>
+                    <div class="pl-5 mt-4 space-y-4">
+                        <p><strong>状況:</strong> プロジェクトAの作業中、プロジェクトBのアイデアが降ってきた。</p>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                            <p><strong>判断:</strong> 「今すぐやる？」→ <strong>No</strong>（集中を切らさないため）</p>
+                            <p><strong>操作:</strong></p>
+                            <ol class="list-decimal list-inside space-y-1 ml-2 text-slate-700">
+                                <li><code>Stream</code>画面の下部「Quick Input」へ入力。</li>
+                                <li>プロジェクトBに関連するなら、作成後に詳細画面を開き、<code>Project</code>欄を変更してもよいですが、<strong>今はただInboxに入れるだけで十分です</strong>。
+                                </li>
+                                <li>現在の作業に戻ります。</li>
+                            </ol>
+                        </div>
+                        <p class="text-sm text-slate-600"><strong>コツ:</strong> 整理整頓は「今」やらないでください。それは未来のあなたの仕事です。</p>
+                    </div>
+                </article>
+
+                <!-- Case 3 -->
+                <article id="case3-focus" class="scroll-mt-24 mb-16">
+                    <h3 class="text-xl font-bold border-l-4 border-indigo-500 pl-4 py-1">Case 3. 今日やることを決めて実行する</h3>
+                    <div class="pl-5 mt-4 space-y-4">
+                        <p><strong>状況:</strong> 朝一番、または昼休憩後。</p>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                            <p><strong>操作:</strong></p>
+                            <ol class="list-decimal list-inside space-y-1 ml-2 text-slate-700">
+                                <li><code>Stream</code>画面のInboxにあるタスクを上から順に見ます。</li>
+                                <li>詳細を開き（クリック）、問います。「今日やる？」</li>
+                                <li><strong>Yes</strong>なら、モーダルの「今日やる (Today)」ボタンを押す。 → <code>Focus</code>へ移動。</li>
+                                <li><strong>No</strong>なら、保留(Someday)か待機(Waiting)へ。</li>
+                                <li><code>Focus</code>リストに残ったタスクを上から順に片付けます。</li>
+                            </ol>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Case 4 -->
+                <article id="case4-project" class="scroll-mt-24 mb-16">
+                    <h3 class="text-xl font-bold border-l-4 border-indigo-500 pl-4 py-1">Case 4. プロジェクトで束ねて進める</h3>
+                    <div class="pl-5 mt-4 space-y-4">
+                        <p><strong>状況:</strong> 「展示会の準備」のように、複数のタスクが含まれる大きな仕事がある。</p>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                            <p><strong>操作:</strong></p>
+                            <ol class="list-decimal list-inside space-y-1 ml-2 text-slate-700">
+                                <li>画面右上の「＋プロジェクト」ボタンを押してプロジェクトを作成します。</li>
+                                <li>タスクの詳細画面で、<code>Project</code> プルダウンからそのプロジェクトを選択します。</li>
+                                <li><code>Panorama</code>画面（全体一覧）を見ると、そのプロジェクト配下にタスクがまとまって表示されます。</li>
+                            </ol>
+                        </div>
+                        <p class="text-sm text-slate-600"><strong>思想:</strong>
+                            プロジェクトの中にプロジェクトを入れる（入れ子）機能もありますが、<strong>複雑化は敵</strong>なので推奨しません。フラットに保ちましょう。</p>
+                    </div>
+                </article>
+
+                <!-- Case 5 -->
+                <article id="case5-deadline" class="scroll-mt-24 mb-16">
+                    <h3 class="text-xl font-bold border-l-4 border-indigo-500 pl-4 py-1">Case 5. 期限/納期/見積りが絡むときの扱い</h3>
+                    <div class="pl-5 mt-4 space-y-4">
+                        <p><strong>状況:</strong> クライアントへの提出期限は来週金曜だが、自分としては水曜までに終わらせたい。</p>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                            <p><strong>操作 (詳細画面にて):</strong></p>
+                            <ul class="list-disc list-inside space-y-2 ml-2 text-slate-700">
+                                <li>
+                                    <strong>納期 (Due Date):</strong> 来週金曜（外部制約）。
+                                    <span class="text-xs text-slate-500">※遅れると信頼に関わる日付。</span>
+                                </li>
+                                <li>
+                                    <strong>My期限 (Prep Date):</strong> 水曜（内部目標）。
+                                    <span class="text-xs text-slate-500 text-indigo-600">★★ JBWOSではこちらを重視します。</span>
+                                </li>
+                                <li>
+                                    <strong>見積 (Estimate):</strong> 「2h」「0.5d」などのプリセットを選択。
+                                    <span
+                                        class="text-xs text-slate-500">※<code>Ryokan Calendar</code>上で、そのタスクがどれくらいの部屋（時間枠）を占有するかが可視化されます。</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+            </section>
+
+
+            <!-- Glossary -->
+            <section id="glossary" class="mt-24 pt-12 border-t border-slate-200">
+                <h2 class="text-2xl font-bold mb-8">📚 用語集 (Glossary)</h2>
+                <div class="grid gap-4">
+                    <div class="p-4 border rounded-lg hover:bg-slate-50">
+                        <h4 class="font-bold text-indigo-600">Someday (いつかやる)</h4>
+                        <p class="text-sm mt-1">システム上のステータスは
+                            <code>Pending</code>。重要だが緊急ではないタスクの保管庫。定期的に<code>Panorama</code>画面で見返して、腐っていないか確認します。</p>
+                    </div>
+                    <div class="p-4 border rounded-lg hover:bg-slate-50">
+                        <h4 class="font-bold text-indigo-600">Hold (判断保留)</h4>
+                        <p class="text-sm mt-1">
+                            詳細画面におけるアクションの一つ。「今、Yes(今日やる)とは言えない」状態。これを選ぶと、タスクは<code>Waiting</code>か<code>Pending</code>のどちらかに振り分けられます。
+                        </p>
+                    </div>
+                    <div class="p-4 border rounded-lg hover:bg-slate-50">
+                        <h4 class="font-bold text-indigo-600">Ryokan Calendar</h4>
+                        <p class="text-sm mt-1">工数管理機能付きカレンダー。タスクが消費する時間（宿泊客）を、あなたの可用時間（部屋）に割り当てるイメージから命名されました。</p>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="mt-24 text-center text-slate-400 text-sm">
+                &copy; 2026 Tategu Design Studio
+            </footer>
+        </main>
+    </div>
+
+    <!-- Mobile Menu Button Script -->
+    <script>
+        // Simple script could be added here for mobile menu toggling if needed
+    </script>
+</body>
+
+</html>

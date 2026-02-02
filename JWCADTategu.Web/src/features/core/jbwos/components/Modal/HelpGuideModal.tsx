@@ -311,7 +311,16 @@ export const HelpGuideModal: React.FC<HelpGuideModalProps> = ({ isOpen, onClose 
                         </div>
 
                         {/* Footer */}
-                        <div className="flex-none p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-center">
+                        <div className="flex-none p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-center gap-4">
+                            <a
+                                href="/docs/manual.html"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-6 py-3 font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors text-sm flex items-center gap-2"
+                            >
+                                <span>📖</span>
+                                詳細マニュアルを開く
+                            </a>
                             <button
                                 onClick={onClose}
                                 className="px-8 py-3 font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full shadow-lg hover:transform hover:scale-105 transition-all text-sm"

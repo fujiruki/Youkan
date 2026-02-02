@@ -137,6 +137,18 @@ export const LoginScreen: React.FC = () => {
                 </div>
             </div>
 
+            {/* Documentation Link Footer */}
+            <div className="fixed bottom-10 text-center w-full">
+                <a
+                    href="/docs/landing.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-400 hover:text-indigo-500 text-sm font-medium transition-colors border-b border-transparent hover:border-indigo-500"
+                >
+                    JBWOSとは？ (Introduction)
+                </a>
+            </div>
+
             <div className="fixed bottom-4 text-center w-full text-slate-400 text-xs">
                 &copy; 2026 Tategu Design Studio. All rights reserved.
             </div>
