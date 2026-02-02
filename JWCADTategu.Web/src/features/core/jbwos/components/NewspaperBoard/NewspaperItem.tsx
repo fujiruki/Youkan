@@ -51,28 +51,26 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
     return (
         <div
-            onMouseDown={() => console.log('[NewspaperItem] onMouseDown', item.id)}
             onMouseUp={(e) => {
-                console.log('[NewspaperItem] onMouseUp', item.id, 'button:', e.button);
                 // [FIX] Use onMouseUp for robust click handling in Newspaper layout (Column CSS often interferes with Click detection).
                 // Safety: 'select-none' class prevents text selection, so onMouseUp won't trigger on drag-select release.
                 if (e.button === 0) { // Left click only
-                    console.log('[NewspaperItem] Triggering onClick action', item.id);
                     onClick(item);
                 }
             }}
-            onClick={() => console.log('[NewspaperItem] onClick fired (native)', item.id)}
+            onClick={() => { }}
             onContextMenu={(e) => {
                 e.preventDefault();
                 onContextMenu(e, item.id);
             }}
-            className={cn(
-                "group flex items-start gap-[0.5em] px-[0.3em] py-[0.1em] rounded-[0.2em] transition-all cursor-pointer select-none relative z-10",
-                "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
-                "break-inside-avoid", // Prevent item split
-                "mb-[0.2em]",
-                isDone && "opacity-60 grayscale-[0.5]"
-            )}
+            className={
+                cn(
+                    "group flex items-start gap-[0.5em] px-[0.3em] py-[0.1em] rounded-[0.2em] transition-all cursor-pointer select-none relative z-10",
+                    "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
+                    "break-inside-avoid", // Prevent item split
+                    "mb-[0.2em]",
+                    isDone && "opacity-60 grayscale-[0.5]"
+                )}
             style={{
                 marginLeft: `${depth * 0.5}em`
             }}
@@ -91,16 +89,18 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             </div>
 
             {/* Metadata (Due Date) */}
-            {item.due_date && !isDone && (
-                <div className="shrink-0 pt-[0.1em]">
-                    <span className={cn(
-                        "text-[0.85em] font-bold whitespace-nowrap",
-                        new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
-                    )}>
-                        {format(new Date(item.due_date), 'M/d')}
-                    </span>
-                </div>
-            )}
-        </div>
+            {
+                item.due_date && !isDone && (
+                    <div className="shrink-0 pt-[0.1em]">
+                        <span className={cn(
+                            "text-[0.85em] font-bold whitespace-nowrap",
+                            new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
+                        )}>
+                            {format(new Date(item.due_date), 'M/d')}
+                        </span>
+                    </div>
+                )
+            }
+        </div >
     );
 };

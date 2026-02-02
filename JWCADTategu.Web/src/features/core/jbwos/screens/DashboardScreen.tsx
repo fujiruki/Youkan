@@ -246,19 +246,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 hideHeader={true}
                             />
                         )}
-                        {isProjectModalOpen && (
-                            <ProjectCreationDialog
-                                isOpen={isProjectModalOpen}
-                                onClose={() => setIsProjectModalOpen(false)}
-                                onCreate={async (proj, tasks) => {
-                                    await createProject(proj as any, tasks);
-                                    setIsProjectModalOpen(false);
-                                }}
-                                parentProject={activeProject as any}
-                                activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
-                                tenants={vm.joinedTenants}
-                            />
-                        )}
                     </div>
                 </div>
             ) : (
@@ -401,35 +388,38 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         />
                     )}
 
-                    <DecisionDetailModal
-                        item={selectedItem}
-                        onClose={() => setSelectedItem(null)}
-                        onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
-                        onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); handleRefresh(); }}
-                        onUpdate={async (id, updates) => { await updateItem(id, updates); handleRefresh(); }}
-                        onCreateSubTask={createSubTask}
-                        onGetSubTasks={getSubTasks}
-                        members={vm.members}
-                        allProjects={vm.allProjects}
-                        joinedTenants={joinedTenants}
-                        onOpenItem={setSelectedItem}
-                    />
-
-                    <SideMemoWidget />
-                    <ProjectCreationDialog
-                        isOpen={isProjectModalOpen}
-                        onClose={() => setIsProjectModalOpen(false)}
-                        onCreate={async (project, tasks) => {
-                            await createProject(project as any, tasks);
-                            setIsProjectModalOpen(false);
-                            handleRefresh();
-                        }}
-                        parentProject={activeProject as any}
-                        activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
-                        tenants={joinedTenants}
-                    />
                 </div>
             )}
+
+            {/* Global Modals - Available in ALL views */}
+            <DecisionDetailModal
+                item={selectedItem}
+                onClose={() => setSelectedItem(null)}
+                onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
+                onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); handleRefresh(); }}
+                onUpdate={async (id, updates) => { await updateItem(id, updates); handleRefresh(); }}
+                onCreateSubTask={createSubTask}
+                onGetSubTasks={getSubTasks}
+                members={vm.members}
+                allProjects={vm.allProjects}
+                joinedTenants={joinedTenants}
+                onOpenItem={setSelectedItem}
+            />
+
+            <SideMemoWidget />
+
+            <ProjectCreationDialog
+                isOpen={isProjectModalOpen}
+                onClose={() => setIsProjectModalOpen(false)}
+                onCreate={async (project, tasks) => {
+                    await createProject(project as any, tasks);
+                    setIsProjectModalOpen(false);
+                    handleRefresh();
+                }}
+                parentProject={activeProject as any}
+                activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
+                tenants={joinedTenants}
+            />
         </div>
     );
 };
