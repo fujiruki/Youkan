@@ -20,9 +20,11 @@
 
 - **`docs/`**
     - `01_RULES/`: **法典**。開発ルール、会議進行ルール (`AI_MEETING_WORKFLOW`)。
-    - `10_ARCHITECTURE/`: **設計図**。DBスキーマ、システム構成図。
+    - `SPEC/`: **公式仕様書** (Source of Truth)。
+        - [00_MASTER_SPEC.md](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/docs/SPEC/00_MASTER_SPEC.md): **統合仕様書**。
+        - [01_STATE_MATRIX.md](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/docs/SPEC/01_STATE_MATRIX.md): **状態・ステータス定義**。
+        - [02_VIEW_DEFINITIONS.md](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/docs/SPEC/02_VIEW_DEFINITIONS.md): **画面・View定義**。
     - `20_DECISIONS/`: **判例集**。仕様変更の決定履歴 (AI会議ログ)。
-        - 最新: [20260122_AuthModel.md](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/docs/20_DECISIONS/20260122_AuthModel.md) (権限モデルの刷新)
     - `30_MANUALS/`: **マニュアル**。
 - **`src/`**
     - `features/`: 機能ごとに分割。各ディレクトリの `README` に詳細仕様あり。
@@ -30,27 +32,24 @@
         - `plugins/tategu/`: 建具専用機能（見積もり、３Dプレビュー、DXF生成）。
 
 ## 4. Current Status (Latest Phase)
-**Phase 3: Execution & Life Persistence (Completed)**
-- Project Registry, History画面の実装完了。
-- ログ記録 (Life/Execution) の永続化完了。
-
-**Phase 3.5: Security Hardening (In Progress)**
-- 権限モデルの再実装中 (Inbox=Private, Project=Public)。
-- APIレベルでのテナント分離・アクセス制御の強化。
+**Phase 4: Robustness & View Refinement (Active)**
+- Dashboard Item Duplication Fix (Strict Filtering).
+- Newspaper View Interaction Fix (Robust Click Handling).
+- Specification Consolidation (v3.4).
 
 ## 5. Terminology (用語集)
 - **Inbox**: どこのプロジェクトにも属さないタスク。個人の脳内。デフォルトPrivate。
 - **Project**: 業務の単位。デフォルトPublic（テナント内共有）。
-- **Life Log**: 個人の生活記録（食、寝、遊）。仕事ではないがキャパシティに影響するもの。
-- **Execution Log**: 仕事の実行記録。
+- **Stream**: 「登録と集中」ビュー。コックピット。
+- **Newspaper**: 「全体一覧２」ビュー。カタログ。
 - **SVP (Smart Verification Protocol)**: 開発サーバー起動時の自己診断・修復スクリプト。
 
 ## 6. How to Start Development
 1. `docs/00_CONTEXT.md` (これ) を読む。
-2. `docs/01_RULES/AI_DEVELOPMENT_CONSTITUTION_*.md` を読む（「日本語で」「称賛しない」等の基本ルール）。
+2. `docs/SPEC/00_MASTER_SPEC.md` を読み、システムの思想を理解する。
 3. `verify_and_start.ps1` を実行して環境を起動する。
 4. `task.md` で直近のタスクを確認する。
 
 ---
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-02-02
 **Status**: Active
