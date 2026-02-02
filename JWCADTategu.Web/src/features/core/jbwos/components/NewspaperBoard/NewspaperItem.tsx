@@ -57,11 +57,11 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                 onContextMenu(e, item.id);
             }}
             className={cn(
-                "group flex items-start gap-[0.5em] px-[0.3em] py-[0.1em] rounded-[0.2em] transition-all cursor-pointer select-none",
-                "hover:bg-slate-100 dark:hover:bg-slate-800",
+                "group flex items-start gap-[0.5em] px-[0.3em] py-[0.1em] rounded-[0.2em] transition-all cursor-pointer select-none relative z-10",
+                "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
                 "break-inside-avoid", // Prevent item split
                 "mb-[0.2em]",
-                isDone && "opacity-60"
+                isDone && "opacity-60 grayscale-[0.5]"
             )}
             style={{
                 marginLeft: `${depth * 0.5}em`

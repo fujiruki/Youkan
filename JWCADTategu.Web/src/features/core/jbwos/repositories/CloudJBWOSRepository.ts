@@ -51,11 +51,42 @@ export const CloudJBWOSRepository = {
 
         // Categorize based on JBWOS Logic
         return {
-            active: allItems.filter(i => i.status === 'inbox'), // Inbox (To be judged)
-            preparation: allItems.filter(i => i.status === 'waiting'), // Waiting
-            intent: allItems.filter(i => i.status === 'pending'), // Pending (Someday)
-            log: allItems.filter(i => i.status === 'done') // Done
+            // [FIX] Include 'focus' items in active list to prevent disappearance from GDB views if not in Today View
+            active: allItems.filter(i => i.status === 'inbox' || i.status === 'focus'),
+            preparation: allItems.filter(i => i.status === 'waiting'),
+            intent: allItems.filter(i => i.status === 'pending'),
+            log: allItems.filter(i => i.status === 'done')
         };
+    },
+
+    // 6. Today View
+    getTodayView: async (): Promise<{ commits: JudgableItem[]; candidates: JudgableItem[]; execution: JudgableItem | null }> => {
+        try {
+            // Fetch items that are explicitly marked for "Today" (focus) or have is_executing
+            // Ideally backend provides a dedicated endpoint, but for now filtering allItems
+            const allItems = await ApiClient.getAllItems({ scope: 'aggregated' });
+
+            // Logic:
+            // - Execution Item: isEngaged || status === 'focus' && is_executing (backend flag?)
+            // - Commits: status === 'focus' (Today)
+            // - Candidates: status === 'inbox' (or 'focus' but not engaged?) -- Wait, candidates are usually suggestions.
+
+            // Implementation matching ViewModel expectations:
+            const commits = allItems.filter(i => i.status === 'focus');
+            const execution = allItems.find(i => (i as any).isEngaged || (i.status === 'focus' && (i as any).is_executing)) || null;
+
+            // Exclude execution item from commits to avoid duplication if needed, 
+            // but VM might handle that. VM seems to handle queueItems = [execution, ...commits-execution].
+
+            return {
+                commits,
+                candidates: [], // Valid candidates logic needed later
+                execution: execution // [FIX] Use 'execution' to match JBWOSRepository interface
+            };
+        } catch (e) {
+            console.error('CloudRepo: GetTodayView Failed', e);
+            return { commits: [], candidates: [], execution: null };
+        }
     },
 
     // Standard Operations
@@ -95,11 +126,7 @@ export const CloudJBWOSRepository = {
         return await ApiClient.getAllItems({ project_id: projectId, show_trash: true });
     },
 
-    // Today View Specific
-    getTodayView: async (projectId?: string) => {
-        // Backend should have /api/today endpoint
-        return ApiClient.getTodayView(projectId);
-    },
+
 
     // Decisions
     resolveDecision: async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, rdd?: number) => {
