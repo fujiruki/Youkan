@@ -4,7 +4,7 @@ import { NewspaperItem } from './NewspaperItem';
 import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../GlobalBoard/ContextMenu';
-import { useAuth } from '../../../auth/providers/AuthProvider'; // Fixed path
+// import { useAuth } from '../../../auth/providers/AuthProvider'; // Fixed path
 
 interface NewspaperBoardProps {
     viewModel: any; // Type from hook return

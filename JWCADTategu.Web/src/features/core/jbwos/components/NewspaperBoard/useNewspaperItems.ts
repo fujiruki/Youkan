@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Item } from '../../types';
-import { Item } from '../../types';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 
 export type JBWOSViewModel = ReturnType<typeof useJBWOSViewModel>;
