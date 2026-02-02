@@ -1,0 +1,131 @@
+import React, { useState, useEffect } from 'react';
+import { useNewspaperItems } from './useNewspaperItems';
+import { NewspaperItem } from './NewspaperItem';
+import { ViewControls } from './ViewControls';
+import { QuickInputWidget } from '../Inputs/QuickInputWidget';
+import { ContextMenu } from '../GlobalBoard/ContextMenu';
+import { useAuth } from '../../../auth/providers/AuthProvider'; // Fixed path
+
+interface NewspaperBoardProps {
+    viewModel: any; // Type from hook return
+    onOpenItem: (item: any) => void;
+}
+
+export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, onOpenItem }) => {
+    // const { joinedTenants } = useAuth(); // Unused for now
+    const items = useNewspaperItems(viewModel);
+
+    // View State (Persisted)
+    const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('jbwos_newspaper_fontsize') || '11'));
+    const [columnCount, setColumnCount] = useState(() => parseInt(localStorage.getItem('jbwos_newspaper_columns') || '3'));
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_newspaper_fontsize', fontSize.toString());
+    }, [fontSize]);
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_newspaper_columns', columnCount.toString());
+    }, [columnCount]);
+
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+
+    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
+    };
+
+    // Quick Input: Needs to be integrated into the layout or floating?
+    // Design says: "Header area or first item".
+    // Implementation Plan: "Renders QuickInputWidget as the first item."
+    // BUT we have a hook returning items. We can just render it before the columns usually, or inside the columns?
+    // If inside columns, it flows. 
+    // Let's render it sticky top left or inside the flow.
+    // Inside flow logic: Newspaper Layout usually flows text.
+    // If we put it OUTSIDE the columns, it stays top.
+    // If we put it INSIDE, it might end up at bottom of col 1.
+    // Let's float it? Or sticky header?
+    // The design mentioned: "Items sorted: QuickInput (virtual)"
+    // So it should be the very first element inside the columns.
+
+    return (
+        <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+
+            {/* Controls Header (Floating or Fixed) */}
+            <div className="flex-none px-4 py-2 flex justify-end relative z-20 pointer-events-none">
+                <div className="pointer-events-auto">
+                    <ViewControls
+                        fontSize={fontSize}
+                        setFontSize={setFontSize}
+                        columnCount={columnCount}
+                        setColumnCount={setColumnCount}
+                    />
+                </div>
+            </div>
+
+            {/* Main Content Area (Horizontal Scroll, No Vertical) */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4">
+                <div
+                    className="h-full"
+                    style={{
+                        columnCount: columnCount,
+                        columnFill: 'auto', // Important: Fills columns sequentially
+                        columnGap: '1.5em',
+                        columnRule: '1px dashed rgba(200, 200, 200, 0.3)',
+                        fontSize: `${fontSize}px`, // Controls all em units inside
+                        width: 'max-content', // Allow expanding horizontally
+                        minWidth: '100%'
+                    }}
+                >
+                    {/* Quick Input (Inside Columns) */}
+                    <div className="break-inside-avoid mb-[1em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
+                        <QuickInputWidget
+                            viewModel={viewModel}
+                            projectContext={null} // Default to Inbox
+                            placeholder="Alt+D to add..."
+                            className="bg-transparent border-none p-0 shadow-none"
+                            onRequestFallbackOpen={() => { }}
+                            onOpenItem={onOpenItem}
+                        />
+                    </div>
+
+                    {items.map(wrapper => (
+                        <NewspaperItem
+                            key={wrapper.id}
+                            wrapper={wrapper}
+                            onClick={(item) => {
+                                onOpenItem(item);
+                            }}
+                            onContextMenu={handleContextMenu}
+                        />
+                    ))}
+
+                </div>
+            </div>
+
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    itemId={contextMenu.itemId}
+                    onClose={() => setContextMenu(null)}
+                    actions={[
+                        {
+                            label: '今日やる',
+                            onClick: () => { viewModel.setEngaged(contextMenu.itemId, true); }
+                        },
+                        {
+                            label: '完了',
+                            onClick: () => { viewModel.completeItem(contextMenu.itemId); }
+                        },
+                        {
+                            label: '削除',
+                            danger: true,
+                            onClick: () => { viewModel.deleteItem(contextMenu.itemId); }
+                        }
+                    ]}
+                />
+            )}
+        </div>
+    );
+};

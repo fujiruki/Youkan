@@ -18,6 +18,7 @@ import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { ManufacturingLoadWidget } from '../../../plugins/manufacturing/components/ManufacturingLoadWidget';
 import { useAuth } from '../../auth/providers/AuthProvider';
+import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -36,12 +37,13 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 );
 
 export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProject | null }) => {
-    const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar'>(() => {
+    const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'newspaper'>(() => {
         const path = window.location.pathname.toLowerCase();
         if (path.includes('panorama')) return 'panorama';
         if (path.includes('calendar')) return 'calendar';
+        if (path.includes('newspaper')) return 'newspaper';
         const saved = localStorage.getItem('jbwos_view_mode');
-        return (saved === 'panorama' || saved === 'stream' || saved === 'calendar') ? saved : 'stream';
+        return (saved === 'panorama' || saved === 'stream' || saved === 'calendar' || saved === 'newspaper') ? saved : 'stream';
     });
 
     useEffect(() => {
@@ -62,7 +64,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         setFilterMode,
         ghostGdbCount,
         ghostTodayCount,
-        executionItem, // [FIX] Add executionItem
+        executionItem,
         refreshAll: handleRefresh,
         updateItem,
         deleteItem,
@@ -70,9 +72,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         createProject,
         createSubTask,
         getSubTasks,
-        // throwIn removed (accessed via vm.throwIn)
         skipTask,
-        setEngaged // [NEW] Use Engage Logic
+        setEngaged
     } = vm;
 
     const { joinedTenants } = useAuth();
@@ -99,15 +100,20 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const [lastInteractedItemId, setLastInteractedItemId] = useState<string | null>(null);
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-    const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar') => {
+    const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
         setViewMode(mode);
         const basePath = import.meta.env.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        const urlMap = { 'stream': '登録と集中', 'panorama': '全体一覧', 'calendar': 'カレンダー' };
+        const urlMap = {
+            'stream': '登録と集中',
+            'panorama': '全体一覧',
+            'calendar': 'カレンダー',
+            'newspaper': '全体一覧２'
+        };
         window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
-    // [NEW] Shortcuts (Alt+D, Delete)
+    // Shortcuts (Alt+D, Delete)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // ALT + D: Open Detail
@@ -124,7 +130,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
             if (e.key === 'Delete') {
                 const targetId = lastInteractedItemId || activeFocusItem?.id;
                 if (targetId) {
-                    // Skip if focus is on an input or textarea
                     if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
                     deleteItem(targetId);
@@ -139,9 +144,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const handleSetEngaged = async (id: string, isEngaged: boolean) => {
         await setEngaged(id, isEngaged);
-        // Note: setEngaged already calls setTodayCommits etc optimistically, but handleRefresh ensures sync.
-        // We can skip handleRefresh if we trust setEngaged's internal refresh or optimistic logic
-        // But handleRefresh updates capacityUsed etc.
         handleRefresh();
     };
 
@@ -176,17 +178,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 isProjectContext={!!activeProject}
             />
 
-            {/* Unified Local Header */}
-            {/* ... (Header content unchanged) ... */}
             <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-between items-center shadow-sm z-10">
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                     <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>登録と集中</button>
                     <button onClick={() => handleViewModeChange('panorama')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>全体一覧</button>
+                    <button onClick={() => handleViewModeChange('newspaper')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'newspaper' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>全体一覧２</button>
                     <button onClick={() => handleViewModeChange('calendar')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>カレンダー</button>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Row Height Slider (Only for Gantt views) */}
                     {(viewMode === 'calendar' || viewMode === 'panorama') && (
                         <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-right-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
@@ -208,8 +208,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.name}</span>
                             <button
                                 onClick={() => {
-                                    // Navigate back to Dashboard Root (Clear Project Context)
-                                    // Use absolute path or strict navigation logic
                                     window.location.href = '/contents/TateguDesignStudio/';
                                 }}
                                 className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-full transition-colors"
@@ -225,7 +223,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 </div>
             </header>
 
-            {(viewMode === 'calendar' || viewMode === 'panorama') ? (
+            {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 overflow-hidden">
                         {viewMode === 'calendar' ? (
@@ -237,6 +235,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 displayMode="timeline"
                                 rowHeight={ganttRowHeight}
                             />
+                        ) : viewMode === 'newspaper' ? (
+                            <NewspaperBoard viewModel={vm} onOpenItem={setSelectedItem} />
                         ) : (
                             <JbwosBoard
                                 initialLayoutMode="panorama"
@@ -258,7 +258,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
                                 tenants={vm.joinedTenants}
                             />
-                        )}</div>
+                        )}
+                    </div>
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto pb-20">
@@ -305,9 +306,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                     <div className="max-w-3xl mx-auto px-4 md:px-6">
                         <SectionHeader title="受信箱 (Inbox)" count={inboxItems.length} icon={<BarChart2 size={14} />} />
-                        <SectionHeader title="受信箱 (Inbox)" count={inboxItems.length} icon={<BarChart2 size={14} />} />
 
-                        {/* [MODIFIED] Unified Quick Input Widget */}
                         <QuickInputWidget
                             className="mb-4"
                             viewModel={vm}
@@ -332,7 +331,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 <SmartItemRow
                                     key={item.id}
                                     item={item}
-                                    onFocus={(id) => handleSetEngaged(id, true)} // [FIX] Use Engage (Today Commit) instead of just Focus
+                                    onFocus={(id) => handleSetEngaged(id, true)}
                                     onClick={() => setSelectedItem(item)}
                                     onContextMenu={handleContextMenu}
                                 />
@@ -409,7 +408,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             setIsProjectModalOpen(false);
                             handleRefresh();
                         }}
-                        // Pass Context
                         parentProject={activeProject as any}
                         activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
                         tenants={joinedTenants}
