@@ -51,7 +51,12 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
     return (
         <div
-            onClick={() => onClick(item)}
+            onMouseUp={(e) => {
+                // [FIX] Use onMouseUp for robust click handling in complex layouts
+                if (e.button === 0) { // Left click only
+                    onClick(item);
+                }
+            }}
             onContextMenu={(e) => {
                 e.preventDefault();
                 onContextMenu(e, item.id);

@@ -80,14 +80,22 @@ export const useJBWOSViewModel = (projectId?: string) => {
             console.log('[ViewModel] Fetched GDB Shelf:', shelf, 'for project:', projectId); // [DEBUG]
             if (!shelf) throw new Error('Shelf is null');
 
-            setGdbActive((Array.isArray(shelf.active) ? shelf.active : []).filter(Boolean));
+            setGdbActive(
+                (Array.isArray(shelf.active) ? shelf.active : [])
+                    .filter(Boolean)
+                    .filter(i => i.status !== 'focus') // [FIX] Strict View Separation: Exclude 'focus' from Inbox (already in Center)
+            );
             setGdbPreparation((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean)); // Migrated from hold
             setGdbIntent((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean)); // [NEW]
             setGdbLog((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
         } catch (e) {
             console.error('Failed to fetch GDB:', e);
             // Fallback to clear
-            setGdbActive([]);
+            setGdbActive(
+                // [FIX] Strict View Separation: Exclude 'focus' items from Inbox (Active)
+                // These are already shown in the Center (Focus/Queue) view.
+                [] // Clear on error
+            );
             setGdbPreparation([]);
             setGdbIntent([]);
             setGdbLog([]);
