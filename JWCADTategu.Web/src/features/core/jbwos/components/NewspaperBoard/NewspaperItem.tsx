@@ -52,7 +52,8 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     return (
         <div
             onMouseUp={(e) => {
-                // [FIX] Use onMouseUp for robust click handling in complex layouts
+                // [FIX] Use onMouseUp for robust click handling in Newspaper layout (Column CSS often interferes with Click detection).
+                // Safety: 'select-none' class prevents text selection, so onMouseUp won't trigger on drag-select release.
                 if (e.button === 0) { // Left click only
                     onClick(item);
                 }
