@@ -40,17 +40,25 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComp
             onClick={onClick}
         >
             {/* Header / Context & Stats */}
-            <div className="flex justify-between items-start mb-6">
-                <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0 pr-4">
+                    {/* Breadcrumbs: Tenant > Project */}
+                    <div className={`flex items-center gap-2 text-xs font-medium uppercase tracking-wider ${isEngaged ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        <span className="flex items-center gap-1">
+                            {item.tenantName || 'Private'}
+                            {item.projectTitle && (
+                                <>
+                                    <span className="opacity-50">/</span>
+                                    <span className={isEngaged ? 'text-white' : 'text-indigo-600'}>{item.projectTitle}</span>
+                                </>
+                            )}
+                        </span>
+                    </div>
+
                     <div className="flex gap-2">
                         {item.dueStatus === 'today' && (
                             <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isEngaged ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-600'}`}>
                                 今日
-                            </span>
-                        )}
-                        {item.tenantName && (
-                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full tracking-wide ${isEngaged ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                {item.tenantName}
                             </span>
                         )}
                     </div>

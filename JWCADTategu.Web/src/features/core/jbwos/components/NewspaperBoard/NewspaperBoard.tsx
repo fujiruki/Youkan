@@ -111,19 +111,42 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, onOpe
                     onClose={() => setContextMenu(null)}
                     actions={[
                         {
-                            label: '今日やる',
+                            label: 'プロジェクト化',
+                            onClick: () => {
+                                // TODO: Open Project Create Modal with this item as seed?
+                                // For now just log or basic logic if VM supports it
+                                console.log('Projectize', contextMenu.itemId);
+                                // Ideally: viewModel.openProjectModal(item)
+                            }
+                        },
+                        { separator: true }, // Visual Separator if supported by ContextMenu, otherwise ignored
+                        {
+                            label: '今日やる (Focus)',
+                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'focus' }); }
+                        },
+                        {
+                            label: 'とりかかる (Execute)',
                             onClick: () => { viewModel.setEngaged(contextMenu.itemId, true); }
                         },
                         {
-                            label: '完了',
-                            onClick: () => { viewModel.completeItem(contextMenu.itemId); }
+                            label: '保留 (Pending)',
+                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'pending' }); }
+                        },
+                        {
+                            label: '待機 (Waiting)',
+                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'waiting' }); }
+                        },
+                        { separator: true },
+                        {
+                            label: 'アーカイブ',
+                            onClick: () => { viewModel.archiveItem(contextMenu.itemId); }
                         },
                         {
                             label: '削除',
                             danger: true,
                             onClick: () => { viewModel.deleteItem(contextMenu.itemId); }
                         }
-                    ]}
+                    ].filter(Boolean) as any} // Cast for separator support if needed
                 />
             )}
         </div>

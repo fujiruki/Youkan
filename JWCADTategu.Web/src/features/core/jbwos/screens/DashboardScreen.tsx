@@ -277,7 +277,23 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
                             <div className="mb-2">
                                 {activeFocusItem ? (
-                                    <FocusCard item={activeFocusItem} onSetEngaged={handleSetEngaged} onComplete={handleComplete} onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }} onSkip={async (id) => { await skipTask(id); }} onClick={() => setSelectedItem(activeFocusItem)} />
+                                    <FocusCard
+                                        item={(() => {
+                                            // [Refinement] Enrich with Project/Tenant Info for Display
+                                            const p = vm.allProjects.find(pro => pro.id === activeFocusItem.projectId);
+                                            const t = vm.joinedTenants.find(ten => ten.id === activeFocusItem.tenantId || (p && ten.id === p.tenantId));
+                                            return {
+                                                ...activeFocusItem,
+                                                projectTitle: activeFocusItem.projectTitle || p?.title,
+                                                tenantName: activeFocusItem.tenantName || t?.name
+                                            };
+                                        })()}
+                                        onSetEngaged={handleSetEngaged}
+                                        onComplete={handleComplete}
+                                        onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }}
+                                        onSkip={async (id) => { await skipTask(id); }}
+                                        onClick={() => setSelectedItem(activeFocusItem)}
+                                    />
                                 ) : (
                                     <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4"><BarChart2 size={24} /></div>
