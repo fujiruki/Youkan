@@ -83,7 +83,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onNavigateToSettings={() => { onNavigateToSettings(); setMenuOpen(false); }}
                 onNavigateToCustomers={onNavigateToCustomers ? () => { onNavigateToCustomers(); setMenuOpen(false); } : undefined}
                 onNavigateToPlanning={onNavigateToPlanning ? () => { onNavigateToPlanning(); setMenuOpen(false); } : undefined}
-                onNavigateToManual={() => { setMenuOpen(false); }}
+                onNavigateToManual={() => { window.open('/docs/manual.html', '_blank'); setMenuOpen(false); }}
+                onNavigateToLP={() => { window.open('/docs/landing.html', '_blank'); setMenuOpen(false); }}
                 onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
                 onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
                 onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}

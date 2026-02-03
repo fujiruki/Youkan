@@ -30,11 +30,25 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+    const [overridesProjectContext, setOverridesProjectContext] = useState<any | null>(null);
+    const [quickInputKey, setQuickInputKey] = useState(0); // To force re-autoFocus
 
     const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY, itemId });
     };
+
+    // [NEW] Handle Delete Key for ContextMenu target
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Delete' && contextMenu?.itemId) {
+                viewModel.deleteItem(contextMenu.itemId);
+                setContextMenu(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [contextMenu, viewModel]);
 
     // Quick Input: Needs to be integrated into the layout or floating?
     // Design says: "Header area or first item".
@@ -82,13 +96,15 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                     {/* Quick Input (Inside Columns) */}
                     <div className="break-inside-avoid mb-[1em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
                         <QuickInputWidget
+                            key={quickInputKey}
                             viewModel={viewModel}
-                            projectContext={activeProject ? {
+                            projectContext={overridesProjectContext || (activeProject ? {
                                 id: activeProject.cloudId || activeProject.id,
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
-                            } : null}
-                            placeholder="Alt+D to add..."
+                            } : null)}
+                            placeholder={overridesProjectContext ? `${overridesProjectContext.name}に追加...` : "Alt+D to add..."}
+                            autoFocus={quickInputKey > 0}
                             className="bg-transparent border-none p-0 shadow-none"
                             onRequestFallbackOpen={() => { }}
                             onOpenItem={onOpenItem}
@@ -103,6 +119,14 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                                 onOpenItem(item);
                             }}
                             onContextMenu={handleContextMenu}
+                            onAddChild={(projItem) => {
+                                setOverridesProjectContext({
+                                    id: projItem.projectId, // isHeader items have projectId set in useNewspaperItems
+                                    name: projItem.title,
+                                    tenantId: projItem.tenantId
+                                });
+                                setQuickInputKey(k => k + 1);
+                            }}
                         />
                     ))}
 

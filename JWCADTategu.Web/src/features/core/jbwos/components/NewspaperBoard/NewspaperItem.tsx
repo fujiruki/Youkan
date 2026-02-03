@@ -9,6 +9,7 @@ interface NewspaperItemProps {
     wrapper: NewspaperItemWrapper;
     onClick: (item: Item) => void;
     onContextMenu: (e: React.MouseEvent, itemId: string) => void;
+    onAddChild?: (item: Item) => void; // [NEW] Link to QuickInput/Project context
 }
 
 const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
@@ -40,7 +41,7 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
     return null;
 };
 
-export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu }) => {
+export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu, onAddChild }) => {
     const { item, isHeader, depth } = wrapper;
 
     if (isHeader) {
@@ -58,8 +59,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                         className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
                         onClick={(e) => {
                             e.stopPropagation();
-                            // Future: Trigger inline input
-                            console.log('Add to project:', item.projectId);
+                            if (onAddChild) onAddChild(item);
                         }}
                     >
                         <span className="text-lg leading-none">+</span>

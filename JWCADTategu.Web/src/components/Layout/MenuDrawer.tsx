@@ -25,6 +25,7 @@ export interface MenuDrawerProps {
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void;
     onNavigateToManual?: () => void;
+    onNavigateToLP?: () => void; // [NEW] Link to landing page
     onNavigateToCalendar?: () => void;
     onLogout: () => void;
     userName?: string;
@@ -43,6 +44,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
     onNavigateToSettings,
     onNavigateToCustomers,
     onNavigateToManual,
+    onNavigateToLP,
     onLogout,
     userName,
     user,
@@ -213,7 +215,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                     {/* Help Section */}
                     <MenuSection title="ヘルプ">
                         {onNavigateToManual && (
-                            <MenuItem icon={<BookOpen size={18} />} label="マニュアル" onClick={onNavigateToManual} />
+                            <MenuItem icon={<BookOpen size={18} />} label="マニュアル (Manual)" onClick={onNavigateToManual} />
+                        )}
+                        {onNavigateToLP && (
+                            <MenuItem icon={<Users size={18} />} label="紹介ページ (LP)" onClick={onNavigateToLP} />
                         )}
                         <MenuItem
                             icon={<Wrench size={18} />}
