@@ -1,19 +1,20 @@
 import React, { useMemo, useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Item, FilterMode } from '../../types';
+import { Item, FilterMode, Member, CapacityConfig } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isHoliday } from '../../logic/capacity';
-import { calculateDailyVolume, DEFAULT_CAPACITY_CONFIG } from '../../logic/volumeCalculator';
+import { QuantityEngine, QuantityMetric } from '../../logic/QuantityEngine';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
 interface RyokanCalendarProps {
     items: Item[];
     onItemClick: (item: Item) => void;
-    capacityConfig?: any;
+    capacityConfig?: CapacityConfig;
+    members?: Member[];
 
     // UI Options
     layoutMode?: 'panorama' | 'mini';
@@ -28,10 +29,14 @@ interface RyokanCalendarProps {
     onSelectDate?: (date: Date) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
-    focusDate?: Date | null; // [NEW] Focus Date for auto-scrolling
+    focusDate?: Date | null;
     workDays?: number;
     rowHeight?: number;
     projects?: any[];
+
+    // Context Focus
+    focusedTenantId?: string | null;
+    focusedProjectId?: string | null;
 }
 
 interface PressureConnection {
@@ -66,32 +71,39 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items,
     onItemClick,
     capacityConfig,
+    members = [],
     layoutMode = 'panorama',
     displayMode: propDisplayMode,
     filterMode = 'all',
-    externalVolumeMap,
-    intensityScale = 15,
     onSelectDate,
     selectedDate: propSelectedDate,
     prepDate: propPrepDate,
-    focusDate: propFocusDate, // [NEW]
+    focusDate: propFocusDate,
     workDays = 1,
     rowHeight = 12,
-    projects = []
+    projects = [],
+    focusedTenantId,
+    focusedProjectId
 }) => {
     const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || 'grid');
     const today = getStartOfToday();
     const isMini = layoutMode === 'mini';
     const containerRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // State
+    // State for Interactions
     const [selectedSigns, setSelectedSigns] = useState<Item[]>([]);
     const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
     const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
+    const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
 
     const safeConfig = useMemo(() => {
         if (capacityConfig && capacityConfig.holidays) return capacityConfig;
-        return DEFAULT_CAPACITY_CONFIG;
+        return {
+            defaultDailyMinutes: 480,
+            holidays: [{ type: 'weekly', value: '0' }],
+            exceptions: {}
+        } as CapacityConfig;
     }, [capacityConfig]);
 
     const startDate = useMemo(() => {
@@ -106,7 +118,36 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         return d;
     }, [isMini, today]);
 
-    // [NEW] Calculate commitPeriod (Estimate Period)
+    const allDays = useMemo(() => {
+        const days: Date[] = [];
+        let current = new Date(startDate);
+        while (current <= endDate) {
+            days.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+        }
+        return days;
+    }, [startDate, endDate]);
+
+    // [Quantity Engine Integration]
+    const metrics = useMemo(() => {
+        return QuantityEngine.calculateMetrics(allDays, {
+            items,
+            members,
+            capacityConfig: safeConfig,
+            filterMode,
+            focusedTenantId,
+            focusedProjectId
+        });
+    }, [allDays, items, members, safeConfig, filterMode, focusedTenantId, focusedProjectId]);
+
+    const heatMap = useMemo(() => {
+        const map = new Map<string, number>();
+        metrics.forEach((m, key) => {
+            map.set(key, QuantityEngine.getIntensity(m.ratio));
+        });
+        return map;
+    }, [metrics]);
+
     const commitPeriod = useMemo(() => {
         if (!propPrepDate || workDays <= 0) return [];
         const days: Date[] = [];
@@ -126,31 +167,60 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         return days;
     }, [propPrepDate, workDays, safeConfig]);
 
-    const allDays = useMemo(() => {
-        const days: Date[] = [];
-        let current = new Date(startDate);
-        while (current <= endDate) {
-            days.push(new Date(current));
-            current.setDate(current.getDate() + 1);
+    // Interactions
+    const handleItemAction = (item: Item) => {
+        if (highlightedItemId === item.id) {
+            setHighlightedItemId(null);
+            setFlashingItemIds(new Set());
+        } else {
+            setHighlightedItemId(item.id);
+            setFlashingItemIds(new Set([item.id]));
         }
-        return days;
-    }, [startDate, endDate]);
+        onItemClick(item);
+    };
 
-    const heatMap = useMemo(() => {
-        if (externalVolumeMap) return externalVolumeMap;
-        return calculateDailyVolume(items, safeConfig, filterMode);
-    }, [items, safeConfig, filterMode, externalVolumeMap]);
+    const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
+        const dateKey = date.toDateString();
+        const metric = metrics.get(dateKey);
+        const signs = metric?.contributingItems || [];
 
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+        if (onSelectDate) onSelectDate(date);
 
-    // [FIX] Enhanced Scroll Logic
+        if (actionType === 'doubleClick') {
+            setSelectedSigns(signs);
+            setPressureConnections([]);
+        } else {
+            if (!rect || !containerRef.current) return;
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const sourceX = rect.left + rect.width / 2 - containerRect.left;
+            const sourceY = rect.top + rect.height / 2 - containerRect.top;
+
+            const newConnections: PressureConnection[] = [];
+            const newFlashingIds = new Set<string>();
+
+            signs.forEach(item => {
+                const chip = document.getElementById(`cal-chip-${item.id}`);
+                if (chip) {
+                    const chipRect = chip.getBoundingClientRect();
+                    newConnections.push({
+                        id: `${date.getTime()}-${item.id}`,
+                        source: { x: sourceX, y: sourceY },
+                        target: { x: chipRect.left + chipRect.width / 2 - containerRect.left, y: chipRect.top + chipRect.height / 2 - containerRect.top },
+                        color: '#fbbf24'
+                    });
+                    newFlashingIds.add(item.id);
+                }
+            });
+
+            setPressureConnections(newConnections);
+            setFlashingItemIds(newFlashingIds);
+        }
+    };
+
+    // Scroll Logic
     useEffect(() => {
         if (!scrollContainerRef.current || allDays.length === 0) return;
-
-        // Determine target date: explicit focusDate > selected > prep > today
         let targetDate = propFocusDate || propSelectedDate || today;
-
-        // If in Gantt/Timeline, we might default to today if no explicit focus
         if (!propFocusDate && !propSelectedDate) {
             if (displayMode === 'gantt') targetDate = today;
             else if (displayMode === 'timeline') targetDate = getStartOfWeek(today);
@@ -162,82 +232,24 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         if (displayMode === 'gantt' || displayMode === 'timeline') {
             cellWidth = 24;
-            if (displayMode === 'gantt') {
-                offsetDays = -2;
-            } else {
-                offsetDays = 0;
-            }
+            offsetDays = displayMode === 'gantt' ? -2 : 0;
         } else if (displayMode === 'grid') {
-            cellWidth = 112; // Approximation, actual width varies
-            // For grid, targetDate should be month start for better alignment
+            cellWidth = 112;
             targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
             const containerWidth = scrollContainerRef.current?.clientWidth || 0;
-            const visibleCells = Math.floor(containerWidth / cellWidth);
-            offsetDays = -Math.floor(visibleCells / 2);
+            offsetDays = -Math.floor((containerWidth / cellWidth) / 2);
         }
 
         const targetIndex = allDays.findIndex(d => isSameDate(d, targetDate));
         if (targetIndex !== -1) {
             if (displayMode === 'grid') {
-                // Fallback vertical scroll for grid
                 const row = Math.floor(targetIndex / 7);
-                const scrollTop = row * 100; // approx
-                // Apply to both possible scroll containers for safety
-                scrollContainerRef.current.scrollTop = scrollTop;
+                scrollContainerRef.current.scrollTop = row * 120;
             } else {
-                const scrollTarget = Math.max(0, (targetIndex + offsetDays) * cellWidth);
-                scrollContainerRef.current.scrollLeft = scrollTarget;
+                scrollContainerRef.current.scrollLeft = Math.max(0, (targetIndex + offsetDays) * cellWidth);
             }
         }
-    }, [allDays, today, displayMode, propFocusDate]); // [FIX] Removed propSelectedDate to prevent jump on click
-
-    const itemsByDate = useMemo(() => {
-        const map = new Map<string, Item[]>();
-        items.forEach(item => {
-            if (item.due_date) {
-                const d = new Date(item.due_date);
-                if (!isNaN(d.getTime())) {
-                    const key = d.toDateString();
-                    if (!map.has(key)) map.set(key, []);
-                    map.get(key)!.push(item);
-                }
-            }
-        });
-        return map;
-    }, [items]);
-
-    const signsMap = useMemo(() => {
-        const map = new Map<string, Item[]>();
-        items.forEach(item => {
-            if (item.due_date) {
-                const d = new Date(item.due_date);
-                if (!isNaN(d.getTime())) {
-                    const key = d.toDateString();
-                    if (!map.has(key)) map.set(key, []);
-                    map.get(key)!.push(item);
-                }
-            }
-            if (item.prep_date) {
-                const prepDate = new Date(item.prep_date * 1000);
-                const wDays = item.work_days || Math.ceil((item.estimatedMinutes || 0) / 480) || 1;
-                let count = 0;
-                let current = new Date(prepDate);
-                let safety = 0;
-                while (count < wDays && safety < 30) {
-                    safety++;
-                    if (!isHoliday(current, safeConfig)) {
-                        const key = current.toDateString();
-                        if (!map.has(key)) map.set(key, []);
-                        const existing = map.get(key)!;
-                        if (!existing.find(x => x.id === item.id)) existing.push(item);
-                        count++;
-                    }
-                    current.setDate(current.getDate() - 1);
-                }
-            }
-        });
-        return map;
-    }, [items, safeConfig]);
+    }, [allDays, today, displayMode, propFocusDate]);
 
     return (
         <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")} ref={containerRef}>
@@ -269,43 +281,57 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             )}
 
             <div className="flex-1 overflow-hidden relative">
+                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                    <AnimatePresence>
+                        {pressureConnections.map(conn => (
+                            <motion.path
+                                key={conn.id}
+                                d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
+                                fill="none"
+                                stroke={conn.color}
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                initial={{ pathLength: 0, opacity: 0 }}
+                                animate={{ pathLength: 1, opacity: 0.7 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.5 }}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </svg>
+
                 {displayMode === 'timeline' && (
                     <RyokanTimelineView
                         allDays={allDays}
-                        itemsByDate={itemsByDate}
-                        signsMap={signsMap}
+                        metrics={metrics}
                         heatMap={heatMap}
                         today={today}
                         selectedDate={propSelectedDate}
                         prepDate={propPrepDate}
-                        intensityScale={intensityScale}
                         isMini={isMini}
                         flashingItemIds={flashingItemIds}
                         pressureConnections={pressureConnections}
-                        onItemClick={onItemClick}
-                        onSelectDate={onSelectDate}
-                        setPressureConnections={setPressureConnections}
-                        setFlashingItemIds={setFlashingItemIds}
-                        setSelectedSigns={setSelectedSigns}
+                        onItemClick={handleItemAction}
+                        onAction={handleDayAction}
                         safeConfig={safeConfig}
                         commitPeriod={commitPeriod}
+                        projects={projects}
                     />
                 )}
                 {displayMode === 'grid' && (
                     <RyokanGridView
                         allDays={allDays}
-                        itemsByDate={itemsByDate}
-                        signsMap={signsMap} // [NEW]
+                        metrics={metrics}
                         heatMap={heatMap}
                         today={today}
-                        onItemClick={onItemClick}
-                        safeConfig={safeConfig}
-                        onSelectDate={onSelectDate}
+                        onItemClick={handleItemAction}
+                        onAction={handleDayAction}
                         selectedDate={propSelectedDate}
                         prepDate={propPrepDate}
                         commitPeriod={commitPeriod}
                         scrollRef={scrollContainerRef as any}
-                        onDayClick={(items) => setSelectedSigns(items)} // [NEW]
+                        highlightedItemId={highlightedItemId}
+                        projects={projects}
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -314,7 +340,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         items={items}
                         heatMap={heatMap}
                         today={today}
-                        onItemClick={onItemClick}
+                        onItemClick={handleItemAction}
                         safeConfig={safeConfig}
                         rowHeight={rowHeight}
                         projects={projects}
@@ -329,19 +355,72 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                 )}
             </div>
 
-            {selectedSigns.length > 0 && !onSelectDate && (
+            {selectedSigns.length > 0 && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedSigns([])}>
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">この期間の気配 ({selectedSigns.length})</h3> {/* [FIX] Added Count */}
-                        <div className="space-y-2 max-h-[60vh] overflow-y-auto"> {/* [FIX] Scrollable */}
-                            {selectedSigns.map(s => (
-                                <div key={s.id} onClick={() => { onItemClick(s); setSelectedSigns([]); }} className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer text-xs font-bold bg-white dark:bg-slate-800 flex items-center justify-between">
-                                    <span>{s.title}</span>
-                                    {s.due_date && <span className="text-[10px] text-slate-400">{format(new Date(s.due_date), 'MM/dd')}</span>}
-                                </div>
-                            ))}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                                負荷内訳 ({selectedSigns.length})
+                            </h3>
+                            <button onClick={() => setSelectedSigns([])} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                                <X size={20} />
+                            </button>
                         </div>
-                    </div>
+                        <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto">
+                            {selectedSigns.map(s => {
+                                const project = projects.find(p => p.id === s.projectId);
+                                return (
+                                    <div
+                                        key={s.id}
+                                        onClick={() => { onItemClick(s); setSelectedSigns([]); }}
+                                        className={cn(
+                                            "group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/20 transition-all cursor-pointer bg-white dark:bg-slate-900",
+                                            "border-l-4",
+                                            s.status === 'focus' ? "border-l-orange-400" :
+                                                s.status === 'done' ? "border-l-emerald-400" :
+                                                    s.status === 'waiting' ? "border-l-amber-400" : "border-l-slate-300"
+                                        )}
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                    {s.title}
+                                                </span>
+                                                {project && (
+                                                    <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+                                                        {project.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {s.due_date && (
+                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                                        期限: {format(new Date(s.due_date), 'MM/dd')}
+                                                    </span>
+                                                )}
+                                                {s.estimatedMinutes && (
+                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                                        工数: {s.estimatedMinutes}m
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <ChevronRight size={16} className="text-indigo-500" />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
                 </div>
             )}
         </div>
@@ -350,31 +429,26 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
 interface TimelineViewProps {
     allDays: Date[];
-    itemsByDate: Map<string, Item[]>;
-    signsMap: Map<string, Item[]>;
+    metrics: Map<string, QuantityMetric>;
     heatMap: Map<string, number>;
     today: Date;
     selectedDate: Date | null | undefined;
     prepDate: Date | null | undefined;
-    intensityScale: number;
     isMini: boolean;
     flashingItemIds: Set<string>;
     pressureConnections: PressureConnection[];
     onItemClick: (item: Item) => void;
-    onSelectDate?: (date: Date) => void;
-    setPressureConnections: (conns: PressureConnection[]) => void;
-    setFlashingItemIds: (ids: Set<string>) => void;
-    setSelectedSigns: (items: Item[]) => void;
+    onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     safeConfig: any;
     commitPeriod?: Date[];
+    projects?: any[];
 }
 
 const RyokanTimelineView: React.FC<TimelineViewProps> = ({
-    allDays, itemsByDate, signsMap, heatMap, today,
-    selectedDate, prepDate, intensityScale, isMini,
-    flashingItemIds, pressureConnections, onItemClick, onSelectDate,
-    setPressureConnections, setFlashingItemIds, setSelectedSigns, safeConfig,
-    commitPeriod = []
+    allDays, metrics, heatMap, today,
+    selectedDate, prepDate, isMini,
+    flashingItemIds, pressureConnections, onItemClick, onAction,
+    safeConfig: _safeConfig, commitPeriod = [], projects = []
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -385,40 +459,8 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
         }
     }, [isMini]);
 
-    const handleCellAction = (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
-        if (onSelectDate) onSelectDate(date);
-        if (signs.length === 0) {
-            setPressureConnections([]);
-            setFlashingItemIds(new Set());
-            return;
-        }
-        if (actionType === 'doubleClick' && !onSelectDate) {
-            setSelectedSigns(signs);
-            setPressureConnections([]);
-            setFlashingItemIds(new Set());
-        } else if (actionType === 'click') {
-            if (!rect || !containerRef.current) return;
-            const containerRect = containerRef.current.getBoundingClientRect();
-            const sourceX = rect.left + rect.width / 2 - containerRect.left;
-            const sourceY = rect.top + rect.height / 2 - containerRect.top;
-            const newConnections: PressureConnection[] = [];
-            const newFlashingIds = new Set<string>();
-            signs.forEach(item => {
-                const chip = document.getElementById(`cal-chip-${item.id}`);
-                if (chip) {
-                    const chipRect = chip.getBoundingClientRect();
-                    newConnections.push({
-                        id: `${date.getTime()}-${item.id}`,
-                        source: { x: sourceX, y: sourceY },
-                        target: { x: chipRect.left + chipRect.width / 2 - containerRect.left, y: chipRect.top + chipRect.height / 2 - containerRect.top },
-                        color: '#fbbf24'
-                    });
-                    newFlashingIds.add(item.id);
-                }
-            });
-            setPressureConnections(newConnections);
-            setFlashingItemIds(newFlashingIds);
-        }
+    const handleCellAction = (date: Date, _signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
+        onAction(date, actionType, rect);
     };
 
     return (
@@ -448,12 +490,10 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                 <div className={cn("flex min-w-max h-full", isMini ? "flex-col w-full" : "flex-row")}>
                     {allDays.map(date => {
                         const dateKey = date.toDateString();
-                        const dayItems = itemsByDate.get(dateKey) || [];
-                        const allSigns = signsMap.get(dateKey) || [];
+                        const metric = metrics.get(dateKey);
                         const isToday = isSameDate(date, today);
                         const isFirst = date.getDate() === 1;
-                        const volume = heatMap.get(dateKey) || 0;
-                        const intensity = Math.min(volume * intensityScale, 60);
+                        const intensity = heatMap.get(dateKey) || 0;
                         const isS = selectedDate ? isSameDate(date, selectedDate) : false;
                         const isP = prepDate ? isSameDate(date, prepDate) : false;
 
@@ -461,8 +501,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                             <CalendarCell
                                 key={dateKey}
                                 date={date}
-                                items={dayItems}
-                                allSigns={allSigns}
+                                metric={metric}
                                 isToday={isToday}
                                 isFirst={isFirst}
                                 intensity={intensity}
@@ -470,12 +509,11 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 isSelected={isS}
                                 isPrep={isP}
                                 isCommitPeriod={commitPeriod.some(d => isSameDate(d, date))}
-                                isHoliday={isHoliday(date, safeConfig)}
                                 flashingIds={flashingItemIds}
                                 ref={isToday ? todayRef : null}
                                 onAction={handleCellAction}
                                 onItemClick={onItemClick}
-                                onSelectDate={onSelectDate}
+                                projects={projects}
                             />
                         );
                     })}
@@ -487,8 +525,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
 
 interface CalendarCellProps {
     date: Date;
-    items: Item[];
-    allSigns: Item[];
+    metric?: QuantityMetric;
     isToday: boolean;
     isFirst: boolean;
     intensity: number;
@@ -496,28 +533,28 @@ interface CalendarCellProps {
     isSelected: boolean;
     isPrep: boolean;
     isCommitPeriod: boolean;
-    isHoliday: boolean;
     flashingIds: Set<string>;
     onAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     onItemClick: (item: Item) => void;
-    onSelectDate?: (date: Date) => void;
+    projects?: any[];
 }
 
 const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
-    date, items, allSigns, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, isHoliday, flashingIds, onAction, onItemClick, onSelectDate
+    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = []
 }, ref) => {
+    const items = metric?.contributingItems || [];
+    const isHoliday = metric?.isHoliday || false;
     const cellRef = useRef<HTMLDivElement>(null);
     useImperativeHandle(ref, () => cellRef.current!);
 
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onAction(date, allSigns, 'doubleClick', cellRef.current?.getBoundingClientRect());
+        onAction(date, items, 'doubleClick', cellRef.current?.getBoundingClientRect());
     };
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (onSelectDate) onSelectDate(date);
-        onAction(date, allSigns, 'click', cellRef.current?.getBoundingClientRect());
+        onAction(date, items, 'click', cellRef.current?.getBoundingClientRect());
     };
 
     return (
@@ -546,11 +583,15 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 </div>
 
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
-                    {items.slice(0, isMini ? 10 : 3).map(i => (
-                        <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 border-red-400 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "")}>
-                            {i.title}
-                        </div>
-                    ))}
+                    {items.slice(0, isMini ? 10 : 3).map(i => {
+                        const proj = projects.find(p => p.id === i.projectId);
+                        return (
+                            <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
+                                {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
+                                {i.title}
+                            </div>
+                        );
+                    })}
                     {!isMini && items.length > 3 && <span className="text-[8px] text-slate-400 text-center">+{items.length - 3}</span>}
                     {isMini && items.length > 10 && <span className="text-[8px] text-slate-400">...</span>}
                 </div>
@@ -561,22 +602,22 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
 
 interface GridViewProps {
     allDays: Date[];
-    itemsByDate: Map<string, Item[]>;
+    metrics: Map<string, QuantityMetric>;
     heatMap: Map<string, number>;
     today: Date;
     onItemClick: (item: Item) => void;
-    safeConfig: any;
+    onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
     commitPeriod?: Date[];
-    scrollRef?: React.RefObject<HTMLDivElement>; // [NEW]
-    signsMap?: Map<string, Item[]>; // [NEW]
-    onDayClick?: (items: Item[]) => void; // [NEW]
+    scrollRef?: React.RefObject<HTMLDivElement>;
+    highlightedItemId?: string | null;
+    projects?: any[];
 }
 
-const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => void }> = ({
-    allDays, itemsByDate, heatMap, today, onItemClick, safeConfig, onSelectDate,
-    selectedDate, prepDate, commitPeriod = [], scrollRef, signsMap, onDayClick
+const RyokanGridView: React.FC<GridViewProps> = ({
+    allDays, metrics, heatMap, today, onItemClick, onAction,
+    selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = []
 }) => {
     return (
         <div
@@ -586,28 +627,30 @@ const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => 
             <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
                 {allDays.map(date => {
                     const dateKey = date.toDateString();
-                    const dayItems = itemsByDate.get(dateKey) || [];
-                    const allSigns = signsMap?.get(dateKey) || []; // [NEW]
+                    const metric = metrics.get(dateKey);
+                    const dayItems = metric?.contributingItems || [];
                     const isToday = isSameDate(date, today);
-                    const isHol = isHoliday(date, safeConfig);
-                    const vol = heatMap.get(dateKey) || 0;
-                    const intensity = Math.min(vol * 15, 60);
+                    const isHol = metric?.isHoliday || false;
+                    const intensity = heatMap.get(dateKey) || 0;
+
                     const isS = selectedDate ? isSameDate(date, selectedDate) : false;
                     const isP = prepDate ? isSameDate(date, prepDate) : false;
                     const isCP = commitPeriod.some(d => isSameDate(d, date));
+                    const isH = highlightedItemId && dayItems.some(i => i.id === highlightedItemId);
 
                     return (
                         <div
                             key={dateKey}
                             onClick={() => {
-                                if (onSelectDate) onSelectDate(date);
-                                else if (onDayClick) onDayClick(allSigns.length > 0 ? allSigns : dayItems);
+                                onAction(date, 'click', (document.activeElement as any)?.getBoundingClientRect()); // Simplified rect handling
                             }}
+                            onDoubleClick={() => onAction(date, 'doubleClick')}
                             className={cn(
-                                "min-h-[100px] p-2 relative transition-all group",
+                                "min-h-[120px] p-2 relative transition-all group border-b border-r border-slate-200 dark:border-slate-800",
                                 isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
                                 isS ? "z-10 shadow-[inset_0_0_0_2px_rgba(244,63,94,1)]" : "",
-                                (isP || isCP) && !isS ? "z-10 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : ""
+                                (isP || isCP) && !isS ? "z-10 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : "",
+                                isH ? "z-20 ring-2 ring-amber-400 bg-amber-50/30 dark:bg-amber-900/20" : ""
                             )}
                         >
                             <div className="absolute inset-0 bg-amber-500/30 dark:bg-amber-400/20 pointer-events-none" style={{ opacity: intensity / 100 }} />
@@ -620,20 +663,35 @@ const RyokanGridView: React.FC<GridViewProps & { onSelectDate?: (date: Date) => 
                                 )}>
                                     {format(date, 'MM/dd')}
                                 </span>
+                                {metric && metric.capacityMinutes > 0 && metric.volumeMinutes > 0 && (
+                                    <span className="text-[8px] text-slate-300 font-mono">
+                                        {Math.round(metric.ratio * 100)}%
+                                    </span>
+                                )}
                             </div>
 
                             <div className="relative z-10 space-y-1">
-                                {dayItems.slice(0, 3).map(item => (
-                                    <div
-                                        key={item.id}
-                                        onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
-                                        className="px-1 py-0.5 bg-white/80 dark:bg-slate-800/80 border-l-2 border-red-400 text-[9px] font-bold text-slate-700 dark:text-slate-300 rounded shadow-sm truncate cursor-pointer"
-                                    >
-                                        {item.title}
-                                    </div>
-                                ))}
-                                {dayItems.length > 3 && (
-                                    <div className="text-[8px] text-slate-400 pl-1">+{dayItems.length - 3}</div>
+                                {dayItems.slice(0, 4).map(item => {
+                                    const proj = projects.find(p => p.id === item.projectId);
+                                    const isHighlightedItem = highlightedItemId === item.id;
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            id={`cal-chip-${item.id}`}
+                                            onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                                            className={cn(
+                                                "px-1.5 py-1 bg-white/90 dark:bg-slate-800/90 border-l-2 text-[9px] font-bold rounded shadow-sm truncate cursor-pointer transition-transform",
+                                                isHighlightedItem ? "border-amber-400 scale-105 z-30 ring-1 ring-amber-200" : "border-red-400 text-slate-700 dark:text-slate-300",
+                                                item.tenantId ? "border-l-indigo-400" : "border-l-red-400"
+                                            )}
+                                        >
+                                            {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
+                                            {item.title}
+                                        </div>
+                                    );
+                                })}
+                                {dayItems.length > 4 && (
+                                    <div className="text-[8px] text-slate-400 pl-1 font-bold">他 {dayItems.length - 4} 件 ...</div>
                                 )}
                             </div>
                         </div>
@@ -657,7 +715,7 @@ interface GanttViewProps {
 }
 
 const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
+    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);

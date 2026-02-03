@@ -1,0 +1,7 @@
+
+> jwcade-tategu-web@0.0.0 build
+> tsc -b && vite build
+
+src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx(451,5): error TS6133: 'safeConfig' is declared but its value is never read.
+src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx(462,43): error TS6133: 'signs' is declared but its value is never read.
+src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx(718,21): error TS6133: 'heatMap' is declared but its value is never read.

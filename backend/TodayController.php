@@ -26,8 +26,9 @@ class TodayController extends BaseController {
              $stmtP->execute([$projectId]);
              $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
              if ($pObj) {
-                 $pTenant = $pObj['tenant_id'] ?? '';
-                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants)) {
+                 $pTenant = $pObj['tenant_id']; // Can be NULL or string
+                 // [FIX] Allow switching to Personal (NULL) context if focused project is personal
+                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants) || $pTenant === null) {
                      $tenantId = $pTenant;
                  }
              }
@@ -41,7 +42,7 @@ class TodayController extends BaseController {
              $whereClause = "items.tenant_id = ?";
              $params = [$tenantId];
         } else {
-             $whereClause = "items.tenant_id IS NULL AND items.created_by = ?";
+             $whereClause = "(items.tenant_id IS NULL OR items.tenant_id = '') AND items.created_by = ?";
              $params = [$this->currentUserId];
         }
 
@@ -132,7 +133,7 @@ class TodayController extends BaseController {
              $whereClause = "tenant_id = ?";
              $params = [$tenantId];
         } else {
-             $whereClause = "tenant_id IS NULL AND created_by = ?";
+             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
              $params = [$this->currentUserId];
         }
 
@@ -177,7 +178,7 @@ class TodayController extends BaseController {
              $whereClause = "tenant_id = ?";
              $params = [$tenantId];
         } else {
-             $whereClause = "tenant_id IS NULL AND created_by = ?";
+             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
              $params = [$this->currentUserId];
         }
 
@@ -210,7 +211,7 @@ class TodayController extends BaseController {
              $whereClause = "tenant_id = ?";
              $params = [$tenantId];
         } else {
-             $whereClause = "tenant_id IS NULL AND created_by = ?";
+             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
              $params = [$this->currentUserId];
         }
 

@@ -77,7 +77,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const [localTenantId, setLocalTenantId] = React.useState<string>('');
     const [localProjectId, setLocalProjectId] = React.useState<string>('');
 
-    // Sync state when item changes
+    // Sync state when item changes OR when project/tenant lists load
     React.useEffect(() => {
         if (item) {
             setNote(item.memo || '');
@@ -90,10 +90,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setIsProject(item.isProject ?? false);
             setLocalTenantId(item.tenantId || '');
             setLocalProjectId(item.projectId || '');
+
             // Default subTasks to empty until fetched
             setSubTasks([]);
         }
-    }, [item]);
+    }, [item?.id, allProjects.length > 0, joinedTenants.length > 0]); // Re-sync when metadata loads
 
     // Now safe to return null if no item, as hooks are already registered
     // Early return removed to allow hooks to run.
@@ -393,17 +394,44 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex items-center gap-2 text-slate-400 mb-1">
-                                            <Folder size={16} />
-                                            <span className="text-xs uppercase tracking-wider font-semibold">
-                                                {allProjects.find(p => p.id === item.projectId)?.title || "Private"}
-                                                {item.tenantId && ` / ${joinedTenants.find(t => t.id === item.tenantId)?.name || 'Unknown'}`}
-                                            </span>
+                                        <div className="flex items-center gap-2 mb-1 overflow-hidden">
+                                            {/* Tenant/Project Badges */}
+                                            {(() => {
+                                                const project = allProjects.find(p => p.id === localProjectId);
+                                                const tenant = joinedTenants.find(t => t.id === localTenantId);
+
+                                                return (
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        {tenant ? (
+                                                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 flex-none">
+                                                                <div className="w-1 h-1 bg-indigo-400 rounded-full" />
+                                                                {tenant.name}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1 flex-none">
+                                                                <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                                                                Private
+                                                            </span>
+                                                        )}
+
+                                                        {project ? (
+                                                            <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-100 dark:border-amber-800 truncate">
+                                                                {project.title}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-400 tracking-tight">
+                                                                / Inbox
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+
                                             <button
                                                 onClick={() => setIsEditingTitle(true)}
-                                                className="ml-1 text-[10px] hover:text-blue-500 underline"
+                                                className="ml-auto flex-none text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest"
                                             >
-                                                変更
+                                                Edit
                                             </button>
                                         </div>
                                         <h2

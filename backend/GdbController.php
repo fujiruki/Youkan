@@ -24,12 +24,21 @@ class GdbController extends BaseController {
              $stmtP->execute([$projectId]);
              $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
              if ($pObj) {
-                 $pTenant = $pObj['tenant_id'] ?? '';
-                 // If the project's tenant is the current one, or one the user belongs to, switch context
-                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants)) {
+                 $pTenant = $pObj['tenant_id']; // NULL or string
+                 // [FIX] Allow switching to Personal (NULL) if project is personal
+                 if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants) || $pTenant === null) {
                      $tenantId = $pTenant;
                  }
              }
+        }
+        
+        // [Fix] Logic switch for Tenant vs Personal
+        if ($tenantId) {
+             $whereClause = "items.tenant_id = ?";
+             $params = [$tenantId];
+        } else {
+             $whereClause = "(items.tenant_id IS NULL OR items.tenant_id = '') AND items.created_by = ?";
+             $params = [$this->currentUserId];
         }
         
         // [Fix] Project Focus Filter (Recursive)
@@ -56,7 +65,7 @@ class GdbController extends BaseController {
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? 
+                $whereClause
                 $whereSuffix
                 AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
                 AND (
@@ -70,7 +79,7 @@ class GdbController extends BaseController {
         // Params: tenantId, ...projectIds..., now
         // Be careful with param order.
         // SQL: WHERE tenant_id = ? ... IN (...) ... <= ?
-        $paramsActive = array_merge($baseParams, $projectParams, $timeParams);
+        $paramsActive = array_merge($params, $projectParams, $timeParams);
         $stmtActive->execute($paramsActive);
         $activeItems = array_map([$this, 'mapRow'], $stmtActive->fetchAll(PDO::FETCH_ASSOC));
 
@@ -80,14 +89,14 @@ class GdbController extends BaseController {
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? 
+                $whereClause
                 $whereSuffix
                 AND items.status = 'decision_hold'
                 AND (items.rdd_date IS NULL OR items.rdd_date > ?)
             ORDER BY items.prep_date ASC, items.updated_at DESC
         ";
         
-        $paramsPrep = array_merge($baseParams, $projectParams, $timeParams);
+        $paramsPrep = array_merge($params, $projectParams, $timeParams);
         $stmtPrep = $this->pdo->prepare($sqlPrep);
         $stmtPrep->execute($paramsPrep);
         $prepItems = array_map([$this, 'mapRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
@@ -98,12 +107,12 @@ class GdbController extends BaseController {
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? 
+                $whereClause
                 $whereSuffix
                 AND items.status = 'intent' 
             ORDER BY items.updated_at DESC
         ";
-        $paramsIntent = array_merge($baseParams, $projectParams);
+        $paramsIntent = array_merge($params, $projectParams);
         $stmtIntent = $this->pdo->prepare($sqlIntent);
         $stmtIntent->execute($paramsIntent);
         $intentItems = array_map([$this, 'mapRow'], $stmtIntent->fetchAll(PDO::FETCH_ASSOC));
@@ -114,13 +123,13 @@ class GdbController extends BaseController {
             FROM items 
             LEFT JOIN items parent ON items.parent_id = parent.id
             WHERE 
-                items.tenant_id = ? 
+                $whereClause
                 $whereSuffix
                 AND items.status IN ('decision_rejected') 
             ORDER BY items.updated_at DESC 
             LIMIT 20
         ";
-        $paramsLog = array_merge($baseParams, $projectParams);
+        $paramsLog = array_merge($params, $projectParams);
         $stmtLog = $this->pdo->prepare($sqlLog);
         $stmtLog->execute($paramsLog);
         $logItems = array_map([$this, 'mapRow'], $stmtLog->fetchAll(PDO::FETCH_ASSOC));

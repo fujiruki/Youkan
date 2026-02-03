@@ -919,10 +919,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
     const filterItems = useCallback((items: Item[]) => {
         if (filterMode === 'all') return items;
         if (filterMode === 'company') {
-            return items.filter(i => i.domain === 'business' || !!i.tenantId || !!i.projectId);
+            // Company items: Explicitly linked to a tenant, or domain is 'business'
+            return items.filter(i => !!i.tenantId || i.domain === 'business');
         }
         if (filterMode === 'personal') {
-            return items.filter(i => i.domain === 'private' || (!i.tenantId && !i.projectId));
+            // Personal items: No tenantId, and domain is not 'business' (usually 'private' or 'general')
+            return items.filter(i => !i.tenantId && i.domain !== 'business');
         }
         return items;
     }, [filterMode]);

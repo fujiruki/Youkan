@@ -588,12 +588,16 @@ class ItemController extends BaseController {
         $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
         
         // Fetch item's actual tenant_id
-        $check = $this->pdo->prepare("SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL)");
-        $check->execute(array_merge([$id], $tenantIds));
+        // [Security Fix] Allow access if:
+        // 1. Tenant match (Shared Organization)
+        // 2. Creator match (Personal/Private or Owner)
+        $query = "SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR created_by = ?)";
+        $check = $this->pdo->prepare($query);
+        $check->execute(array_merge([$id], $tenantIds, [$this->currentUserId]));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
-        
         if (!$existing) {
+             error_log("[ItemController] Update failed: Item $id not found or access denied for user {$this->currentUserId}. Joined tenants: " . implode(',', $tenantIds));
              $this->sendError(404, 'Item not found');
         }
         

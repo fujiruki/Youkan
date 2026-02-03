@@ -161,10 +161,12 @@ export class ApiClient {
     }
 
     public static async createItem(item: Partial<JudgableItem>): Promise<{ id: string; success: boolean }> {
+        console.log('[ApiClient] Creating item:', item.title);
         return this.request<{ id: string; success: boolean }>('POST', '/items', item);
     }
 
     public static async updateItem(id: string, updates: Partial<JudgableItem>): Promise<{ success: boolean }> {
+        console.log(`[ApiClient] Updating item ${id}:`, updates);
         return this.request<{ success: boolean }>('PUT', `/items/${id}`, updates);
     }
 
