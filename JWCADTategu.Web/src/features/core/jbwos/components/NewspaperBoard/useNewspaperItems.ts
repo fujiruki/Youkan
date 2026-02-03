@@ -13,7 +13,7 @@ export interface NewspaperItemWrapper {
     depth: number;
 }
 
-export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapper[] => {
+export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any | null): NewspaperItemWrapper[] => {
     const {
         gdbActive,
         gdbPreparation,
@@ -32,6 +32,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
             allProjects: allProjects.map(p => ({ id: p.id, title: p.title }))
         });
 
+        const activeProjectId = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
+
         // 1. Gather all tasks from ALL zones
         const allItems = [
             ...gdbActive,
@@ -45,6 +47,12 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
             if (item.isProject) return false;
             if (item.isArchived) return false;
             if (item.deletedAt) return false;
+
+            // [NEW] Project Focused Filtering
+            if (activeProjectId) {
+                return String(item.projectId) === activeProjectId;
+            }
+
             return true;
         });
 
@@ -150,5 +158,5 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
 
         return result;
 
-    }, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, allProjects]);
+    }, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, allProjects, activeProject]);
 };

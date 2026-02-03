@@ -236,7 +236,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 rowHeight={ganttRowHeight}
                             />
                         ) : viewMode === 'newspaper' ? (
-                            <NewspaperBoard viewModel={vm} onOpenItem={setSelectedItem} />
+                            <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
                         ) : (
                             <JbwosBoard
                                 initialLayoutMode="panorama"

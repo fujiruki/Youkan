@@ -8,12 +8,13 @@ import { ContextMenu } from '../GlobalBoard/ContextMenu';
 
 interface NewspaperBoardProps {
     viewModel: any; // Type from hook return
+    activeProject?: any | null; // From Dashboard
     onOpenItem: (item: any) => void;
 }
 
-export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, onOpenItem }) => {
+export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem }) => {
     // const { joinedTenants } = useAuth(); // Unused for now
-    const items = useNewspaperItems(viewModel);
+    const items = useNewspaperItems(viewModel, activeProject);
 
     // View State (Persisted)
     const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('jbwos_newspaper_fontsize') || '11'));
@@ -82,7 +83,11 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, onOpe
                     <div className="break-inside-avoid mb-[1em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
                         <QuickInputWidget
                             viewModel={viewModel}
-                            projectContext={null} // Default to Inbox
+                            projectContext={activeProject ? {
+                                id: activeProject.cloudId || activeProject.id,
+                                name: activeProject.name,
+                                tenantId: activeProject.tenantId
+                            } : null}
                             placeholder="Alt+D to add..."
                             className="bg-transparent border-none p-0 shadow-none"
                             onRequestFallbackOpen={() => { }}
