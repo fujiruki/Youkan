@@ -16,6 +16,7 @@ export const TATEGU_PLUGIN_ID = 'tategu-core';
 const tateguCategories: ProjectCategory[] = [
     {
         id: 'tategu-standard',
+        title: '建具プロジェクト（標準）',
         name: '建具プロジェクト（標準）',
         icon: '🚪',
         defaultTasks: [
@@ -31,6 +32,7 @@ const tateguCategories: ProjectCategory[] = [
     },
     {
         id: 'tategu-renovation',
+        title: '建具リフォーム',
         name: '建具リフォーム',
         icon: '🔧',
         defaultTasks: [
@@ -58,7 +60,7 @@ export function initializeTateguPlugin(): void {
         tateguCategories
     );
     */
-    console.log('[Tategu Plugin] Registered project categories:', tateguCategories.map(c => c.name));
+    console.log('[Tategu Plugin] Registered project categories:', tateguCategories.map(c => c.title));
 }
 
 /**

@@ -18,6 +18,7 @@ export const useProjectCategories = () => {
             const defaults: ProjectCategory[] = [
                 {
                     id: 'general',
+                    title: '一般プロジェクト',
                     name: '一般プロジェクト',
                     icon: '📋',
                     domain: 'general',
@@ -27,6 +28,7 @@ export const useProjectCategories = () => {
                 },
                 {
                     id: 'tategu_construction',
+                    title: '建具工事',
                     name: '建具工事',
                     icon: '🚪',
                     domain: 'business',
