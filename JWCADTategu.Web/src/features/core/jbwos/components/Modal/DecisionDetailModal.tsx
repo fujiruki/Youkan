@@ -126,6 +126,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
     }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
+    // [FIX] Stable Date identities for Calendar
+    const memoizedSelectedDate = React.useMemo(() => dueDate ? new Date(dueDate) : null, [dueDate]);
+    const memoizedPrepDate = React.useMemo(() => prepDate ? new Date(prepDate) : null, [prepDate]);
+
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -651,7 +655,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
                                         items={subTasks.length > 0 ? subTasks : (item ? [item] : [])}
-                                        selectedDate={dueDate ? new Date(dueDate) : null}
+                                        selectedDate={memoizedSelectedDate}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');
                                             if (activeDateInput === 'my') {
@@ -670,7 +674,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             }
                                         }}
                                         onItemClick={(selected) => handleDrillDown(selected)}
-                                        prepDate={prepDate ? new Date(prepDate) : null}
+                                        prepDate={memoizedPrepDate}
                                         targetMode={activeDateInput}
                                         filterMode={isProject ? 'all' : (item?.projectId ? 'company' : 'personal')}
                                     />

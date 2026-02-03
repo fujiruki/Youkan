@@ -34,10 +34,11 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         ? "border-indigo-200 dark:border-indigo-800"
         : "border-slate-100 dark:border-slate-800";
 
-    // [NEW] Determine focus date for auto-scroll
-    const focusDate = targetMode === 'my'
-        ? (prepDate || null)
-        : (selectedDate || null);
+    // [FIX] Memoize focus date to maintain stable identity for RyokanCalendar effects
+    const focusDate = React.useMemo(() => {
+        const d = targetMode === 'my' ? (prepDate || null) : (selectedDate || null);
+        return d ? new Date(d) : null;
+    }, [targetMode, prepDate?.getTime() || null, selectedDate?.getTime() || null]);
 
     return (
         <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>

@@ -96,6 +96,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
     const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+    const lastScrolledDateRef = useRef<string | null>(null);
 
     const safeConfig = useMemo(() => {
         if (capacityConfig && capacityConfig.holidays) return capacityConfig;
@@ -221,6 +222,11 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     useEffect(() => {
         if (!scrollContainerRef.current || allDays.length === 0) return;
         let targetDate = propFocusDate || propSelectedDate || today;
+
+        // [FIX] Avoid unnecessary scroll jump if same date (unless explicit focus change)
+        const dateKey = targetDate.toDateString();
+        const isUserAction = !!propFocusDate || !!propSelectedDate;
+
         if (!propFocusDate && !propSelectedDate) {
             if (displayMode === 'gantt') targetDate = today;
             else if (displayMode === 'timeline') targetDate = getStartOfWeek(today);
@@ -235,7 +241,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             offsetDays = displayMode === 'gantt' ? -2 : 0;
         } else if (displayMode === 'grid') {
             cellWidth = 112;
-            targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+            // [FIX] Removed forced 1st of month. Use actual target date.
+            // targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1); 
             const containerWidth = scrollContainerRef.current?.clientWidth || 0;
             offsetDays = -Math.floor((containerWidth / cellWidth) / 2);
         }
@@ -244,12 +251,30 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (targetIndex !== -1) {
             if (displayMode === 'grid') {
                 const row = Math.floor(targetIndex / 7);
-                scrollContainerRef.current.scrollTop = row * 120;
+                const targetScrollTop = row * 120;
+                const container = scrollContainerRef.current;
+
+                // [FIX] Smart Scroll: Only scroll if target is NOT currently visible
+                const isVisible = targetScrollTop >= container.scrollTop &&
+                    targetScrollTop <= (container.scrollTop + container.clientHeight - 120);
+
+                if (!isVisible || (isUserAction && lastScrolledDateRef.current !== dateKey)) {
+                    container.scrollTop = targetScrollTop;
+                    lastScrolledDateRef.current = dateKey;
+                }
             } else {
-                scrollContainerRef.current.scrollLeft = Math.max(0, (targetIndex + offsetDays) * cellWidth);
+                const targetScrollLeft = Math.max(0, (targetIndex + offsetDays) * cellWidth);
+                const container = scrollContainerRef.current;
+                const isVisible = targetScrollLeft >= container.scrollLeft &&
+                    targetScrollLeft <= (container.scrollLeft + container.clientWidth - cellWidth);
+
+                if (!isVisible || (isUserAction && lastScrolledDateRef.current !== dateKey)) {
+                    container.scrollLeft = targetScrollLeft;
+                    lastScrolledDateRef.current = dateKey;
+                }
             }
         }
-    }, [allDays, today, displayMode, propFocusDate]);
+    }, [allDays, today, displayMode, propFocusDate, propSelectedDate]);
 
     return (
         <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")} ref={containerRef}>
@@ -641,8 +666,10 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                     return (
                         <div
                             key={dateKey}
-                            onClick={() => {
-                                onAction(date, 'click', (document.activeElement as any)?.getBoundingClientRect()); // Simplified rect handling
+                            onClick={(e) => {
+                                // [FIX] Use currentTarget instead of activeElement for precise coordinate tracking
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                onAction(date, 'click', rect);
                             }}
                             onDoubleClick={() => onAction(date, 'doubleClick')}
                             className={cn(

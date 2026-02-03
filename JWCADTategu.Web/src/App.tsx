@@ -129,7 +129,8 @@ function App() {
         const numericId = parseInt(projectId.replace(/[^0-9]/g, '').slice(-9) || '1', 10) || Date.now();
         const cloudProject: Project = {
             id: numericId,
-            name: projectName || `[CLOUD:${projectId}]`, // Use actual title
+            title: projectName || `[CLOUD:${projectId}]`,
+            name: projectName || `[CLOUD:${projectId}]`, // Keep for legacy
             cloudId: projectId, // [NEW] Store original UUID
             tenantId: tenantId, // [fix] Pass tenantId
             client: '',
@@ -454,13 +455,14 @@ const AppContent: React.FC<{
                             {(currentView === 'projects' || currentView === 'projectList') && (
                                 <ProjectRegistryScreen
                                     onSelect={(project) => {
-                                        console.log('[App] Selected Cloud Project:', project.id, project.name);
+                                        const pTitle = project.title || project.name;
+                                        console.log('[App] Selected Cloud Project:', project.id, pTitle);
                                         // Fixed: Check if ID is a PURE numeric string before parsing
                                         // Using regex /^\d+$/ instead of just isNaN to avoid mangled UUIDs
                                         if (/^\d+$/.test(project.id)) {
                                             handleOpenProject(parseInt(project.id, 10));
                                         } else {
-                                            handleOpenCloudProject(project.id, project.name, project.tenantId);
+                                            handleOpenCloudProject(project.id, pTitle, project.tenantId);
                                         }
                                     }}
                                     onBack={handleBackToDashboard}

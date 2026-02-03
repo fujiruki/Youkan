@@ -37,30 +37,40 @@ class TodayController extends BaseController {
         // [New] Auto-reset "Intent Boost" items from previous days
         $this->resetExpiredBoosts();
 
-        // Logic switch for Tenant vs Personal
-        if ($tenantId) {
-             $whereClause = "items.tenant_id = ?";
-             $params = [$tenantId];
-        } else {
-             $whereClause = "(items.tenant_id IS NULL OR items.tenant_id = '') AND items.created_by = ?";
-             $params = [$this->currentUserId];
+        // Aggregated Scope Logic (similar to ItemController)
+        $tenantIds = $this->joinedTenants ?: [];
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
         }
 
+        $placeholders = '';
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+
+        $whereClause = " (
+            -- 1. Personal Items
+            ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
+            OR
+            -- 2. Company Items
+            (" . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . " AND (items.assigned_to = ? OR items.created_by = ?))
+        ) ";
+
+        $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
+
         // [Fix] Project Focus Filter (Recursive)
-        $projectParams = [];
         if ($projectId) {
             $descendants = $this->getProjectDescendantIds($projectId);
             if (!empty($descendants)) {
-                $placeholders = implode(',', array_fill(0, count($descendants), '?'));
-                $whereClause .= " AND items.id IN ($placeholders) ";
-                $projectParams = $descendants;
+                $dPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
+                $whereClause .= " AND items.id IN ($dPlaceholders) ";
+                $params = array_merge($params, $descendants);
             } else {
-                $whereClause .= " AND 0 "; // Found nothing, show nothing
+                $whereClause .= " AND 0 ";
             }
         }
 
-        // Merge params
-        $queryParams = array_merge($params, $projectParams);
+        $queryParams = $params;
 
         // Zone 1: Commit (Status: today_commit)
         $sqlCommits = "
@@ -128,14 +138,21 @@ class TodayController extends BaseController {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
 
-        // Logic switch for Tenant vs Personal
-        if ($tenantId) {
-             $whereClause = "tenant_id = ?";
-             $params = [$tenantId];
-        } else {
-             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
-             $params = [$this->currentUserId];
+        $tenantIds = $this->joinedTenants ?: [];
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
         }
+        $placeholders = '';
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+
+        $whereClause = " (
+            ((tenant_id IS NULL OR tenant_id = '') AND (created_by = ? OR assigned_to = ?))
+            OR
+            (" . ($placeholders ? "tenant_id IN ($placeholders)" : "0") . " AND (assigned_to = ? OR created_by = ?))
+        ) ";
+        $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
         // 1. Check current commits count
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM items WHERE $whereClause AND status = 'today_commit'");
@@ -174,13 +191,21 @@ class TodayController extends BaseController {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
 
-        if ($tenantId) {
-             $whereClause = "tenant_id = ?";
-             $params = [$tenantId];
-        } else {
-             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
-             $params = [$this->currentUserId];
+        $tenantIds = $this->joinedTenants ?: [];
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
         }
+        $placeholders = '';
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+
+        $whereClause = " (
+            ((tenant_id IS NULL OR tenant_id = '') AND (created_by = ? OR assigned_to = ?))
+            OR
+            (" . ($placeholders ? "tenant_id IN ($placeholders)" : "0") . " AND (assigned_to = ? OR created_by = ?))
+        ) ";
+        $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
         $this->pdo->beginTransaction();
         try {
@@ -207,13 +232,21 @@ class TodayController extends BaseController {
         $tenantId = $this->currentTenantId;
         
         // Target: Items that are 'done'
-        if ($tenantId) {
-             $whereClause = "tenant_id = ?";
-             $params = [$tenantId];
-        } else {
-             $whereClause = "(tenant_id IS NULL OR tenant_id = '') AND created_by = ?";
-             $params = [$this->currentUserId];
+        $tenantIds = $this->joinedTenants ?: [];
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
         }
+        $placeholders = '';
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+
+        $whereClause = " (
+            ((tenant_id IS NULL OR tenant_id = '') AND (created_by = ? OR assigned_to = ?))
+            OR
+            (" . ($placeholders ? "tenant_id IN ($placeholders)" : "0") . " AND (assigned_to = ? OR created_by = ?))
+        ) ";
+        $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
         $this->pdo->beginTransaction();
         try {

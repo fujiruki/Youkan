@@ -50,7 +50,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ items, onItemClick }) =>
     const groupedItems = useMemo(() => {
         const groups: Record<string, ScheduleItem[]> = {};
         items.forEach(item => {
-            const key = item.projectName || 'Unassigned';
+            const key = item.projectTitle || 'Unassigned';
             if (!groups[key]) groups[key] = [];
             groups[key].push(item);
         });

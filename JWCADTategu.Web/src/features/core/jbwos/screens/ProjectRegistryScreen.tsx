@@ -60,7 +60,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         // Convert Project to Item compatible structure for DecisionDetailModal
         const item: Item = {
             id: project.id,
-            title: project.name,
+            title: project.title || project.name,
             status: project.judgmentStatus || 'inbox',
             focusOrder: 0,
             isEngaged: false,
@@ -130,16 +130,16 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         switch (action) {
             case 'archive':
                 title = 'アーカイブ';
-                message = `プロジェクト「${project.name}」をアーカイブしますか？\nアーカイブされたプロジェクトは一覧から非表示になります。`;
+                message = `プロジェクト「${project.title || project.name}」をアーカイブしますか？\nアーカイブされたプロジェクトは一覧から非表示になります。`;
                 break;
             case 'trash':
                 title = 'ゴミ箱へ移動';
-                message = `プロジェクト「${project.name}」をゴミ箱へ移動しますか？`;
+                message = `プロジェクト「${project.title || project.name}」をゴミ箱へ移動しますか？`;
                 danger = true;
                 break;
             case 'destroy':
                 title = '完全削除';
-                message = `【警告】プロジェクト「${project.name}」を完全に削除しますか？\nこの操作は取り消せません。`;
+                message = `【警告】プロジェクト「${project.title || project.name}」を完全に削除しますか？\nこの操作は取り消せません。`;
                 danger = true;
                 break;
         }
@@ -255,7 +255,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                         onContextMenu={(e) => handleContextMenu(e, project)}
                                     >
                                         <td className="px-6 py-3 font-medium text-slate-700 dark:text-slate-200">
-                                            {project.name}
+                                            {project.title || project.name}
                                         </td>
                                         <td className="px-6 py-3 text-slate-500">
                                             {project.client || '-'}
@@ -512,7 +512,7 @@ const ProjectCard: React.FC<{
                 </div>
 
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-0.5 truncate">
-                    {project.name}
+                    {project.title || project.name}
                 </h3>
 
                 <div className="flex items-center gap-3 mt-4 text-xs text-slate-500 dark:text-slate-400">

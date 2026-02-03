@@ -1,0 +1,290 @@
+﻿[
+    {
+        "cid": 0,
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 1
+    },
+    {
+        "cid": 1,
+        "name": "tenant_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 2,
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 3,
+        "name": "status",
+        "type": "TEXT",
+        "notnull": 1,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 4,
+        "name": "created_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 5,
+        "name": "memo",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 6,
+        "name": "interrupt",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 7,
+        "name": "status_updated_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 8,
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 9,
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 10,
+        "name": "sort_order",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 11,
+        "name": "is_boosted",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 12,
+        "name": "boosted_date",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 13,
+        "name": "rdd_date",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 14,
+        "name": "work_days",
+        "type": "REAL",
+        "notnull": 0,
+        "dflt_value": "1.0",
+        "pk": 0
+    },
+    {
+        "cid": 15,
+        "name": "parent_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 16,
+        "name": "is_project",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 17,
+        "name": "project_category",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 18,
+        "name": "estimated_minutes",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 19,
+        "name": "assigned_to",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 20,
+        "name": "delegation",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 21,
+        "name": "project_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 22,
+        "name": "project_type",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 23,
+        "name": "due_date",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 24,
+        "name": "prep_date",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": null,
+        "pk": 0
+    },
+    {
+        "cid": 25,
+        "name": "due_status",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 26,
+        "name": "focus_order",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 27,
+        "name": "is_intent",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 28,
+        "name": "client",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 29,
+        "name": "meta",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 30,
+        "name": "client_name",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 31,
+        "name": "gross_profit_target",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 32,
+        "name": "assignee_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 33,
+        "name": "site_name",
+        "type": "TEXT",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    },
+    {
+        "cid": 34,
+        "name": "is_archived",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "0",
+        "pk": 0
+    },
+    {
+        "cid": 35,
+        "name": "deleted_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "dflt_value": "NULL",
+        "pk": 0
+    }
+]

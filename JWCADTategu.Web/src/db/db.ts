@@ -9,6 +9,7 @@ import { Deliverable } from '../features/plugins/manufacturing/types'; // [NEW]
 
 export interface Project {
     id?: number;
+    title?: string; // [NEW] Unified
     name: string;
     client?: string;
     settings?: EstimationSettings;
@@ -132,6 +133,23 @@ export class TateguDatabase extends Dexie {
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
             settings: 'id',
             deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
+        });
+
+        this.version(18).stores({
+            projects: '++id, userId, title, name, isArchived, judgmentStatus, updatedAt', // [NEW] title
+            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
+            catalog: 'id, name, category, *keywords, updatedAt',
+            doorPhotos: '++id, doorId',
+            tasks: '++id, projectId, doorId, status, startDate, dueDate',
+            fieldNotes: '++id, projectId, createdAt',
+            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
+            settings: 'id',
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
+        }).upgrade(async tx => {
+            // [NEW] Migrate name -> title for all local projects
+            await tx.table('projects').toCollection().modify(p => {
+                if (!p.title) p.title = p.name;
+            });
         });
 
         this.version(17).stores({

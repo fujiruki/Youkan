@@ -60,28 +60,14 @@ export const CloudJBWOSRepository = {
     },
 
     // 6. Today View
-    getTodayView: async (): Promise<{ commits: JudgableItem[]; candidates: JudgableItem[]; execution: JudgableItem | null }> => {
+    getTodayView: async (projectId?: string): Promise<{ commits: JudgableItem[]; candidates: JudgableItem[]; execution: JudgableItem | null }> => {
         try {
-            // Fetch items that are explicitly marked for "Today" (focus) or have is_executing
-            // Ideally backend provides a dedicated endpoint, but for now filtering allItems
-            const allItems = await ApiClient.getAllItems({ scope: 'aggregated' });
-
-            // Logic:
-            // - Execution Item: isEngaged || status === 'focus' && is_executing (backend flag?)
-            // - Commits: status === 'focus' (Today)
-            // - Candidates: status === 'inbox' (or 'focus' but not engaged?) -- Wait, candidates are usually suggestions.
-
-            // Implementation matching ViewModel expectations:
-            const commits = allItems.filter(i => i.status === 'focus');
-            const execution = allItems.find(i => (i as any).isEngaged || (i.status === 'focus' && (i as any).is_executing)) || null;
-
-            // Exclude execution item from commits to avoid duplication if needed, 
-            // but VM might handle that. VM seems to handle queueItems = [execution, ...commits-execution].
+            const res = await ApiClient.getTodayView(projectId);
 
             return {
-                commits,
-                candidates: [], // Valid candidates logic needed later
-                execution: execution // [FIX] Use 'execution' to match JBWOSRepository interface
+                commits: res.commits || [],
+                candidates: res.candidates || [],
+                execution: res.execution || null
             };
         } catch (e) {
             console.error('CloudRepo: GetTodayView Failed', e);
@@ -188,7 +174,12 @@ export const CloudJBWOSRepository = {
     },
 
     getProjects: async (scope?: 'personal' | 'company' | 'dashboard' | 'aggregated'): Promise<JudgableItem[]> => {
-        return await ApiClient.getProjects({ scope });
+        const projects = await ApiClient.getProjects({ scope });
+        // [REFINE] Unify title/name
+        return (projects || []).map(p => ({
+            ...p,
+            title: p.title || p.name,
+        }));
     },
 
     getJoinedTenants: async (): Promise<{ id: string; name: string; role: string }[]> => {

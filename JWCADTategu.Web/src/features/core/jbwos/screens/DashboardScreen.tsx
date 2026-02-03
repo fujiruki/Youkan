@@ -205,7 +205,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     {activeProject && (
                         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
                             <Briefcase size={12} className="text-blue-500" />
-                            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.name}</span>
+                            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.title || activeProject.name}</span>
                             <button
                                 onClick={() => {
                                     window.location.href = '/contents/TateguDesignStudio/';
@@ -253,7 +253,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     <div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-6 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
                         {activeProject && (
                             <div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">
-                                <span className="relative z-10">Project Dashboard Mode: {activeProject.name}</span>
+                                <span className="relative z-10">Project Dashboard Mode: {activeProject.title || activeProject.name}</span>
                                 <div className="absolute inset-0 bg-white/10 animate-pulse" />
                             </div>
                         )}
@@ -315,6 +315,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             viewModel={vm}
                             projectContext={activeProject ? {
                                 id: String(activeProject.id),
+                                title: activeProject.title,
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
                             } : null}
@@ -326,7 +327,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     if (item) setSelectedItem(item);
                                 }
                             }}
-                            placeholder={activeProject ? `${activeProject.name} にタスクを追加...` : "思いついたことを入力..."}
+                            placeholder={activeProject ? `${activeProject.title || activeProject.name} にタスクを追加...` : "思いついたことを入力..."}
                         />
 
                         <div className="flex flex-col mb-4">

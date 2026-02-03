@@ -57,6 +57,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
         try {
             const payload: any = {
                 id: project?.id, // Important if editing
+                title: vm.name,
                 name: vm.name,
                 // types.ts: Project has 'name', 'clientName'. Item has 'title'.
                 // Usually we map them.

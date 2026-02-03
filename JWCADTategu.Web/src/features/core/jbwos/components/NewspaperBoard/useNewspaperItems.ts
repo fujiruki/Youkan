@@ -59,24 +59,30 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         // Sorting Helper
         const sortItems = (items: Item[]) => {
             return [...items].sort((a, b) => {
-                const aDue = a.due_date ? new Date(a.due_date).getTime() : (a.prep_date ? a.prep_date * 1000 : null);
-                const bDue = b.due_date ? new Date(b.due_date).getTime() : (b.prep_date ? b.prep_date * 1000 : null);
+                // [FIX] Consider both due_date and prep_date (My Deadline)
+                const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+                const aPrep = a.prep_date ? a.prep_date * 1000 : Infinity;
+                const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+                const bPrep = b.prep_date ? b.prep_date * 1000 : Infinity;
 
-                // 1. Items without due date go first
-                if (aDue === null && bDue !== null) return -1;
-                if (aDue !== null && bDue === null) return 1;
+                const aLimit = Math.min(aDue, aPrep);
+                const bLimit = Math.min(bDue, bPrep);
 
-                // 2. Both have no due date: Sort by CreatedAt (Newest first)
-                if (aDue === null && bDue === null) {
+                // 1. Both no dates (Infinity): Sort by CreatedAt (Newest first)
+                if (aLimit === Infinity && bLimit === Infinity) {
                     return (b.createdAt || 0) - (a.createdAt || 0);
                 }
 
-                // 3. Both have due date: Sort by DueDate (Soonest first)
-                if (aDue !== bDue) {
-                    return (aDue || 0) - (bDue || 0);
+                // 2. Either no dates: No date (Infinity) items go first (User Requirement)
+                if (aLimit === Infinity) return -1;
+                if (bLimit === Infinity) return 1;
+
+                // 3. Both have dates: Sort by earlier date (Soonest first)
+                if (aLimit !== bLimit) {
+                    return aLimit - bLimit;
                 }
 
-                // 4. Tie-breaker: Oldest first (FIFO)
+                // 4. Tie-breaker for same dates: Oldest first (FIFO)
                 return (a.createdAt || 0) - (b.createdAt || 0);
             });
         };
@@ -121,32 +127,32 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         const processProjects = (projects: Item[]) => {
             projects.forEach(p => {
                 const tasks = projectItemMap.get(String(p.id)) || [];
-                if (tasks.length > 0) {
-                    // Add Header
-                    result.push({
-                        id: `header-${p.id}`,
-                        type: 'header',
-                        isHeader: true,
-                        item: {
-                            ...p,
-                            id: `virtual-header-${p.id}`,
-                        },
-                        project: p,
-                        depth: 0
-                    });
+                // [MOD] Removed tasks.length > 0 check to show empty projects
 
-                    // Add Sorted Tasks with Indent
-                    sortItems(tasks).forEach(task => {
-                        result.push({
-                            id: task.id,
-                            type: 'item',
-                            item: task,
-                            project: p,
-                            isHeader: false,
-                            depth: 1 // Indent Level 1
-                        });
+                // Add Header
+                result.push({
+                    id: `header-${p.id}`,
+                    type: 'header',
+                    isHeader: true,
+                    item: {
+                        ...p,
+                        id: `virtual-header-${p.id}`,
+                    },
+                    project: p,
+                    depth: 0
+                });
+
+                // Add Sorted Tasks with Indent
+                sortItems(tasks).forEach(task => {
+                    result.push({
+                        id: task.id,
+                        type: 'item',
+                        item: task,
+                        project: p,
+                        isHeader: false,
+                        depth: 1 // Indent Level 1
                     });
-                }
+                });
             });
         };
 

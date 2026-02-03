@@ -18,7 +18,9 @@ export interface StockJob {
 
 export interface Project {
     id: string;
+    /** @deprecated Use title instead */
     name: string;
+    title: string;           // [NEW] Unified Title
     client?: string;      // Legacy
     clientName?: string;  // [NEW]
     settings?: any;
@@ -167,7 +169,7 @@ export interface DailyLog {
     itemId?: string;
     durationMinutes?: number;
     grossProfitShare?: number;
-    projectName?: string;
+    projectTitle?: string;
     projectColor?: string;
 }
 
@@ -214,7 +216,9 @@ export interface TaskTemplate {
 
 export interface ProjectCategory {
     id: string;
+    /** @deprecated Use title instead */
     name: string;
+    title: string;           // [NEW] Unified Title
     icon?: string;
     defaultTasks: TaskTemplate[];
     pluginId?: string;       // "tategu-plugin"

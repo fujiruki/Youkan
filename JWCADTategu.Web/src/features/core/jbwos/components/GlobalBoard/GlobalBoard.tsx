@@ -309,7 +309,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                     if (!project.title) return;
                     await vm.createProject(project as Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'>, defaultTasks);
                     setShowProjectDialog(false);
-                    showToast({ type: 'success', title: 'プロジェクト作成完了', message: project.title });
+                    showToast({ type: 'success', title: 'プロジェクト作成完了', message: project.title || project.name });
                 }}
             />
 
@@ -515,9 +515,11 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                             viewModel={vm}
                                             projectContext={focusedProject ? {
                                                 id: String(focusedProject.id),
-                                                name: focusedProject.title || 'Project', // [FIX] Item uses title
+                                                title: focusedProject.title,
+                                                name: focusedProject.title,
                                                 tenantId: focusedProject.tenantId
                                             } : selectedTenantId ? {
+                                                title: joinedTenants.find((t: any) => t.id === selectedTenantId)?.name || 'Unknown',
                                                 name: joinedTenants.find((t: any) => t.id === selectedTenantId)?.name || 'Unknown',
                                                 tenantId: selectedTenantId
                                             } : null}

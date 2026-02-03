@@ -61,10 +61,10 @@ export const HistoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${log.category === 'execution' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'}`}>
                                                     {log.category}
                                                 </span>
-                                                {log.projectName && (
+                                                {log.projectTitle && (
                                                     <span className="flex items-center gap-1 text-xs text-slate-500">
                                                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: log.projectColor || '#ccc' }} />
-                                                        {log.projectName}
+                                                        {log.projectTitle}
                                                     </span>
                                                 )}
                                             </div>

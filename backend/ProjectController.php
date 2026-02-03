@@ -149,8 +149,9 @@ class ProjectController extends BaseController {
 
     private function create() {
         $data = $this->getInput();
-        if (empty($data['name'])) {
-            $this->sendError(400, 'Project name is required');
+        $pTitle = $data['title'] ?? $data['name'] ?? null;
+        if (empty($pTitle)) {
+            $this->sendError(400, 'Project title/name is required');
         }
 
         $id = $data['id'] ?? uniqid('prj-', true);
@@ -185,7 +186,7 @@ class ProjectController extends BaseController {
             $stmt->execute([
                 $id,
                 $tenantId,
-                $data['name'],
+                $pTitle,
                 $type,
                 $data['clientName'] ?? $data['client'] ?? '',
                 json_encode($meta),
@@ -229,7 +230,8 @@ class ProjectController extends BaseController {
         $params = [];
 
         // Map updates
-        if (isset($data['name'])) { $fields[] = "title = ?"; $params[] = $data['name']; }
+        $pTitle = $data['title'] ?? $data['name'] ?? null;
+        if ($pTitle !== null) { $fields[] = "title = ?"; $params[] = $pTitle; }
         if (isset($data['clientName'])) { $fields[] = "client_name = ?"; $params[] = $data['clientName']; }
         else if (isset($data['client'])) { $fields[] = "client_name = ?"; $params[] = $data['client']; }
         

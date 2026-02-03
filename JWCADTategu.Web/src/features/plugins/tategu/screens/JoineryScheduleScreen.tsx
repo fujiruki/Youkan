@@ -134,7 +134,7 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
                         {activeTab === 'deliverables' ? (
                             <DeliverableList
                                 projectId={String(project.id)}
-                                projectTitle={project.name}
+                                projectTitle={project.title || project.name}
                             />
                         ) : activeTab === 'documents' ? (
                             <div className="h-full p-4">

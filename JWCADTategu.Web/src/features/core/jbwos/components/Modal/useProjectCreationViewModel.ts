@@ -25,7 +25,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
     useEffect(() => {
         if (context.initialData) {
             // Edit Mode
-            setName(context.initialData.name);
+            setName(context.initialData.title || context.initialData.name || '');
             setClientName(context.initialData.clientName || context.initialData.client || '');
             setGrossProfitTarget(context.initialData.grossProfitTarget?.toString() || '0');
             setColor(context.initialData.color || '#6366f1');
@@ -101,6 +101,6 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         // Helper
         canSelectTenant: creationMode === 'root' && context.activeScope === 'company',
         showLocationSelector: !!context.parentProject,
-        parentProjectName: context.parentProject?.name
+        parentProjectName: context.parentProject?.title || context.parentProject?.name
     };
 };

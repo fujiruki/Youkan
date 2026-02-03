@@ -9,7 +9,7 @@ export type ScheduleItem = {
     type: 'door' | 'task';
     id: number;
     projectId: number;
-    projectName: string;
+    projectTitle: string;
     title: string;
     status: 'design' | 'production' | 'completed'; // mapped from todo/doing/done for tasks
     startDate?: Date;
@@ -32,7 +32,7 @@ export const ScheduleBoard: React.FC = () => {
         const doors = await db.doors.toArray();
         const tasks = await db.tasks.toArray();
 
-        const projectMap = new Map(projects.map(p => [p.id!, p.name]));
+        const projectMap = new Map(projects.map(p => [p.id!, p.title || p.name]));
 
         const mappedItems: ScheduleItem[] = [];
 
@@ -42,7 +42,7 @@ export const ScheduleBoard: React.FC = () => {
                 type: 'door',
                 id: d.id!,
                 projectId: d.projectId,
-                projectName: projectMap.get(d.projectId) || 'Unknown',
+                projectTitle: projectMap.get(d.projectId) || 'Unknown',
                 title: d.name,
                 status: d.status || 'design',
                 startDate: d.startDate,
@@ -61,7 +61,7 @@ export const ScheduleBoard: React.FC = () => {
                 type: 'task',
                 id: t.id!,
                 projectId: t.projectId,
-                projectName: projectMap.get(t.projectId) || 'Unknown',
+                projectTitle: projectMap.get(t.projectId) || 'Unknown',
                 title: t.title,
                 status: status,
                 dueDate: t.dueDate,
@@ -139,7 +139,7 @@ export const ScheduleBoard: React.FC = () => {
                                 {items.filter(i => i.status === col.id).map(item => (
                                     <div key={`${item.type}-${item.id}`} className="bg-slate-800 border border-slate-700 p-3 rounded shadow hover:border-slate-500 transition-colors group relative">
                                         <div className="text-[10px] text-slate-500 uppercase flex justify-between">
-                                            <span>{item.projectName}</span>
+                                            <span>{item.projectTitle}</span>
                                             <span className={item.type === 'door' ? 'text-emerald-500' : 'text-amber-500'}>
                                                 {item.type.toUpperCase()}
                                             </span>

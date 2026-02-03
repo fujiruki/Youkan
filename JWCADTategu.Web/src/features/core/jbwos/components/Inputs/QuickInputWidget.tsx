@@ -18,6 +18,7 @@ interface QuickInputWidgetProps {
     // Explicit Context to ensure Tenant/Project inheritance
     projectContext?: {
         id?: string;
+        title?: string;      // [NEW] Unified
         name: string;
         tenantId?: string | null;
     } | null;
@@ -131,7 +132,7 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
                 {projectContext ? (
                     <span className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 animate-in slide-in-from-bottom-1">
                         <Briefcase size={10} />
-                        To: {projectContext.name}
+                        To: {projectContext.title || projectContext.name}
                     </span>
                 ) : (
                     <span className="bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold animate-in slide-in-from-bottom-1">
