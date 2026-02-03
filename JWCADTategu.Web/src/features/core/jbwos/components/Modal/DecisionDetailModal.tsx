@@ -322,6 +322,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     <div className="flex flex-col gap-2 mb-2">
                                         <div className="flex items-center gap-2">
                                             <Folder size={18} className="text-slate-400" />
+                                            {/* Tenant (Company) Selection */}
                                             <select
                                                 value={localTenantId}
                                                 onChange={async (e) => {
@@ -337,45 +338,50 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                             nextProjectId = '';
                                                         }
                                                     }
-                                                    // [FIX] Immediate Update
-                                                    const updates: Partial<Item> = { tenantId: nextTenantId || null, projectId: nextProjectId || null };
+                                                    const updates: Partial<Item> = {
+                                                        tenantId: nextTenantId || null as any,
+                                                        projectId: nextProjectId || null as any
+                                                    };
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
                                                 }}
-                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
+                                                className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold p-1 rounded border-none focus:ring-1 focus:ring-blue-500 uppercase tracking-tighter"
                                             >
-                                                <option value="">(会社未指定)</option>
+                                                <option value="">(個人・プライベート)</option>
                                                 {joinedTenants.map(t => (
                                                     <option key={t.id} value={t.id}>{t.name}</option>
                                                 ))}
                                             </select>
+
+                                            <span className="text-slate-300">/</span>
+
+                                            {/* Project Selection (Filtered by Tenant) */}
                                             <select
                                                 value={localProjectId}
                                                 onChange={async (e) => {
                                                     const nextVal = e.target.value;
                                                     setLocalProjectId(nextVal);
-                                                    // [FIX] Immediate Update
-                                                    const updates: Partial<Item> = { projectId: nextVal || null };
-                                                    // Implicitly link tenant if project selected and tenant is empty? 
-                                                    // Actually onUpdate Logic in useJBWOSViewModel handles this?
-                                                    // Yes, updateItem logic already sets projectTitle and auto-sets tenant if logical.
+                                                    const updates: Partial<Item> = {
+                                                        projectId: nextVal || null as any,
+                                                        parentId: nextVal || null as any
+                                                    };
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
                                                 }}
-                                                className="bg-slate-100 dark:bg-slate-800 text-sm p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
+                                                className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
                                             >
-                                                <option value="">(なし / プライベート)</option>
+                                                <option value="">(なし / Inbox)</option>
                                                 {allProjects
-                                                    .filter(p => !localTenantId || p.tenantId === localTenantId)
+                                                    .filter(p => !localTenantId ? !p.tenantId : p.tenantId === localTenantId)
                                                     .map(p => (
-                                                        <option key={p.id} value={p.id}>{p.title}</option>
+                                                        <option key={p.id} value={p.id}>{p.title || (p as any).name}</option>
                                                     ))}
                                             </select>
                                         </div>
                                         <input
                                             ref={titleInputRef}
                                             type="text"
-                                            className="w-full text-2xl font-bold bg-slate-100 dark:bg-slate-800 p-1 rounded"
+                                            className="w-full text-2xl font-bold bg-slate-100 dark:bg-slate-800 p-1 rounded mt-1"
                                             value={editedTitle}
                                             onChange={(e) => setEditedTitle(e.target.value)}
                                             onBlur={async () => {
@@ -394,33 +400,30 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex items-center gap-2 mb-1 overflow-hidden">
-                                            {/* Tenant/Project Badges */}
+                                        {/* Display Breadcrumb-style Header */}
+                                        <div className="flex items-center gap-2 mb-1 overflow-hidden h-5">
                                             {(() => {
                                                 const project = allProjects.find(p => p.id === localProjectId);
                                                 const tenant = joinedTenants.find(t => t.id === localTenantId);
 
                                                 return (
-                                                    <div className="flex items-center gap-1.5 min-w-0">
-                                                        {tenant ? (
-                                                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 flex-none">
-                                                                <div className="w-1 h-1 bg-indigo-400 rounded-full" />
-                                                                {tenant.name}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1 flex-none">
-                                                                <div className="w-1 h-1 bg-slate-400 rounded-full" />
-                                                                Private
-                                                            </span>
-                                                        )}
+                                                    <div className="flex items-center gap-1.5 min-w-0" onClick={() => setIsEditingTitle(true)}>
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest cursor-pointer",
+                                                            tenant ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-800"
+                                                        )}>
+                                                            {tenant ? tenant.name : 'Private'}
+                                                        </span>
+
+                                                        <span className="text-slate-300 font-bold">/</span>
 
                                                         {project ? (
-                                                            <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-100 dark:border-amber-800 truncate">
-                                                                {project.title}
+                                                            <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold truncate cursor-pointer hover:bg-amber-200 transition-colors">
+                                                                {project.title || (project as any).name}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-[10px] font-bold text-slate-400 tracking-tight">
-                                                                / Inbox
+                                                            <span className="text-[10px] font-bold text-slate-400 tracking-tight cursor-pointer hover:text-slate-600">
+                                                                Inbox
                                                             </span>
                                                         )}
                                                     </div>
@@ -431,7 +434,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 onClick={() => setIsEditingTitle(true)}
                                                 className="ml-auto flex-none text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest"
                                             >
-                                                Edit
+                                                Change
                                             </button>
                                         </div>
                                         <h2

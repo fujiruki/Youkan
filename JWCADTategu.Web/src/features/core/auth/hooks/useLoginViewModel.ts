@@ -78,7 +78,7 @@ export const useLoginViewModel = () => {
         const isTenant = type === 'tenant';
 
         const dummyUser = isTenant ? {
-            id: 'debug-tenant-dbg',
+            id: 't_697b2af180467',
             name: 'デバッグ社',
             email: 'info@door-fujita.com'
         } : {
@@ -88,7 +88,7 @@ export const useLoginViewModel = () => {
         };
 
         const dummyTenant = isTenant ? {
-            id: 'debug-tenant-dbg',
+            id: 't_697b2af180467',
             name: 'デバッグ社',
             role: 'owner', // 代表者
             config: { plugins: { manufacturing: true, tategu: true } }
@@ -104,7 +104,7 @@ export const useLoginViewModel = () => {
             localStorage.removeItem('jbwos_tenant');
             localStorage.setItem('jbwos_account_type', 'user');
             localStorage.setItem('jbwos_joined_tenants', JSON.stringify([{
-                id: 'debug-tenant-dbg',
+                id: 't_697b2af180467',
                 name: 'デバッグ社',
                 role: 'owner'
             }]));

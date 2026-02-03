@@ -11,23 +11,33 @@ interface NewspaperItemProps {
     onContextMenu: (e: React.MouseEvent, itemId: string) => void;
 }
 
-const StatusBadge = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
-    // Uses em for padding to scale with font-size
-    const base = "px-[0.3em] py-0 rounded-[0.2em] font-bold whitespace-nowrap uppercase tracking-tighter leading-normal";
-    // Inbox: Cyan (Subtle, Fresh)
-    if (status === 'inbox') return <span className={cn(base, "bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400")}>受信</span>;
-    // Pending: Slate (Static)
-    if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
-    // Waiting: Purple (Delegated, Soft)
-    if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
-    if (status === 'focus') {
-        return isEngaged
-            // Engaged: Amber (Active, Vivid)
-            ? <span className={cn(base, "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50")}>実行中</span>
-            // Focus: Indigo (Intent, Intelligent)
-            : <span className={cn(base, "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400")}>Focus</span>;
+const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
+    if (status === 'done' || status === 'completed' || status === 'log') return null;
+
+    if (isEngaged) {
+        return (
+            <div className="relative flex items-center justify-center w-[1em] h-[1em] shrink-0">
+                <div className="absolute w-[0.6em] h-[0.6em] rounded-full bg-emerald-500 animate-ping opacity-75" />
+                <div className="relative w-[0.55em] h-[0.55em] rounded-full bg-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+            </div>
+        );
     }
-    return null; // hide other statuses like 'done' or 'focus' (if logic changes)
+
+    if (status === 'focus') {
+        return (
+            <div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
+                <div className="w-[0.55em] h-[0.55em] rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
+            </div>
+        );
+    }
+
+    // Default badges for other statuses
+    const base = "px-[0.3em] py-0 rounded-[0.2em] font-bold whitespace-nowrap uppercase tracking-tighter leading-normal scale-90 origin-left";
+    if (status === 'inbox') return <span className={cn(base, "bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400")}>受信</span>;
+    if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
+    if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
+
+    return null;
 };
 
 export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu }) => {
@@ -36,12 +46,24 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     if (isHeader) {
         return (
             <div
-                className="mb-[0.5em] mt-[1em] break-inside-avoid"
-                style={{ breakAfter: 'avoid' }} // Standard CSS prop
+                className="mb-[0.5em] mt-[1em] break-inside-avoid group/header"
+                style={{ breakAfter: 'avoid' }}
             >
-                <div className="flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[0.2em]">
-                    <Folder size="1em" className="text-blue-500 fill-blue-500/10" />
-                    <span className="truncate">{item.title}</span>
+                <div className="flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[0.2em] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors"
+                    onClick={() => onClick(item)}
+                >
+                    <Folder size="1.1em" className="text-blue-500 fill-blue-500/10" />
+                    <span className="truncate flex-1">{item.title}</span>
+                    <button
+                        className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Future: Trigger inline input
+                            console.log('Add to project:', item.projectId);
+                        }}
+                    >
+                        <span className="text-lg leading-none">+</span>
+                    </button>
                 </div>
             </div>
         );
@@ -52,49 +74,46 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     return (
         <div
             onMouseUp={(e) => {
-                // [FIX] Use onMouseUp for robust click handling in Newspaper layout (Column CSS often interferes with Click detection).
-                // Safety: 'select-none' class prevents text selection, so onMouseUp won't trigger on drag-select release.
                 if (e.button === 0) { // Left click only
                     onClick(item);
                 }
             }}
-            onClick={() => { }}
             onContextMenu={(e) => {
                 e.preventDefault();
                 onContextMenu(e, item.id);
             }}
             className={
                 cn(
-                    "group flex items-start gap-[0.5em] px-[0.3em] py-[0.1em] rounded-[0.2em] transition-all cursor-pointer select-none relative z-10",
+                    "group flex items-center gap-[0.4em] px-[0.4em] py-[0.15em] rounded-[0.3em] transition-all cursor-pointer select-none relative z-10",
                     "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
-                    "break-inside-avoid", // Prevent item split
-                    "mb-[0.2em]",
-                    isDone && "opacity-60 grayscale-[0.5]"
+                    "break-inside-avoid",
+                    "mb-[0.1em]",
+                    isDone && "opacity-60 grayscale-[0.3]"
                 )}
             style={{
-                marginLeft: `${depth * 0.5}em`
+                marginLeft: `${depth * 1}em` // 1em indent for children
             }}
         >
-            {/* Status Badge */}
-            {!isDone && <StatusBadge status={item.status} isEngaged={item.isEngaged} />}
-
-            {/* Title */}
-            <div className="flex-1 min-w-0 leading-tight pt-[0.1em]">
+            {/* Title & Status wrapper */}
+            <div className="flex-1 min-w-0 flex items-center gap-[0.4em] leading-tight pl-1">
                 <span className={cn(
-                    "text-[1em] font-medium break-words", // allow wrap
-                    isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"
+                    "text-[1em] font-medium break-words",
+                    isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
                 )}>
                     {item.title}
                 </span>
+
+                {/* Status Dot (Blue/Green) */}
+                <StatusDot status={item.status} isEngaged={item.isEngaged} />
             </div>
 
             {/* Metadata (Due Date) */}
             {
                 item.due_date && !isDone && (
-                    <div className="shrink-0 pt-[0.1em]">
+                    <div className="shrink-0">
                         <span className={cn(
-                            "text-[0.85em] font-bold whitespace-nowrap",
-                            new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
+                            "text-[0.85em] font-bold whitespace-nowrap px-1 rounded",
+                            new Date(item.due_date).getTime() < Date.now() ? "bg-red-50 text-red-500 dark:bg-red-950/20" : "text-slate-400"
                         )}>
                             {format(new Date(item.due_date), 'M/d')}
                         </span>

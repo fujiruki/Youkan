@@ -64,17 +64,18 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, onOpe
             </div>
 
             {/* Main Content Area (Horizontal Scroll, No Vertical) */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
                 <div
-                    className="h-full"
+                    className="h-full py-2"
                     style={{
                         columnCount: columnCount,
-                        columnFill: 'auto', // Important: Fills columns sequentially
-                        columnGap: '1.5em',
-                        columnRule: '1px dashed rgba(200, 200, 200, 0.3)',
-                        fontSize: `${fontSize}px`, // Controls all em units inside
-                        width: 'max-content', // Allow expanding horizontally
-                        minWidth: '100%'
+                        columnFill: 'auto',
+                        columnGap: '2em',
+                        columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
+                        fontSize: `${fontSize}px`,
+                        width: 'max-content',
+                        minWidth: '100%',
+                        maxHeight: '100%' // Ensure no vertical spill
                     }}
                 >
                     {/* Quick Input (Inside Columns) */}

@@ -6,6 +6,9 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 
 import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
+import { ApiClient } from '../../../../api/client';
+import { Item } from '../types';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
     const {
@@ -27,6 +30,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
+    const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+    const [defaultTenantId, setDefaultTenantId] = useState<string | undefined>(undefined);
 
     const { joinedTenants } = useAuth();
 
@@ -39,14 +44,39 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         fetchProjects();
     }, [fetchProjects, activeScope]);
 
-    const handleCreate = () => {
+    const handleCreate = (tenantId?: string) => {
         setEditingProject(null);
+        setDefaultTenantId(tenantId);
         setIsModalOpen(true);
     };
 
     const handleEdit = (project: Project) => {
         setEditingProject(project);
         setIsModalOpen(true);
+        setContextMenu(null);
+    };
+
+    const handleOpenDetail = (project: Project) => {
+        // Convert Project to Item compatible structure for DecisionDetailModal
+        const item: Item = {
+            id: project.id,
+            title: project.name,
+            status: project.judgmentStatus || 'inbox',
+            focusOrder: 0,
+            isEngaged: false,
+            statusUpdatedAt: project.updatedAt || Math.floor(Date.now() / 1000),
+            interrupt: false,
+            weight: 2,
+            projectId: project.id,
+            isProject: true,
+            tenantId: project.tenantId || null,
+            createdAt: project.createdAt,
+            updatedAt: project.updatedAt,
+            memo: '',
+            due_date: '',
+            flags: {}
+        };
+        setSelectedItem(item);
         setContextMenu(null);
     };
 
@@ -148,8 +178,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     <button
                         onClick={() => setActiveScope('company')}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'company'
-                                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
+                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <Building2 size={16} />
@@ -158,8 +188,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     <button
                         onClick={() => setActiveScope('personal')}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'personal'
-                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
+                            ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <Briefcase size={16} />
@@ -185,7 +215,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     </div>
 
                     <button
-                        onClick={handleCreate}
+                        onClick={() => handleCreate()}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-95"
                     >
                         <Plus size={18} />
@@ -204,8 +234,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     <div className="text-center py-20 text-slate-400">
                         プロジェクトがありません
                     </div>
-                ) : viewMode === 'list' ? (
-                    // List View (Minimal)
+                ) : viewMode === 'list' && activeScope === 'personal' ? (
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-xs uppercase text-slate-500 font-medium">
@@ -256,19 +285,68 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                         </table>
                     </div>
                 ) : (
-                    // Grid View - Use Rich Card
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredProjects.map((project) => (
-                            <ProjectCard
-                                key={project.id}
-                                project={project}
-                                members={members}
-                                onSelect={() => onSelect(project)}
-                                onEdit={() => handleEdit(project)}
-                                onContextMenu={(e) => handleContextMenu(e, project)}
-                                onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
-                            />
-                        ))}
+                    <div className="space-y-12">
+                        {activeScope === 'company' ? (
+                            joinedTenants.map(tenant => {
+                                const tenantProjects = projects.filter(p => p.tenantId === tenant.id);
+                                return (
+                                    <div key={tenant.id} className="space-y-6">
+                                        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                                                    <Building2 size={18} />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{tenant.name}</h2>
+                                                    <p className="text-xs text-slate-400">所属プロジェクト: {tenantProjects.length}件</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleCreate(tenant.id)}
+                                                className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1.5 text-xs font-bold"
+                                            >
+                                                <Plus size={16} />
+                                                <span>PROJECT</span>
+                                            </button>
+                                        </div>
+
+                                        {tenantProjects.length === 0 ? (
+                                            <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-400 text-sm">
+                                                プロジェクトがありません
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                                {tenantProjects.map((project) => (
+                                                    <ProjectCard
+                                                        key={project.id}
+                                                        project={project}
+                                                        members={members}
+                                                        onSelect={() => onSelect(project)}
+                                                        onEdit={() => handleEdit(project)}
+                                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                                        onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {filteredProjects.map((project) => (
+                                    <ProjectCard
+                                        key={project.id}
+                                        project={project}
+                                        members={members}
+                                        onSelect={() => onSelect(project)}
+                                        onEdit={() => handleEdit(project)}
+                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                        onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -277,11 +355,15 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             {isModalOpen && (
                 <ProjectCreationDialog
                     isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setDefaultTenantId(undefined);
+                    }}
                     onCreate={handleDialogSave}
                     activeScope={activeScope}
                     tenants={joinedTenants}
                     project={editingProject}
+                    defaultTenantId={defaultTenantId}
                 />
             )}
 
@@ -299,7 +381,12 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                             onClick: () => onSelect(contextMenu.project)
                         },
                         {
-                            label: '編集',
+                            label: '詳細画面を開く (Detail)',
+                            icon: <Calendar size={14} />,
+                            onClick: () => handleOpenDetail(contextMenu.project)
+                        },
+                        {
+                            label: '名前・設定変更',
                             icon: <Edit2 size={14} />,
                             onClick: () => handleEdit(contextMenu.project)
                         },
@@ -315,6 +402,43 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                             onClick: () => openConfirm('trash', contextMenu.project)
                         }
                     ]}
+                />
+            )}
+
+            {/* Decision Detail Modal integration for Projects */}
+            {selectedItem && (
+                <DecisionDetailModal
+                    item={selectedItem}
+                    onClose={() => {
+                        setSelectedItem(null);
+                        fetchProjects(); // Refresh after modal close
+                    }}
+                    onDecision={(id, _decision, _note, updates) => {
+                        // Standard Decision Logic?
+                        // For Project screen, we mostly care about updates.
+                        if (updates) ApiClient.updateItem(id, updates).then(() => fetchProjects());
+                        setSelectedItem(null);
+                    }}
+                    onDelete={(id) => {
+                        trashProject(id);
+                        setSelectedItem(null);
+                    }}
+                    onUpdate={async (id, updates) => {
+                        await ApiClient.updateItem(id, updates);
+                        fetchProjects();
+                    }}
+                    onCreateSubTask={async (parentId, title) => {
+                        const res = await ApiClient.createItem({ title, projectId: parentId, status: 'inbox' });
+                        return res.id;
+                    }}
+                    onGetSubTasks={async (parentId) => {
+                        // Projects usually don't have sub-tasks in THIS screen context?
+                        // Actually they DO have tasks in the GDB items table.
+                        return ApiClient.getAllItems({ project_id: parentId }) as any;
+                    }}
+                    members={members as any}
+                    joinedTenants={joinedTenants}
+                    allProjects={projects as any}
                 />
             )}
 
@@ -338,8 +462,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                             <button
                                 onClick={handleConfirmAction}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition-all active:scale-95 ${confirmDialog.danger
-                                        ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
-                                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                                    ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
+                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
                                     }`}
                             >
                                 実行する

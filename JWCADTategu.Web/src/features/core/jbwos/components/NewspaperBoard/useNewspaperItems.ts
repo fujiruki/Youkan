@@ -48,8 +48,33 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
             return true;
         });
 
+        // Sorting Helper
+        const sortItems = (items: Item[]) => {
+            return [...items].sort((a, b) => {
+                const aDue = a.due_date ? new Date(a.due_date).getTime() : (a.prep_date ? a.prep_date * 1000 : null);
+                const bDue = b.due_date ? new Date(b.due_date).getTime() : (b.prep_date ? b.prep_date * 1000 : null);
+
+                // 1. Items without due date go first
+                if (aDue === null && bDue !== null) return -1;
+                if (aDue !== null && bDue === null) return 1;
+
+                // 2. Both have no due date: Sort by CreatedAt (Newest first)
+                if (aDue === null && bDue === null) {
+                    return (b.createdAt || 0) - (a.createdAt || 0);
+                }
+
+                // 3. Both have due date: Sort by DueDate (Soonest first)
+                if (aDue !== bDue) {
+                    return (aDue || 0) - (bDue || 0);
+                }
+
+                // 4. Tie-breaker: Oldest first (FIFO)
+                return (a.createdAt || 0) - (b.createdAt || 0);
+            });
+        };
+
         // 2. Group by ProjectId
-        const noProjectItems: Item[] = [];
+        const noProjectItemsRaw: Item[] = [];
         const projectItemMap = new Map<string, Item[]>();
         const seenIds = new Set<string>();
 
@@ -58,9 +83,9 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
             seenIds.add(item.id);
 
             if (!item.projectId) {
-                noProjectItems.push(item);
+                noProjectItemsRaw.push(item);
             } else {
-                const pid = String(item.projectId); // [FIX] Ensure string key
+                const pid = String(item.projectId);
                 if (!projectItemMap.has(pid)) {
                     projectItemMap.set(pid, []);
                 }
@@ -71,25 +96,11 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
         const result: NewspaperItemWrapper[] = [];
 
         // 3. Sort Projects (Company -> Personal)
-        const companyProjects: Item[] = [];
-        const personalProjects: Item[] = [];
+        const companyProjects = allProjects.filter(p => !!p.tenantId);
+        const personalProjects = allProjects.filter(p => !p.tenantId);
 
-        allProjects.forEach((p: Item) => {
-            if (p.tenantId) {
-                companyProjects.push(p);
-            } else {
-                personalProjects.push(p);
-            }
-        });
-
-        // [DEBUG]
-        console.log('[useNewspaperItems] Grouped stats', {
-            noProjectCount: noProjectItems.length,
-            projectItemMapKeys: Array.from(projectItemMap.keys())
-        });
-
-        // 3.1 No Project Items
-        noProjectItems.forEach(item => {
+        // 3.1 No Project Items (Sorted)
+        sortItems(noProjectItemsRaw).forEach(item => {
             result.push({
                 id: item.id,
                 type: 'item',
@@ -101,7 +112,7 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
 
         const processProjects = (projects: Item[]) => {
             projects.forEach(p => {
-                const tasks = projectItemMap.get(String(p.id)) || []; // [FIX] Ensure string key
+                const tasks = projectItemMap.get(String(p.id)) || [];
                 if (tasks.length > 0) {
                     // Add Header
                     result.push({
@@ -109,31 +120,22 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel): NewspaperItemWrapp
                         type: 'header',
                         isHeader: true,
                         item: {
+                            ...p,
                             id: `virtual-header-${p.id}`,
-                            title: p.title,
-                            status: 'inbox',
-                            isProject: true,
-                            projectId: p.id,
-                            createdAt: 0,
-                            updatedAt: 0,
-                            statusUpdatedAt: 0,
-                            focusOrder: 0,
-                            isEngaged: false,
-                            interrupt: false,
-                            weight: 1
                         },
                         project: p,
                         depth: 0
                     });
 
-                    tasks.forEach(task => {
+                    // Add Sorted Tasks with Indent
+                    sortItems(tasks).forEach(task => {
                         result.push({
                             id: task.id,
                             type: 'item',
                             item: task,
                             project: p,
                             isHeader: false,
-                            depth: 1
+                            depth: 1 // Indent Level 1
                         });
                     });
                 }

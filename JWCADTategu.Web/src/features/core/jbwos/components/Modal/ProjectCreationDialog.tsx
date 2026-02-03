@@ -17,6 +17,7 @@ interface ProjectCreationDialogProps {
     activeScope?: 'personal' | 'company';
     tenants?: { id: string; name: string }[];
     project?: Project | null; // [NEW] For editing
+    defaultTenantId?: string; // [NEW] Default tenant selection
 }
 
 export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
@@ -26,7 +27,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     parentProject = null,
     activeScope = 'personal',
     tenants = [],
-    project = null
+    project = null,
+    defaultTenantId: propDefaultTenantId
 }) => {
     // Auth context for manufacturing config
     const { tenant } = useAuth();
@@ -38,7 +40,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     const vm = useProjectCreationViewModel({
         parentProject,
         activeScope,
-        defaultTenantId: tenant?.id,
+        defaultTenantId: propDefaultTenantId || tenant?.id,
         joinedTenants: tenants,
         initialData: project
     });
