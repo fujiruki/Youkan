@@ -10,9 +10,10 @@ interface FocusCardProps {
     onDrop: (id: string) => void; // Move to Inbox
     onSkip: (id: string) => void; // Skip/Demote
     onClick: () => void;
+    onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
 }
 
-export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComplete, onDrop, onSkip, onClick }) => {
+export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComplete, onDrop, onSkip, onClick, onContextMenu }) => {
     const isEngaged = item.isEngaged;
     const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -38,6 +39,12 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComp
                 }
             `}
             onClick={onClick}
+            onContextMenu={(e) => {
+                if (onContextMenu) {
+                    e.preventDefault();
+                    onContextMenu(e, item.id);
+                }
+            }}
         >
             {/* Header / Context & Stats */}
             <div className="flex justify-between items-start mb-4">

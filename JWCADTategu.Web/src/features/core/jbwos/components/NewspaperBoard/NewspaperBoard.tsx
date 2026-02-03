@@ -4,7 +4,7 @@ import { NewspaperItem } from './NewspaperItem';
 import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../GlobalBoard/ContextMenu';
-// import { useAuth } from '../../../auth/providers/AuthProvider'; // Fixed path
+import { useItemContextMenu } from '../../hooks/useItemContextMenu';
 
 interface NewspaperBoardProps {
     viewModel: any; // Type from hook return
@@ -29,26 +29,12 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     }, [columnCount]);
 
     // Context Menu State
-    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
+    const { menuState: contextMenu, handleContextMenu, closeMenu } = useItemContextMenu({
+        onDelete: (id) => viewModel.deleteItem(id)
+    });
+
     const [overridesProjectContext, setOverridesProjectContext] = useState<any | null>(null);
     const [quickInputKey, setQuickInputKey] = useState(0); // To force re-autoFocus
-
-    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
-        e.preventDefault();
-        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
-    };
-
-    // [NEW] Handle Delete Key for ContextMenu target
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Delete' && contextMenu?.itemId) {
-                viewModel.deleteItem(contextMenu.itemId);
-                setContextMenu(null);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [contextMenu, viewModel]);
 
     // Quick Input: Needs to be integrated into the layout or floating?
     // Design says: "Header area or first item".
@@ -137,44 +123,44 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId={contextMenu.itemId}
-                    onClose={() => setContextMenu(null)}
+                    itemId={contextMenu.targetId!}
+                    onClose={closeMenu}
                     actions={[
                         {
                             label: 'プロジェクト化',
                             onClick: () => {
                                 // TODO: Open Project Create Modal with this item as seed?
                                 // For now just log or basic logic if VM supports it
-                                console.log('Projectize', contextMenu.itemId);
+                                console.log('Projectize', contextMenu.targetId);
                                 // Ideally: viewModel.openProjectModal(item)
                             }
                         },
                         { separator: true }, // Visual Separator if supported by ContextMenu, otherwise ignored
                         {
                             label: '今日やる (Focus)',
-                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'focus' }); }
+                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
                         },
                         {
                             label: 'とりかかる (Execute)',
-                            onClick: () => { viewModel.setEngaged(contextMenu.itemId, true); }
+                            onClick: () => { viewModel.setEngaged(contextMenu.targetId!, true); }
                         },
                         {
                             label: '保留 (Pending)',
-                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'pending' }); }
+                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'pending' }); }
                         },
                         {
                             label: '待機 (Waiting)',
-                            onClick: () => { viewModel.updateItem(contextMenu.itemId, { status: 'waiting' }); }
+                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'waiting' }); }
                         },
                         { separator: true },
                         {
                             label: 'アーカイブ',
-                            onClick: () => { viewModel.archiveItem(contextMenu.itemId); }
+                            onClick: () => { viewModel.archiveItem(contextMenu.targetId!); }
                         },
                         {
                             label: '削除',
                             danger: true,
-                            onClick: () => { viewModel.deleteItem(contextMenu.itemId); }
+                            onClick: () => { viewModel.deleteItem(contextMenu.targetId!); }
                         }
                     ].filter(Boolean) as any} // Cast for separator support if needed
                 />

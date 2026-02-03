@@ -19,6 +19,7 @@ import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { ManufacturingLoadWidget } from '../../../plugins/manufacturing/components/ManufacturingLoadWidget';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
+import { useItemContextMenu } from '../hooks/useItemContextMenu';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -96,8 +97,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [isPendingExpanded, setIsPendingExpanded] = useState(false);
     const [isWaitingExpanded, setIsWaitingExpanded] = useState(false);
-    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
-    const [lastInteractedItemId, setLastInteractedItemId] = useState<string | null>(null);
+    const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
+        onDelete: (id) => vm.deleteItem(id)
+    });
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
     const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
@@ -113,34 +115,27 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
-    // Shortcuts (Alt+D, Delete)
+    const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
+    const remainingQueue = queueItems.slice(1);
+    const allItemsForCalendar = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems];
+
+    // Global Shortcuts Integration (ALT+D only, Delete is in hook)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // ALT + D: Open Detail
             if (e.altKey && e.key.toLowerCase() === 'd') {
+                if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) return;
                 e.preventDefault();
-                const targetId = lastInteractedItemId || activeFocusItem?.id;
+                const targetId = contextMenu?.targetId || lastTargetId || activeFocusItem?.id;
                 if (targetId) {
                     const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
                     const item = all.find(i => i.id === targetId);
                     if (item) setSelectedItem(item);
                 }
             }
-            // DELETE: Delete last interacted item or active item
-            if (e.key === 'Delete') {
-                const targetId = lastInteractedItemId || activeFocusItem?.id;
-                if (targetId) {
-                    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-
-                    deleteItem(targetId);
-                    if (selectedItem?.id === targetId) setSelectedItem(null);
-                    handleRefresh();
-                }
-            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [lastInteractedItemId, inboxItems, pendingItems, waitingItems, queueItems, selectedItem]);
+    }, [contextMenu, lastTargetId, activeFocusItem, inboxItems, pendingItems, waitingItems, queueItems]);
 
     const handleSetEngaged = async (id: string, isEngaged: boolean) => {
         await setEngaged(id, isEngaged);
@@ -157,15 +152,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         handleRefresh();
     };
 
-    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
-        e.preventDefault();
-        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
-        setLastInteractedItemId(itemId);
-    };
+    // handleContextMenu moved to hook
 
-    const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
-    const remainingQueue = queueItems.slice(1);
-    const allItemsForCalendar = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems];
+
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
@@ -279,7 +268,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                         onComplete={handleComplete}
                                         onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }}
                                         onSkip={async (id) => { await skipTask(id); }}
-                                        onClick={() => setSelectedItem(activeFocusItem)}
+                                        onClick={() => { setSelectedItem(activeFocusItem); setLastTargetId(activeFocusItem.id); }}
+                                        onContextMenu={handleContextMenu}
                                     />
                                 ) : (
                                     <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
@@ -294,7 +284,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1 pl-2">次に控えているタスク</h3>
                                     <div className="flex flex-col">
                                         {remainingQueue.map((item, index) => (
-                                            <SmartItemRow key={item.id} item={item} index={index + 1} onClick={() => setSelectedItem(item)} onFocus={handleSetEngaged} onContextMenu={handleContextMenu} />
+                                            <SmartItemRow key={item.id} item={item} index={index + 1} onClick={() => { setSelectedItem(item); setLastTargetId(item.id); }} onFocus={handleSetEngaged} onContextMenu={handleContextMenu} />
                                         ))}
                                         {ghostTodayCount > 0 && (
                                             <div className="px-4 py-2 text-[10px] text-slate-300 font-mono italic">
@@ -321,9 +311,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             } : null}
                             onOpenItem={(item) => setSelectedItem(item)}
                             onRequestFallbackOpen={() => {
-                                if (lastInteractedItemId) {
+                                const targetId = lastTargetId || activeFocusItem?.id;
+                                if (targetId) {
                                     const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
-                                    const item = all.find(i => i.id === lastInteractedItemId);
+                                    const item = all.find(i => i.id === targetId);
                                     if (item) setSelectedItem(item);
                                 }
                             }}
@@ -336,7 +327,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     key={item.id}
                                     item={item}
                                     onFocus={(id) => handleSetEngaged(id, true)}
-                                    onClick={() => setSelectedItem(item)}
+                                    onClick={() => { setSelectedItem(item); setLastTargetId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                 />
                             ))}
@@ -361,29 +352,29 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         <ContextMenu
                             x={contextMenu.x}
                             y={contextMenu.y}
-                            itemId={contextMenu.itemId}
-                            onClose={() => setContextMenu(null)}
+                            itemId={contextMenu.targetId!}
+                            onClose={closeMenu}
                             actions={[
                                 {
                                     label: 'プロジェクト化',
                                     icon: <ChevronRight size={14} className="text-blue-500" />,
-                                    onClick: () => { updateItem(contextMenu.itemId, { isProject: true }); handleRefresh(); }
+                                    onClick: () => { updateItem(contextMenu.targetId!, { isProject: true }); handleRefresh(); }
                                 },
                                 {
                                     label: '実行中 (Engage)',
                                     icon: <Clock size={14} className="text-amber-500" />,
-                                    onClick: () => handleSetEngaged(contextMenu.itemId, true)
+                                    onClick: () => handleSetEngaged(contextMenu.targetId!, true)
                                 },
                                 {
                                     label: 'アーカイブ (History)',
                                     icon: <Briefcase size={14} className="text-slate-500" />,
-                                    onClick: () => { vm.archiveItem(contextMenu.itemId); handleRefresh(); }
+                                    onClick: () => { vm.archiveItem(contextMenu.targetId!); handleRefresh(); }
                                 },
                                 {
                                     label: 'ゴミ箱 (Trash)',
                                     icon: <Trash2 size={14} className="text-red-500" />,
                                     danger: true,
-                                    onClick: () => { deleteItem(contextMenu.itemId); handleRefresh(); }
+                                    onClick: () => { deleteItem(contextMenu.targetId!); handleRefresh(); }
                                 }
                             ]}
                         />

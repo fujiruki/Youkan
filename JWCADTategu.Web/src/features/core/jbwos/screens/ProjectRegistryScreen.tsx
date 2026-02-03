@@ -9,6 +9,7 @@ import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../types';
+import { useItemContextMenu } from '../hooks/useItemContextMenu';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
     const {
@@ -29,7 +30,9 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
+    const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
+        onDelete: (id) => trashProject(id)
+    });
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [defaultTenantId, setDefaultTenantId] = useState<string | undefined>(undefined);
 
@@ -53,7 +56,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const handleEdit = (project: Project) => {
         setEditingProject(project);
         setIsModalOpen(true);
-        setContextMenu(null);
+        closeMenu();
     };
 
     const handleOpenDetail = (project: Project) => {
@@ -77,7 +80,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             flags: {}
         };
         setSelectedItem(item);
-        setContextMenu(null);
+        closeMenu();
     };
 
     const handleDialogSave = async (payload: Partial<Project>) => {
@@ -89,14 +92,22 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         setIsModalOpen(false);
     };
 
-    const handleContextMenu = (e: React.MouseEvent, project: Project) => {
-        e.preventDefault();
-        setContextMenu({
-            x: e.clientX,
-            y: e.clientY,
-            project
-        });
-    };
+    // Global Shortcut for ALT+D (Delete is handled by hook)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.altKey && e.key.toLowerCase() === 'd') {
+                if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) return;
+                e.preventDefault();
+                const targetId = contextMenu?.targetId || lastTargetId;
+                if (targetId) {
+                    const project = projects.find(p => String(p.id) === targetId);
+                    if (project) handleOpenDetail(project);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [contextMenu, lastTargetId, projects]);
 
     // [NEW] Confirmation Modal State
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -225,7 +236,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6" onClick={() => setContextMenu(null)}>
+            <div className="flex-1 overflow-y-auto p-6" onClick={closeMenu}>
                 {loading ? (
                     <div className="flex justify-center items-center h-40">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -251,8 +262,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                     <tr
                                         key={project.id}
                                         className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                                        onClick={() => onSelect(project)}
-                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                        onClick={() => { onSelect(project); setLastTargetId(String(project.id)); }}
+                                        onContextMenu={(e) => handleContextMenu(e, String(project.id))}
                                     >
                                         <td className="px-6 py-3 font-medium text-slate-700 dark:text-slate-200">
                                             {project.title || project.name}
@@ -275,7 +286,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                             )}
                                         </td>
                                         <td className="px-6 py-3">
-                                            <button className="text-slate-400 hover:text-slate-600 p-1" onClick={(e) => { e.stopPropagation(); handleContextMenu(e, project); }}>
+                                            <button className="text-slate-400 hover:text-slate-600 p-1" onClick={(e) => { e.stopPropagation(); handleContextMenu(e, String(project.id)); }}>
                                                 <MoreVertical size={16} />
                                             </button>
                                         </td>
@@ -321,9 +332,9 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                                         key={project.id}
                                                         project={project}
                                                         members={members}
-                                                        onSelect={() => onSelect(project)}
+                                                        onSelect={() => { onSelect(project); setLastTargetId(String(project.id)); }}
                                                         onEdit={() => handleEdit(project)}
-                                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                                        onContextMenu={(e) => handleContextMenu(e, String(project.id))}
                                                         onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
                                                     />
                                                 ))}
@@ -339,9 +350,9 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                         key={project.id}
                                         project={project}
                                         members={members}
-                                        onSelect={() => onSelect(project)}
+                                        onSelect={() => { onSelect(project); setLastTargetId(String(project.id)); }}
                                         onEdit={() => handleEdit(project)}
-                                        onContextMenu={(e) => handleContextMenu(e, project)}
+                                        onContextMenu={(e) => handleContextMenu(e, String(project.id))}
                                         onAssign={(assigneeId) => assignProject(String(project.id), assigneeId)}
                                     />
                                 ))}
@@ -372,34 +383,49 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId=""
-                    onClose={() => setContextMenu(null)}
+                    itemId={contextMenu.targetId!}
+                    onClose={closeMenu}
                     actions={[
                         {
                             label: '開く',
                             icon: <LayoutGrid size={14} />,
-                            onClick: () => onSelect(contextMenu.project)
+                            onClick: () => {
+                                const project = projects.find(p => String(p.id) === contextMenu.targetId);
+                                if (project) onSelect(project);
+                            }
                         },
                         {
                             label: '詳細画面を開く (Detail)',
                             icon: <Calendar size={14} />,
-                            onClick: () => handleOpenDetail(contextMenu.project)
+                            onClick: () => {
+                                const project = projects.find(p => String(p.id) === contextMenu.targetId);
+                                if (project) handleOpenDetail(project);
+                            }
                         },
                         {
                             label: '名前・設定変更',
                             icon: <Edit2 size={14} />,
-                            onClick: () => handleEdit(contextMenu.project)
+                            onClick: () => {
+                                const project = projects.find(p => String(p.id) === contextMenu.targetId);
+                                if (project) handleEdit(project);
+                            }
                         },
                         {
                             label: 'アーカイブ (Archive)',
                             icon: <Archive size={14} />,
-                            onClick: () => openConfirm('archive', contextMenu.project)
+                            onClick: () => {
+                                const project = projects.find(p => String(p.id) === contextMenu.targetId);
+                                if (project) openConfirm('archive', project);
+                            }
                         },
                         {
                             label: 'ゴミ箱へ移動 (Move to Trash)',
                             icon: <Trash2 size={14} />,
                             danger: true,
-                            onClick: () => openConfirm('trash', contextMenu.project)
+                            onClick: () => {
+                                const project = projects.find(p => String(p.id) === contextMenu.targetId);
+                                if (project) openConfirm('trash', project);
+                            }
                         }
                     ]}
                 />

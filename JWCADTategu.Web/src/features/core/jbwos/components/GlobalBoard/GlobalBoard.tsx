@@ -10,6 +10,7 @@ import {
     DragStartEvent,
     DragEndEvent,
 } from '@dnd-kit/core';
+import { useItemContextMenu } from '../../hooks/useItemContextMenu';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { ApiClient } from '../../../../../api/client';
 import { BucketColumn } from './BucketColumn';
@@ -219,49 +220,36 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 
     // --- Context Menu Logic ---
     const [initialFocus, setInitialFocus] = useState<'date' | undefined>(undefined); // [NEW] moved to top
-    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, itemId: string } | null>(null);
-    const [lastInteractedItemId, setLastInteractedItemId] = useState<string | null>(null); // [NEW] Track for Del key
+    const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
+        onDelete: (id) => vm.deleteItem(id)
+    });
     const [modalHistory, setModalHistory] = useState<Item[]>([]); // [NEW] Navigation Stack
 
-    // [NEW] Global Key Listeners for Delete / Undo
+    // [NEW] Global Key Listeners for ALT+D (Undo is handled by UndoProvider)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // ALT + D: Open Detail (Global Fallback)
             if (e.altKey && e.key.toLowerCase() === 'd') {
-                // If focus is on input, let the input handle it (QuickInputWidget)
                 if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) return;
-
                 e.preventDefault();
-                if (lastInteractedItemId) {
-                    const item = findItem(lastInteractedItemId);
+                // We use contextMenu.targetId if available, otherwise just ignore?
+                // Or maybe the hook should track "lastInteracted" even if menu is closed.
+                // For now, let's stick to simple commonality.
+                const targetId = contextMenu?.targetId || lastTargetId;
+                if (targetId) {
+                    const item = findItem(targetId);
                     if (item) {
                         setDetailItem(item);
                         setInitialFocus('date');
                     }
                 }
             }
-
-            // Ignore if typing in input (for Delete)
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-            // Delete key
-            if (e.key === 'Delete' && lastInteractedItemId) {
-                if (confirm('このアイテムを削除しますか？')) {
-                    vm.deleteItem(lastInteractedItemId);
-                    setLastInteractedItemId(null);
-                }
-            }
         };
-
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [lastInteractedItemId, vm]);
+    }, [contextMenu, vm]);
 
-    const handleContextMenu = (e: React.MouseEvent, itemId: string) => {
-        e.preventDefault();
-        setContextMenu({ x: e.clientX, y: e.clientY, itemId });
-        setLastInteractedItemId(itemId); // [NEW]
-    };
+    // handleContextMenu moved to hook
 
     // [NEW] Open Item with History
     const handleOpenItem = (item: Item) => {
@@ -318,18 +306,18 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId={contextMenu.itemId}
-                    onClose={() => setContextMenu(null)}
+                    itemId={contextMenu.targetId!}
+                    onClose={closeMenu}
                     onDelete={async (id) => {
                         await vm.deleteItem(id);
-                        setContextMenu(null);
+                        closeMenu();
                     }}
                     actions={[
                         {
                             label: '詳細 / 名前変更',
                             icon: <Edit2 size={14} />,
                             onClick: () => {
-                                const item = findItem(contextMenu.itemId);
+                                const item = findItem(contextMenu.targetId!);
                                 if (item) {
                                     setDetailItem(item);
                                     setInitialFocus(undefined);
@@ -340,21 +328,21 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                             label: 'プロジェクト化',
                             icon: <FolderPlus size={14} />,
                             onClick: async () => {
-                                await vm.updateItem(contextMenu.itemId, { isProject: true });
+                                await vm.updateItem(contextMenu.targetId!, { isProject: true });
                             }
                         },
                         {
                             label: '今日やる (Done Today)',
                             icon: <CheckCircle2 size={14} className="text-green-500" />,
                             onClick: async () => {
-                                await vm.resolveDecision(contextMenu.itemId, 'yes');
+                                await vm.resolveDecision(contextMenu.targetId!, 'yes');
                             }
                         },
                         {
                             label: '断る (Rejected)',
                             icon: <AlertCircle size={14} className="text-amber-500" />,
                             onClick: async () => {
-                                await vm.resolveDecision(contextMenu.itemId, 'no', 'history');
+                                await vm.resolveDecision(contextMenu.targetId!, 'no', 'history');
                             }
                         },
                         {
@@ -362,7 +350,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                             icon: <Trash2 size={14} />,
                             danger: true,
                             onClick: async () => {
-                                await vm.deleteItem(contextMenu.itemId);
+                                await vm.deleteItem(contextMenu.targetId!);
                             }
                         }
                     ]}
@@ -481,7 +469,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="ここにあるものを今日やるか決める"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-white dark:bg-slate-800 shadow-sm rounded-xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden"}
                                     emptyMessage={<GentleMessage variant="inbox_clean" />}
-                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
+                                    onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight}
@@ -524,8 +512,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                                 tenantId: selectedTenantId
                                             } : null}
                                             onRequestFallbackOpen={() => {
-                                                if (lastInteractedItemId) {
-                                                    const item = findItem(lastInteractedItemId);
+                                                if (lastTargetId) {
+                                                    const item = findItem(lastTargetId);
                                                     if (item) {
                                                         setDetailItem(item);
                                                         setInitialFocus('date');
@@ -553,7 +541,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="他者や到着を待っている状態。"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
                                     emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
-                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
+                                    onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight} // [NEW]
@@ -575,7 +563,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                     description="今はやらないと決めたもの（棚）。"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
                                     emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
-                                    onClickItem={(item) => { setDetailItem(item); setLastInteractedItemId(item.id); }}
+                                    onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
                                     onContextMenu={handleContextMenu}
                                     isCompact={layoutMode === 'panorama'}
                                     rowHeight={rowHeight} // [NEW]

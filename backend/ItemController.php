@@ -329,13 +329,14 @@ class ItemController extends BaseController {
             $stmt->execute(array_merge($params, [$id]));
 
             // 3. Recursive Cascade for Projects
-            // If the item acts as a project (is_project=1) OR has sub-items (parent_id linkage in project context)
-            // actually, 'project_id' linkage is stronger.
-            
-            // IF this item IS a project, update all items BELONGING to it.
+            // IF this item IS a project, update all items BELONGING to it or its sub-projects.
             if ($existing['is_project']) {
-                $cascadeSql = "UPDATE items SET $updates, updated_at = " . time() . " WHERE project_id = ?";
-                $this->pdo->prepare($cascadeSql)->execute(array_merge($params, [$id]));
+                $descendantIds = $this->getAllDescendantIds($id);
+                if (!empty($descendantIds)) {
+                    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+                    $cascadeSql = "UPDATE items SET $updates, updated_at = " . time() . " WHERE id IN ($placeholders)";
+                    $this->pdo->prepare($cascadeSql)->execute(array_merge($params, $descendantIds));
+                }
             }
 
             $this->pdo->commit();
@@ -759,8 +760,12 @@ class ItemController extends BaseController {
 
             // 2. Cascade Delete if it's a Project
             if ($existing['is_project']) {
-                $cStmt = $this->pdo->prepare("DELETE FROM items WHERE project_id = ?");
-                $cStmt->execute([$id]);
+                $descendantIds = $this->getAllDescendantIds($id);
+                if (!empty($descendantIds)) {
+                    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+                    $cStmt = $this->pdo->prepare("DELETE FROM items WHERE id IN ($placeholders)");
+                    $cStmt->execute($descendantIds);
+                }
             }
 
             $this->pdo->commit();
@@ -771,6 +776,32 @@ class ItemController extends BaseController {
         }
     }
     
+    // [JBWOS] Helper for Recursive Cascade
+    private function getAllDescendantIds($rootId) {
+        $descendantIds = [];
+        $stack = [$rootId];
+        $seen = [$rootId => true];
+
+        while (!empty($stack)) {
+            $parentId = array_pop($stack);
+            
+            // Find all items where parent_id = ? OR project_id = ?
+            // We use both to ensure sub-tasks and project-linked items are caught
+            $stmt = $this->pdo->prepare("SELECT id FROM items WHERE parent_id = ? OR project_id = ?");
+            $stmt->execute([$parentId, $parentId]);
+            $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($children as $childId) {
+                if (!isset($seen[$childId])) {
+                    $seen[$childId] = true;
+                    $descendantIds[] = $childId;
+                    $stack[] = $childId;
+                }
+            }
+        }
+        return $descendantIds;
+    }
+
     private function toCamel($snake) {
         return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $snake))));
     }

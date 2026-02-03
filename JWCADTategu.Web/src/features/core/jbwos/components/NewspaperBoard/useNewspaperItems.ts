@@ -34,8 +34,27 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
         const activeProjectId = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
 
+        // [NEW] Helper to get all descendant project IDs (recursive)
+        const getRelevantProjectIds = (rootId: string): Set<string> => {
+            const ids = new Set<string>([rootId]);
+            const stack = [rootId];
+            while (stack.length > 0) {
+                const currentId = stack.pop()!;
+                allProjects.forEach(p => {
+                    const pid = String(p.id);
+                    if ((String(p.parentId) === currentId || String(p.projectId) === currentId) && !ids.has(pid)) {
+                        ids.add(pid);
+                        stack.push(pid);
+                    }
+                });
+            }
+            return ids;
+        };
+
+        const relevantProjectIds = activeProjectId ? getRelevantProjectIds(activeProjectId) : null;
+
         // 1. Gather all tasks from ALL zones
-        const allItems = [
+        const allItemsRaw = [
             ...gdbActive,
             ...gdbPreparation,
             ...gdbIntent,
@@ -43,23 +62,27 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             ...todayCommits,
             ...(executionItem ? [executionItem] : []),
             ...(gdbLog || [])
-        ].filter(item => {
+        ];
+
+        // Deduplicate items by ID
+        const seenIds = new Set<string>();
+        const allItems = allItemsRaw.filter(item => {
+            if (seenIds.has(item.id)) return false;
+            seenIds.add(item.id);
             if (item.isProject) return false;
             if (item.isArchived) return false;
             if (item.deletedAt) return false;
 
-            // [NEW] Project Focused Filtering
-            if (activeProjectId) {
-                return String(item.projectId) === activeProjectId;
+            // [NEW] Project Focused Filtering (including descendants)
+            if (relevantProjectIds) {
+                return item.projectId && relevantProjectIds.has(String(item.projectId));
             }
-
             return true;
         });
 
         // Sorting Helper
         const sortItems = (items: Item[]) => {
             return [...items].sort((a, b) => {
-                // [FIX] Consider both due_date and prep_date (My Deadline)
                 const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
                 const aPrep = a.prep_date ? a.prep_date * 1000 : Infinity;
                 const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
@@ -68,53 +91,34 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 const aLimit = Math.min(aDue, aPrep);
                 const bLimit = Math.min(bDue, bPrep);
 
-                // 1. Both no dates (Infinity): Sort by CreatedAt (Newest first)
                 if (aLimit === Infinity && bLimit === Infinity) {
                     return (b.createdAt || 0) - (a.createdAt || 0);
                 }
-
-                // 2. Either no dates: No date (Infinity) items go first (User Requirement)
                 if (aLimit === Infinity) return -1;
                 if (bLimit === Infinity) return 1;
-
-                // 3. Both have dates: Sort by earlier date (Soonest first)
-                if (aLimit !== bLimit) {
-                    return aLimit - bLimit;
-                }
-
-                // 4. Tie-breaker for same dates: Oldest first (FIFO)
+                if (aLimit !== bLimit) return aLimit - bLimit;
                 return (a.createdAt || 0) - (b.createdAt || 0);
             });
         };
 
-        // 2. Group by ProjectId
-        const noProjectItemsRaw: Item[] = [];
-        const projectItemMap = new Map<string, Item[]>();
-        const seenIds = new Set<string>();
-
-        allItems.forEach(item => {
-            if (seenIds.has(item.id)) return;
-            seenIds.add(item.id);
-
-            if (!item.projectId) {
-                noProjectItemsRaw.push(item);
-            } else {
-                const pid = String(item.projectId);
-                if (!projectItemMap.has(pid)) {
-                    projectItemMap.set(pid, []);
-                }
-                projectItemMap.get(pid)?.push(item);
-            }
-        });
-
         const result: NewspaperItemWrapper[] = [];
 
-        // 3. Sort Projects (Company -> Personal)
-        const companyProjects = allProjects.filter(p => !!p.tenantId);
-        const personalProjects = allProjects.filter(p => !p.tenantId);
+        // 2. Identify all relevant projects for grouping
+        const projectsToShow = relevantProjectIds
+            ? allProjects.filter(p => relevantProjectIds.has(String(p.id)))
+            : allProjects;
 
-        // 3.1 No Project Items (Sorted)
-        sortItems(noProjectItemsRaw).forEach(item => {
+        const projectGroups = projectsToShow.map(proj => {
+            const items = allItems.filter(item => String(item.projectId) === String(proj.id));
+            return {
+                project: proj,
+                items: items
+            };
+        }).filter(group => group.items.length > 0 || String(group.project.id) === activeProjectId);
+
+        // 3. Process items without a project first
+        const noProjectItems = allItems.filter(item => !item.projectId);
+        sortItems(noProjectItems).forEach(item => {
             result.push({
                 id: item.id,
                 type: 'item',
@@ -124,43 +128,42 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             });
         });
 
-        const processProjects = (projects: Item[]) => {
-            projects.forEach(p => {
-                const tasks = projectItemMap.get(String(p.id)) || [];
-                // [MOD] Removed tasks.length > 0 check to show empty projects
+        // 4. Sort project groups (Company -> Personal)
+        const sortedProjectGroups = [...projectGroups].sort((a, b) => {
+            const aIsCompany = !!a.project.tenantId;
+            const bIsCompany = !!b.project.tenantId;
+            if (aIsCompany && !bIsCompany) return -1;
+            if (!aIsCompany && bIsCompany) return 1;
+            return 0;
+        });
 
-                // Add Header
+        // 5. Build final list
+        sortedProjectGroups.forEach(group => {
+            const p = group.project;
+            const tasks = group.items;
+
+            // Add Header
+            result.push({
+                id: `header-${p.id}`,
+                type: 'header',
+                isHeader: true,
+                item: { ...p, id: `virtual-header-${p.id}` },
+                project: p,
+                depth: 0
+            });
+
+            // Add Sorted Tasks
+            sortItems(tasks).forEach(task => {
                 result.push({
-                    id: `header-${p.id}`,
-                    type: 'header',
-                    isHeader: true,
-                    item: {
-                        ...p,
-                        id: `virtual-header-${p.id}`,
-                    },
+                    id: task.id,
+                    type: 'item',
+                    item: task,
                     project: p,
-                    depth: 0
-                });
-
-                // Add Sorted Tasks with Indent
-                sortItems(tasks).forEach(task => {
-                    result.push({
-                        id: task.id,
-                        type: 'item',
-                        item: task,
-                        project: p,
-                        isHeader: false,
-                        depth: 1 // Indent Level 1
-                    });
+                    isHeader: false,
+                    depth: 1
                 });
             });
-        };
-
-        // 3.2 Company Projects
-        processProjects(companyProjects);
-
-        // 3.3 Personal Projects
-        processProjects(personalProjects);
+        });
 
         return result;
 
