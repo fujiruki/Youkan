@@ -72,6 +72,7 @@ class GdbController extends BaseController {
                     items.status = 'inbox' 
                     OR (items.rdd_date IS NOT NULL AND items.rdd_date <= ?)
                 )
+                AND items.deleted_at IS NULL
             ORDER BY items.rdd_date ASC, items.created_at DESC
         ";
         
@@ -93,6 +94,7 @@ class GdbController extends BaseController {
                 $whereSuffix
                 AND items.status = 'decision_hold'
                 AND (items.rdd_date IS NULL OR items.rdd_date > ?)
+                AND items.deleted_at IS NULL
             ORDER BY items.prep_date ASC, items.updated_at DESC
         ";
         
@@ -110,6 +112,7 @@ class GdbController extends BaseController {
                 $whereClause
                 $whereSuffix
                 AND items.status = 'intent' 
+                AND items.deleted_at IS NULL
             ORDER BY items.updated_at DESC
         ";
         $paramsIntent = array_merge($params, $projectParams);
@@ -126,6 +129,7 @@ class GdbController extends BaseController {
                 $whereClause
                 $whereSuffix
                 AND items.status IN ('decision_rejected') 
+                AND items.deleted_at IS NULL
             ORDER BY items.updated_at DESC 
             LIMIT 20
         ";
@@ -158,6 +162,7 @@ class GdbController extends BaseController {
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
+        $item['projectId'] = $item['project_id'] ?? null;
         return $item;
     }
 }

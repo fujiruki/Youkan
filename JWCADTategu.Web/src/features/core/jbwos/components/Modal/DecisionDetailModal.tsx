@@ -238,7 +238,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
         if (localProjectId !== (item.projectId || '')) {
             updates.projectId = localProjectId || null as any;
-            updates.parentId = localProjectId || null as any; // [FIX] Sync parentId for hierarchy
+            // [FIX REMOVED] Do NOT auto-sync parentId here - it breaks hierarchy for sub-tasks
         }
 
         return updates;
@@ -366,8 +366,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     const nextVal = e.target.value;
                                                     setLocalProjectId(nextVal);
                                                     const updates: Partial<Item> = {
-                                                        projectId: nextVal || null as any,
-                                                        parentId: nextVal || null as any
+                                                        projectId: nextVal || null as any
+                                                        // [FIX REMOVED] parentId should NOT be auto-synced from UI
                                                     };
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
@@ -982,9 +982,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <button
                                                 onClick={async () => {
                                                     setIsProject(true);
-                                                    if (onUpdate) await onUpdate(item.id, { isProject: true });
-                                                    else await ApiClient.updateItem(item.id, { isProject: true });
-                                                    // [FIX] Explicitly refresh subtasks after projectization
+                                                    if (onUpdate) {
+                                                        await onUpdate(item.id, { isProject: true });
+                                                    } else {
+                                                        await ApiClient.updateItem(item.id, { isProject: true });
+                                                    }
+
+                                                    // [FIX] Reload subtasks after projectization to show the breakdown UI immediately
                                                     if (onGetSubTasks) {
                                                         const tasks = await onGetSubTasks(item.id);
                                                         setSubTasks(tasks);

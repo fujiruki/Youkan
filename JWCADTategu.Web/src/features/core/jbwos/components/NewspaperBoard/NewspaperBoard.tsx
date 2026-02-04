@@ -129,10 +129,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                         {
                             label: 'プロジェクト化',
                             onClick: () => {
-                                // TODO: Open Project Create Modal with this item as seed?
-                                // For now just log or basic logic if VM supports it
-                                console.log('Projectize', contextMenu.targetId);
-                                // Ideally: viewModel.openProjectModal(item)
+                                viewModel.projectizeItem(contextMenu.targetId!);
                             }
                         },
                         { separator: true }, // Visual Separator if supported by ContextMenu, otherwise ignored

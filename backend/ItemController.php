@@ -489,6 +489,10 @@ class ItemController extends BaseController {
         // [NEW] Inherit parent due_date if parentId is provided
         $dueDate = $data['due_date'] ?? null;
         $parentId = $data['parentId'] ?? null;
+        if (!$parentId && !empty($data['projectId'])) {
+            $parentId = $data['projectId'];
+        }
+
         if ($parentId && !$dueDate) {
             // Fetch parent's due_date (no tenant filter - parent_id is sufficient)
             $parentStmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ?");

@@ -905,6 +905,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
         try {
             await getRepository().updateItem(id, updates);
+            // [NEW] If project status changed, refresh the projects list so headers update
+            if ('isProject' in updates) {
+                await refreshContextMetadata();
+            }
         } catch (e) {
             console.error('Failed to update item:', e);
             // Optionally revert here, but for MVP keep simple
@@ -948,11 +952,17 @@ export const useJBWOSViewModel = (projectId?: string) => {
     const createSubTask = async (parentId: string, title: string, initialDueDate?: string, domain: 'business' | 'general' | 'private' = 'general'): Promise<string | undefined> => { // [FIX] Added initialDueDate & domain
         if (!title.trim()) return;
 
+        // [NEW] Locate parent to inherit projectId correctly
+        const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits, ...allProjects];
+        const parentItem = allLocal.find(i => i.id === parentId);
+
         // Uses the same create logic but with parentId
         const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
             title,
             status: 'inbox',
             parentId,
+            // [FIX] Inherit projectId: If parent is a project, use it. If parent has a project, use that.
+            projectId: parentItem ? (parentItem.isProject ? parentItem.id : parentItem.projectId) : undefined,
             due_date: initialDueDate, // [NEW] Inherit due date
             // Defaults
             weight: 1,
@@ -1018,6 +1028,11 @@ export const useJBWOSViewModel = (projectId?: string) => {
         });
 
         refreshAll();
+    };
+
+    // [NEW] Unified Projectization helper
+    const projectizeItem = async (id: string) => {
+        await updateItem(id, { isProject: true });
     };
 
     // [NEW] Project Creation
@@ -1142,6 +1157,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         startImmediately,
         updateItemTitle,
         updateItem,
+        projectizeItem, // [NEW]
         createSubTask,
         getSubTasks,
         delegateTask,

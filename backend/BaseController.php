@@ -95,7 +95,7 @@ class BaseController {
         // SQLite Recursive Query to get tree
         $sql = "
             WITH RECURSIVE project_tree AS (
-                SELECT id FROM items WHERE id = ?
+                SELECT id FROM items WHERE id = ? OR project_id = ?
                 UNION ALL
                 SELECT i.id FROM items i
                 JOIN project_tree pt ON i.parent_id = pt.id
@@ -104,7 +104,7 @@ class BaseController {
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$projectId]);
+        $stmt->execute([$projectId, $projectId]);
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         // Ensure source ID is included (if valid)

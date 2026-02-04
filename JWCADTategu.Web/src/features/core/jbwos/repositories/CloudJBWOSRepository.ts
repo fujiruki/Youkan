@@ -46,7 +46,9 @@ export const CloudJBWOSRepository = {
         // [FIX] If projectId is provided, do NOT use 'dashboard' scope.
         // Dashboard scope filters items assigned to ME.
         // Project scope should return ALL items in that project.
-        const scope = projectId ? undefined : 'dashboard';
+        // [FIX] Always use 'aggregated' scope for project queries to include personal items (tenant_id = NULL)
+        // Legacy mode (scope = undefined) filters by "tenant_id = ?" which excludes personal items
+        const scope = projectId ? 'aggregated' : 'dashboard';
         const allItems = await ApiClient.getAllItems({ scope, project_id: projectId });
 
         // Categorize based on JBWOS Logic
