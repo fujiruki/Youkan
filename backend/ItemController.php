@@ -100,38 +100,52 @@ class ItemController extends BaseController {
         }
 
         if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
-             // Fetch Personal Items + Company Items (Assigned/Created by me)
+             // Fetch Personal Items + Company Items (Aggregated View)
              $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
              
-             // [FIX] Project Filtering - use variable instead of str_replace
+             // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
              $projectId = $_GET['project_id'] ?? null;
-             $projectFilter = "";
-             if ($projectId) {
-                 $projectFilter = " AND items.project_id = ? ";
-             }
              
-             // Note: We need tenant name for UI badges
-             $sql = "
-                SELECT items.*, parent.title as parent_title, t.name as tenant_name
-                FROM items
-                LEFT JOIN items parent ON items.parent_id = parent.id
-                LEFT JOIN tenants t ON items.tenant_id = t.id
-                WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
-                AND (
-                    -- [FIX] Removed 'project_id IS NULL' condition to include project items
-                    -- 'My Items' = Items I created OR assigned to me (regardless of project)
-                    items.created_by = ?
-                    OR items.assigned_to = ?
-                )
-                $projectFilter
-                $filterClause
-                ORDER BY items.updated_at DESC
-             ";
+             // Base params for tenant filter
+             $params = $this->joinedTenants;
              
-             // Params: [...tenant_ids, userId, userId, (projectId if set)]
-             $params = array_merge($this->joinedTenants, [$this->currentUserId, $this->currentUserId]);
              if ($projectId) {
-                 $params[] = $projectId;
+                 // [CORE FIX] ProjectFocused Mode:
+                 // Show items if (Owned by me) OR (Belongs to the focused project)
+                 // This allows viewing all project items regardless of ownership
+                 $sql = "
+                    SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                    FROM items
+                    LEFT JOIN items parent ON items.parent_id = parent.id
+                    LEFT JOIN tenants t ON items.tenant_id = t.id
+                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
+                    AND (
+                        -- Ownership Filter (my items)
+                        (items.created_by = ? OR items.assigned_to = ?)
+                        OR
+                        -- Project Membership Filter (any item in this project)
+                        items.project_id = ?
+                    )
+                    $filterClause
+                    ORDER BY items.updated_at DESC
+                 ";
+                 $params = array_merge($params, [$this->currentUserId, $this->currentUserId, $projectId]);
+             } else {
+                 // Non-ProjectFocused: Standard ownership filter only
+                 $sql = "
+                    SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                    FROM items
+                    LEFT JOIN items parent ON items.parent_id = parent.id
+                    LEFT JOIN tenants t ON items.tenant_id = t.id
+                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
+                    AND (
+                        items.created_by = ?
+                        OR items.assigned_to = ?
+                    )
+                    $filterClause
+                    ORDER BY items.updated_at DESC
+                 ";
+                 $params = array_merge($params, [$this->currentUserId, $this->currentUserId]);
              }
              
              $stmt = $this->pdo->prepare($sql);
