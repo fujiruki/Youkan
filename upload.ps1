@@ -56,7 +56,13 @@ if (Test-Path $frontendDir) {
         Write-Host "   → Running 'npm run build'..." -ForegroundColor Cyan
         npm.cmd run build
         if ($LASTEXITCODE -ne 0) { 
-            throw "Frontend build failed with exit code $LASTEXITCODE" 
+            Write-Host "`n[!] Build Failed with Exit Code $LASTEXITCODE" -ForegroundColor Red
+            Write-Host "    Possible causes:" -ForegroundColor Gray
+            Write-Host "    - TypeScript type errors (run 'npm run build' locally to see details)" -ForegroundColor Gray
+            Write-Host "    - Missing dependencies (run 'npm install')" -ForegroundColor Gray
+            Write-Host "    - Syntax errors in recent changes`n" -ForegroundColor Gray
+            Write-Host "    Please ask AI: 'The build failed. How can I fix this?'" -ForegroundColor Yellow
+            throw "Frontend build failed. See above for details."
         }
         Write-Host "   ✓ Frontend build completed" -ForegroundColor Green
     }
@@ -83,10 +89,9 @@ New-Item -ItemType Directory -Path $deployTmp | Out-Null
 
 # バックエンドファイルのコピー（存在する場合）
 if (Test-Path $backendDir) {
-    Write-Host "   → Copying backend files (PHP, .htaccess)..." -ForegroundColor Cyan
-    Get-ChildItem $backendDir -Include "*.php", ".htaccess" -Exclude "jbwos.sqlite", "*.log" -Recurse | ForEach-Object {
-        Copy-Item $_.FullName -Destination $deployTmp
-    }
+    Write-Host "   → Copying backend directory ($backendDir)..." -ForegroundColor Cyan
+    # [FIX] Exclude database and log files from deployment to prevent overwriting remote data
+    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log"
     Write-Host "   ✓ Backend files copied" -ForegroundColor Green
 }
 else {

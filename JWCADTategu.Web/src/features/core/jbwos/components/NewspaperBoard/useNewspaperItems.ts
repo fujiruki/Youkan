@@ -115,7 +115,12 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             : allProjects;
 
         const projectGroups = projectsToShow.map(proj => {
-            const items = allItems.filter(item => String(item.projectId) === String(proj.id));
+            const items = allItems.filter(item => {
+                const ipid = item.projectId ? String(item.projectId) : null;
+                if (!ipid) return false;
+                // [FIX] Group items by checking both primary and alternate project ID formats
+                return ipid === String(proj.id) || (proj.projectId && ipid === String(proj.projectId));
+            });
             return {
                 project: proj,
                 items: items

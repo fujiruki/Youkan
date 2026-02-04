@@ -111,25 +111,29 @@ class ItemController extends BaseController {
              
              if ($projectId) {
                  // [CORE FIX] ProjectFocused Mode:
-                 // Show items if (Owned by me) OR (Belongs to the focused project)
-                 // This allows viewing all project items regardless of ownership
+                 // Show items if (Owned by me) OR (Belongs to the focused project or its sub-projects)
+                 // Use recursive descendant fetch from BaseController
+                 $descendants = $this->getProjectDescendantIds($projectId);
+                 $pPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
+
                  $sql = "
                     SELECT items.*, parent.title as parent_title, t.name as tenant_name
                     FROM items
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
+                    AND items.deleted_at IS NULL -- [FIX] Skip trashed items
                     AND (
                         -- Ownership Filter (my items)
                         (items.created_by = ? OR items.assigned_to = ?)
                         OR
-                        -- Project Membership Filter (any item in this project)
-                        items.project_id = ?
+                        -- Project Membership Filter (any item in this project or sub-projects)
+                        items.project_id IN ($pPlaceholders)
                     )
                     $filterClause
                     ORDER BY items.updated_at DESC
                  ";
-                 $params = array_merge($params, [$this->currentUserId, $this->currentUserId, $projectId]);
+                 $params = array_merge($params, [$this->currentUserId, $this->currentUserId], $descendants);
              } else {
                  // Non-ProjectFocused: Standard ownership filter only
                  $sql = "
@@ -138,6 +142,7 @@ class ItemController extends BaseController {
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
+                    AND items.deleted_at IS NULL -- [FIX] Skip trashed items
                     AND (
                         items.created_by = ?
                         OR items.assigned_to = ?
@@ -194,6 +199,7 @@ class ItemController extends BaseController {
                 LEFT JOIN tenants t ON items.tenant_id = t.id
                 LEFT JOIN assignees a ON items.assigned_to = a.id
                 WHERE (items.project_type IS NULL OR items.project_type = '')
+                AND items.deleted_at IS NULL -- [FIX] Skip trashed items
                 AND (
                     -- 1. Personal Items (Private context)
                     ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
@@ -243,6 +249,7 @@ class ItemController extends BaseController {
                 LEFT JOIN items parent ON items.parent_id = parent.id
                 LEFT JOIN items proj ON items.project_id = proj.id
                 WHERE items.tenant_id = ? 
+                AND items.deleted_at IS NULL -- [FIX] Skip trashed items
                 AND (
                     (items.project_id IS NULL AND items.created_by = ?) -- Private Inbox
                     OR items.assigned_to = ? -- Explicitly assigned to me
@@ -372,10 +379,11 @@ class ItemController extends BaseController {
     // Returns items belonging to a specific project (Shared Scope)
     private function getProjectItems($projectId) {
         // [Security Rule] Project = Shared (Tenant Public for now).
-        // Verify project existence and tenant context first.
+        // [FIX] Support Personal Projects (tenant_id IS NULL) and Recursive Matching
         
-        // TODO: Future - Check user membership in project
-        
+        $descendants = $this->getProjectDescendantIds($projectId);
+        $pPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
+
         $sql = "
             SELECT items.*, parent.title as parent_title, proj.title as real_project_title,
                    a.name as assignee_name, a.color as assignee_color
@@ -383,14 +391,15 @@ class ItemController extends BaseController {
             LEFT JOIN items parent ON items.parent_id = parent.id
             LEFT JOIN items proj ON items.project_id = proj.id
             LEFT JOIN assignees a ON items.assigned_to = a.id
-            WHERE items.tenant_id = ? 
-            AND (items.project_id = ? OR items.parent_id = ?)
-            AND items.is_archived = 0 AND items.deleted_at IS NULL -- Only active project items
+            WHERE (items.tenant_id = ? OR items.tenant_id IS NULL)
+            AND (items.project_id IN ($pPlaceholders) OR items.parent_id IN ($pPlaceholders) OR items.id IN ($pPlaceholders))
+            AND items.is_archived = 0 AND items.deleted_at IS NULL
             ORDER BY items.updated_at DESC
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$this->currentTenantId, $projectId, $projectId]);
+        $params = array_merge([$this->currentTenantId], $descendants, $descendants, $descendants);
+        $stmt->execute($params);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->sendJSON(array_map([$this, 'mapRow'], $items));

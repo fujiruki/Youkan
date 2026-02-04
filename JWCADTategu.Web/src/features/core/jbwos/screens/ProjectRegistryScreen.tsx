@@ -515,52 +515,41 @@ const ProjectCard: React.FC<{
         <div
             onClick={onSelect}
             onContextMenu={onContextMenu}
-            className="group bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden cursor-pointer h-[200px] flex flex-col"
+            className="group bg-white dark:bg-slate-800 rounded shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 relative overflow-hidden cursor-pointer h-auto flex flex-col p-1"
         >
-            {/* Color accent */}
-            <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
+            {/* Color accent (Simplified to bar) */}
+            <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
 
-            <div className="pl-3 flex flex-col h-full">
-                <div className="flex justify-between items-start mb-1">
-                    <div className="flex items-center gap-1.5">
-                        {project.color && (
-                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: project.color }} />
-                        )}
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 truncate max-w-[120px]">
+            <div className="pl-1.5 flex flex-col">
+                <div className="flex justify-between items-start leading-none">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 truncate max-w-[100px]">
                             {project.clientName || project.client || '自社・個人'}
                         </span>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors">
-                            <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-0.5 truncate">
+                {/* Vertical margin exactly 3px (approx mt-[3px]) */}
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-[3px] mb-1 truncate leading-tight">
                     {project.title || project.name}
                 </h3>
 
-                <div className="flex items-center gap-3 mt-4 text-xs text-slate-500 dark:text-slate-400">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400">目標粗利</span>
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mb-1">
+                    <div className="flex items-center gap-1">
+                        <span className="text-slate-400">¥</span>
                         <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
-                            ¥{project.grossProfitTarget?.toLocaleString() ?? 0}
+                            {project.grossProfitTarget?.toLocaleString() ?? 0}
                         </span>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400">状態</span>
-                        <span className="capitalize text-[11px]">{project.judgmentStatus || '未分類'}</span>
+                    <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-2">
+                        <span className="capitalize">{project.judgmentStatus || '未分類'}</span>
                     </div>
                 </div>
 
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Assignment Selector & Date */}
-                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-400">担当:</span>
+                {/* Compact Assignee & Action */}
+                <div className="pt-1 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-slate-400">担当:</span>
                         <select
                             value={project.assigned_to || ''}
                             onClick={(e) => e.stopPropagation()}
@@ -568,7 +557,7 @@ const ProjectCard: React.FC<{
                                 e.stopPropagation();
                                 onAssign?.(e.target.value || null);
                             }}
-                            className="text-[10px] bg-slate-100 dark:bg-slate-700 border-none rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-400 max-w-[80px]"
+                            className="text-[9px] bg-slate-100 dark:bg-slate-700 border-none rounded px-1 py-0 outline-none focus:ring-1 focus:ring-indigo-400 max-w-[60px] h-4"
                         >
                             <option value="">未割当</option>
                             {members.map(m => (
@@ -577,20 +566,14 @@ const ProjectCard: React.FC<{
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        {project.assigned_to && (
-                            <div
-                                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] text-white font-bold"
-                                style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
-                                title={members.find(m => m.id === project.assigned_to)?.name}
-                            >
-                                {members.find(m => m.id === project.assigned_to)?.name?.charAt(0)}
-                            </div>
-                        )}
-                        <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                            <Calendar size={10} />
-                            {new Date(project.updatedAt).toLocaleDateString()}
+                    <div className="flex items-center gap-1">
+                        <span className="flex items-center gap-0.5 text-[9px] text-slate-300">
+                            <Calendar size={8} />
+                            {new Date(project.updatedAt).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
                         </span>
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-0.5 text-slate-300 hover:text-indigo-500 transition-colors">
+                            <Edit2 className="w-3 h-3" />
+                        </button>
                     </div>
                 </div>
             </div>

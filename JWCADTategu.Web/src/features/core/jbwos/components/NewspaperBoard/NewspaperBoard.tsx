@@ -149,6 +149,10 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                             label: '待機 (Waiting)',
                             onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'waiting' }); }
                         },
+                        {
+                            label: '完了 (Done)',
+                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'done' }); }
+                        },
                         { separator: true },
                         {
                             label: 'アーカイブ',

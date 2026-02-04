@@ -37,6 +37,10 @@ class DebugController {
         elseif (preg_match('#^/migrate/(v[0-9]+)$#', $path, $matches) && $method === 'GET') {
             $this->migrate($matches[1]);
         }
+        // /debug/logs - システムログ取得
+        elseif (preg_match('#^/logs$#', $path) && $method === 'GET') {
+            $this->getLogs();
+        }
         else {
             http_response_code(404);
             echo json_encode(['error' => 'Debug endpoint not found']);
@@ -310,7 +314,7 @@ class DebugController {
     public function getLogs() {
         $logs = [];
         
-        $targetLog = 'php_error.log';
+        $targetLog = __DIR__ . '/php_errors.log';
         
         if (file_exists($targetLog)) {
             $logs['php_error'] = $this->tailFile($targetLog, 50);

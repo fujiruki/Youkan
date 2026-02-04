@@ -92,10 +92,10 @@ class TodayController extends BaseController {
 
             // [CORE FIX] Combine: Show if (Owned by me) OR (Belongs to focused project)
             // Security: Still requires tenant membership (handled via $tenantId context switch above)
-            $whereClause = " (($ownershipFilter) OR ($projectMembershipFilter)) ";
+            $whereClause = " items.deleted_at IS NULL AND (($ownershipFilter) OR ($projectMembershipFilter)) ";
         } else {
             // No project focus -> standard ownership filter only
-            $whereClause = $ownershipFilter;
+            $whereClause = " items.deleted_at IS NULL AND ($ownershipFilter) ";
         }
 
         $queryParams = $params;
@@ -318,6 +318,11 @@ class TodayController extends BaseController {
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
+
+        // [Archive & Trash]
+        $item['isArchived'] = (bool)($item['is_archived'] ?? 0);
+        $item['deletedAt'] = $item['deleted_at'] ?? null;
+
         return $item;
     }
 }
