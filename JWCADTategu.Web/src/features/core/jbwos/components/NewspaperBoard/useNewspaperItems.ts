@@ -26,24 +26,28 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
     } = viewModel;
 
     return useMemo(() => {
-        // [DEBUG]
-        console.log('[useNewspaperItems] Processing start', {
-            todayCommits: todayCommits.map(i => i.title),
-            allProjects: allProjects.map(p => ({ id: p.id, title: p.title }))
-        });
 
-        const activeProjectId = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
+
+        // [FIX] Also include the project's own projectId field (for legacy data consistency)
+        // Some projects have both 'id' (item_xxx) and 'projectId' (prj-xxx) fields
+        const activeProjectIdPrimary = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
+        const activeProjectIdAlt = activeProject?.projectId ? String(activeProject.projectId) : null;
 
         // [NEW] Helper to get all descendant project IDs (recursive)
-        const getRelevantProjectIds = (rootId: string): Set<string> => {
+        // Now also includes alternate ID format
+        const getRelevantProjectIds = (rootId: string, rootAltId?: string | null): Set<string> => {
             const ids = new Set<string>([rootId]);
+            if (rootAltId) ids.add(rootAltId);
+
             const stack = [rootId];
             while (stack.length > 0) {
                 const currentId = stack.pop()!;
                 allProjects.forEach(p => {
                     const pid = String(p.id);
+                    const pProjectId = p.projectId ? String(p.projectId) : null;
                     if ((String(p.parentId) === currentId || String(p.projectId) === currentId) && !ids.has(pid)) {
                         ids.add(pid);
+                        if (pProjectId) ids.add(pProjectId); // Also add alternate format
                         stack.push(pid);
                     }
                 });
@@ -51,7 +55,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             return ids;
         };
 
-        const relevantProjectIds = activeProjectId ? getRelevantProjectIds(activeProjectId) : null;
+        const relevantProjectIds = activeProjectIdPrimary ? getRelevantProjectIds(activeProjectIdPrimary, activeProjectIdAlt) : null;
+
 
         // 1. Gather all tasks from ALL zones
         const allItemsRaw = [
@@ -73,9 +78,10 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             if (item.isArchived) return false;
             if (item.deletedAt) return false;
 
-            // [NEW] Project Focused Filtering (including descendants)
+            // [FIX] Project Focused Filtering (including descendants + dual ID format support)
             if (relevantProjectIds) {
-                return item.projectId && relevantProjectIds.has(String(item.projectId));
+                const itemProjectId = item.projectId ? String(item.projectId) : null;
+                return itemProjectId && relevantProjectIds.has(itemProjectId);
             }
             return true;
         });
@@ -114,7 +120,7 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 project: proj,
                 items: items
             };
-        }).filter(group => group.items.length > 0 || String(group.project.id) === activeProjectId);
+        }).filter(group => group.items.length > 0 || String(group.project.id) === activeProjectIdPrimary);
 
         // 3. Process items without a project first
         const noProjectItems = allItems.filter(item => !item.projectId);

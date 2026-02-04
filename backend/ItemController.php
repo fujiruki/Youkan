@@ -103,35 +103,36 @@ class ItemController extends BaseController {
              // Fetch Personal Items + Company Items (Assigned/Created by me)
              $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
              
+             // [FIX] Project Filtering - use variable instead of str_replace
+             $projectId = $_GET['project_id'] ?? null;
+             $projectFilter = "";
+             if ($projectId) {
+                 $projectFilter = " AND items.project_id = ? ";
+             }
+             
              // Note: We need tenant name for UI badges
              $sql = "
                 SELECT items.*, parent.title as parent_title, t.name as tenant_name
                 FROM items
                 LEFT JOIN items parent ON items.parent_id = parent.id
                 LEFT JOIN tenants t ON items.tenant_id = t.id
-                WHERE items.tenant_id IN ($placeholders)
+                WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
                 AND (
-                    -- Personal Tenant's items: ALL visible (Owner/Personal)
-                    -- Assuming 'Personal' tenant type logic or just relying on membership.
-                    -- Actually, logic is:
-                    -- 1. If map to my Personal Tenant -> All.
-                    -- 2. If map to Company Tenant -> Only Assigned OR CreatedBy.
-                    -- HOWEVER, for simplicity in SQL:
-                    -- 'My Items' = Items I need to worry about.
-                    --   1. Items in my Personal Tenant (Everything).
-                    --   2. Items in Company Tenant assigned to me OR created by me (and not in project?).
-                    --      Actually, `getMyItems` usually filters out Project items unless it's 'Inbox'.
-                    
-                    -- Current getMyItems logic:
-                    (items.project_id IS NULL AND items.created_by = ?) -- Private/Inbox Items
-                    OR items.assigned_to = ? -- Explicitly assigned to me (Project or not)
+                    -- [FIX] Removed 'project_id IS NULL' condition to include project items
+                    -- 'My Items' = Items I created OR assigned to me (regardless of project)
+                    items.created_by = ?
+                    OR items.assigned_to = ?
                 )
+                $projectFilter
                 $filterClause
                 ORDER BY items.updated_at DESC
              ";
              
-             // Params: [...tenant_ids, userId, userId]
+             // Params: [...tenant_ids, userId, userId, (projectId if set)]
              $params = array_merge($this->joinedTenants, [$this->currentUserId, $this->currentUserId]);
+             if ($projectId) {
+                 $params[] = $projectId;
+             }
              
              $stmt = $this->pdo->prepare($sql);
              $stmt->execute($params);
@@ -141,7 +142,7 @@ class ItemController extends BaseController {
              $this->sendJSON(array_map(function($row) {
                  $item = $this->mapRow($row);
                  $item['tenantName'] = $row['tenant_name'];
-                 $item['tenantId'] = $row['tenant_id']; // Ensure camelCase in mapRow? mapRow doesn't touch keys it doesn't know.
+                 $item['tenantId'] = $row['tenant_id'];
                  return $item;
              }, $items));
              
@@ -155,12 +156,20 @@ class ItemController extends BaseController {
                 $tenantIds[] = $this->currentTenantId;
             }
             
-             // We must always allow searching in 'Personal' (NULL/'')
+            // We must always allow searching in 'Personal' (NULL/'')
             
             $placeholders = '';
             if (!empty($tenantIds)) {
                 $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
             }
+            
+            // [FIX] Project Filtering - use variable instead of str_replace
+            $projectId = $_GET['project_id'] ?? null;
+            $projectFilter = "";
+            if ($projectId) {
+                $projectFilter = " AND items.project_id = ? ";
+            }
+
             
             $sql = "
                 SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name,
@@ -186,18 +195,15 @@ class ItemController extends BaseController {
                         )
                     )
                 )
+                $projectFilter
                 $filterClause
                 ORDER BY items.updated_at DESC
             ";
 
             $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
-
-            // [NEW] Project Filtering for Dashboard/Aggregate focus
-            $projectId = $_GET['project_id'] ?? null;
+            
+            // [FIX] Add projectId to params if set
             if ($projectId) {
-                // If projectId is provided, wrap the current SQL or append AND
-                // Simplest is to wrap? No, let's just append AND to the SQL before ORDER BY
-                $sql = str_replace("ORDER BY", "AND items.project_id = ? ORDER BY", $sql);
                 $params[] = $projectId;
             }
 
@@ -840,6 +846,35 @@ class ItemController extends BaseController {
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             $this->sendError(500, 'Reorder Failed: ' . $e->getMessage());
+        }
+    }
+
+    // [NEW] Clear All Data (User Reset)
+    public function clearAllData() {
+        $this->authenticate();
+        $userId = $this->currentUserId;
+
+        try {
+            $this->pdo->beginTransaction();
+
+            // 1. Delete associated manufacturing items
+            $sqlFab = "DELETE FROM manufacturing_items WHERE item_id IN (SELECT id FROM items WHERE created_by = ?)";
+            $stmtFab = $this->pdo->prepare($sqlFab);
+            $stmtFab->execute([$userId]);
+
+            // 2. Delete all items created by this user
+            $sql = "DELETE FROM items WHERE created_by = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$userId]);
+            
+            $count = $stmt->rowCount();
+
+            $this->pdo->commit();
+            $this->sendJSON(['success' => true, 'count' => $count]);
+
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            $this->sendError(500, 'Clear Data Failed: ' . $e->getMessage());
         }
     }
 }

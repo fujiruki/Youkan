@@ -504,6 +504,13 @@ if (preg_match('#^(/api)?/items/([^/]+)/(archive|trash|restore|destroy)$#', $pat
     exit;
 }
 
+// Clear All Data
+if (preg_match('#^(/api)?/items/clear_all$#', $path) && $method === 'POST') {
+    $controller = new ItemController();
+    $controller->clearAllData();
+    exit;
+}
+
 // Item Routes (Scoped & Secure)
 // New Logic: Instantiates ItemController extends BaseController
 if (preg_match('#^(/api)?/items(?:/([^/]+))?$#', $path, $matches)) {

@@ -85,7 +85,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                             key={quickInputKey}
                             viewModel={viewModel}
                             projectContext={overridesProjectContext || (activeProject ? {
-                                id: activeProject.cloudId || activeProject.id,
+                                id: activeProject.cloudId || String(activeProject.id), // [FIX] Use cloudId for backend consistency
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
                             } : null)}
@@ -107,7 +107,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                             onContextMenu={handleContextMenu}
                             onAddChild={(projItem) => {
                                 setOverridesProjectContext({
-                                    id: projItem.projectId, // isHeader items have projectId set in useNewspaperItems
+                                    id: projItem.id.startsWith('virtual-header-') ? projItem.id.replace('virtual-header-', '') : projItem.id, // [FIX] Use the item's own ID as the parent project ID
                                     name: projItem.title,
                                     tenantId: projItem.tenantId
                                 });

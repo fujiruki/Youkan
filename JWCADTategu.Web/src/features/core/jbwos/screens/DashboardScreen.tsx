@@ -304,7 +304,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             className="mb-4"
                             viewModel={vm}
                             projectContext={activeProject ? {
-                                id: String(activeProject.id),
+                                id: activeProject.cloudId || String(activeProject.id), // [FIX] Use cloudId (item_xxx) for backend, fallback to local ID
                                 title: activeProject.title,
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
@@ -374,7 +374,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     label: 'ゴミ箱 (Trash)',
                                     icon: <Trash2 size={14} className="text-red-500" />,
                                     danger: true,
-                                    onClick: () => { deleteItem(contextMenu.targetId!); handleRefresh(); }
+                                    onClick: () => deleteItem(contextMenu.targetId!) // [FIX] Remove handleRefresh to preserve optimistic update
                                 }
                             ]}
                         />
@@ -388,7 +388,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 item={selectedItem}
                 onClose={() => setSelectedItem(null)}
                 onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
-                onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); handleRefresh(); }}
+                onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); }} // [FIX] Remove handleRefresh to preserve optimistic update
                 onUpdate={async (id, updates) => { await updateItem(id, updates); handleRefresh(); }}
                 onCreateSubTask={createSubTask}
                 onGetSubTasks={getSubTasks}

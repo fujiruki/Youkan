@@ -174,6 +174,10 @@ export class ApiClient {
         return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
     }
 
+    public static async clearAllItems(): Promise<{ success: boolean; count: number }> {
+        return this.request<{ success: boolean; count: number }>('POST', '/items/clear_all');
+    }
+
     public static async getProjects(options?: { scope?: 'personal' | 'company' | 'dashboard' | 'aggregated' }): Promise<any[]> {
         const query = options?.scope ? `?scope=${options.scope}` : '';
         return this.request('GET', `/projects${query}`);

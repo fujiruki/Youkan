@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
 import { ApiClient } from '../../../../api/client';
 import { useToast } from '../../../../contexts/ToastContext';
-import { ArrowLeft, Save, Lock, User, Clock } from 'lucide-react';
+import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle } from 'lucide-react';
 
 interface PersonalSettingsScreenProps {
     onBack: () => void;
@@ -25,6 +25,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
     // Password State
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
+
+    // Confirm State
+    const [isConfirming, setIsConfirming] = useState(false);
 
     useEffect(() => {
         loadProfile();
@@ -245,6 +248,66 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                         >
                             パスワードを変更
                         </button>
+                    </div>
+                </section>
+
+                {/* Danger Zone */}
+                <section className="bg-red-50 dark:bg-red-900/10 rounded-xl shadow-sm border border-red-200 dark:border-red-900/30 p-6 transition-all">
+                    <h2 className="text-lg font-semibold text-red-800 dark:text-red-400 mb-4 pb-2 border-b border-red-100 dark:border-red-900/20 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        危険な操作
+                    </h2>
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">登録データの全削除</p>
+                            <p className="text-xs text-red-600 dark:text-red-400 opacity-80">
+                                あなたが登録したすべてのタスク、プロジェクト、サブタスクが物理的に削除されます。<br />
+                                この操作は取り消すことができません。
+                            </p>
+                        </div>
+                        {!isConfirming ? (
+                            <button
+                                onClick={() => setIsConfirming(true)}
+                                disabled={isLoading}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium shadow-sm transition-all disabled:opacity-50 text-sm"
+                            >
+                                すべてのデータを削除する
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-200">
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            setIsLoading(true);
+                                            const res = await ApiClient.clearAllItems();
+                                            showToast({
+                                                type: 'success',
+                                                title: '削除完了',
+                                                message: `${res.count} 個のアイテムを削除しました。`
+                                            });
+                                            setTimeout(() => window.location.reload(), 1500);
+                                        } catch (error: any) {
+                                            console.error(error);
+                                            showToast({ type: 'error', title: 'エラー', message: 'データの削除に失敗しました' });
+                                            setIsConfirming(false);
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
+                                    }}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg font-bold shadow-lg transition-all animate-pulse"
+                                >
+                                    本当に削除する（実行）
+                                </button>
+                                <button
+                                    onClick={() => setIsConfirming(false)}
+                                    className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                                >
+                                    キャンセル
+                                </button>
+                                <span className="text-xs text-red-500 font-medium">← 最終確認：クリックで実行</span>
+                            </div>
+                        )}
                     </div>
                 </section>
 

@@ -19,12 +19,15 @@ class GdbController extends BaseController {
         $projectId = $_GET['project_id'] ?? null;
         
         // [Fix] Context Switch: If Project Focus, use Project's Tenant
+        // [NEW] Also get the project's projectId field for dual-ID support
+        $projectIdAlt = null; // Alternate ID format (prj-xxx)
         if ($projectId) {
-             $stmtP = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
+             $stmtP = $this->pdo->prepare("SELECT tenant_id, project_id FROM items WHERE id = ?");
              $stmtP->execute([$projectId]);
              $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
              if ($pObj) {
                  $pTenant = $pObj['tenant_id']; // NULL or string
+                 $projectIdAlt = $pObj['project_id']; // Alternate ID (prj-xxx format)
                  // [FIX] Allow switching to Personal (NULL) if project is personal
                  if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants) || $pTenant === null) {
                      $tenantId = $pTenant;
@@ -41,19 +44,34 @@ class GdbController extends BaseController {
              $params = [$this->currentUserId];
         }
         
-        // [Fix] Project Focus Filter (Recursive)
+        // [Fix] Project Focus Filter (Recursive + Direct project_id + Dual ID Format)
         $whereSuffix = "";
         $projectParams = [];
         if ($projectId) {
             $descendants = $this->getProjectDescendantIds($projectId);
             if (!empty($descendants)) {
                 $placeholders = implode(',', array_fill(0, count($descendants), '?'));
-                $whereSuffix = " AND items.id IN ($placeholders) ";
-                $projectParams = $descendants;
+                // [FIX] Support both ID formats (item_xxx and prj-xxx)
+                if ($projectIdAlt) {
+                    $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id = ? OR items.project_id = ?) ";
+                    $projectParams = array_merge($descendants, [$projectId, $projectIdAlt]);
+                } else {
+                    $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id = ?) ";
+                    $projectParams = array_merge($descendants, [$projectId]);
+                }
             } else {
-                $whereSuffix = " AND 0 "; // Found nothing
+                // [FIX] Even if no descendants, still filter by project_id with both formats
+                if ($projectIdAlt) {
+                    $whereSuffix = " AND (items.project_id = ? OR items.project_id = ?) ";
+                    $projectParams = [$projectId, $projectIdAlt];
+                } else {
+                    $whereSuffix = " AND items.project_id = ? ";
+                    $projectParams = [$projectId];
+                }
             }
         }
+
+
 
         // Helper parameters
         $baseParams = [$tenantId];
