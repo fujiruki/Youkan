@@ -187,16 +187,6 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 {/* Scope Tabs */}
                 <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                     <button
-                        onClick={() => setActiveScope('company')}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'company'
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <Building2 size={16} />
-                        Company
-                    </button>
-                    <button
                         onClick={() => setActiveScope('personal')}
                         className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'personal'
                             ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
@@ -204,7 +194,17 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                             }`}
                     >
                         <Briefcase size={16} />
-                        Personal
+                        個人
+                    </button>
+                    <button
+                        onClick={() => setActiveScope('company')}
+                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'company'
+                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <Building2 size={16} />
+                        会社
                     </button>
                 </div>
 
@@ -511,11 +511,23 @@ const ProjectCard: React.FC<{
     members?: any[];
     onAssign?: (id: string | null) => void;
 }> = ({ project, onSelect, onEdit, onContextMenu, members = [], onAssign }) => {
+    const getStatusBgColor = (status: string) => {
+        switch (status) {
+            case 'focus': return 'bg-blue-50/40 dark:bg-blue-900/10';
+            case 'done': return 'bg-green-50/40 dark:bg-green-900/10';
+            case 'pending': return 'bg-amber-50/40 dark:bg-amber-900/10';
+            case 'waiting': return 'bg-red-50/40 dark:bg-red-900/10';
+            default: return 'bg-white dark:bg-slate-800';
+        }
+    };
+
+    const statusBg = getStatusBgColor(project.judgmentStatus);
+
     return (
         <div
             onClick={onSelect}
             onContextMenu={onContextMenu}
-            className="group bg-white dark:bg-slate-800 rounded shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 relative overflow-hidden cursor-pointer h-auto flex flex-col p-1"
+            className={`group ${statusBg} rounded shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 relative overflow-hidden cursor-pointer h-auto flex flex-col p-1 w-full max-w-[320px]`}
         >
             {/* Color accent (Simplified to bar) */}
             <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
@@ -530,7 +542,7 @@ const ProjectCard: React.FC<{
                 </div>
 
                 {/* Vertical margin exactly 3px (approx mt-[3px]) */}
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-[3px] mb-1 truncate leading-tight">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white mt-[3px] mb-1 break-words leading-tight">
                     {project.title || project.name}
                 </h3>
 
@@ -542,7 +554,7 @@ const ProjectCard: React.FC<{
                         </span>
                     </div>
                     <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-2">
-                        <span className="capitalize">{project.judgmentStatus || '未分類'}</span>
+                        <span className="capitalize">{project.judgmentStatus === 'waiting' ? 'キャンセル/待ち' : (project.judgmentStatus || '未分類')}</span>
                     </div>
                 </div>
 

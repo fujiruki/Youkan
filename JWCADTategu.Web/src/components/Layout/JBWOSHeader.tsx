@@ -157,7 +157,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         {/* Dashboard Tab */}
                         <NavTab
                             icon={<LayoutDashboard size={16} />}
-                            label="Dashboard"
+                            label="ダッシュボード"
                             isActive={isDashboard}
                             onClick={onNavigateToDashboard}
                         />
@@ -165,7 +165,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         {/* Projects Tab */}
                         <NavTab
                             icon={<FolderKanban size={16} />}
-                            label="Projects"
+                            label="プロジェクト"
                             isActive={isProjects}
                             onClick={onNavigateToProjects}
                         />

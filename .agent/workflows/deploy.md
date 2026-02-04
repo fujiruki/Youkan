@@ -1,24 +1,14 @@
 ---
-description: Deploy the application to the production server (ConoHa) using the standardized upload script.
+description: プロジェクトルートの upload.ps1 を使用して、統合された最新ロジックで ConoHa サーバーへデプロイします。
 ---
 
-This workflow automates the deployment process by executing the `upload.ps1` script provided in the `docs/AI_DEVELOP_RULES/UPLOAD` directory.
+1. デプロイスクリプトの実行
+   // turbo
+   run_command("powershell.exe -ExecutionPolicy Bypass -File upload.ps1")
 
-The script performs the following steps:
-1. Builds the frontend (`npm run build`).
-2. Packages the frontend assets and backend files.
-3. Uploads the package to the server via SCP.
-4. Extracts and sets permissions on the server via SSH.
+TIMING:
+- 開発した機能の検証が完了し、本番環境への反映が必要な時に実行します。
+- このスクリプトは内部で `npm run build` を実行し、バックエンドファイルの同期（DB除外設定済み）とパーミッション調整までを一括で行います。
 
-# Steps
-
-1. **Verify Prerequisites**
-   Ensure that the `docs/AI_DEVELOP_RULES/UPLOAD` directory exists and contains `upload.ps1` and the SSH key.
-
-2. **Execute Deployment Script**
-   Run the following command from the project root:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\docs\01_RULES\UPLOAD\upload.ps1
-   ```
-   
-   > **Note**: The script is configured to deploy to `public_html/door-fujita.com/contents/TateguDesignStudio`.
+CAUTION:
+- 初回実行時は SSH 鍵のパスやリモートディレクトリの設定が正しいか `upload.ps1` 内の変数を確認してください。
