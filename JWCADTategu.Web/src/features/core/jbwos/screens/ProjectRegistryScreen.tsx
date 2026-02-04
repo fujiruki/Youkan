@@ -326,7 +326,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                                 プロジェクトがありません
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                            <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
                                                 {tenantProjects.map((project) => (
                                                     <ProjectCard
                                                         key={project.id}
@@ -344,7 +344,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                 );
                             })
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
                                 {filteredProjects.map((project) => (
                                     <ProjectCard
                                         key={project.id}
@@ -527,7 +527,7 @@ const ProjectCard: React.FC<{
         <div
             onClick={onSelect}
             onContextMenu={onContextMenu}
-            className={`group ${statusBg} rounded shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 relative overflow-hidden cursor-pointer h-auto flex flex-col p-1 w-full max-w-[320px]`}
+            className={`group ${statusBg} rounded shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700 relative overflow-hidden cursor-pointer h-auto flex flex-col p-1 w-full`}
         >
             {/* Color accent (Simplified to bar) */}
             <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: project.color || '#6366f1' }} />
