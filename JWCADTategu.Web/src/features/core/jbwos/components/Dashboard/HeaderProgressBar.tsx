@@ -135,19 +135,19 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
                                 active={filterMode === 'all'}
                                 onClick={() => handleFilterClick('all')}
                                 icon={<Layers size={14} />}
-                                label="Integrated"
-                            />
-                            <FilterButton
-                                active={filterMode === 'company'}
-                                onClick={() => handleFilterClick('company')}
-                                icon={<Briefcase size={14} />}
-                                label="Company"
+                                label="全て"
                             />
                             <FilterButton
                                 active={filterMode === 'personal'}
                                 onClick={() => handleFilterClick('personal')}
                                 icon={<User size={14} />}
-                                label="Personal"
+                                label="個人"
+                            />
+                            <FilterButton
+                                active={filterMode === 'company'}
+                                onClick={() => handleFilterClick('company')}
+                                icon={<Briefcase size={14} />}
+                                label="会社"
                             />
                         </div>
                     ) : (
