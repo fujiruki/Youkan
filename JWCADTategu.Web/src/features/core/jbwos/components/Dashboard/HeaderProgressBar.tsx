@@ -90,20 +90,39 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
                         )}
                     </div>
 
-                    {/* Middle: 24h Bar (Integrated into header flow) */}
-                    <div className="flex-1 max-w-sm hidden lg:block">
-                        <div className="relative h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-                            <div
-                                className={cn(
-                                    "absolute top-0 left-0 h-full transition-all duration-700 ease-out",
-                                    isOver ? "bg-red-400" : isProjectContext ? "bg-blue-400" : "bg-indigo-400"
-                                )}
-                                style={{ width: `${progress}%`, opacity: 0.4 }}
-                            />
-                            <div className="absolute inset-0 flex gap-[1px] px-[2px]">
-                                {Array.from({ length: 24 }).map((_, i) => (
-                                    <div key={i} className={cn("h-full flex-1", i >= 8 && i <= 18 ? "bg-slate-200/40 dark:bg-slate-700/20" : "bg-transparent")} />
+                    {/* Middle: 24h Timeline Bar */}
+                    <div className="flex-1 max-w-[500px] hidden lg:block mx-4">
+                        <div className="relative pt-4 pb-1">
+                            {/* Hour Labels */}
+                            <div className="absolute top-0 left-0 w-full flex justify-between text-[8px] font-bold text-slate-400 select-none px-[2px]">
+                                {[0, 3, 6, 9, 12, 15, 18, 21, 24].map(h => (
+                                    <span key={h} className="w-4 text-center">{h}</span>
                                 ))}
+                            </div>
+
+                            {/* Timeline Track */}
+                            <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/50 dark:border-slate-700/50">
+                                {/* Load Progress (Background) */}
+                                <div
+                                    className={cn(
+                                        "absolute top-0 left-0 h-full transition-all duration-700 ease-out",
+                                        isOver ? "bg-red-400" : isProjectContext ? "bg-blue-400" : "bg-indigo-400"
+                                    )}
+                                    style={{ width: `${progress}%`, opacity: 0.25 }}
+                                />
+
+                                {/* Hour Grid Lines */}
+                                <div className="absolute inset-0 flex justify-between px-[2px]">
+                                    {Array.from({ length: 25 }).map((_, i) => (
+                                        <div key={i} className={cn(
+                                            "h-full w-[1px]",
+                                            i % 3 === 0 ? "bg-slate-300/50 dark:bg-slate-600/50" : "bg-slate-200/20 dark:bg-slate-700/20"
+                                        )} />
+                                    ))}
+                                </div>
+
+                                {/* Current Time Indicator */}
+                                <CurrentTimeIndicator />
                             </div>
                         </div>
                     </div>
@@ -157,3 +176,27 @@ const FilterButton = ({ active, onClick, icon, label }: { active: boolean, onCli
         <span className="hidden sm:inline">{label}</span>
     </button>
 );
+
+/**
+ * 現在時刻を示す垂直インジケーター
+ */
+const CurrentTimeIndicator = () => {
+    const [now, setNow] = React.useState(new Date());
+
+    React.useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 60000); // 1分ごとに更新
+        return () => clearInterval(timer);
+    }, []);
+
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const percent = (minutes / 1440) * 100;
+
+    return (
+        <div
+            className="absolute top-0 bottom-0 w-[2px] bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10 transition-all duration-1000 ease-linear"
+            style={{ left: `${percent}%` }}
+        >
+            <div className="absolute top-[-2px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-500 rounded-full" />
+        </div>
+    );
+};
