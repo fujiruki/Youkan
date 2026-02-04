@@ -51,39 +51,51 @@ class TodayController extends BaseController {
             $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
         }
 
-        $whereClause = " (
-            -- 1. Personal Items
+        // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
+        // Previously: (Ownership Filter) AND (Project Filter) -> hides non-owned items
+        // Now: (Ownership Filter) OR (Project Membership Filter when focused)
+        // This allows all project items to be visible when in ProjectFocused mode.
+
+        $ownershipFilter = " (
+            -- 1. Personal Items (ownership required)
             ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
             OR
-            -- 2. Company Items
+            -- 2. Company Items (ownership required)
             (" . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . " AND (items.assigned_to = ? OR items.created_by = ?))
         ) ";
 
         $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
-        // [Fix] Project Focus Filter (Recursive + Direct project_id + Dual ID Format)
+        // [NEW] Project Membership Filter (for ProjectFocused mode)
         if ($projectId) {
             $descendants = $this->getProjectDescendantIds($projectId);
+            $projectMembershipFilter = "";
+
             if (!empty($descendants)) {
                 $dPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
-                // [FIX] Support both ID formats (item_xxx and prj-xxx)
                 if ($projectIdAlt) {
-                    $whereClause .= " AND (items.id IN ($dPlaceholders) OR items.project_id = ? OR items.project_id = ?) ";
+                    $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id = ? OR items.project_id = ?) ";
                     $params = array_merge($params, $descendants, [$projectId, $projectIdAlt]);
                 } else {
-                    $whereClause .= " AND (items.id IN ($dPlaceholders) OR items.project_id = ?) ";
+                    $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id = ?) ";
                     $params = array_merge($params, $descendants, [$projectId]);
                 }
             } else {
-                // [FIX] Even if no descendants, still filter by project_id with both formats
                 if ($projectIdAlt) {
-                    $whereClause .= " AND (items.project_id = ? OR items.project_id = ?) ";
+                    $projectMembershipFilter = " (items.project_id = ? OR items.project_id = ?) ";
                     $params = array_merge($params, [$projectId, $projectIdAlt]);
                 } else {
-                    $whereClause .= " AND items.project_id = ? ";
+                    $projectMembershipFilter = " items.project_id = ? ";
                     $params = array_merge($params, [$projectId]);
                 }
             }
+
+            // [CORE FIX] Combine: Show if (Owned by me) OR (Belongs to focused project)
+            // Security: Still requires tenant membership (handled via $tenantId context switch above)
+            $whereClause = " (($ownershipFilter) OR ($projectMembershipFilter)) ";
+        } else {
+            // No project focus -> standard ownership filter only
+            $whereClause = $ownershipFilter;
         }
 
         $queryParams = $params;
