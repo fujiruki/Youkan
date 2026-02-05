@@ -118,7 +118,7 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 project: proj,
                 items: items
             };
-        }).filter(group => group.items.length > 0 || String(group.project.id) === activeProjectId);
+        }); // [FIX] Show all projects including empty ones (filter removed)
 
         // 3. Process items without a project first
         const noProjectItems = allItems.filter(item => !item.projectId);

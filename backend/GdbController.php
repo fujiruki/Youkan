@@ -42,7 +42,10 @@ class GdbController extends BaseController {
              $params = [$this->currentUserId];
         }
         
-        // [Fix] Project Focus Filter (Recursive + UUID only)
+        // [FIX 2026-02-05] Project Focus Filter - OR logic instead of AND
+        // When viewing a specific project, show items that:
+        // 1. Belong to the current tenant/user (standard visibility) - OR -
+        // 2. Are directly part of the focused project tree (regardless of their tenant_id)
         $whereSuffix = "";
         $projectParams = [];
         if ($projectId) {
@@ -50,9 +53,12 @@ class GdbController extends BaseController {
             $descendants = $this->getProjectDescendantIds($projectId);
             $targetIds = array_unique(array_merge([$projectId], $descendants));
             
-            // [UUID v7] Simple IN clause - no dual format handling
+            // [CORE FIX] Use OR logic: Show if (matches tenant filter) OR (belongs to focused project)
             $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
-            $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders)) ";
+            $projectMembershipFilter = "(items.id IN ($placeholders) OR items.project_id IN ($placeholders))";
+            
+            // Replace whereClause with combined OR logic
+            $whereClause = "(($whereClause) OR ($projectMembershipFilter))";
             $projectParams = array_merge($targetIds, $targetIds);
         }
 
