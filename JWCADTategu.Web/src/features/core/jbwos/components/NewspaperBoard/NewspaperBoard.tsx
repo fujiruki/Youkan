@@ -73,6 +73,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                         columnGap: '2em',
                         columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
                         fontSize: `${fontSize}px`,
+                        columnWidth: `${fontSize * 25}px`, // [NEW] Minimum 25 characters width
                         width: 'max-content',
                         minWidth: '100%',
                         maxHeight: '100%' // Ensure no vertical spill
