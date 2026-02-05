@@ -88,7 +88,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                                         {tenant.name}
                                     </span>
                                 ) : (
-                                    <span className="text-slate-400">Personal Mode</span>
+                                    <span className="text-slate-400">個人モード (Life)</span>
                                 )}
                             </div>
                             {/* User Name */}
@@ -157,7 +157,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                             <MenuItem icon={<User size={18} />} label="個人設定" onClick={onNavigateToPersonalSettings} />
                         )}
                         {tenant && onNavigateToCompanySettings && (
-                            <MenuItem icon={<Building size={18} />} label="会社設定" onClick={onNavigateToCompanySettings} />
+                            <MenuItem icon={<Building size={18} />} label="チーム / メンバー管理" onClick={onNavigateToCompanySettings} />
                         )}
                         {onNavigateToSettings && (
                             <MenuItem icon={<Settings size={18} />} label="アプリ設定" onClick={onNavigateToSettings} />

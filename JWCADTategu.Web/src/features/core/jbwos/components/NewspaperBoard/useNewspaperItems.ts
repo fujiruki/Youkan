@@ -39,6 +39,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 const currentId = stack.pop()!;
                 allProjects.forEach(p => {
                     const pid = String(p.id);
+                    // [FIX] Projects are descendants only if they have a parentId link (direct or indirect)
+                    // Or if they are explicitly part of the project container via projectId
                     if ((String(p.parentId) === currentId || String(p.projectId) === currentId) && !ids.has(pid)) {
                         ids.add(pid);
                         stack.push(pid);
@@ -171,9 +173,9 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             });
 
             // [NEW] Find and add child projects (recursively)
+            // Use parentId strictly for project-to-project hierarchy
             const childProjects = allProjects.filter(p => {
-                const parentId = String(p.parentId || p.projectId || '');
-                return parentId === String(proj.id) && p.id !== proj.id && p.isProject;
+                return String(p.parentId || '') === String(proj.id) && String(p.id) !== String(proj.id) && p.isProject;
             });
 
             childProjects.forEach(child => {
@@ -185,13 +187,13 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         const rootProjects = sortedProjectGroups
             .map(g => g.project)
             .filter(p => {
-                const parentId = p.parentId || p.projectId;
-                if (!parentId) return true; // No parent = root
-                // Check if parent is an actual project in allProjects
+                // [FIX] A project is root if it has no parentId, OR its parent is not in the current project list
+                const pId = p.parentId;
+                if (!pId) return true;
                 const parentExists = allProjects.some(pp =>
-                    String(pp.id) === String(parentId) && pp.isProject
+                    String(pp.id) === String(pId) && pp.isProject
                 );
-                return !parentExists; // If parent doesn't exist or isn't a project, treat as root
+                return !parentExists;
             });
 
         rootProjects.forEach(proj => {

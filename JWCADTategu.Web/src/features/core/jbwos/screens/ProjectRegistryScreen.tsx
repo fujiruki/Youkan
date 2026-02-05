@@ -34,9 +34,32 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
     const { joinedTenants } = useAuth();
 
     // Derived state for filtering
-    const filteredProjects = activeScope === 'company'
+    const rawFilteredProjects = activeScope === 'company'
         ? projects.filter(p => p.tenantId)
         : projects.filter(p => !p.tenantId);
+
+    // [NEW] Recursive hierarchy sorting
+    const getHierarchicalProjects = (projs: Project[]): (Project & { depth: number })[] => {
+        const result: (Project & { depth: number })[] = [];
+        const rootProjects = projs.filter(p => !p.parentId || !projs.some(pp => String(pp.id) === String(p.parentId)));
+
+        const addRecursive = (parentId: string, depth: number) => {
+            const children = projs.filter(p => String(p.parentId) === String(parentId));
+            children.forEach(child => {
+                result.push({ ...child, depth: depth + 1 });
+                addRecursive(String(child.id), depth + 1);
+            });
+        };
+
+        rootProjects.forEach(root => {
+            result.push({ ...root, depth: 0 });
+            addRecursive(String(root.id), 0);
+        });
+
+        return result;
+    };
+
+    const filteredProjects = getHierarchicalProjects(rawFilteredProjects);
 
     useEffect(() => {
         fetchProjects();
@@ -226,7 +249,10 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                         onContextMenu={(e) => handleContextMenu(e, String(project.id))}
                                     >
                                         <td className="px-6 py-3 font-medium text-slate-700 dark:text-slate-200">
-                                            {project.title || project.name}
+                                            <div className="flex items-center gap-2" style={{ marginLeft: `${project.depth * 1.5}rem` }}>
+                                                {project.depth > 0 && <span className="text-slate-300">└</span>}
+                                                {project.title || project.name}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-3 text-slate-500">
                                             {project.client || '-'}
@@ -482,7 +508,7 @@ const ProjectCard: React.FC<{
                 <div className="flex justify-between items-start leading-none">
                     <div className="flex items-center gap-1">
                         <span className="text-[9px] uppercase font-bold text-slate-400 truncate max-w-[100px]">
-                            {project.clientName || project.client || '自社・個人'}
+                            {project.parentTitle ? `親: ${project.parentTitle}` : (project.clientName || project.client || '自社・個人')}
                         </span>
                     </div>
                 </div>

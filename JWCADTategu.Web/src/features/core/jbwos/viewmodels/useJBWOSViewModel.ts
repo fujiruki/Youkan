@@ -249,8 +249,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // 1. Decision (Yes/No/Hold)
     const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+        const targetId = id.replace('virtual-header-', '');
         // Optimistic Update: Remove from Active immediate
-        setGdbActive(prev => prev.filter(i => i.id !== id));
+        setGdbActive(prev => prev.filter(i => i.id !== id && i.id !== targetId));
 
         // [New] Apply updates optimistically if provided
         if (updates) {
@@ -271,23 +272,23 @@ export const useJBWOSViewModel = (projectId?: string) => {
         try {
             // [FIX] Apply updates FIRST
             if (updates && Object.keys(updates).length > 0) {
-                await getRepository().updateItem(id, updates);
+                await getRepository().updateItem(targetId, updates);
             }
 
             // [FIX] Status logic
             if (decision === 'hold') {
-                await getRepository().updateItem(id, { ...updates, status: 'pending' });
+                await getRepository().updateItem(targetId, { ...updates, status: 'pending' });
             } else if (decision === 'yes') {
-                await getRepository().updateItem(id, {
+                await getRepository().updateItem(targetId, {
                     ...updates,
                     status: 'focus',
                     flags: { ...(updates?.flags || {}), is_today_commit: true }
                 });
             } else if (decision === 'no' && (note === 'someday' || note === 'intent')) {
                 // [NEW] Someday -> Pending (Shelf)
-                await getRepository().updateItem(id, { ...updates, status: 'pending' });
+                await getRepository().updateItem(targetId, { ...updates, status: 'pending' });
             } else {
-                await getRepository().updateItem(id, { ...updates, status: 'done' });
+                await getRepository().updateItem(targetId, { ...updates, status: 'done' });
             }
 
             refreshAll();
@@ -300,6 +301,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // 2. Commit to Today
     const commitToToday = async (id: string) => {
+        const targetId = id.replace('virtual-header-', '');
         // Guard: Client-side check for UI feedback (Strict 2 item limit)
         if (todayCommits.length >= 2) {
             setError('今日はもう手一杯です（最大2件）');
@@ -325,7 +327,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
         try {
             // We update the FLAG, not the status to 'today_commit'
-            await getRepository().updateItem(id, {
+            await getRepository().updateItem(targetId, {
                 status: 'focus',
                 flags: { is_today_commit: true } // Now valid without cast
             });
@@ -338,6 +340,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     const completeItem = async (id: string) => {
+        const targetId = id.replace('virtual-header-', '');
         // Optimistic: Calculate next state based on current closure (safe in this hook)
         const nextList = todayCommits.filter(i => i.id !== id);
         setTodayCommits(nextList);
@@ -356,7 +359,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         });
 
         try {
-            await getRepository().completeItem(id);
+            await getRepository().completeItem(targetId);
             // refreshToday(); // Removed to prevent flicker/stale overwrite
         } catch (e) {
             console.error('Complete failed:', e);
@@ -389,13 +392,15 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // 4. Archive, Trash, Restore
     const archiveItem = async (id: string) => {
+        const targetId = id.replace('virtual-header-', '');
         // Optimistic: Remove from all active lists
-        setGdbActive(prev => prev.filter(i => i.id !== id));
-        setGdbPreparation(prev => prev.filter(i => i.id !== id));
-        setGdbIntent(prev => prev.filter(i => i.id !== id));
-        setTodayCandidates(prev => prev.filter(i => i.id !== id));
-        setTodayCommits(prev => prev.filter(i => i.id !== id));
-        if (executionItem?.id === id) setExecutionItem(null);
+        const filter = (list: Item[]) => list.filter(i => i.id !== id && i.id !== targetId);
+        setGdbActive(prev => filter(prev));
+        setGdbPreparation(prev => filter(prev));
+        setGdbIntent(prev => filter(prev));
+        setTodayCandidates(prev => filter(prev));
+        setTodayCommits(prev => filter(prev));
+        if (executionItem?.id === id || executionItem?.id === targetId) setExecutionItem(null);
 
         // [Undo] Register Action
         addUndoAction({
@@ -406,7 +411,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         });
 
         try {
-            await getRepository().archiveItem(id);
+            await getRepository().archiveItem(targetId);
         } catch (e) {
             console.error('Archive failed', e);
             refreshAll();
@@ -414,9 +419,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
+        const targetId = id.replace('virtual-header-', '');
         // Find item to save for undo
         const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits, ...allProjects];
-        const itemToDelete = allItems.find(i => String(i.id) === String(id));
+        const itemToDelete = allItems.find(i => String(i.id) === String(id) || String(i.id) === String(targetId));
 
         if (itemToDelete) {
             // [Undo] Register Action
@@ -429,16 +435,17 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
 
         // Optimistic UI
-        setGdbActive(prev => prev.filter(i => String(i.id) !== String(id)));
-        setGdbPreparation(prev => prev.filter(i => String(i.id) !== String(id)));
-        setGdbIntent(prev => prev.filter(i => String(i.id) !== String(id)));
-        setTodayCandidates(prev => prev.filter(i => String(i.id) !== String(id)));
-        setTodayCommits(prev => prev.filter(i => String(i.id) !== String(id)));
-        setAllProjects(prev => prev.filter(i => String(i.id) !== String(id))); // [NEW] Ensure projects are also removed
-        if (executionItem?.id === String(id)) setExecutionItem(null);
+        const filter = (list: Item[]) => list.filter(i => String(i.id) !== String(id) && String(i.id) !== String(targetId));
+        setGdbActive(prev => filter(prev));
+        setGdbPreparation(prev => filter(prev));
+        setGdbIntent(prev => filter(prev));
+        setTodayCandidates(prev => filter(prev));
+        setTodayCommits(prev => filter(prev));
+        setAllProjects(prev => filter(prev)); // [NEW] Ensure projects are also removed
+        if (executionItem?.id === String(id) || executionItem?.id === String(targetId)) setExecutionItem(null);
 
         try {
-            await getRepository().trashItem(id); // [Changed] Use trash instead of delete
+            await getRepository().trashItem(targetId); // [Changed] Use trash instead of delete
             if (itemToDelete?.isProject) {
                 await refreshContextMetadata(); // [NEW] Refresh project list if it's a project
             }
@@ -471,13 +478,14 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     const returnToInbox = async (id: string, _currentStatus: string = 'focus') => {
-        // Optimistic
-        const nextList = todayCommits.filter(i => i.id !== id);
+        const targetId = id.replace('virtual-header-', '');
+        // Optimistically remove from today
+        const nextList = todayCommits.filter(i => i.id !== id && i.id !== targetId);
         setTodayCommits(nextList);
-        setTodayCandidates(prev => prev.filter(i => i.id !== id));
+        setTodayCandidates(prev => prev.filter(i => i.id !== id && i.id !== targetId));
 
         // Auto-promote
-        if (executionItem?.id === id) {
+        if (executionItem?.id === id || executionItem?.id === targetId) {
             setExecutionItem(nextList.length > 0 ? nextList[0] : null);
         }
 
@@ -492,11 +500,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
         try {
             // Remove Today Commit Flag, Set to Inbox
             // Note: If returning strictly to inbox, we remove flags.
-            await getRepository().updateItem(id, {
+            await getRepository().updateItem(targetId, {
                 status: 'inbox',
                 is_boosted: false,
                 flags: { is_today_commit: false }
             });
+            refreshAll();
         } catch (e) {
             console.error('Return to Inbox failed', e);
             refreshToday();
@@ -505,6 +514,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // [NEW] Flexibility: Prioritize (Wait -> Active)
     const prioritizeTask = async (id: string) => {
+        const targetId = id.replace('virtual-header-', '');
         // Optimistic: Move to top of todayCommits
         setTodayCommits(prev => {
             const target = prev.find(i => i.id === id);
@@ -518,7 +528,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
         try {
             // Server-side: Start Execution (implicitly makes it active/top)
-            await getRepository().startExecution(id);
+            await getRepository().startExecution(targetId);
             refreshToday();
         } catch (e) {
             console.error('Prioritize failed', e);
@@ -914,8 +924,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
             }
         }
 
+        // [Haruki Model] Translate virtual header IDs back to real item (project) IDs
+        // This ensures projects can be updated just like any other item.
+        const targetId = id.replace('virtual-header-', '');
+
         try {
-            await getRepository().updateItem(id, updates);
+            await getRepository().updateItem(targetId, updates);
             // [NEW] If project status changed, refresh the projects list so headers update
             if ('isProject' in updates) {
                 await refreshContextMetadata();

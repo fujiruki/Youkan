@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2 } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 import { MenuDrawer } from './MenuDrawer';
 
@@ -240,11 +240,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         onClick={() => setMenuOpen(true)}
                         className="flex items-center gap-2 pl-1 pr-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
                     >
-                        <div className="w-5 h-5 rounded bg-indigo-500 flex items-center justify-center text-white">
-                            <User size={12} fill="currentColor" />
+                        <div className="w-5 h-5 rounded bg-indigo-500 flex items-center justify-center text-white shrink-0">
+                            {tenant ? <Building2 size={12} fill="currentColor" /> : <User size={12} fill="currentColor" />}
                         </div>
-                        <span className="text-[11px] text-slate-200 font-bold whitespace-nowrap">
-                            {user?.name || getLegacyUserName()}
+                        <span className="text-[11px] text-slate-200 font-bold whitespace-nowrap truncate max-w-[120px]">
+                            {tenant ? tenant.name : (user?.name || getLegacyUserName())}
                         </span>
                     </button>
                 </div>

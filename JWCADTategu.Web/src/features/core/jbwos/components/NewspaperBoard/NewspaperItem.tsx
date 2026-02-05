@@ -50,7 +50,7 @@ const IndentLines = ({ depth }: { depth: number }) => {
                 <div
                     key={i}
                     className="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-700/60 pointer-events-none"
-                    style={{ left: `${(i + 0.4) * 1.2}rem` }}
+                    style={{ left: `${(i + 0.4) * 1.5}rem` }}
                 />
             ))}
         </>
@@ -94,10 +94,10 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             >
                 <IndentLines depth={depth} />
                 <div className={cn(
-                    "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[2px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors",
-                    depth > 0 && "text-[0.95em] text-slate-600 dark:text-slate-300" // サブプロジェクトは少し小さく
+                    "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold p-1 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
+                    depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.85em] text-slate-500 dark:text-slate-400 font-medium"
                 )}
-                    style={{ marginLeft: `${depth * 1.2}rem` }} // サブプロジェクトはインデント
+                    style={{ marginLeft: `${depth * 1.5}rem` }} // インデントを強化
                     onClick={() => onClick(item)}
                     onContextMenu={(e) => {
                         e.preventDefault();
@@ -123,7 +123,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
                 {/* Inline Input */}
                 {isInlineInputOpen && (
-                    <div className="mt-1" style={{ marginLeft: `${(depth + 1) * 1.2}rem` }}>
+                    <div className="mt-1" style={{ marginLeft: `${(depth + 1) * 1.5}rem` }}>
                         <input
                             ref={inputRef}
                             type="text"
@@ -177,7 +177,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                     isDone && "opacity-60 grayscale-[0.3]"
                 )}
             style={{
-                marginLeft: `${depth * 1.2}rem` // Consistency with header
+                marginLeft: `${depth * 1.5}rem` // 階層に応じたインデント
             }}
         >
             <IndentLines depth={depth} />

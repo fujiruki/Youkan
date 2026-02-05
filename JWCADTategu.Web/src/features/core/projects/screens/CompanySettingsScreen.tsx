@@ -118,7 +118,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                 </button>
                 <div className="flex items-center gap-2">
                     <Building size={20} className="text-amber-500" />
-                    <h1 className="text-lg font-medium text-white">Company Settings</h1>
+                    <h1 className="text-lg font-medium text-white">チーム / メンバー管理</h1>
                 </div>
             </div>
 
@@ -135,11 +135,11 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
                         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                             <Plus size={20} className="text-indigo-600" />
-                            Invite Member
+                            メンバーを招待する
                         </h2>
                         <form onSubmit={handleInvite} className="flex flex-col md:flex-row gap-4 items-end">
                             <div className="flex-1 w-full">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">EMAIL</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
                                 <input
                                     type="email"
                                     required
@@ -150,7 +150,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                 />
                             </div>
                             <div className="flex-1 w-full">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">NAME (Optional)</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">氏名 (任意)</label>
                                 <input
                                     type="text"
                                     value={inviteName}
@@ -160,7 +160,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                 />
                             </div>
                             <div className="w-32">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">ROLE</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">役割</label>
                                 <select
                                     value={inviteRole}
                                     onChange={e => setInviteRole(e.target.value)}
@@ -175,7 +175,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                 disabled={inviting}
                                 className="bg-indigo-600 text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 disabled:opacity-50"
                             >
-                                {inviting ? 'Inviting...' : 'Invite'}
+                                {inviting ? '招待中...' : '招待'}
                             </button>
                         </form>
                     </div>
@@ -186,7 +186,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
                         <h2 className="text-lg font-bold flex items-center gap-2">
                             <Users size={20} className="text-slate-500" />
-                            Team Members
+                            チームメンバー
                             <span className="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded-full">{members.length}</span>
                         </h2>
                     </div>
@@ -197,12 +197,12 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                         <table className="w-full">
                             <thead className="bg-slate-50 text-slate-500 text-xs text-left">
                                 <tr>
-                                    <th className="px-6 py-3 font-medium">Name / Email</th>
-                                    <th className="px-6 py-3 font-medium">Role</th>
-                                    <th className="px-6 py-3 font-medium text-center">Core</th>
-                                    <th className="px-6 py-3 font-medium text-center">Capacity (min)</th>
-                                    <th className="px-6 py-3 font-medium">Joined</th>
-                                    {isAdmin && <th className="px-6 py-3 font-medium text-right">Actions</th>}
+                                    <th className="px-6 py-3 font-medium">氏名 / メール</th>
+                                    <th className="px-6 py-3 font-medium">役割</th>
+                                    <th className="px-6 py-3 font-medium text-center">コア</th>
+                                    <th className="px-6 py-3 font-medium text-center">キャパシティ (分)</th>
+                                    <th className="px-6 py-3 font-medium">参加日</th>
+                                    {isAdmin && <th className="px-6 py-3 font-medium text-right">アクション</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
