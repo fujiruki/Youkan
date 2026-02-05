@@ -51,6 +51,20 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_view_mode', viewMode);
     }, [viewMode]);
 
+    // Listen for header sub-navigation changes
+    useEffect(() => {
+        const handleViewModeChange = (e: CustomEvent<{ mode: string }>) => {
+            const mode = e.detail?.mode;
+            if (mode === 'stream' || mode === 'board' || mode === 'newspaper') {
+                // Map 'board' to 'panorama' for internal state
+                setViewMode(mode === 'board' ? 'panorama' : mode as any);
+            }
+        };
+        window.addEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
+        return () => window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
+    }, []);
+
+
     const vm = useJBWOSViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
     const {
@@ -167,14 +181,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 isProjectContext={!!activeProject}
             />
 
-            <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-between items-center shadow-sm z-10">
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                    <button onClick={() => handleViewModeChange('stream')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'stream' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>登録と集中</button>
-                    <button onClick={() => handleViewModeChange('panorama')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'panorama' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>全体一覧</button>
-                    <button onClick={() => handleViewModeChange('newspaper')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'newspaper' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>全体一覧２</button>
-                    <button onClick={() => handleViewModeChange('calendar')} className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-700 dark:text-white font-bold' : 'text-slate-500 hover:bg-white/50'}`}>カレンダー</button>
-                </div>
-
+            <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-end items-center shadow-sm z-10">
                 <div className="flex items-center gap-3">
                     {(viewMode === 'calendar' || viewMode === 'panorama') && (
                         <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-right-2">
@@ -211,6 +218,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     </button>
                 </div>
             </header>
+
 
             {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
