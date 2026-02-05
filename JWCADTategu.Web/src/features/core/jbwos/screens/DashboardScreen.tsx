@@ -304,7 +304,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             className="mb-4"
                             viewModel={vm}
                             projectContext={activeProject ? {
-                                id: activeProject.cloudId || String(activeProject.id), // [FIX] Use cloudId (item_xxx) for backend, fallback to local ID
+                                id: activeProject.cloudId || String(activeProject.id), // [UUID v7] Use cloudId (UUID) for backend
                                 title: activeProject.title,
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId

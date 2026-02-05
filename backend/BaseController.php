@@ -90,20 +90,13 @@ class BaseController {
 
     /**
      * Helper: Get all descendant IDs for a project (Recursive CTE)
+     * [UUID v7] Simplified: No prefix conversion needed
      */
     protected function getProjectDescendantIds($projectId) {
-        // [FIX] Handle alternate project ID formats internally
-        $projectIdAlt = null;
-        if (strpos($projectId, 'item_') === 0) {
-            $projectIdAlt = str_replace('item_', 'prj-', $projectId);
-        } elseif (strpos($projectId, 'prj-') === 0) {
-            $projectIdAlt = str_replace('prj-', 'item_', $projectId);
-        }
-
         // SQLite Recursive Query to get tree
         $sql = "
             WITH RECURSIVE project_tree AS (
-                SELECT id FROM items WHERE id = ? " . ($projectIdAlt ? "OR id = ?" : "") . " OR project_id = ? " . ($projectIdAlt ? "OR project_id = ?" : "") . "
+                SELECT id FROM items WHERE id = ? OR project_id = ?
                 UNION ALL
                 SELECT i.id FROM items i
                 JOIN project_tree pt ON i.parent_id = pt.id OR i.project_id = pt.id
@@ -112,17 +105,11 @@ class BaseController {
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $params = [$projectId];
-        if ($projectIdAlt) $params[] = $projectIdAlt;
-        $params[] = $projectId;
-        if ($projectIdAlt) $params[] = $projectIdAlt;
-
-        $stmt->execute($params);
+        $stmt->execute([$projectId, $projectId]);
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Ensure source IDs are included
+        // Ensure source ID is included
         if (!in_array($projectId, $ids)) $ids[] = $projectId;
-        if ($projectIdAlt && !in_array($projectIdAlt, $ids)) $ids[] = $projectIdAlt;
         
         return array_unique($ids);
     }

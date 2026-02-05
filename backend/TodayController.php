@@ -14,6 +14,7 @@ class TodayController extends BaseController {
 
     /**
      * Get Today's View (Commit + Execution + Life).
+     * [UUID v7] Simplified: No dual-ID format support needed
      */
     public function getToday() {
         $this->authenticate();
@@ -21,15 +22,12 @@ class TodayController extends BaseController {
         $projectId = $_GET['project_id'] ?? null;
 
         // [Fix] Context Switch: If Project Focus, use Project's Tenant
-        // [NEW] Also get the project's projectId field for dual-ID support
-        $projectIdAlt = null; // Alternate ID format (prj-xxx)
         if ($projectId) {
-             $stmtP = $this->pdo->prepare("SELECT tenant_id, project_id FROM items WHERE id = ?");
+             $stmtP = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
              $stmtP->execute([$projectId]);
              $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
              if ($pObj) {
                  $pTenant = $pObj['tenant_id']; // Can be NULL or string
-                 $projectIdAlt = $pObj['project_id']; // Alternate ID (prj-xxx format)
                  // [FIX] Allow switching to Personal (NULL) context if focused project is personal
                  if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants) || $pTenant === null) {
                      $tenantId = $pTenant;
@@ -52,10 +50,6 @@ class TodayController extends BaseController {
         }
 
         // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
-        // Previously: (Ownership Filter) AND (Project Filter) -> hides non-owned items
-        // Now: (Ownership Filter) OR (Project Membership Filter when focused)
-        // This allows all project items to be visible when in ProjectFocused mode.
-
         $ownershipFilter = " (
             -- 1. Personal Items (ownership required)
             ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
@@ -66,27 +60,20 @@ class TodayController extends BaseController {
 
         $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
-        // [NEW] Project Membership Filter (for ProjectFocused mode)
+        // [NEW] Project Membership Filter (for ProjectFocused mode) - UUID only
         if ($projectId) {
-            // [Fix] Project Focus Filter (Recursive + Direct ID + Alias ID)
             $descendants = $this->getProjectDescendantIds($projectId);
             $targetIds = array_unique(array_merge([$projectId], $descendants));
             
             $dPlaceholders = implode(',', array_fill(0, count($targetIds), '?'));
             
-            // [LOGIC] Show item if its project_id field matches any of project's IDs or if it IS a project/descendant
-            if ($projectIdAlt) {
-                $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id IN ($dPlaceholders) OR items.project_id = ?) ";
-                $projectMembershipParams = array_merge($targetIds, $targetIds, [$projectIdAlt]);
-            } else {
-                $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id IN ($dPlaceholders)) ";
-                $projectMembershipParams = array_merge($targetIds, $targetIds);
-            }
+            // [UUID v7] Simple IN clause - no dual format handling
+            $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id IN ($dPlaceholders)) ";
+            $projectMembershipParams = array_merge($targetIds, $targetIds);
             
             $params = array_merge($params, $projectMembershipParams);
 
             // [CORE FIX] Combine: Show if (Owned by me) OR (Belongs to focused project)
-            // Security: Still requires tenant membership (handled via $tenantId context switch above)
             $whereClause = " items.deleted_at IS NULL AND (($ownershipFilter) OR ($projectMembershipFilter)) ";
         } else {
             // No project focus -> standard ownership filter only

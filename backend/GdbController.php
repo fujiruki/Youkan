@@ -11,6 +11,7 @@ class GdbController extends BaseController {
 
     /**
      * Get GDB Shelf View.
+     * [UUID v7] Simplified: No dual-ID format support needed
      */
     public function getShelf() {
         $this->authenticate();
@@ -19,15 +20,12 @@ class GdbController extends BaseController {
         $projectId = $_GET['project_id'] ?? null;
         
         // [Fix] Context Switch: If Project Focus, use Project's Tenant
-        // [NEW] Also get the project's projectId field for dual-ID support
-        $projectIdAlt = null; // Alternate ID format (prj-xxx)
         if ($projectId) {
-             $stmtP = $this->pdo->prepare("SELECT tenant_id, project_id FROM items WHERE id = ?");
+             $stmtP = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
              $stmtP->execute([$projectId]);
              $pObj = $stmtP->fetch(PDO::FETCH_ASSOC);
              if ($pObj) {
                  $pTenant = $pObj['tenant_id']; // NULL or string
-                 $projectIdAlt = $pObj['project_id']; // Alternate ID (prj-xxx format)
                  // [FIX] Allow switching to Personal (NULL) if project is personal
                  if ($pTenant === $this->currentTenantId || in_array($pTenant, $this->joinedTenants) || $pTenant === null) {
                      $tenantId = $pTenant;
@@ -44,27 +42,18 @@ class GdbController extends BaseController {
              $params = [$this->currentUserId];
         }
         
-        // [Fix] Project Focus Filter (Recursive + Direct ID + Alias ID)
+        // [Fix] Project Focus Filter (Recursive + UUID only)
         $whereSuffix = "";
         $projectParams = [];
         if ($projectId) {
-            // 1. Get all internal IDs of items in this project subtree
+            // Get all IDs of items in this project subtree
             $descendants = $this->getProjectDescendantIds($projectId);
             $targetIds = array_unique(array_merge([$projectId], $descendants));
             
-            // 2. Prepare conditions
+            // [UUID v7] Simple IN clause - no dual format handling
             $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
-            
-            // [LOGIC] Item is in focused project IF:
-            // a) It is the project itself or any of its descendants (by tree structure)
-            // b) Its project_id field matches ANY of the project's internal IDs or alias IDs
-            if ($projectIdAlt) {
-                $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders) OR items.project_id = ?) ";
-                $projectParams = array_merge($targetIds, $targetIds, [$projectIdAlt]);
-            } else {
-                $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders)) ";
-                $projectParams = array_merge($targetIds, $targetIds);
-            }
+            $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders)) ";
+            $projectParams = array_merge($targetIds, $targetIds);
         }
 
 

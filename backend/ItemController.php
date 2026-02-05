@@ -497,14 +497,16 @@ class ItemController extends BaseController {
     }
 
     private function create() {
-        $data = $this->getInput();
-        if (empty($data['title'])) {
-            $this->sendError(400, 'Title is required');
-        }
+    $data = $this->getInput();
+    if (empty($data['title'])) {
+        $this->sendError(400, 'Title is required');
+    }
 
-        $id = $data['id'] ?? uniqid('item_', false); // Avoid dots in ID for routing safety
-        $now = time();
-        $delegationJson = isset($data['delegation']) ? json_encode($data['delegation']) : null;
+    // [UUID v7] Generate new ID using UUID v7 instead of item_ prefix
+    require_once __DIR__ . '/Uuidv7.php';
+    $id = $data['id'] ?? Uuidv7::generate();
+    $now = time();
+    $delegationJson = isset($data['delegation']) ? json_encode($data['delegation']) : null;
         
         // Unified Schema Fields
         $projectType = $data['projectType'] ?? null;
