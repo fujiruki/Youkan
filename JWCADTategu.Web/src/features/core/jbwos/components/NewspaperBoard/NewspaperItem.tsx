@@ -42,6 +42,21 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
     return null;
 };
 
+const IndentLines = ({ depth }: { depth: number }) => {
+    if (depth <= 0) return null;
+    return (
+        <>
+            {Array.from({ length: depth }).map((_, i) => (
+                <div
+                    key={i}
+                    className="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-700/60 pointer-events-none"
+                    style={{ left: `${(i + 0.4) * 1.2}rem` }}
+                />
+            ))}
+        </>
+    );
+};
+
 export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu, onAddChild }) => {
     const { item, isHeader, depth, project } = wrapper; // [FIX] Extract project from wrapper
     const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
@@ -74,15 +89,20 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     if (isHeader) {
         return (
             <div
-                className="mb-[3px] mt-[1em] break-inside-avoid group/header"
+                className="mb-[3px] mt-[1em] break-inside-avoid group/header relative"
                 style={{ breakAfter: 'avoid' }}
             >
+                <IndentLines depth={depth} />
                 <div className={cn(
                     "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[2px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors",
                     depth > 0 && "text-[0.95em] text-slate-600 dark:text-slate-300" // サブプロジェクトは少し小さく
                 )}
-                    style={{ marginLeft: `${depth * 0.8}em` }} // サブプロジェクトはインデント
+                    style={{ marginLeft: `${depth * 1.2}rem` }} // サブプロジェクトはインデント
                     onClick={() => onClick(item)}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        onContextMenu(e, item.id);
+                    }}
                 >
                     {depth > 0 ? (
                         <FolderOpen size="1em" className="text-indigo-500 fill-indigo-500/10" />
@@ -103,7 +123,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
                 {/* Inline Input */}
                 {isInlineInputOpen && (
-                    <div className="mt-1 pl-[1.6em]">
+                    <div className="mt-1" style={{ marginLeft: `${(depth + 1) * 1.2}rem` }}>
                         <input
                             ref={inputRef}
                             type="text"
@@ -157,9 +177,11 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                     isDone && "opacity-60 grayscale-[0.3]"
                 )}
             style={{
-                marginLeft: `${depth * 1}em` // 1em indent for children
+                marginLeft: `${depth * 1.2}rem` // Consistency with header
             }}
         >
+            <IndentLines depth={depth} />
+
             {/* Title & Status wrapper */}
             <div className="flex-1 min-w-0 flex items-center gap-[0.4em] leading-tight pl-1">
                 <span className={cn(

@@ -50,18 +50,15 @@ export const UndoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     break;
 
                 case 'delete':
-                    // Need Re-create logic. 
-                    // MVP: If soft delete (archive), just status update. 
-                    // If hard delete, we need full data. 
-                    // Current deleteItem in repository is destructive or archive?
-                    // Repository says: API deleteItem.
-                    // If we want to undo delete, we must have saved the data.
-                    if (lastAction.previousData) {
-                        // Re-create item with same ID if possible, or new ID
-                        // API might not support setting ID. 
-                        // For MVP: Let's assume we use 'archive' for deletion to enable easy undo?
-                        // OR: Assume previousData contains full Item and we call createItem.
-                        await ApiClient.createItem(lastAction.previousData);
+                    // Use restoreItem if it's a soft-delete (archive/trash)
+                    // This is much better as it preserves ID and links
+                    try {
+                        await ApiClient.restoreItem(lastAction.id);
+                    } catch (err) {
+                        console.warn('[Undo] restoreItem failed, falling back to createItem', err);
+                        if (lastAction.previousData) {
+                            await ApiClient.createItem(lastAction.previousData);
+                        }
                     }
                     break;
 

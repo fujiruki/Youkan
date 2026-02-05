@@ -415,29 +415,33 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
         // Find item to save for undo
-        const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
-        const itemToDelete = allItems.find(i => i.id === id);
+        const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits, ...allProjects];
+        const itemToDelete = allItems.find(i => String(i.id) === String(id));
 
         if (itemToDelete) {
             // [Undo] Register Action
             addUndoAction({
                 type: 'delete',
-                id,
+                id: String(id),
                 previousData: itemToDelete,
                 description: `「${itemToDelete.title}」をゴミ箱へ移動しました`
             });
         }
 
         // Optimistic UI
-        setGdbActive(prev => prev.filter(i => i.id !== id));
-        setGdbPreparation(prev => prev.filter(i => i.id !== id));
-        setGdbIntent(prev => prev.filter(i => i.id !== id));
-        setTodayCandidates(prev => prev.filter(i => i.id !== id));
-        setTodayCommits(prev => prev.filter(i => i.id !== id));
-        if (executionItem?.id === id) setExecutionItem(null);
+        setGdbActive(prev => prev.filter(i => String(i.id) !== String(id)));
+        setGdbPreparation(prev => prev.filter(i => String(i.id) !== String(id)));
+        setGdbIntent(prev => prev.filter(i => String(i.id) !== String(id)));
+        setTodayCandidates(prev => prev.filter(i => String(i.id) !== String(id)));
+        setTodayCommits(prev => prev.filter(i => String(i.id) !== String(id)));
+        setAllProjects(prev => prev.filter(i => String(i.id) !== String(id))); // [NEW] Ensure projects are also removed
+        if (executionItem?.id === String(id)) setExecutionItem(null);
 
         try {
             await getRepository().trashItem(id); // [Changed] Use trash instead of delete
+            if (itemToDelete?.isProject) {
+                await refreshContextMetadata(); // [NEW] Refresh project list if it's a project
+            }
         } catch (e) {
             console.error('Trash item failed', e);
             refreshAll();

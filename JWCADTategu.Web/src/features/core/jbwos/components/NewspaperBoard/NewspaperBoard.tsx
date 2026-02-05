@@ -29,8 +29,9 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     }, [columnCount]);
 
     // Context Menu State
+    const stripId = (id: string) => id.replace('virtual-header-', '');
     const { menuState: contextMenu, handleContextMenu, closeMenu } = useItemContextMenu({
-        onDelete: (id) => viewModel.deleteItem(id)
+        onDelete: (id) => viewModel.deleteItem(stripId(id))
     });
 
     // [REMOVED] overridesProjectContext and quickInputKey - replaced by inline input in NewspaperItem
@@ -121,45 +122,45 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                 <ContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
-                    itemId={contextMenu.targetId!}
+                    itemId={stripId(contextMenu.targetId!)}
                     onClose={closeMenu}
                     actions={[
                         {
                             label: 'プロジェクト化',
                             onClick: () => {
-                                viewModel.projectizeItem(contextMenu.targetId!);
+                                viewModel.projectizeItem(stripId(contextMenu.targetId!));
                             }
                         },
                         { separator: true }, // Visual Separator if supported by ContextMenu, otherwise ignored
                         {
                             label: '今日やる (Focus)',
-                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
+                            onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'focus' }); }
                         },
                         {
                             label: 'とりかかる (Execute)',
-                            onClick: () => { viewModel.setEngaged(contextMenu.targetId!, true); }
+                            onClick: () => { viewModel.setEngaged(stripId(contextMenu.targetId!), true); }
                         },
                         {
                             label: '保留 (Pending)',
-                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'pending' }); }
+                            onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'pending' }); }
                         },
                         {
                             label: '待機 (Waiting)',
-                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'waiting' }); }
+                            onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'waiting' }); }
                         },
                         {
                             label: '完了 (Done)',
-                            onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'done' }); }
+                            onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'done' }); }
                         },
                         { separator: true },
                         {
                             label: 'アーカイブ',
-                            onClick: () => { viewModel.archiveItem(contextMenu.targetId!); }
+                            onClick: () => { viewModel.archiveItem(stripId(contextMenu.targetId!)); }
                         },
                         {
                             label: '削除',
                             danger: true,
-                            onClick: () => { viewModel.deleteItem(contextMenu.targetId!); }
+                            onClick: () => { viewModel.deleteItem(stripId(contextMenu.targetId!)); }
                         }
                     ].filter(Boolean) as any} // Cast for separator support if needed
                 />
