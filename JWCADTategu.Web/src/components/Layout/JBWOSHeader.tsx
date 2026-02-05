@@ -36,6 +36,9 @@ interface JBWOSHeaderProps {
     tenant?: Tenant | null;
     joinedTenants?: Tenant[];
     onSwitchTenant?: (tenantId: string | null) => void;
+    // Optional load info
+    usedMinutes?: number;
+    limitMinutes?: number;
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -53,7 +56,9 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     user,
     tenant,
     joinedTenants = [],
-    onSwitchTenant
+    onSwitchTenant,
+    usedMinutes: initialUsed = 0,
+    limitMinutes: initialLimit = 480
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [filterMode, setFilterMode] = useState<FilterMode>(() => {
@@ -61,9 +66,16 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         return (saved as FilterMode) || 'all';
     });
 
+    const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
+
     // Dashboard用のビューモード状態
     const [dashboardViewMode, setDashboardViewMode] = useState(() =>
         localStorage.getItem('jbwos_view_mode') || 'stream'
+    );
+
+    // プロジェクト画面用のビューモード状態
+    const [projectViewMode, setProjectViewMode] = useState(() =>
+        localStorage.getItem('jbwos_project_view_mode') || 'grid'
     );
 
     // Persist filter mode
@@ -72,15 +84,33 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
     }, [filterMode]);
 
-    // Listen for dashboard view mode changes (internal to dashboard but synced here)
+    // Listen for updates from screens
     useEffect(() => {
         const handleViewModeChange = (e: any) => {
             const mode = e.detail?.mode;
             if (mode) setDashboardViewMode(mode);
         };
+        const handleCapacityUpdate = (e: any) => {
+            if (e.detail) {
+                setCapacity({
+                    used: e.detail.used ?? capacity.used,
+                    limit: e.detail.limit ?? capacity.limit
+                });
+            }
+        };
+        const handleProjectViewModeChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode) setProjectViewMode(mode);
+        };
         window.addEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
-        return () => window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
-    }, []);
+        window.addEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
+        window.addEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+        return () => {
+            window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
+            window.removeEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
+            window.removeEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+        };
+    }, [capacity]);
 
     const getLegacyUserName = () => {
         try {
@@ -93,6 +123,12 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         setDashboardViewMode(mode);
         localStorage.setItem('jbwos_view_mode', mode);
         window.dispatchEvent(new CustomEvent('jbwos-view-mode-change', { detail: { mode } }));
+    };
+
+    const handleProjectViewChange = (mode: string) => {
+        setProjectViewMode(mode);
+        localStorage.setItem('jbwos_project_view_mode', mode);
+        window.dispatchEvent(new CustomEvent('jbwos-project-view-mode-change', { detail: { mode } }));
     };
 
     // Check active states
@@ -128,7 +164,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onSwitchTenant={onSwitchTenant}
             />
 
-            {/* 層1: グローバルバー (センタリングレイアウト) */}
+            {/* 層1: グローバルバー (Global Bar) - センタリングレイアウト */}
             <div className="bg-slate-900 px-4 py-1.5 flex items-center border-b border-slate-700/50 w-full z-40 relative h-10">
 
                 {/* Left: Menu */}
@@ -144,7 +180,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 </div>
 
                 {/* Center: 集約コントロール */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8 w-full max-w-[800px] justify-center">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 w-full max-w-[900px] justify-center">
                     {/* Logo */}
                     <button
                         onClick={onNavigateToDashboard}
@@ -155,20 +191,39 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     </button>
 
                     {/* Time Progress */}
-                    <div className="w-48">
+                    <div className="w-40">
                         <TimeProgressBar />
                     </div>
 
+                    {/* Reality Load (TOTAL LOAD) */}
+                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50">
+                        <div className="flex flex-col">
+                            <span className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter leading-none">Reality (Total Load)</span>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-xs font-black text-slate-100 font-mono leading-none">{capacity.used}</span>
+                                <span className="text-[8px] text-slate-500 font-bold leading-none">/ {capacity.limit} min</span>
+                                <span className="text-[8px] text-indigo-500 font-bold leading-none">({Math.round((capacity.used / capacity.limit) * 100)}%)</span>
+                            </div>
+                        </div>
+                        <div className="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full transition-all duration-500 ${capacity.used > capacity.limit ? 'bg-red-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min(100, (capacity.used / capacity.limit) * 100)}%` }}
+                            />
+                        </div>
+                    </div>
+
                     {/* Filter */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 pl-2 border-l border-slate-700/50">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">フィルタ</span>
                         <div className="flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700">
-                            <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全" />
-                            <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個" />
-                            <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会" />
+                            <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全て" />
+                            <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個人" />
+                            <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会社" />
                         </div>
                     </div>
                 </div>
+
 
                 {/* Right: User & Setting */}
                 <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -195,7 +250,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 </div>
             </div>
 
-            {/* 層2: 構造化ナビゲーションバー (垂直区切り) */}
+            {/* 層2: ナビゲーションバー (Navigation Bar) - 構造化ナビゲーションバー (垂直区切り) */}
             <div className="bg-slate-800 text-slate-300 px-6 py-2 border-b border-slate-700/50 w-full shadow-xl z-40 overflow-x-auto no-scrollbar">
                 <div className="flex items-stretch gap-0 min-w-max">
 
@@ -212,9 +267,26 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
                     {/* プロジェクト Section */}
                     <NavSection title="プロジェクト" isActive={isProjects} icon={<FolderKanban size={14} />}>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center">
                             <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => { onNavigateToProjects(); setFilterMode('personal'); }} />
                             <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => { onNavigateToProjects(); setFilterMode('company'); }} />
+
+                            {isProjects && (
+                                <div className="flex items-center bg-slate-900/50 p-0.5 rounded ml-2 border border-slate-700/50">
+                                    <button
+                                        onClick={() => handleProjectViewChange('grid')}
+                                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        グリッド
+                                    </button>
+                                    <button
+                                        onClick={() => handleProjectViewChange('list')}
+                                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        リスト
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </NavSection>
 
@@ -322,7 +394,7 @@ const FilterButton: React.FC<{
 }> = ({ active, onClick, label }) => (
     <button
         onClick={onClick}
-        className={`w-6 h-5 flex items-center justify-center text-[10px] font-black rounded transition-all ${active
+        className={`px-2 h-5 flex items-center justify-center text-[10px] font-black rounded transition-all ${active
             ? 'bg-indigo-600 text-white shadow-sm'
             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
             }`}

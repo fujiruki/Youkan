@@ -28,6 +28,8 @@ import { PersonalSettingsScreen } from './features/core/jbwos/screens/PersonalSe
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
 import { UserManagementScreen } from './features/admin/screens/UserManagementScreen'; // [NEW] User Management
+import { ProjectCreationDialog } from './features/core/jbwos/components/Modal/ProjectCreationDialog';
+import { useProjectViewModel } from './features/core/jbwos/viewmodels/useProjectViewModel';
 
 // Auth Imports
 // Auth Imports
@@ -397,6 +399,15 @@ const AppContent: React.FC<{
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
         const { user, tenant, joinedTenants, switchTenant } = useAuth(); // [NEW] Fetch Auth Info
+        const { createProject, activeScope } = useProjectViewModel();
+        const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+
+        // Global Modal Logic
+        useEffect(() => {
+            const handleOpenModal = () => setIsProjectModalOpen(true);
+            window.addEventListener('jbwos-open-project-modal', handleOpenModal);
+            return () => window.removeEventListener('jbwos-open-project-modal', handleOpenModal);
+        }, []);
 
         // Setup API error handler
         useEffect(() => {
@@ -416,9 +427,9 @@ const AppContent: React.FC<{
                     <div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
 
                         <DebugBanner />
-                        {/* New JBWOS Header */}
-                        {/* Immersive Mode for Today Screen: Hide Global Header */}
-                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects') && (
+                        {/* Multi-layered Header: [Global Bar (Layer 1)] & [Navigation Bar (Layer 2)] */}
+                        {/* Immersive Mode for Today Screen: Hide Global Header -> No, Today/Focus needs Header too */}
+                        {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
                             <JBWOSHeader
                                 currentView={currentView as any}
                                 onNavigateToToday={() => setCurrentView('today')}
@@ -446,8 +457,8 @@ const AppContent: React.FC<{
                       We use 'jbwos' as the main dashboard now.
                     */}
 
-                            {/* 0. JBWOS Dashboard - Unified View */}
-                            {(currentView === 'jbwos' || currentView === 'dashboard') && (
+                            {/* 0. JBWOS Dashboard - Unified View (Stream/Focus) */}
+                            {(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'today') && (
                                 <DashboardScreen activeProject={activeProject} />
                             )}
 
@@ -465,7 +476,6 @@ const AppContent: React.FC<{
                                             handleOpenCloudProject(project.id, pTitle, project.tenantId);
                                         }
                                     }}
-                                    onBack={handleBackToDashboard}
                                 />
                             )}
 
@@ -581,6 +591,19 @@ const AppContent: React.FC<{
 
                         {/* Global Undo Toast */}
                         <UndoToast />
+
+                        {/* Global Project Creation Dialog */}
+                        <ProjectCreationDialog
+                            isOpen={isProjectModalOpen}
+                            onClose={() => setIsProjectModalOpen(false)}
+                            onCreate={async (payload) => {
+                                await createProject(payload);
+                                setIsProjectModalOpen(false);
+                            }}
+                            activeScope={activeScope}
+                            tenants={joinedTenants}
+                            project={null}
+                        />
                     </div>
                 </UndoProvider>
                 <ToastContainer toasts={toasts} onDismiss={dismissToast} />

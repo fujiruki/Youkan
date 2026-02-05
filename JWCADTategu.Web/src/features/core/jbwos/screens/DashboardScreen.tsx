@@ -2,21 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Item } from '../types';
 import { Project as LocalProject } from '../../../../db/db';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
-import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
+
 import {
-    Plus, ChevronRight, ChevronDown, Clock, Trash2,
-    Briefcase, BarChart2, Users, X
+    ChevronRight, ChevronDown, Clock,
+    BarChart2
 } from 'lucide-react';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 import { FocusCard } from '../components/Dashboard/FocusCard';
-import { HeaderProgressBar } from '../components/Dashboard/HeaderProgressBar';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
-import { ManufacturingLoadWidget } from '../../../plugins/manufacturing/components/ManufacturingLoadWidget';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
@@ -76,20 +74,27 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         capacityUsed,
         capacityLimit,
         filterMode,
-        setFilterMode,
         ghostGdbCount,
-        ghostTodayCount,
         executionItem,
         refreshAll: handleRefresh,
         updateItem,
         deleteItem,
         completeItem,
-        createProject,
         createSubTask,
         getSubTasks,
         skipTask,
         setEngaged
     } = vm;
+
+    // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('jbwos-capacity-update', {
+            detail: { used: capacityUsed, limit: capacityLimit }
+        }));
+    }, [capacityUsed, capacityLimit]);
+
+
+
 
     const { joinedTenants } = useAuth();
 
@@ -111,10 +116,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [isPendingExpanded, setIsPendingExpanded] = useState(false);
     const [isWaitingExpanded, setIsWaitingExpanded] = useState(false);
-    const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
+    const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId } = useItemContextMenu({
         onDelete: (id) => vm.deleteItem(id)
     });
-    const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+
 
     const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
         setViewMode(mode);
@@ -161,265 +166,244 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         handleRefresh();
     };
 
-    const handleMoveToFocus = async (id: string) => {
-        await updateItem(id, { status: 'focus' });
-        handleRefresh();
-    };
-
-    // handleContextMenu moved to hook
-
 
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-            <HeaderProgressBar
-                usedMinutes={capacityUsed}
-                limitMinutes={capacityLimit}
-                filterMode={filterMode}
-                onFilterChange={setFilterMode}
-                ghostCount={ghostGdbCount + ghostTodayCount}
-                isProjectContext={!!activeProject}
-            />
-
-            <header className="flex-none bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex justify-end items-center shadow-sm z-10">
-                <div className="flex items-center gap-3">
-                    {(viewMode === 'calendar' || viewMode === 'panorama') && (
-                        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-right-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
-                            <input
-                                type="range"
-                                min="12"
-                                max="32"
-                                value={ganttRowHeight}
-                                onChange={(e) => setGanttRowHeight(parseInt(e.target.value))}
-                                className="w-16 h-1 accent-blue-500 cursor-pointer"
-                            />
-                            <span className="text-[10px] font-mono text-slate-500 w-4">{ganttRowHeight}</span>
-                        </div>
-                    )}
-
-                    {activeProject && (
-                        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
-                            <Briefcase size={12} className="text-blue-500" />
-                            <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">Project: {activeProject.title || activeProject.name}</span>
-                            <button
-                                onClick={() => {
-                                    window.location.href = '/contents/TateguDesignStudio/';
-                                }}
-                                className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-full transition-colors"
-                            >
-                                <X size={12} className="text-blue-400" />
-                            </button>
-                        </div>
-                    )}
-
-                    <button onClick={() => setIsProjectModalOpen(true)} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-sm flex items-center gap-1 transition-colors">
-                        <Plus size={14} strokeWidth={3} />プロジェクト
-                    </button>
-                </div>
-            </header>
-
-
-            {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <div className="flex-1 overflow-hidden">
-                        {viewMode === 'calendar' ? (
-                            <RyokanCalendar
-                                items={allItemsForCalendar}
-                                projects={allItemsForCalendar.filter(i => i.isProject)}
-                                onItemClick={setSelectedItem}
-                                filterMode={filterMode}
-                                displayMode="timeline"
-                                rowHeight={ganttRowHeight}
-                            />
-                        ) : viewMode === 'newspaper' ? (
-                            <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
-                        ) : (
-                            <JbwosBoard
-                                initialLayoutMode="panorama"
-                                onClose={() => handleViewModeChange('stream')}
-                                projectId={activeProject?.cloudId}
-                                rowHeight={ganttRowHeight}
-                                hideHeader={true}
-                            />
-                        )}
-                    </div>
-                </div>
-            ) : (
-                <div className="flex-1 overflow-y-auto pb-20">
-                    <div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-6 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
-                        {activeProject && (
-                            <div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">
-                                <span className="relative z-10">Project Dashboard Mode: {activeProject.title || activeProject.name}</span>
-                                <div className="absolute inset-0 bg-white/10 animate-pulse" />
-                            </div>
-                        )}
-                        <div className="max-w-3xl mx-auto pt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                                <ManufacturingLoadWidget />
-                            </div>
-
-                            <div className="mb-2">
-                                {activeFocusItem ? (
-                                    <FocusCard
-                                        item={(() => {
-                                            // [Refinement] Enrich with Project/Tenant Info for Display
-                                            const p = vm.allProjects.find(pro => pro.id === activeFocusItem.projectId);
-                                            const t = vm.joinedTenants.find(ten => ten.id === activeFocusItem.tenantId || (p && ten.id === p.tenantId));
-                                            return {
-                                                ...activeFocusItem,
-                                                projectTitle: activeFocusItem.projectTitle || p?.title,
-                                                tenantName: activeFocusItem.tenantName || t?.name
-                                            };
-                                        })()}
-                                        onSetEngaged={handleSetEngaged}
-                                        onComplete={handleComplete}
-                                        onDrop={async (id) => { await updateItem(id, { status: 'inbox' }); handleRefresh(); }}
-                                        onSkip={async (id) => { await skipTask(id); }}
-                                        onClick={() => { setSelectedItem(activeFocusItem); setLastTargetId(activeFocusItem.id); }}
-                                        onContextMenu={handleContextMenu}
-                                    />
-                                ) : (
-                                    <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-400 mb-4"><BarChart2 size={24} /></div>
-                                        <h3 className="text-lg font-medium text-slate-600">現在タスク無し</h3>
-                                    </div>
-                                )}
-                            </div>
-
-                            {remainingQueue.length > 0 && (
-                                <div className="mb-2 pl-4 border-l-2 border-indigo-100/50 ml-4 pb-1">
-                                    <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1 pl-2">次に控えているタスク</h3>
-                                    <div className="flex flex-col">
-                                        {remainingQueue.map((item, index) => (
-                                            <SmartItemRow key={item.id} item={item} index={index + 1} onClick={() => { setSelectedItem(item); setLastTargetId(item.id); }} onFocus={handleSetEngaged} onContextMenu={handleContextMenu} />
-                                        ))}
-                                        {ghostTodayCount > 0 && (
-                                            <div className="px-4 py-2 text-[10px] text-slate-300 font-mono italic">
-                                                + {ghostTodayCount} hidden items
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="max-w-3xl mx-auto px-4 md:px-6">
-                        <SectionHeader title="受信箱 (Inbox)" count={inboxItems.length} icon={<BarChart2 size={14} />} />
-
-                        <QuickInputWidget
-                            className="mb-4"
-                            viewModel={vm}
-                            projectContext={activeProject ? {
-                                id: activeProject.cloudId || String(activeProject.id), // [UUID v7] Use cloudId (UUID) for backend
-                                title: activeProject.title,
-                                name: activeProject.name,
-                                tenantId: activeProject.tenantId
-                            } : null}
-                            onOpenItem={(item) => setSelectedItem(item)}
-                            onRequestFallbackOpen={() => {
-                                const targetId = lastTargetId || activeFocusItem?.id;
-                                if (targetId) {
-                                    const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
-                                    const item = all.find(i => i.id === targetId);
-                                    if (item) setSelectedItem(item);
-                                }
-                            }}
-                            placeholder={activeProject ? `${activeProject.title || activeProject.name} にタスクを追加...` : "思いついたことを入力..."}
-                        />
-
-                        <div className="flex flex-col mb-4">
-                            {inboxItems.map(item => (
-                                <SmartItemRow
-                                    key={item.id}
-                                    item={item}
-                                    onFocus={(id) => handleSetEngaged(id, true)}
-                                    onClick={() => { setSelectedItem(item); setLastTargetId(item.id); }}
-                                    onContextMenu={handleContextMenu}
-                                />
-                            ))}
-                        </div>
-
-                        {ghostGdbCount > 0 && (
-                            <div className="px-4 py-3 mb-12 text-center border-t border-slate-100 italic">
-                                <span className="text-[10px] text-slate-300 font-mono">
-                                    他方のリストに {ghostGdbCount} 件のタスクがあります
-                                </span>
-                            </div>
-                        )}
-
-                        <SectionHeader title="待機中 (Waiting)" count={waitingItems.length} expanded={isWaitingExpanded} onToggle={() => setIsWaitingExpanded(!isWaitingExpanded)} icon={<Users size={14} />} />
-                        {isWaitingExpanded && <div className="flex flex-col">{waitingItems.map(item => <SmartItemRow key={item.id} item={item} onFocus={handleMoveToFocus} onClick={() => setSelectedItem(item)} onContextMenu={handleContextMenu} />)}</div>}
-
-                        <SectionHeader title="保留 (Pending)" count={pendingItems.length} expanded={isPendingExpanded} onToggle={() => setIsPendingExpanded(!isPendingExpanded)} icon={<Clock size={14} />} />
-                        {isPendingExpanded && <div className="flex flex-col">{pendingItems.map(item => <SmartItemRow key={item.id} item={item} onFocus={handleMoveToFocus} onClick={() => setSelectedItem(item)} onContextMenu={handleContextMenu} />)}</div>}
-                    </div>
-
-                    {contextMenu && (
-                        <ContextMenu
-                            x={contextMenu.x}
-                            y={contextMenu.y}
-                            itemId={contextMenu.targetId!}
-                            onClose={closeMenu}
-                            actions={[
-                                {
-                                    label: 'プロジェクト化',
-                                    icon: <ChevronRight size={14} className="text-blue-500" />,
-                                    onClick: () => { updateItem(contextMenu.targetId!, { isProject: true }); handleRefresh(); }
-                                },
-                                {
-                                    label: '実行中 (Engage)',
-                                    icon: <Clock size={14} className="text-amber-500" />,
-                                    onClick: () => handleSetEngaged(contextMenu.targetId!, true)
-                                },
-                                {
-                                    label: 'アーカイブ (History)',
-                                    icon: <Briefcase size={14} className="text-slate-500" />,
-                                    onClick: () => { vm.archiveItem(contextMenu.targetId!); handleRefresh(); }
-                                },
-                                {
-                                    label: 'ゴミ箱 (Trash)',
-                                    icon: <Trash2 size={14} className="text-red-500" />,
-                                    danger: true,
-                                    onClick: () => deleteItem(contextMenu.targetId!) // [FIX] Remove handleRefresh to preserve optimistic update
-                                }
-                            ]}
-                        />
-                    )}
-
+            {/* 密度調整等のコントロール (必要な場合のみ表示) */}
+            {(viewMode === 'calendar' || viewMode === 'panorama') && (
+                <div className="shrink-0 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 px-6 py-1 flex items-center justify-end gap-2 z-10">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
+                    <input
+                        type="range"
+                        min="12"
+                        max="32"
+                        value={ganttRowHeight}
+                        onChange={(e) => setGanttRowHeight(parseInt(e.target.value))}
+                        className="w-20 accent-indigo-600 h-1.5 cursor-pointer"
+                    />
+                    <span className="text-[10px] font-mono text-slate-500 w-4">{ganttRowHeight}</span>
                 </div>
             )}
 
-            {/* Global Modals - Available in ALL views */}
-            <DecisionDetailModal
-                item={selectedItem}
-                onClose={() => setSelectedItem(null)}
-                onDecision={async (id, decision, note, updates) => { await vm.resolveDecision(id, decision, note, updates); setSelectedItem(null); handleRefresh(); }}
-                onDelete={async (id) => { await deleteItem(id); setSelectedItem(null); }} // [FIX] Remove handleRefresh to preserve optimistic update
-                onUpdate={async (id, updates) => { await updateItem(id, updates); handleRefresh(); }}
-                onCreateSubTask={createSubTask}
-                onGetSubTasks={getSubTasks}
-                members={vm.members}
-                allProjects={vm.allProjects}
-                joinedTenants={joinedTenants}
-                onOpenItem={setSelectedItem}
-            />
+            {/* Dashboard Content */}
+            <div className="flex-1 min-h-0 flex flex-col relative">
+                {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="flex-1 overflow-hidden">
+                            {viewMode === 'calendar' ? (
+                                <RyokanCalendar
+                                    items={allItemsForCalendar}
+                                    projects={allItemsForCalendar.filter(i => i.isProject)}
+                                    onItemClick={setSelectedItem}
+                                    filterMode={filterMode}
+                                    displayMode="timeline"
+                                    rowHeight={ganttRowHeight}
+                                />
+                            ) : viewMode === 'newspaper' ? (
+                                <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
+                            ) : (
+                                <JbwosBoard
+                                    initialLayoutMode="panorama"
+                                    onClose={() => handleViewModeChange('stream')}
+                                    projectId={activeProject?.cloudId}
+                                    rowHeight={ganttRowHeight}
+                                    hideHeader={true}
+                                />
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-y-auto pb-20">
+                        {/* Immersive Dashboard Header (Stream view only) */}
+                        <div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-8 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
+                            {activeProject && (
+                                <div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">
+                                    <span className="relative z-10">Project Context: {activeProject.title || activeProject.name}</span>
+                                    <div className="absolute inset-0 bg-white/10 animate-pulse" />
+                                </div>
+                            )}
+
+                            <div className="max-w-4xl mx-auto">
+                                {activeFocusItem ? (
+                                    <FocusCard
+                                        item={activeFocusItem}
+                                        onSetEngaged={(id: string, engaged: boolean) => handleSetEngaged(id, engaged)}
+                                        onComplete={(id: string) => handleComplete(id)}
+                                        onDrop={() => activeFocusItem && vm.resolveDecision(activeFocusItem.id, 'hold', 'Returned to Inbox')}
+                                        onSkip={(id: string) => skipTask(id)}
+                                        onClick={() => setSelectedItem(activeFocusItem)}
+                                        onContextMenu={(e) => activeFocusItem && handleContextMenu(e, activeFocusItem.id)}
+                                    />
+                                ) : (
+                                    <div className="bg-white/50 dark:bg-slate-800/50 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center">
+                                        <p className="text-slate-400 text-sm font-medium">現在、集中すべきタスクはありません</p>
+                                        <p className="text-slate-300 text-xs mt-1">下の Inbox からタスクを選んで「今日やる」に追加してください</p>
+                                    </div>
+                                )}
+
+                                {remainingQueue.length > 0 && (
+                                    <div className="mt-8 space-y-2">
+                                        <SectionHeader title="Next Strategy" count={remainingQueue.length} icon={<Clock size={14} />} />
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {remainingQueue.map((item, index) => (
+                                                <SmartItemRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    onClick={() => setSelectedItem(item)}
+                                                    onContextMenu={handleContextMenu}
+                                                    onFocus={handleSetEngaged}
+                                                    index={index}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="max-w-4xl mx-auto px-4 md:px-6 space-y-8">
+                            {/* Inbox Section */}
+                            <div className="space-y-4">
+                                <SectionHeader
+                                    title="Inbox (Registration)"
+                                    count={inboxItems.length + (ghostGdbCount || 0)}
+                                    icon={<BarChart2 size={14} />}
+                                />
+                                <QuickInputWidget
+                                    viewModel={vm}
+                                    projectContext={activeProject ? {
+                                        id: activeProject.cloudId || String(activeProject.id),
+                                        title: activeProject.title,
+                                        name: activeProject.name,
+                                        tenantId: activeProject.tenantId
+                                    } : null}
+                                    onOpenItem={setSelectedItem}
+                                    onRequestFallbackOpen={() => {
+                                        const targetId = lastTargetId || activeFocusItem?.id;
+                                        if (targetId) {
+                                            const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
+                                            const item = all.find(i => i.id === targetId);
+                                            if (item) setSelectedItem(item);
+                                        }
+                                    }}
+                                />
+                                <div className="space-y-1">
+                                    {inboxItems.map(item => (
+                                        <SmartItemRow
+                                            key={item.id}
+                                            item={item}
+                                            onClick={() => setSelectedItem(item)}
+                                            onFocus={handleSetEngaged}
+                                            onContextMenu={handleContextMenu}
+                                        />
+                                    ))}
+                                    {ghostGdbCount > 0 && (
+                                        <div className="h-8 bg-slate-100/50 rounded flex items-center justify-center border border-dashed border-slate-200">
+                                            <span className="text-[10px] text-slate-400 font-bold italic">+{ghostGdbCount} other items in cloud</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Pending & Waiting Sections */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <SectionHeader
+                                        title="Pending"
+                                        count={pendingItems.length}
+                                        expanded={isPendingExpanded}
+                                        onToggle={() => setIsPendingExpanded(!isPendingExpanded)}
+                                    />
+                                    {isPendingExpanded && (
+                                        <div className="space-y-1">
+                                            {pendingItems.map(item => (
+                                                <SmartItemRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    onClick={() => setSelectedItem(item)}
+                                                    onFocus={handleSetEngaged}
+                                                    onContextMenu={handleContextMenu}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <SectionHeader
+                                        title="Waiting"
+                                        count={waitingItems.length}
+                                        expanded={isWaitingExpanded}
+                                        onToggle={() => setIsWaitingExpanded(!isWaitingExpanded)}
+                                    />
+                                    {isWaitingExpanded && (
+                                        <div className="space-y-1">
+                                            {waitingItems.map(item => (
+                                                <SmartItemRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    onClick={() => setSelectedItem(item)}
+                                                    onFocus={handleSetEngaged}
+                                                    onContextMenu={handleContextMenu}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <SideMemoWidget />
 
-            <ProjectCreationDialog
-                isOpen={isProjectModalOpen}
-                onClose={() => setIsProjectModalOpen(false)}
-                onCreate={async (project, tasks) => {
-                    await createProject(project as any, tasks);
-                    setIsProjectModalOpen(false);
-                    handleRefresh();
-                }}
-                parentProject={activeProject as any}
-                activeScope={(activeProject as any)?.tenantId ? 'company' : 'personal'}
-                tenants={joinedTenants}
-            />
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    itemId={contextMenu.targetId!}
+                    onClose={closeMenu}
+                    onDelete={deleteItem}
+                    onEdit={(id) => {
+                        const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
+                        const item = all.find(i => i.id === id);
+                        if (item) setSelectedItem(item);
+                    }}
+                />
+            )}
+
+            {selectedItem && (
+                <DecisionDetailModal
+                    item={selectedItem}
+                    onClose={() => {
+                        setSelectedItem(null);
+                        handleRefresh();
+                    }}
+                    onDelete={async (id: string) => {
+                        await deleteItem(id);
+                        setSelectedItem(null);
+                        handleRefresh();
+                    }}
+                    onDecision={async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+                        await vm.resolveDecision(id, decision, note, updates);
+                        setSelectedItem(null);
+                        handleRefresh();
+                    }}
+                    onUpdate={async (id: string, updates: Partial<Item>) => {
+                        await updateItem(id, updates);
+                        handleRefresh();
+                    }}
+                    onCreateSubTask={createSubTask}
+                    onGetSubTasks={getSubTasks}
+                    members={vm.members}
+                    allProjects={vm.allProjects}
+                    joinedTenants={joinedTenants}
+                    onOpenItem={setSelectedItem}
+                />
+            )}
+
+            {/* Global Dialog handled by App.tsx */}
         </div>
     );
 };

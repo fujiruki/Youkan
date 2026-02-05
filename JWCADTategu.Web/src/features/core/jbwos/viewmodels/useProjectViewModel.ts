@@ -33,10 +33,10 @@ export const useProjectViewModel = () => {
         try {
             const [projData, membersData] = await Promise.all([
                 ProjectService.getAll({ scope: activeScope }),
-                ApiClient.getAssignees()
+                ApiClient.getMembers()
             ]);
             setProjects(projData);
-            setMembers(membersData);
+            setMembers(membersData as any);
         } catch (err: any) {
             setError(err.message);
             showToast({ title: 'エラー', message: 'データの取得に失敗しました', type: 'error' });

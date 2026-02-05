@@ -76,6 +76,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     // [NEW] Local state for Tenant/Project for immediate UI feedback
     const [localTenantId, setLocalTenantId] = React.useState<string>('');
     const [localProjectId, setLocalProjectId] = React.useState<string>('');
+    const [localAssignedTo, setLocalAssignedTo] = React.useState<string>('');
 
     // Sync state when item changes OR when project/tenant lists load
     React.useEffect(() => {
@@ -90,6 +91,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setIsProject(item.isProject ?? false);
             setLocalTenantId(item.tenantId || '');
             setLocalProjectId(item.projectId || '');
+            setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
 
             // Default subTasks to empty until fetched
             setSubTasks([]);
@@ -239,6 +241,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         if (localProjectId !== (item.projectId || '')) {
             updates.projectId = localProjectId || null as any;
             // [FIX REMOVED] Do NOT auto-sync parentId here - it breaks hierarchy for sub-tasks
+        }
+
+        // assignedTo
+        const currentAssignedTo = item.assignedTo || (item as any).assigned_to || '';
+        if (localAssignedTo !== currentAssignedTo) {
+            updates.assignedTo = localAssignedTo || null as any;
         }
 
         return updates;
@@ -815,10 +823,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </span>
                                     <div className="relative group/assignee shadow-sm">
                                         <select
-                                            value={item.assignedTo || ''}
+                                            value={localAssignedTo}
                                             onChange={async (e) => {
                                                 const val = e.target.value;
-                                                const updates: Partial<Item> = { assignedTo: val || undefined };
+                                                setLocalAssignedTo(val);
+                                                const updates: Partial<Item> = { assignedTo: val || null as any };
                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }}
@@ -827,7 +836,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <option value="">自分 (Unassigned)</option>
                                             {members.map(m => (
                                                 <option key={m.id} value={m.id}>
-                                                    {m.display_name} {m.role ? `(${m.role})` : ''}
+                                                    {(m as any).display_name || (m as any).name} {m.role ? `(${m.role})` : ''}
                                                 </option>
                                             ))}
                                         </select>

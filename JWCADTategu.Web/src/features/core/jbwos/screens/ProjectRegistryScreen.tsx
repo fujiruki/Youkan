@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectViewModel } from '../viewmodels/useProjectViewModel';
 import { Project } from '../types';
-import { Plus, Edit2, Trash2, ArrowLeft, Building2, Briefcase, Archive, LayoutGrid, List, MoreVertical, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building2, Archive, LayoutGrid, MoreVertical, Calendar } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
-import { ProjectCreationDialog } from '../components/Modal/ProjectCreationDialog';
+
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../types';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
 
-export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void; onBack: () => void }> = ({ onSelect, onBack }) => {
+export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void }> = ({ onSelect }) => {
     const {
         projects,
         members,
         loading,
         fetchProjects,
-        createProject,
-        updateProject,
         deleteProject,
         trashProject,
         archiveProject,
@@ -27,14 +25,11 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         setActiveScope
     } = useProjectViewModel();
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
     const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
         onDelete: (id) => trashProject(id)
     });
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-    const [defaultTenantId, setDefaultTenantId] = useState<string | undefined>(undefined);
 
     const { joinedTenants } = useAuth();
 
@@ -47,15 +42,12 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         fetchProjects();
     }, [fetchProjects, activeScope]);
 
-    const handleCreate = (tenantId?: string) => {
-        setEditingProject(null);
-        setDefaultTenantId(tenantId);
-        setIsModalOpen(true);
+    const handleCreate = () => {
+        window.dispatchEvent(new CustomEvent('jbwos-open-project-modal'));
     };
 
     const handleEdit = (project: Project) => {
-        setEditingProject(project);
-        setIsModalOpen(true);
+        handleOpenDetail(project);
         closeMenu();
     };
 
@@ -77,20 +69,15 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
             updatedAt: project.updatedAt,
             memo: '',
             due_date: '',
-            flags: {}
+            flags: {},
+            assignedTo: project.assigned_to,
+            isArchived: project.isArchived,
         };
         setSelectedItem(item);
         closeMenu();
     };
 
-    const handleDialogSave = async (payload: Partial<Project>) => {
-        if (editingProject) {
-            await updateProject(editingProject.id, payload);
-        } else {
-            await createProject(payload);
-        }
-        setIsModalOpen(false);
-    };
+    // handleDialogSave removed - handled by App.tsx
 
     // Global Shortcut for ALT+D (Delete is handled by hook)
     useEffect(() => {
@@ -108,6 +95,28 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [contextMenu, lastTargetId, projects]);
+
+    // [NEW] Synchronize with Global Header events
+    useEffect(() => {
+        const handleFilterChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode === 'personal' || mode === 'company') {
+                setActiveScope(mode);
+            }
+        };
+        const handleViewModeChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode === 'grid' || mode === 'list') {
+                setViewMode(mode);
+            }
+        };
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        window.addEventListener('jbwos-project-view-mode-change', handleViewModeChange as EventListener);
+        return () => {
+            window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+            window.removeEventListener('jbwos-project-view-mode-change', handleViewModeChange as EventListener);
+        };
+    }, [setActiveScope]);
 
     // [NEW] Confirmation Modal State
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -167,70 +176,21 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 
     return (
         <div className="h-full w-full bg-[#FAFAFA] dark:bg-slate-900 flex flex-col font-sans text-slate-800 dark:text-slate-200">
-            {/* Header */}
-            <div className="flex-none px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
-                <div className="flex items-center gap-4">
-                    {onBack && (
-                        <button onClick={onBack} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
-                            <ArrowLeft size={20} />
-                        </button>
-                    )}
-                    <div>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
-                            プロジェクト一覧
-                            <span className="text-sm font-normal text-slate-400 ml-2">({filteredProjects.length})</span>
-                        </h1>
-                        <p className="text-xs text-slate-400 mt-1">案件の管理と進捗状況</p>
-                    </div>
+            {/* Project List Title (Optional - for context) */}
+            <div className="shrink-0 px-6 pt-6 flex items-center justify-between">
+                <div>
+                    <h1 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        Project Registry
+                        <span className="text-xs font-bold text-slate-300">({filteredProjects.length})</span>
+                    </h1>
                 </div>
-
-                {/* Scope Tabs */}
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                    <button
-                        onClick={() => setActiveScope('personal')}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'personal'
-                            ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <Briefcase size={16} />
-                        個人
-                    </button>
-                    <button
-                        onClick={() => setActiveScope('company')}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeScope === 'company'
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <Building2 size={16} />
-                        会社
-                    </button>
-                </div>
-
                 <div className="flex items-center gap-2">
-                    {/* View Toggle */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <LayoutGrid size={18} />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <List size={18} />
-                        </button>
-                    </div>
-
                     <button
                         onClick={() => handleCreate()}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-95"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-[11px] font-black flex items-center gap-1.5 shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase tracking-tighter"
                     >
-                        <Plus size={18} />
-                        新規作成
+                        <Plus size={14} strokeWidth={3} />
+                        CREATE NEW
                     </button>
                 </div>
             </div>
@@ -313,7 +273,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={() => handleCreate(tenant.id)}
+                                                onClick={() => handleCreate()}
                                                 className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1.5 text-xs font-bold"
                                             >
                                                 <Plus size={16} />
@@ -362,21 +322,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 )}
             </div>
 
-            {/* Unified Dialog */}
-            {isModalOpen && (
-                <ProjectCreationDialog
-                    isOpen={isModalOpen}
-                    onClose={() => {
-                        setIsModalOpen(false);
-                        setDefaultTenantId(undefined);
-                    }}
-                    onCreate={handleDialogSave}
-                    activeScope={activeScope}
-                    tenants={joinedTenants}
-                    project={editingProject}
-                    defaultTenantId={defaultTenantId}
-                />
-            )}
+            {/* Unified Dialog removed - handled by App.tsx */}
 
             {/* Context Menu */}
             {contextMenu && (
@@ -573,7 +519,7 @@ const ProjectCard: React.FC<{
                         >
                             <option value="">未割当</option>
                             {members.map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
+                                <option key={m.id} value={m.id}>{(m as any).display_name || (m as any).name}</option>
                             ))}
                         </select>
                     </div>
