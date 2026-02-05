@@ -132,8 +132,10 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             });
         });
 
-        // 4. Sort project groups (Company -> Personal)
+        // 4. Sort project groups (Company -> Personal, then by parent-child relationship)
+
         const sortedProjectGroups = [...projectGroups].sort((a, b) => {
+            // First: Company -> Personal
             const aIsCompany = !!a.project.tenantId;
             const bIsCompany = !!b.project.tenantId;
             if (aIsCompany && !bIsCompany) return -1;
@@ -141,32 +143,59 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             return 0;
         });
 
-        // 5. Build final list
-        sortedProjectGroups.forEach(group => {
-            const p = group.project;
-            const tasks = group.items;
+        // [NEW] Recursive function to add projects with their children
+        const addProjectWithChildren = (proj: Item, depth: number) => {
+            const group = projectGroups.find(g => String(g.project.id) === String(proj.id));
+            if (!group) return;
 
             // Add Header
             result.push({
-                id: `header-${p.id}`,
+                id: `header-${proj.id}`,
                 type: 'header',
                 isHeader: true,
-                item: { ...p, id: `virtual-header-${p.id}` },
-                project: p,
-                depth: 0
+                item: { ...proj, id: `virtual-header-${proj.id}` },
+                project: proj,
+                depth: depth
             });
 
-            // Add Sorted Tasks
-            sortItems(tasks).forEach(task => {
+            // Add Sorted Tasks for this project
+            sortItems(group.items).forEach(task => {
                 result.push({
                     id: task.id,
                     type: 'item',
                     item: task,
-                    project: p,
+                    project: proj,
                     isHeader: false,
-                    depth: 1
+                    depth: depth + 1
                 });
             });
+
+            // [NEW] Find and add child projects (recursively)
+            const childProjects = allProjects.filter(p => {
+                const parentId = String(p.parentId || p.projectId || '');
+                return parentId === String(proj.id) && p.id !== proj.id && p.isProject;
+            });
+
+            childProjects.forEach(child => {
+                addProjectWithChildren(child, depth + 1);
+            });
+        };
+
+        // 5. Build final list - start with root projects only
+        const rootProjects = sortedProjectGroups
+            .map(g => g.project)
+            .filter(p => {
+                const parentId = p.parentId || p.projectId;
+                if (!parentId) return true; // No parent = root
+                // Check if parent is an actual project in allProjects
+                const parentExists = allProjects.some(pp =>
+                    String(pp.id) === String(parentId) && pp.isProject
+                );
+                return !parentExists; // If parent doesn't exist or isn't a project, treat as root
+            });
+
+        rootProjects.forEach(proj => {
+            addProjectWithChildren(proj, 0);
         });
 
         return result;

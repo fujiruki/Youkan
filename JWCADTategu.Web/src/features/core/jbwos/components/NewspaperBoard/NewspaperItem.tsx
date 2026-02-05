@@ -3,7 +3,7 @@ import { Item } from '../../types';
 import { format } from 'date-fns';
 import { cn } from '../../../../../lib/utils';
 import { NewspaperItemWrapper } from './useNewspaperItems';
-import { Folder } from 'lucide-react';
+import { Folder, FolderOpen } from 'lucide-react';
 
 interface NewspaperItemProps {
     wrapper: NewspaperItemWrapper;
@@ -74,13 +74,21 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     if (isHeader) {
         return (
             <div
-                className="mb-[0.5em] mt-[1em] break-inside-avoid group/header"
+                className="mb-[3px] mt-[1em] break-inside-avoid group/header"
                 style={{ breakAfter: 'avoid' }}
             >
-                <div className="flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[0.2em] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors"
+                <div className={cn(
+                    "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700 pb-[2px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors",
+                    depth > 0 && "text-[0.95em] text-slate-600 dark:text-slate-300" // サブプロジェクトは少し小さく
+                )}
+                    style={{ marginLeft: `${depth * 0.8}em` }} // サブプロジェクトはインデント
                     onClick={() => onClick(item)}
                 >
-                    <Folder size="1.1em" className="text-blue-500 fill-blue-500/10" />
+                    {depth > 0 ? (
+                        <FolderOpen size="1em" className="text-indigo-500 fill-indigo-500/10" />
+                    ) : (
+                        <Folder size="1.1em" className="text-blue-500 fill-blue-500/10" />
+                    )}
                     <span className="truncate flex-1">{item.title}</span>
                     <button
                         className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
