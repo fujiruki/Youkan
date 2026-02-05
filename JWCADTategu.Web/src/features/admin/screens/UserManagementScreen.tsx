@@ -234,12 +234,12 @@ export const UserManagementScreen: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Password Reset Form */}
+                                    {/* Password Reset Form (for User List) */}
                                     {resetUserId === user.id && (
                                         <div className="mt-4 ml-13 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 animate-in fade-in slide-in-from-top-2 duration-200">
                                             <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
                                                 <UserCog size={16} />
-                                                パスワードの再設定
+                                                パスワードの再設定 (ユーザー)
                                             </h4>
                                             <div className="flex items-center gap-2">
                                                 <input
@@ -338,6 +338,40 @@ export const UserManagementScreen: React.FC = () => {
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* Password Reset Form (for Tenant Owner) */}
+                                    {tenant.owner_id && resetUserId === tenant.owner_id && (
+                                        <div className="mt-4 ml-13 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+                                            <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                                                <UserCog size={16} />
+                                                代表アカウントのパスワード再設定
+                                            </h4>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    placeholder="代表者の新しいパスワード"
+                                                    className="flex-1 max-w-md px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-lg bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                                <button
+                                                    onClick={() => handlePasswordReset(tenant.owner_id!)}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                                                >
+                                                    変更を保存
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setResetUserId(null);
+                                                        setNewPassword('');
+                                                    }}
+                                                    className="px-3 py-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm rounded-lg transition-colors"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

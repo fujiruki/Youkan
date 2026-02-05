@@ -113,4 +113,51 @@ class BaseController {
         
         return array_unique($ids);
     }
+
+    /**
+     * Common Item Mapping (DB -> Frontend JSON)
+     * Centralized logic to prevent property loss across controllers
+     */
+    protected function mapItemRow($item) {
+        // Standard Boolean conversion
+        $item['interrupt'] = (bool)($item['interrupt'] ?? 0);
+        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
+        $item['isProject'] = (bool)($item['is_project'] ?? 0);
+        $item['isIntent'] = (bool)($item['is_intent'] ?? 0);
+        $item['isArchived'] = (bool)($item['is_archived'] ?? 0);
+
+        // Standard ID mapping (camelCase for Frontend)
+        $item['parentId'] = $item['parent_id'] ?? null;
+        $item['projectId'] = $item['project_id'] ?? null;
+        $item['tenantId'] = $item['tenant_id'] ?? null;
+        $item['assignedTo'] = $item['assigned_to'] ?? null;
+
+        // Standard Property mapping
+        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
+        $item['focusOrder'] = (int)($item['focus_order'] ?? 0);
+        $item['dueStatus'] = $item['due_status'] ?? null;
+        
+        // Project Context
+        $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
+        $item['projectType'] = $item['project_type'] ?? null;
+        $item['projectCategory'] = $item['project_category'] ?? null;
+        
+        $item['clientName'] = $item['client_name'] ?? $item['client'] ?? null;
+        $item['siteName'] = $item['site_name'] ?? $item['site'] ?? null;
+        $item['grossProfitTarget'] = (int)($item['gross_profit_target'] ?? 0);
+
+        // Assignee Info
+        $item['assigneeName'] = $item['assignee_name'] ?? null;
+        $item['assigneeColor'] = $item['assignee_color'] ?? null;
+
+        // Dates & Trash
+        $item['deletedAt'] = $item['deleted_at'] ?? null;
+
+        // JSON handling
+        if (!empty($item['delegation']) && is_string($item['delegation'])) {
+            $item['delegation'] = json_decode($item['delegation'], true);
+        }
+
+        return $item;
+    }
 }

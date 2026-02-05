@@ -159,6 +159,15 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                         {tenant && onNavigateToCompanySettings && (
                             <MenuItem icon={<Building size={18} />} label="チーム / メンバー管理" onClick={onNavigateToCompanySettings} />
                         )}
+                        {/* Admin Access (Owner only) */}
+                        {tenant?.role === 'owner' && (
+                            <MenuItem
+                                icon={<Users size={18} />}
+                                label="管理画面 (システム全般)"
+                                onClick={() => { window.location.href = './userlist'; }}
+                                subtle
+                            />
+                        )}
                         {onNavigateToSettings && (
                             <MenuItem icon={<Settings size={18} />} label="アプリ設定" onClick={onNavigateToSettings} />
                         )}

@@ -45,15 +45,15 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
 const IndentLines = ({ depth }: { depth: number }) => {
     if (depth <= 0) return null;
     return (
-        <>
+        <div className="absolute top-0 bottom-0 left-0 pointer-events-none">
             {Array.from({ length: depth }).map((_, i) => (
                 <div
                     key={i}
                     className="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-700/60 pointer-events-none"
-                    style={{ left: `${(i + 0.4) * 1.5}rem` }}
+                    style={{ left: `-${(depth - i) * 1.5 - 0.6}rem` }}
                 />
             ))}
-        </>
+        </div>
     );
 };
 

@@ -92,7 +92,7 @@ class TodayController extends BaseController {
         ";
         $stmtCommits = $this->pdo->prepare($sqlCommits);
         $stmtCommits->execute($queryParams);
-        $commits = array_map([$this, 'mapRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
+        $commits = array_map([$this, 'mapItemRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
         $sqlExec = "
@@ -105,7 +105,7 @@ class TodayController extends BaseController {
         $stmtExec = $this->pdo->prepare($sqlExec);
         $stmtExec->execute($queryParams);
         $executionsRaw = $stmtExec->fetchAll(PDO::FETCH_ASSOC);
-        $executions = array_map([$this, 'mapRow'], $executionsRaw);
+        $executions = array_map([$this, 'mapItemRow'], $executionsRaw);
 
         // Zone 3: Life
         // Candidates for Today (Status: confirmed OR ready)
@@ -122,7 +122,7 @@ class TodayController extends BaseController {
         ";
         $stmtCandidates = $this->pdo->prepare($sqlCandidates);
         $stmtCandidates->execute($queryParams);
-        $candidates = array_map([$this, 'mapRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
+        $candidates = array_map([$this, 'mapItemRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
 
 
         return [
@@ -282,29 +282,5 @@ class TodayController extends BaseController {
             $this->pdo->rollBack();
             throw $e;
         }
-    }
-
-    /**
-     * Helper: Map row types
-     */
-    private function mapRow($item) {
-        $item['interrupt'] = (bool)$item['interrupt'];
-        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
-        $item['parentId'] = $item['parent_id'] ?? null;
-        $item['isProject'] = (bool)($item['is_project'] ?? 0);
-        $item['projectCategory'] = $item['project_category'] ?? null;
-        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
-        $item['assignedTo'] = $item['assigned_to'] ?? null;
-        $item['projectTitle'] = $item['parent_title'] ?? null;
-        
-        if (!empty($item['delegation']) && is_string($item['delegation'])) {
-            $item['delegation'] = json_decode($item['delegation'], true);
-        }
-
-        // [Archive & Trash]
-        $item['isArchived'] = (bool)($item['is_archived'] ?? 0);
-        $item['deletedAt'] = $item['deleted_at'] ?? null;
-
-        return $item;
     }
 }

@@ -91,7 +91,7 @@ class GdbController extends BaseController {
         // SQL: WHERE tenant_id = ? ... IN (...) ... <= ?
         $paramsActive = array_merge($params, $projectParams, $timeParams);
         $stmtActive->execute($paramsActive);
-        $activeItems = array_map([$this, 'mapRow'], $stmtActive->fetchAll(PDO::FETCH_ASSOC));
+        $activeItems = array_map([$this, 'mapItemRow'], $stmtActive->fetchAll(PDO::FETCH_ASSOC));
 
         // Preparation
         $sqlPrep = "
@@ -110,7 +110,7 @@ class GdbController extends BaseController {
         $paramsPrep = array_merge($params, $projectParams, $timeParams);
         $stmtPrep = $this->pdo->prepare($sqlPrep);
         $stmtPrep->execute($paramsPrep);
-        $prepItems = array_map([$this, 'mapRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
+        $prepItems = array_map([$this, 'mapItemRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
 
         // Intent
         $sqlIntent = "
@@ -127,7 +127,7 @@ class GdbController extends BaseController {
         $paramsIntent = array_merge($params, $projectParams);
         $stmtIntent = $this->pdo->prepare($sqlIntent);
         $stmtIntent->execute($paramsIntent);
-        $intentItems = array_map([$this, 'mapRow'], $stmtIntent->fetchAll(PDO::FETCH_ASSOC));
+        $intentItems = array_map([$this, 'mapItemRow'], $stmtIntent->fetchAll(PDO::FETCH_ASSOC));
 
         // History
         $sqlLog = "
@@ -145,7 +145,7 @@ class GdbController extends BaseController {
         $paramsLog = array_merge($params, $projectParams);
         $stmtLog = $this->pdo->prepare($sqlLog);
         $stmtLog->execute($paramsLog);
-        $logItems = array_map([$this, 'mapRow'], $stmtLog->fetchAll(PDO::FETCH_ASSOC));
+        $logItems = array_map([$this, 'mapItemRow'], $stmtLog->fetchAll(PDO::FETCH_ASSOC));
 
         return [
             'active' => $activeItems,      // Judgment
@@ -153,25 +153,5 @@ class GdbController extends BaseController {
             'intent' => $intentItems,      // Intent (Shelf)
             'history' => $logItems         // History (Log)
         ];
-    }
-
-    /**
-     * Helper: Map row types
-     */
-    private function mapRow($item) {
-        $item['interrupt'] = (bool)$item['interrupt'];
-        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
-        $item['parentId'] = $item['parent_id'] ?? null;
-        $item['isProject'] = (bool)($item['is_project'] ?? 0);
-        $item['projectCategory'] = $item['project_category'] ?? null;
-        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
-        $item['assignedTo'] = $item['assigned_to'] ?? null;
-        $item['projectTitle'] = $item['parent_title'] ?? null;
-        
-        if (!empty($item['delegation']) && is_string($item['delegation'])) {
-            $item['delegation'] = json_decode($item['delegation'], true);
-        }
-        $item['projectId'] = $item['project_id'] ?? null;
-        return $item;
     }
 }

@@ -187,13 +187,13 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         const rootProjects = sortedProjectGroups
             .map(g => g.project)
             .filter(p => {
-                // [FIX] A project is root if it has no parentId, OR its parent is not in the current project list
+                // [FIX] A project is root if it has no parentId, OR its parent is not in the CURRENT list to show
                 const pId = p.parentId;
                 if (!pId) return true;
-                const parentExists = allProjects.some(pp =>
+                const parentInView = projectsToShow.some(pp =>
                     String(pp.id) === String(pId) && pp.isProject
                 );
-                return !parentExists;
+                return !parentInView;
             });
 
         rootProjects.forEach(proj => {

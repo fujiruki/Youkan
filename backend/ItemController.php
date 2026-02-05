@@ -42,44 +42,6 @@ class ItemController extends BaseController {
         }
     }
 
-    private function mapRow($item) {
-        $item['interrupt'] = (bool)$item['interrupt'];
-        $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
-        $item['parentId'] = $item['parent_id'] ?? null;
-        $item['isProject'] = (bool)($item['is_project'] ?? 0);
-        $item['projectCategory'] = $item['project_category'] ?? null;
-        $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);
-        $item['assignedTo'] = $item['assigned_to'] ?? null;
-        // Prioritize project_id title, fallback to parent_title (legacy)
-        $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
-        $item['projectType'] = $item['project_type'] ?? null;
-
-        // [JBWOS] Judgment Columns
-        $item['focusOrder'] = (int)($item['focus_order'] ?? 0);
-        $item['isIntent'] = (bool)($item['is_intent'] ?? 0);
-        $item['dueStatus'] = $item['due_status'] ?? null;
-
-        // [New Project Context]
-        $item['clientName'] = $item['client_name'] ?? $item['client'] ?? null; 
-        $item['siteName'] = $item['site_name'] ?? $item['site'] ?? null;
-        $item['grossProfitTarget'] = (int)($item['gross_profit_target'] ?? 0);
-        
-        // [Assignee Information]
-        $item['assigneeName'] = $item['assignee_name'] ?? null;
-        $item['assigneeColor'] = $item['assignee_color'] ?? null;
-
-        // [Archive & Trash]
-        $item['isArchived'] = (bool)($item['is_archived'] ?? 0);
-        $item['deletedAt'] = $item['deleted_at'] ?? null;
-
-        if (!empty($item['delegation']) && is_string($item['delegation'])) {
-            $item['delegation'] = json_decode($item['delegation'], true);
-        }
-        $item['tenantId'] = $item['tenant_id'] ?? null;
-        $item['projectId'] = $item['project_id'] ?? null;
-        return $item;
-    }
-
     // GET /api/items (Inbox / My Tasks)
     // Returns items that are NOT assigned to any project (Private Inbox)
     // OR items explicitly assigned to me (even if in project - though UI might filter)
@@ -159,7 +121,7 @@ class ItemController extends BaseController {
              
              // Inject tenant_name into mapRow or just pass it
              $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapRow($row);
+                 $item = $this->mapItemRow($row);
                  $item['tenantName'] = $row['tenant_name'];
                  $item['tenantId'] = $row['tenant_id'];
                  return $item;
@@ -232,12 +194,12 @@ class ItemController extends BaseController {
             
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
              
-             $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapRow($row);
-                 $item['tenantName'] = $row['tenant_name'];
-                 $item['tenantId'] = $row['tenant_id']; 
-                 return $item;
-             }, $items));
+              $this->sendJSON(array_map(function($row) {
+                  $item = $this->mapItemRow($row);
+                  $item['tenantName'] = $row['tenant_name'];
+                  $item['tenantId'] = $row['tenant_id']; 
+                  return $item;
+              }, $items));
 
         } else {
             // Legacy (Single Tenant Mode)
@@ -268,7 +230,7 @@ class ItemController extends BaseController {
             ]);
             
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $this->sendJSON(array_map([$this, 'mapRow'], $items));
+            $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
         }
     }
 
@@ -493,7 +455,7 @@ class ItemController extends BaseController {
         if (!$item) {
             $this->sendError(404, 'Item not found or access denied');
         }
-        $this->sendJSON($this->mapRow($item));
+        $this->sendJSON($this->mapItemRow($item));
     }
 
     private function create() {
