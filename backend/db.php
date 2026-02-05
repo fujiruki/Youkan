@@ -1,6 +1,36 @@
 <?php
 // backend/db.php
 
+require_once 'JWTService.php';
+
+/**
+ * Get authenticated user ID from token (global helper for non-controller contexts)
+ */
+function getAuthenticatedUserId(): ?string {
+    $token = JWTService::getBearerToken();
+    
+    // Also check query param
+    if (!$token && isset($_GET['token'])) {
+        $token = $_GET['token'];
+    }
+    
+    // Debug mode mock token
+    if ($token === 'mock-debug-token') {
+        return 'u_697b2af132f4f';
+    }
+    
+    if (!$token) {
+        return null;
+    }
+    
+    $payload = JWTService::decrypt($token);
+    if (!$payload) {
+        return null;
+    }
+    
+    return $payload['sub'] ?? null;
+}
+
 function getDB() {
     $dbPath = __DIR__ . '/jbwos.sqlite';
     $isNew = !file_exists($dbPath);

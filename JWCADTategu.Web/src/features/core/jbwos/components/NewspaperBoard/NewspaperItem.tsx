@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Item } from '../../types';
 import { format } from 'date-fns';
 import { cn } from '../../../../../lib/utils';
@@ -9,7 +9,7 @@ interface NewspaperItemProps {
     wrapper: NewspaperItemWrapper;
     onClick: (item: Item) => void;
     onContextMenu: (e: React.MouseEvent, itemId: string) => void;
-    onAddChild?: (item: Item) => void; // [NEW] Link to QuickInput/Project context
+    onAddChild?: (item: Item, title: string) => void; // [CHANGED] Now receives title directly
 }
 
 const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
@@ -34,7 +34,8 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
 
     // Default badges for other statuses
     const base = "px-[0.3em] py-0 rounded-[0.2em] font-bold whitespace-nowrap uppercase tracking-tighter leading-normal scale-90 origin-left";
-    if (status === 'inbox') return <span className={cn(base, "bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-400")}>受信</span>;
+    // [FIX] inbox (受信) is now hidden per user request - not needed for this view
+    if (status === 'inbox') return null;
     if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
     if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
 
@@ -42,7 +43,33 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
 };
 
 export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu, onAddChild }) => {
-    const { item, isHeader, depth } = wrapper;
+    const { item, isHeader, depth, project } = wrapper; // [FIX] Extract project from wrapper
+    const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
+    const [inlineInputValue, setInlineInputValue] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Auto-focus when input opens
+    useEffect(() => {
+        if (isInlineInputOpen && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isInlineInputOpen]);
+
+    const handleInlineSubmit = () => {
+        const trimmed = inlineInputValue.trim();
+        // [FIX] Use project (real Item object) instead of item (virtual header object)
+        const targetProject = project || item;
+        if (trimmed && onAddChild) {
+            onAddChild(targetProject as any, trimmed);
+        }
+        setInlineInputValue('');
+        setIsInlineInputOpen(false);
+    };
+
+    const handleInlineCancel = () => {
+        setInlineInputValue('');
+        setIsInlineInputOpen(false);
+    };
 
     if (isHeader) {
         return (
@@ -59,15 +86,46 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                         className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (onAddChild) onAddChild(item);
+                            setIsInlineInputOpen(true);
                         }}
                     >
                         <span className="text-lg leading-none">+</span>
                     </button>
                 </div>
+
+                {/* Inline Input */}
+                {isInlineInputOpen && (
+                    <div className="mt-1 pl-[1.6em]">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inlineInputValue}
+                            onChange={(e) => setInlineInputValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleInlineSubmit();
+                                } else if (e.key === 'Escape') {
+                                    handleInlineCancel();
+                                }
+                            }}
+                            onBlur={() => {
+                                // Delay to allow button clicks
+                                setTimeout(() => {
+                                    if (!inlineInputValue.trim()) {
+                                        handleInlineCancel();
+                                    }
+                                }, 150);
+                            }}
+                            placeholder="タイトルを入力して Enter..."
+                            className="w-full text-[0.9em] px-2 py-1 border border-blue-300 dark:border-blue-700 rounded bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                )}
             </div>
         );
     }
+
 
     const isDone = (item.status as string) === 'done' || (item.status as string) === 'completed' || (item.status as string) === 'log';
 

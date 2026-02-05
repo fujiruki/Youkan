@@ -633,7 +633,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
     };
 
     // Legacy / Shared Actions (ThrowIn to GDB Inbox)
-    const throwIn = async (title: string, tenantId?: string | null, targetProjectId?: string | null) => {
+    // [NEW] initialStatus: 'inbox' (default) or 'focus' (Ctrl+Enter)
+    const throwIn = async (title: string, tenantId?: string | null, targetProjectId?: string | null, initialStatus: 'inbox' | 'focus' = 'inbox') => {
         if (!title.trim()) return null; // Empty check
 
         // [FIX] Resolve Project ID:
@@ -671,13 +672,14 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
 
         // 1. Optimistic Update (Immediate Feedback)
-        const id = await getRepository().addItemToInbox(title, resolvedTenantId, activeProjectId || null);
+        // [NEW] Pass initialStatus to API
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId, activeProjectId || null, initialStatus);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
             id,
             title,
-            status: 'inbox',
+            status: initialStatus, // [NEW] Use initialStatus
             createdAt: Date.now(),
             updatedAt: Date.now(),
             statusUpdatedAt: Date.now(),
@@ -696,7 +698,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
             isEngaged: false
         };
 
-        setGdbActive(prev => [newItem, ...prev]);
+        // [NEW] Add to appropriate list based on status
+        if (initialStatus === 'focus') {
+            setTodayCandidates(prev => [newItem, ...prev]);
+        } else {
+            setGdbActive(prev => [newItem, ...prev]);
+        }
 
         // refreshGdb(); // Prevent flicker
         return id;

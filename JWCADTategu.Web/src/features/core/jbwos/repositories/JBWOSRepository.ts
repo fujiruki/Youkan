@@ -38,13 +38,14 @@ export const JBWOSRepository = {
     },
 
     // 2. Add Item (To API)
-    async addItemToInbox(title: string, tenantId?: string | null, projectId?: string | null): Promise<string> {
+    // [NEW] initialStatus: 'inbox' (default) or 'focus' (Ctrl+Enter)
+    async addItemToInbox(title: string, tenantId?: string | null, projectId?: string | null, initialStatus: 'inbox' | 'focus' = 'inbox'): Promise<string> {
         const id = uuidv4();
 
         const newItem: Partial<JudgableItem> = {
             id,
             title,
-            status: 'inbox',
+            status: initialStatus, // [NEW] Use initialStatus
             tenantId,
             projectId,
             parentId: projectId // [FIX] Set parentId to link to Project (v21 Item-based Project)

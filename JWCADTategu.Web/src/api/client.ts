@@ -252,6 +252,33 @@ export class ApiClient {
         return `${API_BASE}/backup`;
     }
 
+    // Items Backup (User's personal items as JSON)
+    public static getItemsBackupUrl(): string {
+        const token = localStorage.getItem('jbwos_token');
+        const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+        return `${API_BASE}/items-backup${tokenQuery}`;
+    }
+
+    public static async restoreItems(file: File): Promise<{ success: boolean; imported: number; message: string }> {
+        const formData = new FormData();
+        formData.append('backup_file', file);
+
+        const token = localStorage.getItem('jbwos_token');
+        const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+
+        const response = await fetch(`${API_BASE}/items-restore${tokenQuery}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `API Error: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
     // --- GDB Shelf API ---
     public static async getGdbShelf(projectId?: string): Promise<{ active: JudgableItem[]; preparation: JudgableItem[]; intent: JudgableItem[]; history: JudgableItem[] }> {
         const query = projectId ? `?project_id=${projectId}` : '';

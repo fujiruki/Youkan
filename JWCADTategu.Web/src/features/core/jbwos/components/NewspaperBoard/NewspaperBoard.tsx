@@ -33,8 +33,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
         onDelete: (id) => viewModel.deleteItem(id)
     });
 
-    const [overridesProjectContext, setOverridesProjectContext] = useState<any | null>(null);
-    const [quickInputKey, setQuickInputKey] = useState(0); // To force re-autoFocus
+    // [REMOVED] overridesProjectContext and quickInputKey - replaced by inline input in NewspaperItem
 
     // Quick Input: Needs to be integrated into the layout or floating?
     // Design says: "Header area or first item".
@@ -79,18 +78,17 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                         maxHeight: '100%' // Ensure no vertical spill
                     }}
                 >
-                    {/* Quick Input (Inside Columns) */}
+                    {/* Quick Input (Inside Columns) - Always uses activeProject context */}
                     <div className="break-inside-avoid mb-[1em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
                         <QuickInputWidget
-                            key={quickInputKey}
                             viewModel={viewModel}
-                            projectContext={overridesProjectContext || (activeProject ? {
+                            projectContext={activeProject ? {
                                 id: activeProject.cloudId || String(activeProject.id), // [FIX] Use cloudId for backend consistency
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
-                            } : null)}
-                            placeholder={overridesProjectContext ? `${overridesProjectContext.name}に追加...` : "Alt+D to add..."}
-                            autoFocus={quickInputKey > 0}
+                            } : null}
+                            placeholder="Alt+D to add..."
+                            autoFocus={false}
                             className="bg-transparent border-none p-0 shadow-none"
                             onRequestFallbackOpen={() => { }}
                             onOpenItem={onOpenItem}
@@ -105,13 +103,12 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                                 onOpenItem(item);
                             }}
                             onContextMenu={handleContextMenu}
-                            onAddChild={(projItem) => {
-                                setOverridesProjectContext({
-                                    id: projItem.id.startsWith('virtual-header-') ? projItem.id.replace('virtual-header-', '') : projItem.id, // [FIX] Use the item's own ID as the parent project ID
-                                    name: projItem.title,
-                                    tenantId: projItem.tenantId
-                                });
-                                setQuickInputKey(k => k + 1);
+                            onAddChild={(projItem, title) => {
+                                // [FIX] Use throwIn (correct method name) to create item
+                                const projectId = projItem.id.startsWith('virtual-header-')
+                                    ? projItem.id.replace('virtual-header-', '')
+                                    : String(projItem.id);
+                                viewModel.throwIn(title, projItem.tenantId, projectId);
                             }}
                         />
                     ))}

@@ -446,6 +446,22 @@ if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
     exit;
 }
 
+// Items Backup & Restore Routes (User's personal items as JSON)
+require_once 'ItemsBackupController.php';
+
+if (preg_match('#^(/api)?/items-backup$#', $path) && $method === 'GET') {
+    $authUserId = getAuthenticatedUserId(); // From BaseController or global
+    $controller = new ItemsBackupController(getDB(), $authUserId);
+    $controller->export();
+    exit;
+}
+if (preg_match('#^(/api)?/items-restore$#', $path) && $method === 'POST') {
+    $authUserId = getAuthenticatedUserId();
+    $controller = new ItemsBackupController(getDB(), $authUserId);
+    $controller->import();
+    exit;
+}
+
 // Calendar Routes (Load/Heatmap)
 require_once 'CalendarController.php';
 

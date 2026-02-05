@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
 import { ApiClient } from '../../../../api/client';
 import { useToast } from '../../../../contexts/ToastContext';
-import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson } from 'lucide-react';
+import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings';
 
 interface PersonalSettingsScreenProps {
     onBack: () => void;
@@ -28,6 +29,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
     // Confirm State
     const [isConfirming, setIsConfirming] = useState(false);
+
+    // Backup Modal State
+    const [showBackupModal, setShowBackupModal] = useState(false);
 
     useEffect(() => {
         loadProfile();
@@ -251,6 +255,24 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                     </div>
                 </section>
 
+                {/* Data Backup Section */}
+                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <FileJson className="w-5 h-5 text-blue-500" />
+                        データのバックアップ
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                        あなたのアイテムデータをJSON形式でエクスポート・インポートできます。
+                    </p>
+                    <button
+                        onClick={() => setShowBackupModal(true)}
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg font-medium transition-all text-sm flex items-center gap-2"
+                    >
+                        <FileJson size={16} />
+                        バックアップを管理
+                    </button>
+                </section>
+
                 {/* Danger Zone */}
                 <section className="bg-red-50 dark:bg-red-900/10 rounded-xl shadow-sm border border-red-200 dark:border-red-900/30 p-6 transition-all">
                     <h2 className="text-lg font-semibold text-red-800 dark:text-red-400 mb-4 pb-2 border-b border-red-100 dark:border-red-900/20 flex items-center gap-2">
@@ -312,6 +334,11 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 </section>
 
             </div>
+
+            {/* Backup Modal */}
+            {showBackupModal && (
+                <ItemsBackupSettings onClose={() => setShowBackupModal(false)} />
+            )}
         </div>
     );
 };

@@ -30,9 +30,10 @@ export const CloudJBWOSRepository = {
         }
     },
 
-    // 3. Add Item (Inbox)
-    addItemToInbox: async (title: string, tenantId?: string | null, projectId?: string | null): Promise<string> => {
-        const res = await ApiClient.createItem({ title, status: 'inbox', tenantId, projectId });
+    // 3. Add Item (Inbox or Focus)
+    // [NEW] initialStatus: 'inbox' (default) or 'focus' (Ctrl+Enter)
+    addItemToInbox: async (title: string, tenantId?: string | null, projectId?: string | null, initialStatus: 'inbox' | 'focus' = 'inbox'): Promise<string> => {
+        const res = await ApiClient.createItem({ title, status: initialStatus, tenantId, projectId });
         return res.id;
     },
 

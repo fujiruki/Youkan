@@ -3,7 +3,8 @@ import { Plus, Briefcase, CornerDownLeft } from 'lucide-react';
 import { Item } from '../../types';
 
 interface JBWOSViewModel {
-    throwIn: (title: string, tenantId?: string | null, projectId?: string | null) => Promise<string | null>;
+    // [NEW] initialStatus: 'inbox' (default) or 'focus' (Ctrl+Enter)
+    throwIn: (title: string, tenantId?: string | null, projectId?: string | null, initialStatus?: 'inbox' | 'focus') => Promise<string | null>;
     allProjects: Item[];
     gdbActive: Item[];
     gdbPreparation: Item[];
@@ -51,21 +52,23 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
         }
     }, [autoFocus]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // [NEW] asFocus: true = Ctrl+Enter (focus), false = Enter (inbox)
+    const handleSubmit = async (e: React.FormEvent, asFocus: boolean = false) => {
         e.preventDefault();
         if (!title.trim()) return;
 
         try {
             // Use Explicit Context if available
-            // Note: viewModel.throwIn logic: (title, tenantId, projectId)
+            // Note: viewModel.throwIn logic: (title, tenantId, projectId, initialStatus)
             // If projectContext is null, we pass undefined/null to indicate "Inbox/Personal"
 
             const pId = projectContext?.id || null;
             const tId = projectContext?.tenantId || null;
+            const initialStatus = asFocus ? 'focus' : 'inbox';
 
-            console.log('[QuickInput] Submitting:', { title, tId, pId });
+            console.log('[QuickInput] Submitting:', { title, tId, pId, initialStatus });
 
-            const newId = await viewModel.throwIn(title, tId, pId);
+            const newId = await viewModel.throwIn(title, tId, pId, initialStatus);
 
             if (newId) {
                 setLastAddedId(newId);
@@ -79,6 +82,15 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
     };
 
     const handleKeyDown = async (e: React.KeyboardEvent) => {
+        // [NEW] Ctrl+Enter = Submit as Focus (今すぐやる)
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (title.trim()) {
+                await handleSubmit(e as any, true);
+            }
+            return;
+        }
+
         // Alt + D Shortcut
         if (e.altKey && e.key.toLowerCase() === 'd') {
             e.preventDefault();
