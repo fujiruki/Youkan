@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Briefcase, Layers, Settings } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 import { MenuDrawer } from './MenuDrawer';
 
@@ -61,12 +61,26 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         return (saved as FilterMode) || 'all';
     });
 
+    // Dashboard用のビューモード状態
+    const [dashboardViewMode, setDashboardViewMode] = useState(() =>
+        localStorage.getItem('jbwos_view_mode') || 'stream'
+    );
+
     // Persist filter mode
     useEffect(() => {
         localStorage.setItem('jbwos_global_filter', filterMode);
-        // Dispatch global event for other components
         window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
     }, [filterMode]);
+
+    // Listen for dashboard view mode changes (internal to dashboard but synced here)
+    useEffect(() => {
+        const handleViewModeChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode) setDashboardViewMode(mode);
+        };
+        window.addEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
+        return () => window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
+    }, []);
 
     const getLegacyUserName = () => {
         try {
@@ -75,8 +89,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         } catch { return 'User'; }
     };
 
-    const handleGoHome = () => {
-        onNavigateToDashboard();
+    const handleDashboardViewChange = (mode: string) => {
+        setDashboardViewMode(mode);
+        localStorage.setItem('jbwos_view_mode', mode);
+        window.dispatchEvent(new CustomEvent('jbwos-view-mode-change', { detail: { mode } }));
     };
 
     // Check active states
@@ -85,7 +101,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     const isCalendar = currentView === 'calendar' || currentView === 'planning';
 
     return (
-        <div className="flex flex-col shrink-0 w-full relative">
+        <div className="flex flex-col shrink-0 w-full relative select-none">
             <MenuDrawer
                 isOpen={menuOpen}
                 onClose={() => setMenuOpen(false)}
@@ -112,118 +128,144 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onSwitchTenant={onSwitchTenant}
             />
 
-            {/* 層1: グローバルバー - ロゴ、時間バー、フィルタ、ユーザー */}
-            <div className="bg-slate-900 px-4 py-1.5 flex items-center gap-4 border-b border-slate-700/50 w-full z-40">
+            {/* 層1: グローバルバー (センタリングレイアウト) */}
+            <div className="bg-slate-900 px-4 py-1.5 flex items-center border-b border-slate-700/50 w-full z-40 relative h-10">
 
-                {/* Left: Menu + Logo */}
+                {/* Left: Menu */}
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={() => setMenuOpen(true)}
-                        className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700/50"
                         title="メニュー"
                     >
                         <Menu size={18} className="text-slate-300" />
                     </button>
+                    <HealthCheck />
+                </div>
+
+                {/* Center: 集約コントロール */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8 w-full max-w-[800px] justify-center">
+                    {/* Logo */}
                     <button
-                        onClick={handleGoHome}
-                        className="flex items-center gap-1 px-2 py-1 hover:bg-slate-700 rounded-lg transition-colors"
-                        title="ホームへ戻る"
+                        onClick={onNavigateToDashboard}
+                        className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                     >
-                        <span className="text-base">⚡</span>
-                        <span className="text-xs font-bold text-slate-200 hidden sm:inline">JBWOS</span>
+                        <span className="text-lg">⚡</span>
+                        <span className="text-sm font-black text-slate-100 italic tracking-tighter">JBWOS</span>
                     </button>
-                </div>
 
-                {/* Center: 時間バー (プログレスバー) */}
-                <div className="flex-1 max-w-md hidden md:block">
-                    <TimeProgressBar />
-                </div>
-
-                {/* Right: フィルタ + 設定 + ユーザー */}
-                <div className="flex items-center gap-3 shrink-0 ml-auto">
-                    {/* フィルタボタン群 */}
-                    <div className="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-                        <FilterButton
-                            active={filterMode === 'all'}
-                            onClick={() => setFilterMode('all')}
-                            icon={<Layers size={12} />}
-                            label="全て"
-                        />
-                        <FilterButton
-                            active={filterMode === 'personal'}
-                            onClick={() => setFilterMode('personal')}
-                            icon={<User size={12} />}
-                            label="個人"
-                        />
-                        <FilterButton
-                            active={filterMode === 'company'}
-                            onClick={() => setFilterMode('company')}
-                            icon={<Briefcase size={12} />}
-                            label="会社"
-                        />
+                    {/* Time Progress */}
+                    <div className="w-48">
+                        <TimeProgressBar />
                     </div>
 
-                    {/* Settings */}
+                    {/* Filter */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">フィルタ</span>
+                        <div className="flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700">
+                            <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全" />
+                            <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個" />
+                            <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: User & Setting */}
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                     <button
                         onClick={onNavigateToSettings}
-                        className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
                         title="設定"
                     >
-                        <Settings size={16} className="text-slate-400" />
+                        <Settings size={16} />
                     </button>
 
-                    {/* User Avatar */}
+                    {/* アカウント表示 (👤アイコン) */}
                     <button
                         onClick={() => setMenuOpen(true)}
-                        className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+                        className="flex items-center gap-2 pl-1 pr-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
                     >
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white">
-                            {(user?.name || getLegacyUserName()).charAt(0).toUpperCase()}
+                        <div className="w-5 h-5 rounded bg-indigo-500 flex items-center justify-center text-white">
+                            <User size={12} fill="currentColor" />
                         </div>
-                        <span className="text-[10px] text-slate-300 font-medium hidden lg:inline">{user?.name || getLegacyUserName()}</span>
+                        <span className="text-[11px] text-slate-200 font-bold whitespace-nowrap">
+                            {user?.name || getLegacyUserName()}
+                        </span>
                     </button>
                 </div>
             </div>
 
-            {/* 層2: モードナビ + サブナビ */}
-            <div className="bg-slate-800/95 px-4 py-1 border-b border-slate-700/30 w-full shadow-lg z-40">
-                <div className="flex items-center gap-4">
-                    {/* Primary Navigation Tabs */}
-                    <nav className="flex items-center bg-slate-700/50 rounded-lg p-0.5 gap-0.5">
-                        <NavTab
-                            icon={<LayoutDashboard size={14} />}
-                            label="ダッシュボード"
-                            isActive={isDashboard}
-                            onClick={onNavigateToDashboard}
-                        />
-                        <NavTab
-                            icon={<FolderKanban size={14} />}
-                            label="プロジェクト"
-                            isActive={isProjects}
-                            onClick={onNavigateToProjects}
-                        />
-                        <NavTab
-                            icon={<CalendarDays size={14} />}
-                            label="カレンダー"
-                            isActive={isCalendar}
-                            onClick={onNavigateToCalendar || (() => { })}
-                        />
-                    </nav>
+            {/* 層2: 構造化ナビゲーションバー (垂直区切り) */}
+            <div className="bg-slate-800 text-slate-300 px-6 py-2 border-b border-slate-700/50 w-full shadow-xl z-40 overflow-x-auto no-scrollbar">
+                <div className="flex items-stretch gap-0 min-w-max">
 
-                    {/* Sub Navigation (Context-Dependent) */}
-                    <SubNavigation currentView={currentView} />
+                    {/* ダッシュボード Section */}
+                    <NavSection title="ダッシュボード" isActive={isDashboard} icon={<LayoutDashboard size={14} />}>
+                        <div className="flex gap-1">
+                            <SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
+                            <SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
+                            <SubNavTab label="全体一覧2" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
+                        </div>
+                    </NavSection>
 
-                    {/* Health Check (右端) */}
-                    <div className="ml-auto hidden lg:block">
-                        <HealthCheck />
+                    <Separator />
+
+                    {/* プロジェクト Section */}
+                    <NavSection title="プロジェクト" isActive={isProjects} icon={<FolderKanban size={14} />}>
+                        <div className="flex gap-1">
+                            <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => { onNavigateToProjects(); setFilterMode('personal'); }} />
+                            <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => { onNavigateToProjects(); setFilterMode('company'); }} />
+                        </div>
+                    </NavSection>
+
+                    <Separator />
+
+                    {/* カレンダー Section */}
+                    <NavSection title="カレンダー" isActive={isCalendar} icon={<CalendarDays size={14} />}>
+                        <div className="flex gap-1">
+                            <SubNavTab label="グリッド" isActive={isCalendar} onClick={() => onNavigateToCalendar?.()} />
+                            <SubNavTab label="タイムライン" isActive={false} onClick={() => { }} disabled />
+                            <SubNavTab label="ガント" isActive={false} onClick={() => { }} disabled />
+                        </div>
+                    </NavSection>
+
+                    {/* Right Action: 新プロジェクト */}
+                    <div className="ml-auto pl-8 flex items-center">
+                        <button
+                            onClick={() => window.dispatchEvent(new CustomEvent('jbwos-open-project-modal'))}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all font-bold text-xs ring-1 ring-white/10"
+                        >
+                            <Plus size={16} strokeWidth={3} />
+                            <span>新プロジェクト</span>
+                        </button>
                     </div>
+
                 </div>
             </div>
         </div>
     );
 };
 
-// 時間プログレスバー: 1日の進行度を視覚化
+// ナビゲーションセクション (垂直構造)
+const NavSection: React.FC<{
+    title: string;
+    isActive: boolean;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+}> = ({ title, isActive, icon, children }) => (
+    <div className={`px-6 flex flex-col gap-1.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}>
+        <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-indigo-400' : 'text-slate-400'}`}>
+            {icon}
+            <span>{title}</span>
+        </div>
+        <div>{children}</div>
+    </div>
+);
+
+// セパレーター (|)
+const Separator = () => <div className="w-[1px] bg-slate-700/50 my-1 mx-2" />;
+
+// 時間プログレスバー (目盛り付き)
 const TimeProgressBar: React.FC = () => {
     const [now, setNow] = useState(new Date());
 
@@ -235,122 +277,61 @@ const TimeProgressBar: React.FC = () => {
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const totalMinutes = hours * 60 + minutes;
-    const dayProgress = (totalMinutes / 1440) * 100; // 0-100%
+    const dayProgress = (totalMinutes / 1440) * 100;
 
-    // Color based on time of day (朝=涼しい青, 夕方=暖かいオレンジ)
-    const getBarColor = () => {
-        if (hours < 8) return 'bg-slate-500';
-        if (hours < 12) return 'bg-emerald-500';
-        if (hours < 17) return 'bg-amber-500';
-        return 'bg-orange-500';
-    };
-
+    const barColor = hours < 8 ? 'bg-slate-500' : hours < 12 ? 'bg-emerald-500' : hours < 17 ? 'bg-amber-500' : 'bg-orange-500';
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
     return (
-        <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden relative">
-                <div
-                    className={`h-full ${getBarColor()} transition-all duration-1000 ease-linear`}
-                    style={{ width: `${dayProgress}%` }}
-                />
-                {/* Current position marker */}
-                <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-                    style={{ left: `${dayProgress}%` }}
-                />
+        <div className="flex flex-col gap-0.5">
+            {/* Scale Labels */}
+            <div className="flex justify-between text-[7px] font-bold text-slate-500 px-[1px]">
+                <span>0</span>
+                <span className="translate-x-1">12</span>
+                <span>24</span>
             </div>
-            <span className="text-xs font-mono font-bold text-slate-300 whitespace-nowrap">{timeStr}</span>
+            {/* Progress Bar Container */}
+            <div className="flex items-center gap-2">
+                <div className="flex-1 h-3 bg-slate-800 rounded-sm overflow-hidden relative border border-slate-700">
+                    <div
+                        className={`h-full ${barColor} transition-all duration-1000 ease-linear opacity-80`}
+                        style={{ width: `${dayProgress}%` }}
+                    />
+                    {/* Tick marks */}
+                    <div className="absolute inset-0 flex justify-around px-[1px] pointer-events-none">
+                        <div className="h-full w-[1px] bg-slate-700/30" />
+                        <div className="h-full w-[1px] bg-slate-700/30" />
+                    </div>
+                    {/* Current position */}
+                    <div
+                        className="absolute top-0 bottom-0 w-[1px] bg-white z-10"
+                        style={{ left: `${dayProgress}%` }}
+                    />
+                </div>
+                <span className="text-[10px] font-mono font-black text-slate-400">{timeStr}</span>
+            </div>
         </div>
     );
 };
 
-// フィルタボタン
+// フィルタボタン (コンパクト)
 const FilterButton: React.FC<{
     active: boolean;
     onClick: () => void;
-    icon: React.ReactNode;
     label: string;
-}> = ({ active, onClick, icon, label }) => (
+}> = ({ active, onClick, label }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded transition-all whitespace-nowrap ${active
+        className={`w-6 h-5 flex items-center justify-center text-[10px] font-black rounded transition-all ${active
             ? 'bg-indigo-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
             }`}
     >
-        {icon}
-        <span className="hidden sm:inline">{label}</span>
+        {label}
     </button>
 );
 
-// メインナビタブ
-const NavTab: React.FC<{
-    icon: React.ReactNode;
-    label: string;
-    isActive: boolean;
-    onClick: () => void;
-}> = ({ icon, label, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-all ${isActive
-            ? 'bg-white text-slate-900 shadow-sm'
-            : 'text-slate-300 hover:text-white hover:bg-slate-600'
-            }`}
-    >
-        <span className={isActive ? 'text-indigo-600' : 'text-slate-400'}>{icon}</span>
-        <span className="hidden md:inline">{label}</span>
-    </button>
-);
-
-// サブナビゲーション（モードに応じて変化）
-const SubNavigation: React.FC<{ currentView: string }> = ({ currentView }) => {
-    const isDashboard = currentView === 'dashboard' || currentView === 'jbwos';
-    const isProjects = currentView === 'projects';
-    const isCalendar = currentView === 'calendar' || currentView === 'planning';
-
-    // Dashboard用のビューモード状態
-    const [dashboardViewMode, setDashboardViewMode] = useState(() =>
-        localStorage.getItem('jbwos_view_mode') || 'stream'
-    );
-
-    const handleDashboardViewChange = (mode: string) => {
-        setDashboardViewMode(mode);
-        localStorage.setItem('jbwos_view_mode', mode);
-        window.dispatchEvent(new CustomEvent('jbwos-view-mode-change', { detail: { mode } }));
-    };
-
-    if (isDashboard) {
-        return (
-            <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-slate-500 mr-1">└</span>
-                <SubNavTab label="登録と集中" isActive={dashboardViewMode === 'stream'} onClick={() => handleDashboardViewChange('stream')} />
-                <SubNavTab label="全体一覧" isActive={dashboardViewMode === 'board'} onClick={() => handleDashboardViewChange('board')} />
-                <SubNavTab label="全体一覧2" isActive={dashboardViewMode === 'newspaper'} onClick={() => handleDashboardViewChange('newspaper')} />
-            </div>
-        );
-    }
-
-    if (isProjects) {
-        // プロジェクトリストでは個人/会社はフィルタで制御されるので、サブナビ不要
-        return null;
-    }
-
-    if (isCalendar) {
-        return (
-            <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-slate-500 mr-1">└</span>
-                <SubNavTab label="グリッド" isActive={true} onClick={() => { }} />
-                <SubNavTab label="タイムライン" isActive={false} onClick={() => { }} disabled />
-                <SubNavTab label="ガント" isActive={false} onClick={() => { }} disabled />
-            </div>
-        );
-    }
-
-    return null;
-};
-
-// サブナビタブ
+// サブナビタブ (1クリックで遷移可能)
 const SubNavTab: React.FC<{
     label: string;
     isActive: boolean;
@@ -360,11 +341,11 @@ const SubNavTab: React.FC<{
     <button
         onClick={onClick}
         disabled={disabled}
-        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${disabled
-            ? 'text-slate-600 cursor-not-allowed'
+        className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all border ${disabled
+            ? 'text-slate-600 border-transparent cursor-not-allowed'
             : isActive
-                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]'
+                : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/50'
             }`}
     >
         {label}
