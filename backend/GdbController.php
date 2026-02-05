@@ -44,30 +44,26 @@ class GdbController extends BaseController {
              $params = [$this->currentUserId];
         }
         
-        // [Fix] Project Focus Filter (Recursive + Direct project_id + Dual ID Format)
+        // [Fix] Project Focus Filter (Recursive + Direct ID + Alias ID)
         $whereSuffix = "";
         $projectParams = [];
         if ($projectId) {
+            // 1. Get all internal IDs of items in this project subtree
             $descendants = $this->getProjectDescendantIds($projectId);
-            if (!empty($descendants)) {
-                $placeholders = implode(',', array_fill(0, count($descendants), '?'));
-                // [FIX] Support both ID formats (item_xxx and prj-xxx)
-                if ($projectIdAlt) {
-                    $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id = ? OR items.project_id = ?) ";
-                    $projectParams = array_merge($descendants, [$projectId, $projectIdAlt]);
-                } else {
-                    $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id = ?) ";
-                    $projectParams = array_merge($descendants, [$projectId]);
-                }
+            $targetIds = array_unique(array_merge([$projectId], $descendants));
+            
+            // 2. Prepare conditions
+            $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
+            
+            // [LOGIC] Item is in focused project IF:
+            // a) It is the project itself or any of its descendants (by tree structure)
+            // b) Its project_id field matches ANY of the project's internal IDs or alias IDs
+            if ($projectIdAlt) {
+                $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders) OR items.project_id = ?) ";
+                $projectParams = array_merge($targetIds, $targetIds, [$projectIdAlt]);
             } else {
-                // [FIX] Even if no descendants, still filter by project_id with both formats
-                if ($projectIdAlt) {
-                    $whereSuffix = " AND (items.project_id = ? OR items.project_id = ?) ";
-                    $projectParams = [$projectId, $projectIdAlt];
-                } else {
-                    $whereSuffix = " AND items.project_id = ? ";
-                    $projectParams = [$projectId];
-                }
+                $whereSuffix = " AND (items.id IN ($placeholders) OR items.project_id IN ($placeholders)) ";
+                $projectParams = array_merge($targetIds, $targetIds);
             }
         }
 

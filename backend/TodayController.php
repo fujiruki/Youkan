@@ -68,27 +68,22 @@ class TodayController extends BaseController {
 
         // [NEW] Project Membership Filter (for ProjectFocused mode)
         if ($projectId) {
+            // [Fix] Project Focus Filter (Recursive + Direct ID + Alias ID)
             $descendants = $this->getProjectDescendantIds($projectId);
-            $projectMembershipFilter = "";
-
-            if (!empty($descendants)) {
-                $dPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
-                if ($projectIdAlt) {
-                    $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id = ? OR items.project_id = ?) ";
-                    $params = array_merge($params, $descendants, [$projectId, $projectIdAlt]);
-                } else {
-                    $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id = ?) ";
-                    $params = array_merge($params, $descendants, [$projectId]);
-                }
+            $targetIds = array_unique(array_merge([$projectId], $descendants));
+            
+            $dPlaceholders = implode(',', array_fill(0, count($targetIds), '?'));
+            
+            // [LOGIC] Show item if its project_id field matches any of project's IDs or if it IS a project/descendant
+            if ($projectIdAlt) {
+                $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id IN ($dPlaceholders) OR items.project_id = ?) ";
+                $projectMembershipParams = array_merge($targetIds, $targetIds, [$projectIdAlt]);
             } else {
-                if ($projectIdAlt) {
-                    $projectMembershipFilter = " (items.project_id = ? OR items.project_id = ?) ";
-                    $params = array_merge($params, [$projectId, $projectIdAlt]);
-                } else {
-                    $projectMembershipFilter = " items.project_id = ? ";
-                    $params = array_merge($params, [$projectId]);
-                }
+                $projectMembershipFilter = " (items.id IN ($dPlaceholders) OR items.project_id IN ($dPlaceholders)) ";
+                $projectMembershipParams = array_merge($targetIds, $targetIds);
             }
+            
+            $params = array_merge($params, $projectMembershipParams);
 
             // [CORE FIX] Combine: Show if (Owned by me) OR (Belongs to focused project)
             // Security: Still requires tenant membership (handled via $tenantId context switch above)
