@@ -1,7 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2 } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
+
 import { MenuDrawer } from './MenuDrawer';
+import { MotivatorWhisper } from '../../features/core/jbwos/components/Layout/MotivatorWhisper';
+
 
 // Basic types needed for props
 interface AuthUser {
@@ -194,6 +198,9 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     <div className="w-40">
                         <TimeProgressBar />
                     </div>
+
+                    {/* Motivator Whisper */}
+                    <MotivatorWhisper />
 
                     {/* Reality Load (TOTAL LOAD) */}
                     <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50">

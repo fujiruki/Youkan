@@ -277,7 +277,7 @@ class AuthController extends BaseController {
 
         if ($this->currentUser) {
             // Fetch fresh user data from DB to ensure name is up to date
-            $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative FROM users WHERE id = ?");
+            $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative, preferences FROM users WHERE id = ?");
             $stmt->execute([$this->currentUserId]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -347,7 +347,8 @@ class AuthController extends BaseController {
                     'id' => $user['id'],
                     'name' => $user['display_name'], // FRESH from DB
                     'email' => $user['email'],
-                    'is_representative' => (bool)$user['is_representative']
+                    'is_representative' => (bool)$user['is_representative'],
+                    'preferences' => $user['preferences']
                 ],
                 'tenant' => $tenantInfo,
                 'joinedTenants' => array_map(function($t) {

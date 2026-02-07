@@ -45,12 +45,12 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
 const IndentLines = ({ depth }: { depth: number }) => {
     if (depth <= 0) return null;
     return (
-        <div className="absolute top-0 bottom-0 left-0 pointer-events-none">
+        <div className="absolute top-0 bottom-0 left-0 pointer-events-none flex" style={{ width: `${depth * 1.5}rem` }}>
             {Array.from({ length: depth }).map((_, i) => (
                 <div
                     key={i}
-                    className="absolute top-0 bottom-0 w-[1px] bg-slate-200/60 dark:bg-slate-700/60 pointer-events-none"
-                    style={{ left: `-${(depth - i) * 1.5 - 0.6}rem` }}
+                    className="h-full border-l border-slate-300 dark:border-slate-700"
+                    style={{ width: '1.5rem', marginLeft: i === 0 ? '0.75rem' : '0' }}
                 />
             ))}
         </div>
@@ -89,15 +89,15 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     if (isHeader) {
         return (
             <div
-                className="mb-[3px] mt-[1em] break-inside-avoid group/header relative"
+                className="mb-[2px] mt-[0.6em] break-inside-avoid group/header relative"
                 style={{ breakAfter: 'avoid' }}
             >
                 <IndentLines depth={depth} />
                 <div className={cn(
                     "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold p-1 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
-                    depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.85em] text-slate-500 dark:text-slate-400 font-medium"
+                    depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
                 )}
-                    style={{ marginLeft: `${depth * 1.5}rem` }} // インデントを強化
+                    style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }} // インデントを強化
                     onClick={() => onClick(item)}
                     onContextMenu={(e) => {
                         e.preventDefault();
@@ -123,7 +123,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
                 {/* Inline Input */}
                 {isInlineInputOpen && (
-                    <div className="mt-1" style={{ marginLeft: `${(depth + 1) * 1.5}rem` }}>
+                    <div className="mt-1" style={{ paddingLeft: `${(depth + 1) * 1.5 + 0.5}rem` }}>
                         <input
                             ref={inputRef}
                             type="text"
@@ -173,11 +173,11 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                     "group flex items-center gap-[0.4em] px-[0.4em] py-[0.15em] rounded-[0.3em] transition-all cursor-pointer select-none relative z-10",
                     "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
                     "break-inside-avoid",
-                    "mb-[0.1em]",
+                    "mb-[2px]",
                     isDone && "opacity-60 grayscale-[0.3]"
                 )}
             style={{
-                marginLeft: `${depth * 1.5}rem` // 階層に応じたインデント
+                paddingLeft: `${depth * 1.5 + 0.5}rem` // 階層に応じたインデント
             }}
         >
             <IndentLines depth={depth} />

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
 import { ApiClient } from '../../../../api/client';
 import { useToast } from '../../../../contexts/ToastContext';
-import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson } from 'lucide-react';
+import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson, Settings } from 'lucide-react';
 import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings';
 
 interface PersonalSettingsScreenProps {
@@ -33,6 +33,14 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
     // Backup Modal State
     const [showBackupModal, setShowBackupModal] = useState(false);
 
+    // Motivation Quotes State
+    const [motivationQuotes, setMotivationQuotes] = useState('');
+
+    // App Settings
+    const [showLifeMode, setShowLifeMode] = useState(() => {
+        return localStorage.getItem('jbwos_show_life_mode') !== 'false';
+    });
+
     useEffect(() => {
         loadProfile();
     }, []);
@@ -54,6 +62,10 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 nwh = JSON.stringify(nwh, null, 2);
             }
             setNonWorkingHours(nwh || '');
+
+            // Handle preferences (Motivation Quotes)
+            const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
+            setMotivationQuotes(prefs.motivation_quotes || '');
         } catch (error) {
             console.error('Failed to load profile', error);
             showToast({ type: 'error', title: 'エラー', message: 'プロフィールの読み込みに失敗しました' });
@@ -76,13 +88,23 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                 }
             }
 
+            // Handle preferences
+            const currentProfile = await ApiClient.getUserProfile();
+            const prefs = currentProfile.preferences ? (typeof currentProfile.preferences === 'string' ? JSON.parse(currentProfile.preferences) : currentProfile.preferences) : {};
+            prefs.motivation_quotes = motivationQuotes;
+
             await ApiClient.updateUserProfile({
                 display_name: displayName,
                 birthday: birthday,
                 daily_capacity_minutes: dailyCapacity,
-                non_working_hours: parsedNwh
+                non_working_hours: parsedNwh,
+                preferences: prefs
             });
             await checkAuth(); // Refresh global auth state
+
+            // Save local settings
+            localStorage.setItem('jbwos_show_life_mode', showLifeMode.toString());
+
             showToast({ type: 'success', title: '保存完了', message: 'プロフィールを更新しました' });
         } catch (error) {
             console.error(error);
@@ -179,7 +201,30 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                     </div>
                 </section>
 
-                {/* Capacity Section */}
+                {/* App Settings Section */}
+                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-slate-500" />
+                        システム表示設定
+                    </h2>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">個人用 (Life) モードの導線を表示</h3>
+                                <p className="text-xs text-slate-500 mt-1">メニューに「社内モード」への切り替えボタンを表示します。</p>
+                            </div>
+                            <button
+                                onClick={() => setShowLifeMode(!showLifeMode)}
+                                className={`w-12 h-6 rounded-full transition-colors relative ${showLifeMode ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            >
+                                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${showLifeMode ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400">※ 法人利用に特化したい場合はオフにすることで、メニューをシンプルにできます。</p>
+                    </div>
+                </section>
+
+                {/* Capacity Section (Restored) */}
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
                         <Clock className="w-5 h-5 text-slate-500" />
@@ -220,7 +265,26 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                     </div>
                 </section>
 
-                {/* Security Section */}
+                {/* Motivation Quotes Section */}
+                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <Save className="w-5 h-5 text-emerald-500" />
+                        好きな言葉集（モチベーター）
+                    </h2>
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            自分がやる気になる言葉を1つ1行で入力してください。システムを開くたびに、ランダムな言葉が背景に浮かび上がります。
+                        </p>
+                        <textarea
+                            value={motivationQuotes}
+                            onChange={(e) => setMotivationQuotes(e.target.value)}
+                            rows={6}
+                            className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
+                            placeholder={"一歩ずつ進もう\n今日できることをやる\n完璧よりもまず完成させよう"}
+                        />
+                        <p className="text-xs text-slate-400">※ 入力した言葉は、作業の邪魔にならないように画面背景にひっそりと表示されます。</p>
+                    </div>
+                </section>
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
                         <Lock className="w-5 h-5 text-slate-500" />

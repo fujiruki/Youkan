@@ -364,7 +364,7 @@ class ItemController extends BaseController {
         $stmt->execute($params);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $this->sendJSON(array_map([$this, 'mapRow'], $items));
+        $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
     }
 
     // GET /api/items?parent_id=XXX
@@ -384,7 +384,7 @@ class ItemController extends BaseController {
         $stmt->execute([$this->currentTenantId, $parentId]);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $this->sendJSON(array_map([$this, 'mapRow'], $items));
+        $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
     }
 
     // GET /api/users/{userId}/capacity

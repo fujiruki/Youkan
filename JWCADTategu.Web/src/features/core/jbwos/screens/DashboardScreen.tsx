@@ -96,6 +96,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
 
 
+
     const { joinedTenants } = useAuth();
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
@@ -243,9 +244,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 )}
 
                                 {remainingQueue.length > 0 && (
-                                    <div className="mt-8 space-y-2">
+                                    <div className="mt-4 space-y-1">
                                         <SectionHeader title="Next Strategy" count={remainingQueue.length} icon={<Clock size={14} />} />
-                                        <div className="grid grid-cols-1 gap-2">
+                                        <div className="grid grid-cols-1 gap-[2px]">
                                             {remainingQueue.map((item, index) => (
                                                 <SmartItemRow
                                                     key={item.id}
@@ -262,9 +263,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             </div>
                         </div>
 
-                        <div className="max-w-4xl mx-auto px-4 md:px-6 space-y-8">
+                        <div className="max-w-4xl mx-auto px-4 md:px-6 space-y-4">
                             {/* Inbox Section */}
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 <SectionHeader
                                     title="Inbox (Registration)"
                                     count={inboxItems.length + (ghostGdbCount || 0)}
@@ -307,7 +308,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             </div>
 
                             {/* Pending & Waiting Sections */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <SectionHeader
                                         title="Pending"

@@ -316,6 +316,9 @@ class ProjectController extends BaseController {
             'assignedTo' => $item['assigned_to'] ?? null, // [FIX] Added
             'created_at' => $item['created_at'], 
             'updated_at' => $item['updated_at'],
+            'isProject' => (bool)($item['is_project'] ?? true), // [FIX] Added for Frontend compatibility
+            'parentId' => $item['parent_id'] ?? null, // [FIX] Include hierarchy info
+            'projectId' => $item['project_id'] ?? null, // [FIX] Include project context info
             'type' => $item['project_type'] // Exposed
         ];
     }

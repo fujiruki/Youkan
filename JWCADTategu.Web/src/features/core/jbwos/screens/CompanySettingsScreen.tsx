@@ -150,19 +150,19 @@ export const CompanySettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack
                                 メンバー
                                 <span className="text-sm font-normal text-slate-400 ml-2">({members.length})</span>
                             </h2>
-                            <p className="text-sm text-slate-500 mt-1">アクセス権限と役割を管理します。</p>
+                            <p className="text-sm text-slate-500 mt-1">社員のアカウント登録と役割を管理します。</p>
                         </div>
                         <button
                             onClick={() => setIsInviting(true)}
                             className="bg-slate-800 text-white px-4 py-2 rounded-md hover:bg-slate-700 flex items-center gap-2 text-sm"
                         >
-                            <Plus size={16} /> メンバーを招待
+                            <Plus size={16} /> 新しい社員を登録する
                         </button>
                     </div>
 
                     {isInviting && (
                         <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg animate-in fade-in slide-in-from-top-2">
-                            <h3 className="text-sm font-bold text-indigo-900 mb-3">新しいメンバーを招待</h3>
+                            <h3 className="text-sm font-bold text-indigo-900 mb-3">新しい社員を追加する</h3>
                             <div className="flex gap-4 items-end">
                                 <div className="flex-1">
                                     <label className="block text-xs text-indigo-700 mb-1">メールアドレス</label>
@@ -185,7 +185,7 @@ export const CompanySettingsScreen: React.FC<{ onBack: () => void }> = ({ onBack
                                         <option value="admin">管理者</option>
                                     </select>
                                 </div>
-                                <button onClick={handleInvite} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">招待を送信</button>
+                                <button onClick={handleInvite} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">登録を実行</button>
                                 <button onClick={() => setIsInviting(false)} className="text-slate-500 px-3 py-2 hover:bg-slate-200 rounded">キャンセル</button>
                             </div>
                         </div>

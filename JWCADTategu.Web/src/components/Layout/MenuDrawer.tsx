@@ -80,24 +80,31 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                             {(user?.name || userName || 'G').charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                            {/* Tenant Info */}
-                            <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400 truncate">
-                                {tenant ? (
-                                    <span className="flex items-center gap-1">
-                                        <Building size={10} />
+                            {/* Tenant Info & User Name logic (Swap priority if in company mode) */}
+                            {tenant ? (
+                                <>
+                                    <div className="text-sm font-bold text-slate-900 dark:text-white truncate flex items-center gap-1">
+                                        <Building size={14} className="text-indigo-600" />
                                         {tenant.name}
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-400">個人モード (Life)</span>
-                                )}
-                            </div>
-                            {/* User Name */}
-                            <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                {user?.name || userName || 'Guest'}
-                            </div>
+                                    </div>
+                                    <div className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                                        担当者: {user?.name || userName || 'Guest'}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="text-xs font-medium text-slate-400 truncate">
+                                        社内モード
+                                    </div>
+                                    <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                        {user?.name || userName || 'Guest'}
+                                    </div>
+                                </>
+                            )}
+
                             {/* Email */}
                             {user?.email && (
-                                <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
                                     {user.email}
                                 </div>
                             )}
@@ -114,19 +121,21 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                         <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">モード切替</div>
                         <div className="space-y-1">
                             {/* Personal Mode Switch */}
-                            <button
-                                onClick={() => { onSwitchTenant(null); onClose(); }}
-                                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors ${!tenant
-                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-900/30'
-                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <User size={14} />
-                                    個人用 (Life)
-                                </span>
-                                {!tenant && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
-                            </button>
+                            {(!tenant || (localStorage.getItem('jbwos_show_life_mode') !== 'false')) && (
+                                <button
+                                    onClick={() => { onSwitchTenant(null); onClose(); }}
+                                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors ${!tenant
+                                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-100 dark:border-indigo-900/30'
+                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <User size={14} />
+                                        {joinedTenants.length > 0 ? '社内モード' : '個人用 (Life)'}
+                                    </span>
+                                    {!tenant && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                                </button>
+                            )}
 
                             {/* Company/Proprietor Tenants */}
                             {joinedTenants.map(t => (
@@ -157,7 +166,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
                             <MenuItem icon={<User size={18} />} label="個人設定" onClick={onNavigateToPersonalSettings} />
                         )}
                         {tenant && onNavigateToCompanySettings && (
-                            <MenuItem icon={<Building size={18} />} label="チーム / メンバー管理" onClick={onNavigateToCompanySettings} />
+                            <MenuItem icon={<Building size={18} />} label="社員登録・メンバー管理" onClick={onNavigateToCompanySettings} />
                         )}
                         {/* Admin Access (Owner only) */}
                         {tenant?.role === 'owner' && (

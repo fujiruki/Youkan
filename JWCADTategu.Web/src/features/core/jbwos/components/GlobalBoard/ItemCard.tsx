@@ -167,6 +167,14 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 </div>
                             )}
 
+                            {/* [FIX] Standardized Status Badges (Matching NewspaperItem) */}
+                            {item.status === 'pending' && (
+                                <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 whitespace-nowrap">保留</span>
+                            )}
+                            {item.status === 'waiting' && (
+                                <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 whitespace-nowrap">待機</span>
+                            )}
+
                             {/* Deadline Display */}
                             {item.due_date && (
                                 <span className={cn(
@@ -176,17 +184,6 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                     <span className="whitespace-nowrap">
                                         {new Date(item.due_date).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' })}
                                     </span>
-                                </span>
-                            )}
-
-                            {item.dueStatus === 'waiting_external' && (
-                                <span className="text-[0.75em] text-slate-500 font-normal whitespace-nowrap hidden sm:inline">未確定</span>
-                            )}
-
-                            {/* Wait Reason */}
-                            {item.waitingReason && (
-                                <span className="text-[0.75em] text-amber-600 dark:text-amber-500 whitespace-nowrap">
-                                    ⏳
                                 </span>
                             )}
                         </div>

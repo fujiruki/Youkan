@@ -4,6 +4,7 @@ export interface AuthUser {
     email: string;
     isRepresentative?: boolean;
     activeTaskId?: string; // [JBWOS] Current Focus Pointer
+    preferences?: any;
 }
 
 export interface Tenant {
@@ -55,6 +56,7 @@ export interface BackendAuthUser {
     name: string;
     email: string;
     is_representative: boolean;
+    preferences?: any;
     sub?: string; // from me()
 }
 

@@ -35,7 +35,7 @@ class UserController extends BaseController {
             $this->sendError(400, 'User context required');
         }
 
-        $stmt = $this->pdo->prepare("SELECT id, email, display_name, birthday, daily_capacity_minutes, non_working_hours, created_at, active_task_id FROM users WHERE id = ?");
+        $stmt = $this->pdo->prepare("SELECT id, email, display_name, birthday, daily_capacity_minutes, non_working_hours, preferences, created_at, active_task_id FROM users WHERE id = ?");
         $stmt->execute([$this->currentUserId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -80,6 +80,11 @@ class UserController extends BaseController {
              // Expecting JSON-encoded string or array to be JSON encoded
             $val = is_array($input['non_working_hours']) ? json_encode($input['non_working_hours']) : $input['non_working_hours'];
             $updates[] = "non_working_hours = ?";
+            $params[] = $val;
+        }
+        if (isset($input['preferences'])) {
+            $val = is_array($input['preferences']) ? json_encode($input['preferences']) : $input['preferences'];
+            $updates[] = "preferences = ?";
             $params[] = $val;
         }
         

@@ -26,6 +26,7 @@ import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 import { CompanySettingsScreen } from './features/core/projects/screens/CompanySettingsScreen'; // [NEW]
 import { PersonalSettingsScreen } from './features/core/jbwos/screens/PersonalSettingsScreen'; // [NEW]
 
+
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
 import { UserManagementScreen } from './features/admin/screens/UserManagementScreen'; // [NEW] User Management
 import { ProjectCreationDialog } from './features/core/jbwos/components/Modal/ProjectCreationDialog';
@@ -593,17 +594,19 @@ const AppContent: React.FC<{
                         <UndoToast />
 
                         {/* Global Project Creation Dialog */}
-                        <ProjectCreationDialog
-                            isOpen={isProjectModalOpen}
-                            onClose={() => setIsProjectModalOpen(false)}
-                            onCreate={async (payload) => {
-                                await createProject(payload);
-                                setIsProjectModalOpen(false);
-                            }}
-                            activeScope={activeScope}
-                            tenants={joinedTenants}
-                            project={null}
-                        />
+                        {isProjectModalOpen && (
+                            <ProjectCreationDialog
+                                isOpen={isProjectModalOpen}
+                                onClose={() => setIsProjectModalOpen(false)}
+                                onCreate={async (payload) => {
+                                    await createProject(payload);
+                                    setIsProjectModalOpen(false);
+                                }}
+                                activeScope={activeScope}
+                                tenants={joinedTenants}
+                                project={null}
+                            />
+                        )}
                     </div>
                 </UndoProvider>
                 <ToastContainer toasts={toasts} onDismiss={dismissToast} />

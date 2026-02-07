@@ -313,11 +313,11 @@ export class ApiClient {
     }
 
     // --- User API ---
-    public static async getUserProfile(): Promise<{ id: string; email: string; display_name: string; birthday: string; daily_capacity_minutes: number; non_working_hours: any }> {
+    public static async getUserProfile(): Promise<{ id: string; email: string; display_name: string; birthday: string; daily_capacity_minutes: number; non_working_hours: any; preferences: any }> {
         return this.request('GET', '/user/profile');
     }
 
-    public static async updateUserProfile(data: { display_name?: string; birthday?: string; daily_capacity_minutes?: number; non_working_hours?: any }): Promise<{ success: boolean }> {
+    public static async updateUserProfile(data: { display_name?: string; birthday?: string; daily_capacity_minutes?: number; non_working_hours?: any; preferences?: any }): Promise<{ success: boolean }> {
         return this.request('PUT', '/user/profile', data);
     }
 

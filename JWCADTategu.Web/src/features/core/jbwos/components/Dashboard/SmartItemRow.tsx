@@ -15,9 +15,9 @@ interface SmartItemRowProps {
 
 const StatusBadge = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
     const base = "text-[9px] px-1 py-0 rounded-sm font-bold whitespace-nowrap uppercase tracking-tighter";
-    if (status === 'inbox') return <span className={cn(base, "bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400")}>受信</span>;
+    if (status === 'inbox') return null; // [FIX] Hide '受信' badge per user request
     if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
-    if (status === 'waiting') return <span className={cn(base, "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
+    if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
     if (status === 'focus') {
         return isEngaged
             ? <span className={cn(base, "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50")}>実行中</span>

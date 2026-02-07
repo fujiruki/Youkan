@@ -991,10 +991,16 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <button
                                                 onClick={async () => {
                                                     setIsProject(true);
+                                                    const updates: any = { isProject: true };
+                                                    // [FIX] Inherit hierarchy: If item has projectId, set it as parentId too
+                                                    if (item.projectId) {
+                                                        updates.parentId = item.projectId;
+                                                    }
+
                                                     if (onUpdate) {
-                                                        await onUpdate(item.id, { isProject: true });
+                                                        await onUpdate(item.id, updates);
                                                     } else {
-                                                        await ApiClient.updateItem(item.id, { isProject: true });
+                                                        await ApiClient.updateItem(item.id, updates);
                                                     }
 
                                                     // [FIX] Reload subtasks after projectization to show the breakdown UI immediately
