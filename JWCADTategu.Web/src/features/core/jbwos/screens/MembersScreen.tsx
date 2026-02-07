@@ -38,6 +38,17 @@ export const MembersScreen: React.FC = () => {
                         </p>
                     </div>
                 </div>
+
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-bold text-amber-800">メンバーの招待・削除について</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                            新しいメンバーの招待や削除は、メニューの <span className="font-bold">「社員登録・メンバー管理」</span> 画面から行ってください。
+                            （設定アイコンではなく、ビルアイコンのメニュー項目です）
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* List */}

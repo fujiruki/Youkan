@@ -555,9 +555,11 @@ const AppContent: React.FC<{
 
                             {/* 9.5 Company Settings */}
                             {currentView === 'companySettings' && (
-                                <CompanySettingsScreen
-                                    onNavigateHome={handleBackToDashboard}
-                                />
+                                <div className="h-full w-full overflow-auto bg-slate-50">
+                                    <CompanySettingsScreen
+                                        onNavigateHome={handleBackToDashboard}
+                                    />
+                                </div>
                             )}
 
                             {/* 10. Manual Screen */}

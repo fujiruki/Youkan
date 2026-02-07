@@ -131,55 +131,63 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                 )}
 
                 {/* Invite Section */}
-                {isAdmin && (
-                    <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
-                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <Plus size={20} className="text-indigo-600" />
-                            メンバーを招待する
-                        </h2>
-                        <form onSubmit={handleInvite} className="flex flex-col md:flex-row gap-4 items-end">
-                            <div className="flex-1 w-full">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={inviteEmail}
-                                    onChange={e => setInviteEmail(e.target.value)}
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
-                                    placeholder="colleague@example.com"
-                                />
-                            </div>
-                            <div className="flex-1 w-full">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">氏名 (任意)</label>
-                                <input
-                                    type="text"
-                                    value={inviteName}
-                                    onChange={e => setInviteName(e.target.value)}
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
-                                    placeholder="Taro Yamada"
-                                />
-                            </div>
-                            <div className="w-32">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">役割</label>
-                                <select
-                                    value={inviteRole}
-                                    onChange={e => setInviteRole(e.target.value)}
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
-                                >
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={inviting}
-                                className="bg-indigo-600 text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 disabled:opacity-50"
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
+                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Plus size={20} className="text-indigo-600" />
+                        メンバーを招待する
+                    </h2>
+
+                    {!isAdmin && (
+                        <div className="mb-4 bg-slate-100 p-3 rounded text-sm text-slate-500 border border-slate-200">
+                            メンバーの招待を行うには、管理者権限 (Admin または Owner) が必要です。
+                        </div>
+                    )}
+
+                    <form onSubmit={handleInvite} className={`flex flex-col md:flex-row gap-4 items-end transition-opacity ${!isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="flex-1 w-full">
+                            <label className="block text-xs font-bold text-slate-500 mb-1">メールアドレス</label>
+                            <input
+                                type="email"
+                                required
+                                value={inviteEmail}
+                                onChange={e => setInviteEmail(e.target.value)}
+                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                placeholder="colleague@example.com"
+                                disabled={!isAdmin}
+                            />
+                        </div>
+                        <div className="flex-1 w-full">
+                            <label className="block text-xs font-bold text-slate-500 mb-1">氏名 (任意)</label>
+                            <input
+                                type="text"
+                                value={inviteName}
+                                onChange={e => setInviteName(e.target.value)}
+                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                placeholder="Taro Yamada"
+                                disabled={!isAdmin}
+                            />
+                        </div>
+                        <div className="w-32">
+                            <label className="block text-xs font-bold text-slate-500 mb-1">役割</label>
+                            <select
+                                value={inviteRole}
+                                onChange={e => setInviteRole(e.target.value)}
+                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                disabled={!isAdmin}
                             >
-                                {inviting ? '招待中...' : '招待'}
-                            </button>
-                        </form>
-                    </div>
-                )}
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={inviting || !isAdmin}
+                            className="bg-indigo-600 text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                            {inviting ? '招待中...' : '招待'}
+                        </button>
+                    </form>
+                </div>
 
                 {/* Member List */}
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
