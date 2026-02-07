@@ -13,11 +13,12 @@ import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
-import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
+import { VolumeCalendarGrid } from '../components/Layout/VolumeCalendarGrid';
+
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -193,15 +194,26 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-hidden">
                             {viewMode === 'calendar' ? (
-                                <RyokanCalendar
-                                    items={allItemsForCalendar}
-                                    projects={allItemsForCalendar.filter(i => i.isProject)}
-                                    onItemClick={setSelectedItem}
-                                    filterMode={filterMode}
-                                    displayMode="timeline"
-                                    rowHeight={ganttRowHeight}
-                                />
+                                <div className="p-6 h-full overflow-hidden">
+                                    <VolumeCalendarGrid
+                                        tasks={allItemsForCalendar.map(item => ({
+                                            id: item.id,
+                                            title: item.title,
+                                            projectId: item.projectId || 'personal',
+                                            projectTitle: item.projectTitle || '個人',
+                                            estimatedTime: (item.estimatedMinutes || 60) / 60,
+                                            startDate: item.due_date || new Date().toISOString().split('T')[0],
+                                            dueDate: item.due_date || new Date().toISOString().split('T')[0]
+                                        }))}
+                                        settings={{
+                                            workCapacity: capacityLimit / 60,
+                                            lifeCapacity: 2,
+                                            managementMode: 'Separation'
+                                        }}
+                                    />
+                                </div>
                             ) : viewMode === 'newspaper' ? (
+
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             ) : (
                                 <JbwosBoard
