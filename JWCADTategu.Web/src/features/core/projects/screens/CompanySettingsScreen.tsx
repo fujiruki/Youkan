@@ -30,7 +30,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
     const [inviting, setInviting] = useState(false);
 
     // Current User Info (for permissions)
-    const [currentUser, setCurrentUser] = useState<any>(() => {
+    const [currentUser] = useState<any>(() => {
         try {
             const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
             const t = JSON.parse(localStorage.getItem('jbwos_tenant') || '{}');
