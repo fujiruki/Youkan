@@ -276,6 +276,51 @@ class AuthController extends BaseController {
         $this->authenticate();
 
         if ($this->currentUser) {
+            $accountType = $this->currentUser['account_type'] ?? 'user';
+
+            // [v22 Fix] Handle Tenant/Company Account Login
+            if ($accountType === 'tenant') {
+                $tenantId = $this->currentUserId; // In tenant login, sub (currentUserId) is tenant_id
+                
+                $stmt = $this->pdo->prepare("SELECT id, name, email FROM tenants WHERE id = ?");
+                $stmt->execute([$tenantId]);
+                $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$tenant) {
+                    $this->sendError(401, 'Tenant account no longer exists');
+                }
+
+                // Return compatible structure for frontend
+                echo json_encode([
+                    'valid' => true,
+                    'accountType' => 'tenant',
+                    // Map tenant info to user object for frontend compatibility
+                    'user' => [
+                        'id' => $tenant['id'],
+                        'name' => $tenant['name'],
+                        'email' => $tenant['email'],
+                        'is_representative' => true, // Company account is always representative
+                        'preferences' => null
+                    ],
+                    // Context is the tenant itself
+                    'tenant' => [
+                        'id' => $tenant['id'],
+                        'name' => $tenant['name'],
+                        'role' => 'owner',
+                        'representativeName' => $tenant['name'],
+                        'representativeEmail' => $tenant['email']
+                    ],
+                    // Self-membership
+                    'joinedTenants' => [[
+                        'id' => $tenant['id'],
+                        'name' => $tenant['name'],
+                        'role' => 'owner'
+                    ]]
+                ]);
+                return;
+            }
+
+            // --- User Login Logic ---
             // Fetch fresh user data from DB to ensure name is up to date
             $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative, preferences FROM users WHERE id = ?");
             $stmt->execute([$this->currentUserId]);
