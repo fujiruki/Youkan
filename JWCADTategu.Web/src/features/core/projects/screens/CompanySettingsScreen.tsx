@@ -30,16 +30,17 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
     const [inviting, setInviting] = useState(false);
 
     // Current User Info (for permissions)
-    const [currentUser, setCurrentUser] = useState<any>(null);
-
-    useEffect(() => {
-        // Parse user from local storage
+    const [currentUser, setCurrentUser] = useState<any>(() => {
         try {
             const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
             const t = JSON.parse(localStorage.getItem('jbwos_tenant') || '{}');
-            setCurrentUser({ ...u, role: t.role, tenantId: t.id });
-        } catch { }
+            return { ...u, role: t.role, tenantId: t.id };
+        } catch {
+            return null;
+        }
+    });
 
+    useEffect(() => {
         loadMembers();
     }, []);
 
@@ -107,7 +108,8 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
         }
     };
 
-    const isAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin';
+    // [MODIFIED] Relaxed permission check: If tenantId exists (Company Mode), treat as admin.
+    const isAdmin = currentUser?.role === 'owner' || currentUser?.role === 'admin' || !!currentUser?.tenantId;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
