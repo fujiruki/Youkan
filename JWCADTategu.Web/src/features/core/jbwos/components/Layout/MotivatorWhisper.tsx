@@ -12,23 +12,26 @@ const DEFAULT_QUOTES = [
     "焦らず、腐らず、諦めず"
 ];
 
-const DISPLAY_DURATION = 45000; // 45秒
-const INTERVAL_MIN = 15; // 分
-const INTERVAL_MAX = 30; // 分
+// Config
+const INITIAL_DELAY = 500; // 0.5秒後に表示開始
+const FADE_DURATION = 0.5; // 0.5秒かけてフェードイン
+const REMINDER_INTERVAL = 10 * 60 * 1000; // 10分
+const GLOW_DURATION = 60 * 1000; // 1分間光る
 
 export const MotivatorWhisper: React.FC = () => {
     const { user } = useAuth();
     const [quotes, setQuotes] = useState<string[]>(DEFAULT_QUOTES);
     const [currentQuote, setCurrentQuote] = useState<string>('');
     const [isVisible, setIsVisible] = useState(false);
+    const [isGlowing, setIsGlowing] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const reminderTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const glowOffTimerRef = useRef<NodeJS.Timeout | null>(null);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isLongPressTriggered = useRef(false);
 
-    // ユーザー設定から名言リストを更新
+    // 1. Load User Preferences
     useEffect(() => {
         if (user?.preferences?.motivation_quotes) {
             const userQuotes = (user.preferences.motivation_quotes as string)
@@ -46,52 +49,69 @@ export const MotivatorWhisper: React.FC = () => {
         }
     }, [user]);
 
-    // 名言を表示する関数
-    const showQuote = useCallback(() => {
+    // Helper: Select a random quote
+    const selectRandomQuote = useCallback(() => {
         if (quotes.length === 0) return;
         const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
         setCurrentQuote(randomQuote);
-        setIsVisible(true);
-
-        // 自動消滅タイマー
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = setTimeout(() => {
-            setIsVisible(false);
-        }, DISPLAY_DURATION);
-
-        // 次の表示スケジュール
-        scheduleNextQuote();
     }, [quotes]);
 
-    // 次の表示をスケジュールする関数
-    const scheduleNextQuote = useCallback(() => {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        const nextIntervalCurrent = Math.floor(Math.random() * (INTERVAL_MAX - INTERVAL_MIN + 1) + INTERVAL_MIN) * 60 * 1000;
-        timerRef.current = setTimeout(showQuote, nextIntervalCurrent);
-    }, [showQuote]);
-
-    // 初回起動時とスケジュール開始
+    // 2. Initial Display Logic
     useEffect(() => {
-        // 初回はすぐに表示（または少し遅れて）
-        const initialDelay = setTimeout(showQuote, 2000);
+        // コンポーネントマウント時に名言を選定
+        selectRandomQuote();
+
+        // 0.5秒後に表示
+        const timer = setTimeout(() => {
+            setIsVisible(true);
+        }, INITIAL_DELAY);
+
+        // 10分ごとのリマインダー開始
+        startReminderLoop();
 
         return () => {
-            clearTimeout(initialDelay);
-            if (timerRef.current) clearTimeout(timerRef.current);
-            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+            clearTimeout(timer);
+            stopReminderLoop();
         };
-    }, []); // 初回のみ実行だが、showQuoteが変わると再実行される...依存配列を空にしてshowQuoteをrefにするか、useEffect内で完結させるのが安全だが今回は簡易的に。
-    // showQuoteが依存配列にあるとquotesが変わるたびにスケジュールがリセットされるが、それは許容範囲。
+    }, [selectRandomQuote]);
 
-    // 長押しハンドリング
+    // 3. Reminder Logic (Cyclic)
+    const startReminderLoop = () => {
+        if (reminderTimerRef.current) clearInterval(reminderTimerRef.current);
+
+        reminderTimerRef.current = setInterval(() => {
+            triggerReminder();
+        }, REMINDER_INTERVAL);
+    };
+
+    const stopReminderLoop = () => {
+        if (reminderTimerRef.current) clearInterval(reminderTimerRef.current);
+        if (glowOffTimerRef.current) clearTimeout(glowOffTimerRef.current);
+    };
+
+    const triggerReminder = () => {
+        // 強制的に表示（非表示だった場合）
+        // 名言をリシャッフルするかは要件次第だが、気分転換にリシャッフルする
+        selectRandomQuote();
+        setIsVisible(true);
+        setIsGlowing(true);
+
+        // 1分後に発光を停止
+        if (glowOffTimerRef.current) clearTimeout(glowOffTimerRef.current);
+        glowOffTimerRef.current = setTimeout(() => {
+            setIsGlowing(false);
+        }, GLOW_DURATION);
+    };
+
+    // 4. Interaction Handlers
     const handleTouchStart = () => {
         isLongPressTriggered.current = false;
         longPressTimerRef.current = setTimeout(() => {
             isLongPressTriggered.current = true;
             setIsModalOpen(true);
-            // モーダルが開くときはWhisperを消さないでおくか、あるいは消すか。
-            // ユーザー体験的には消さずにモーダルが出る方が自然。
-        }, 800); // 800ms長押し
+            // モーダルオープン時は発光止めるなどの微調整
+            setIsGlowing(false);
+        }, 800); // 800ms Long Press
     };
 
     const handleTouchEnd = () => {
@@ -100,9 +120,15 @@ export const MotivatorWhisper: React.FC = () => {
         }
 
         if (!isLongPressTriggered.current) {
-            // 短押し（タップ）の処理：消す
-            setIsVisible(false);
+            // Short Press (Tap): Hide
+            handleTap();
         }
+    };
+
+    const handleTap = () => {
+        // タップで消える
+        setIsVisible(false);
+        setIsGlowing(false);
     };
 
     return (
@@ -110,18 +136,39 @@ export const MotivatorWhisper: React.FC = () => {
             <AnimatePresence>
                 {isVisible && (
                     <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.5 }}
-                        className="ml-6 cursor-pointer select-none"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{
+                            opacity: 1,
+                            scale: 1,
+                            textShadow: isGlowing
+                                ? "0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(52, 211, 153, 0.4)"
+                                : "none",
+                            filter: isGlowing
+                                ? "drop-shadow(0 0 2px rgba(52, 211, 153, 0.5))"
+                                : "none"
+                        }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: FADE_DURATION }}
+                        className={`ml-6 cursor-pointer select-none relative group`}
                         onMouseDown={handleTouchStart}
                         onMouseUp={handleTouchEnd}
                         onTouchStart={handleTouchStart}
                         onTouchEnd={handleTouchEnd}
                         title="タップで非表示 / 長押しで編集"
                     >
-                        <span className="text-[10px] font-bold text-[rgb(130,141,159)] drop-shadow-sm font-serif italic opacity-90">
+                        {/* Glow Animation Layer (Pulse) */}
+                        {isGlowing && (
+                            <motion.div
+                                className="absolute inset-0 bg-emerald-400/20 rounded-lg blur-md"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0.2, 0.6, 0.2] }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                        )}
+
+                        <span className={`text-[11px] font-bold font-serif italic transition-colors duration-500
+                            ${isGlowing ? 'text-emerald-600 dark:text-emerald-300' : 'text-[rgb(130,141,159)]'}
+                        `}>
                             「{currentQuote}」
                         </span>
                     </motion.div>
