@@ -413,6 +413,11 @@ class AuthController extends BaseController {
             $this->sendError(401, 'Unauthorized');
         }
 
+        // [v24 Fix] Company Accounts cannot switch context (Single Tenant Entity)
+        if (($this->currentUser['account_type'] ?? 'user') === 'tenant') {
+            $this->sendError(403, 'Company accounts are restricted to their own workspace.');
+        }
+
         $input = $this->getInput();
         $newTenantId = $input['tenant_id'] ?? null;
 
