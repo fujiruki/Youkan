@@ -125,16 +125,13 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                                 label="個"
                                 color="emerald"
                             />
-                            {settings.contexts.filter(c => c.contextId !== 'personal').map(c => (
-                                <FilterBtn
-                                    key={c.contextId}
-                                    active={state.activeContextId === c.contextId}
-                                    onClick={() => actions.setFilterContext(c.contextId)}
-                                    icon={<Briefcase size={14} />}
-                                    label="会"
-                                    color="blue"
-                                />
-                            ))}
+                            <FilterBtn
+                                active={state.activeContextId === 'company'}
+                                onClick={() => actions.setFilterContext('company')}
+                                icon={<Briefcase size={14} />}
+                                label="会"
+                                color="blue"
+                            />
                         </div>
                     </div>
 

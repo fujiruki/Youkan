@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useJBWOSViewModel } from '../../jbwos/viewmodels/useJBWOSViewModel';
+import { useAuth } from '../../../auth/providers/AuthProvider';
 import { VolumeCalendarGrid } from '../../jbwos/components/Layout/VolumeCalendarGrid';
 import { TaskVolume, VolumeSettings } from '../../jbwos/services/VolumeService';
 import { Loader2 } from 'lucide-react';
@@ -12,6 +13,7 @@ interface Props {
 
 export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
     const vm = useJBWOSViewModel();
+    const { joinedTenants } = useAuth();
     const [selectedItem, setSelectedItem] = React.useState<Item | null>(null);
 
     // Aggregated items from all shelf zones
@@ -51,11 +53,16 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                 contextId: 'personal',
                 weeklySchedule: [0, 4, 4, 4, 4, 4, 0] // Mock default
             },
-            // Note: If joinedTenants is needed here, we should fetch it via useAuth
+            ...joinedTenants.map((t, idx) => ({
+                contextId: t.id,
+                weeklySchedule: idx % 2 === 0
+                    ? [0, 4, 4, 0, 0, 0, 0] // Mock: Mon, Tue 4h
+                    : [0, 0, 0, 8, 8, 8, 0] // Mock: Wed, Thu, Fri 8h
+            }))
         ],
         nothingDays: [],
         managementMode: 'Separation'
-    }), []);
+    }), [joinedTenants]);
 
     if (vm.todayCandidates.length === 0 && vm.gdbActive.length === 0 && allItems.length === 0) {
         // Still loading or empty

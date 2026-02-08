@@ -43,7 +43,7 @@ export class VolumeService {
         settings: VolumeSettings,
         viewStartDateStr: string,
         viewEndDateStr: string,
-        filterContextId: string | 'all' = 'all'
+        filterContextId: string | 'all' | 'company' = 'all'
     ): Record<string, DailyVolume> {
         const volumes: Record<string, DailyVolume> = {};
 
@@ -126,6 +126,14 @@ export class VolumeService {
             if (filterContextId === 'all') {
                 activeLoad = v.totalLoad;
                 activeCap = v.totalCapacity;
+            } else if (filterContextId === 'company') {
+                // Sum all contexts except 'personal'
+                activeLoad = Object.entries(v.loadByContext)
+                    .filter(([cid]) => cid !== 'personal')
+                    .reduce((sum, [, load]) => sum + load, 0);
+                activeCap = Object.entries(v.capacityByContext)
+                    .filter(([cid]) => cid !== 'personal')
+                    .reduce((sum, [, cap]) => sum + cap, 0);
             } else {
                 activeLoad = v.loadByContext[filterContextId] || 0;
                 activeCap = v.capacityByContext[filterContextId] || 0;

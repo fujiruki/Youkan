@@ -17,7 +17,7 @@ export interface VolumeCalendarState {
     dailyVolumes: Record<string, DailyVolume & { isHighlighted?: boolean }>;
     selectedDate: string | null;
     highlightedTaskId: string | null;
-    activeContextId: string | 'all';
+    activeContextId: string | 'all' | 'company';
     nothingDays: string[];
 }
 
@@ -28,7 +28,7 @@ export const useVolumeCalendarViewModel = (
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
-    const [activeContextId, setActiveContextId] = useState<string | 'all'>('all');
+    const [activeContextId, setActiveContextId] = useState<string | 'all' | 'company'>('all');
 
     // We maintain nothingDays locally for the simulation, but in a real app 
     // this would probably be persisted back to the server/settings.
