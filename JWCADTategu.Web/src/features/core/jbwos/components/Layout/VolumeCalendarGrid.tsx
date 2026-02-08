@@ -184,8 +184,16 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                                 volume={state.dailyVolumes[dateKey]}
                                 isSelected={state.selectedDate === dateKey}
                                 activeContextId={state.activeContextId}
-                                onClick={() => actions.selectDate(dateKey)}
-                                onDoubleClick={breakdownDate === dateKey ? () => setBreakdownDate(null) : () => setBreakdownDate(dateKey)}
+                                onClick={() => {
+                                    console.log('[VolumeCalendarGrid] Select Date:', dateKey);
+                                    actions.selectDate(dateKey);
+                                }}
+                                onDoubleClick={() => {
+                                    // e.stopPropagation(); // Handled in VolumeDayCell
+                                    const nextState = breakdownDate === dateKey ? null : dateKey;
+                                    console.log('[VolumeCalendarGrid] Toggle Breakdown:', dateKey, '->', nextState);
+                                    setBreakdownDate(nextState);
+                                }}
                                 onContextMenu={(e) => handleContextMenu(dateKey, e)}
                                 onOpenItem={onOpenItem}
                                 onHighlightTask={actions.highlightTask}
