@@ -121,6 +121,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                     members={vm.members}
                     allProjects={vm.allProjects}
                     onOpenItem={setSelectedItem}
+                    allWorkloadItems={allItems} // [v3.2]
                 />
             )}
         </div>

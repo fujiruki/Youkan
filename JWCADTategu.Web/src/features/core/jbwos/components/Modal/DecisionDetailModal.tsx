@@ -24,12 +24,13 @@ interface DecisionDetailModalProps {
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
+    allWorkloadItems?: Item[]; // [v3.2]
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
     onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
-    initialFocus, yesButtonLabel
+    initialFocus, yesButtonLabel, allWorkloadItems = [] // [v3.2]
 }) => {
     // [NEW] History Stack for Drill-Down
     const [history, setHistory] = React.useState<Item[]>([]);
@@ -663,6 +664,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
                                         items={subTasks.length > 0 ? subTasks : (item ? [item] : [])}
+                                        workloadItems={allWorkloadItems} // [v3.2]
                                         selectedDate={memoizedSelectedDate}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');

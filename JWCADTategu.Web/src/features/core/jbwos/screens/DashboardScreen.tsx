@@ -451,6 +451,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     allProjects={vm.allProjects}
                     joinedTenants={joinedTenants}
                     onOpenItem={setSelectedItem}
+                    allWorkloadItems={allItemsForCalendar} // [v3.2]
                 />
             )}
 
