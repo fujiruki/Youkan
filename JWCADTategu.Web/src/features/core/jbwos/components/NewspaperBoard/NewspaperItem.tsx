@@ -94,8 +94,10 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             >
                 <IndentLines depth={depth} />
                 <div className={cn(
-                    "flex items-center gap-[0.5em] text-youkan-text font-bold p-1 rounded transition-colors cursor-pointer hover:bg-youkan-base",
-                    depth === 0 ? "border-b border-youkan-muted/20 pb-[2px]" : "text-[0.9em] text-youkan-muted font-bold mt-[0.3em]"
+                    "flex items-center gap-[0.5em] font-bold p-1 rounded transition-colors cursor-pointer hover:bg-youkan-base",
+                    depth === 0
+                        ? "text-slate-800 dark:text-slate-100 border-b border-youkan-muted/20 pb-[2px]"
+                        : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
                 )}
                     style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }} // インデントを強化
                     onClick={() => onClick(item)}
