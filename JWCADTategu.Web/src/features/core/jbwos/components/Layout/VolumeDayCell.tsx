@@ -85,8 +85,14 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
                 volume?.isNothingDay && "bg-slate-50 dark:bg-slate-900/30",
                 getThemeColors()
             )}
-            onClick={onClick}
-            onDoubleClick={onDoubleClick}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+            }}
+            onDoubleClick={(e) => {
+                e.stopPropagation();
+                onDoubleClick?.();
+            }}
             onContextMenu={handleContextMenu}
         >
             <div className="flex justify-between items-start pointer-events-none">
