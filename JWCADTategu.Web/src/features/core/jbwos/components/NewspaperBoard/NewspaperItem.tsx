@@ -96,7 +96,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                 <div className={cn(
                     "flex items-center gap-[0.5em] font-bold p-1 rounded transition-colors cursor-pointer hover:bg-youkan-base",
                     depth === 0
-                        ? "text-[#0d1e6c] dark:text-slate-100 border-b border-youkan-muted/20 pb-[2px]"
+                        ? "text-[#152353] dark:text-slate-100 border-b border-youkan-muted/20 pb-[2px]"
                         : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
                 )}
                     style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }} // インデントを強化
@@ -188,7 +188,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             <div className="flex-1 min-w-0 flex items-center gap-[0.4em] leading-tight pl-1">
                 <span className={cn(
                     "text-[1em] font-medium break-words",
-                    isDone ? "line-through text-slate-400" : "text-[#0d1e6c] dark:text-slate-200"
+                    isDone ? "line-through text-slate-400" : "text-[#152353] dark:text-slate-200"
                 )}>
                     {item.title}
                 </span>
