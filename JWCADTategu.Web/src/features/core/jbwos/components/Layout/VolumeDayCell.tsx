@@ -1,5 +1,5 @@
 import React from 'react';
-import { format, isToday } from 'date-fns';
+import { format, isToday, isLastDayOfMonth } from 'date-fns';
 import { DailyVolume } from '../../services/VolumeService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -10,7 +10,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface VolumeDayCellProps {
     date: Date;
-    currentMonth: Date;
+    // currentMonth: Date; // [v4.5] Unused
     volume?: DailyVolume & { isHighlighted?: boolean };
     isSelected?: boolean;
     activeContextId?: string | 'all';
@@ -38,6 +38,11 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
     // const isDiffMonth = !isSameMonth(date, currentMonth); // [v4.5] Removed
     const dayOfMonth = format(date, 'd');
     const dateKey = format(date, 'yyyy-MM-dd');
+
+    // [v4.6] Date Display Logic
+    const isFirst = date.getDate() === 1;
+    const isLast = isLastDayOfMonth(date);
+    const displayDate = (isFirst || isLast) ? format(date, 'M/d') : dayOfMonth;
 
     // Determine color theme based on active context
     const getThemeColors = () => {
@@ -86,11 +91,12 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
         >
             <div className="flex justify-between items-start pointer-events-none">
                 <span className={cn(
-                    "text-[10px] font-bold p-1 rounded-full w-5 h-5 flex items-center justify-center",
+                    "text-[10px] font-bold p-1 rounded-full min-w-[1.25rem] flex items-center justify-center transition-all",
                     isToday(date) ? "bg-blue-600 text-white" : "text-slate-500 dark:text-slate-400",
-                    volume && volume.loadRatio > 100 && "bg-white text-orange-600"
+                    volume && volume.loadRatio > 100 && "bg-white text-orange-600",
+                    (isFirst || isLast) && !isToday(date) && "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-1.5"
                 )}>
-                    {dayOfMonth}
+                    {displayDate}
                 </span>
 
                 {volume && volume.loadRatio > 0 && !volume.isNothingDay && (

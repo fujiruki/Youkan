@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { format, startOfMonth, addMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { VolumeDayCell } from './VolumeDayCell';
 import { useVolumeCalendarViewModel } from '../../viewmodels/useVolumeCalendarViewModel';
 import { TaskVolume, VolumeSettings } from '../../services/VolumeService';
-import { ChevronLeft, ChevronRight, Wind, Layers, User, Briefcase } from 'lucide-react';
+import { Wind, Layers, User, Briefcase, Loader2 } from 'lucide-react';
 import { VolumeConnectionLayer } from './VolumeConnectionLayer';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -76,21 +76,25 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
 
     const closeMenu = () => setContextMenu(null);
 
-    // [NEW] Seamless Jump Logic
-    const handleMonthJump = (offset: number) => {
-        actions.changeMonth(offset);
-        // Scroll to the first day of the target month
-        setTimeout(() => {
-            if (scrollRef.current) {
-                const targetDate = addMonths(state.currentMonth, offset);
-                const targetStr = format(startOfMonth(targetDate), 'yyyy-MM-dd');
-                const targetCell = scrollRef.current.querySelector(`[data-date="${targetStr}"]`);
-                if (targetCell) {
-                    targetCell.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // [NEW] Infinite Scroll Observer
+    const observerTarget = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    actions.loadNextMonth();
                 }
-            }
-        }, 50);
-    };
+            },
+            { threshold: 0.1, rootMargin: '200px' } // Load when 200px from bottom
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [actions.loadNextMonth]);
 
     return (
         <div
@@ -105,9 +109,12 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
             <div className="flex flex-col border-b border-youkan-muted/20 shrink-0">
                 <div className="flex items-center justify-between px-6 py-4">
                     <div className="flex items-center gap-4">
-                        <h2 className="text-xl font-black text-youkan-text tracking-tight">
-                            {format(state.currentMonth, 'yyyy年 M月')}
-                        </h2>
+                        <div className="flex items-center gap-2 text-youkan-text">
+                            <Wind size={20} className="text-youkan-primary" />
+                            <h2 className="text-xl font-black tracking-tight">
+                                量感カレンダー
+                            </h2>
+                        </div>
 
                         {/* Context Filters */}
                         <div className="flex items-center bg-youkan-base p-1 rounded-full gap-1 ml-4 shadow-inner">
@@ -134,130 +141,90 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                             />
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handleMonthJump(-1)}
-                            className="p-2 hover:bg-youkan-base rounded-lg transition-all active:scale-95"
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
-                        <button
-                            onClick={() => handleMonthJump(1)}
-                            className="p-2 hover:bg-youkan-base rounded-lg transition-all active:scale-95"
-                        >
-                            <ChevronRight size={20} />
-                        </button>
-                    </div>
                 </div>
 
                 {/* Weekdays Header */}
-                <div className="grid grid-cols-7 border-t border-youkan-muted/10 bg-youkan-base">
-                    {weekDays.map(day => (
-                        <div key={day} className="py-2 text-center text-[10px] font-black text-youkan-muted uppercase tracking-widest">
+                <div className="grid grid-cols-7 border-b border-youkan-muted/10 bg-youkan-base/50">
+                    {weekDays.map((day, i) => (
+                        <div
+                            key={day}
+                            className={cn(
+                                "text-center py-1 text-[10px] font-bold",
+                                i === 0 ? "text-rose-400" :
+                                    i === 6 ? "text-blue-400" :
+                                        "text-slate-400 dark:text-slate-500"
+                            )}
+                        >
                             {day}
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Grid Body (Seamless Scroll) */}
-            <div className="relative flex-grow overflow-hidden">
-                <div
-                    ref={scrollRef}
-                    className="h-full overflow-y-auto custom-scrollbar select-none"
-                >
-                    <div className="relative connection-layer-root">
-                        <div className="grid grid-cols-7 auto-rows-fr">
-                            {state.days.map(day => {
-                                const dateStr = format(day, 'yyyy-MM-dd');
-                                return (
-                                    <VolumeDayCell
-                                        key={dateStr}
-                                        date={day}
-                                        currentMonth={state.currentMonth}
-                                        volume={state.dailyVolumes[dateStr]}
-                                        isSelected={state.selectedDate === dateStr}
-                                        highlightedTaskId={state.highlightedTaskId}
-                                        activeContextId={state.activeContextId}
-                                        onClick={() => actions.selectDate(dateStr)}
-                                        onDoubleClick={() => setBreakdownDate(dateStr)}
-                                        onContextMenu={(e) => handleContextMenu(dateStr, e)}
-                                        onHighlightTask={actions.highlightTask}
-                                        onOpenItem={onOpenItem}
-                                    />
-                                );
-                            })}
+            {/* Scrollable Grid */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+                <div className="grid grid-cols-7 relative">
+                    {/* Connection lines layer */}
+                    <VolumeConnectionLayer
+                        selectedDate={state.selectedDate}
+                        dailyVolumes={state.dailyVolumes}
+                    />
+
+                    {state.days.map(day => {
+                        const dateKey = format(day, 'yyyy-MM-dd');
+
+                        return (
+                            <VolumeDayCell
+                                key={dateKey}
+                                date={day}
+                                // currentMonth={state.currentMonth} // Removed prop
+                                volume={state.dailyVolumes[dateKey]}
+                                isSelected={state.selectedDate === dateKey}
+                                activeContextId={state.activeContextId}
+                                onClick={() => actions.selectDate(dateKey)}
+                                onDoubleClick={breakdownDate === dateKey ? () => setBreakdownDate(null) : () => setBreakdownDate(dateKey)}
+                                onContextMenu={(e) => handleContextMenu(dateKey, e)}
+                                onOpenItem={onOpenItem}
+                                onHighlightTask={actions.highlightTask}
+                                highlightedTaskId={state.highlightedTaskId}
+                            />
+                        );
+                    })}
+
+                    {/* Sentinel for Infinite Scroll */}
+                    <div ref={observerTarget} className="col-span-7 h-24 w-full flex items-center justify-center text-slate-400">
+                        <div className="flex items-center gap-2 text-xs opacity-50">
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>Loading future...</span>
                         </div>
-                        {/* [MODIFIED] Moved inside relative wrapper of the scrollable container */}
-                        <VolumeConnectionLayer
-                            selectedDate={state.selectedDate}
-                            dailyVolumes={state.dailyVolumes}
-                        />
                     </div>
                 </div>
             </div>
 
-            {/* Context Menu (Nothing Day Toggle) */}
+            {/* Context Menu (Existing) */}
             {contextMenu && (
                 <div
-                    className="fixed z-[100] bg-youkan-surface shadow-2xl border border-youkan-muted/20 rounded-lg overflow-hidden py-1 min-w-[160px] animate-in fade-in zoom-in duration-100"
+                    className="fixed z-50 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <button
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-youkan-base flex items-center gap-2 transition-colors"
-                        onClick={(e) => {
-                            e.stopPropagation();
+                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                        onClick={() => {
                             actions.toggleNothingDay(contextMenu.date);
                             closeMenu();
                         }}
                     >
-                        <Wind size={16} className="text-slate-400" />
-                        <span>{state.nothingDays.includes(contextMenu.date) ? '静寂を解除' : '静寂を予約（壁）'}</span>
+                        <span className="w-4 text-center">
+                            {state.nothingDays.includes(contextMenu.date) ? "✓" : ""}
+                        </span>
+                        Nothing Day (休息日)
                     </button>
-                </div>
-            )}
-
-            {/* Breakdown Popover */}
-            {breakdownDate && (
-                <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] bg-youkan-surface shadow-2xl border border-youkan-muted/20 rounded-2xl w-[320px] max-h-[400px] flex flex-col p-4 animate-in fade-in zoom-in duration-200"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="flex justify-between items-center mb-4 shrink-0">
-                        <h3 className="text-sm font-black text-youkan-text italic">
-                            {format(new Date(breakdownDate), 'yyyy.MM.dd')} の内訳
-                        </h3>
-                        <button
-                            onClick={() => setBreakdownDate(null)}
-                            className="text-youkan-muted hover:text-youkan-text"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                    </div>
-
-                    <div className="overflow-y-auto custom-scrollbar flex-grow space-y-2 pr-1">
-                        {actions.getItemsForDate(breakdownDate).map(task => (
-                            <div
-                                key={task.id}
-                                className="p-2 border border-youkan-muted/20 rounded-lg hover:bg-youkan-base cursor-pointer group active:scale-95 transition-all"
-                                onClick={() => {
-                                    console.log('[VolumeCalendarGrid] breakdown item clicked:', task.id);
-                                    onOpenItem?.(task.id);
-                                }}
-                            >
-                                <div className="text-[10px] text-youkan-muted font-bold mb-0.5">[{task.projectTitle.substring(0, 4)}]</div>
-                                <div className="text-xs font-medium text-youkan-text group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                                    {task.title}
-                                </div>
-                            </div>
-                        ))}
-                        {actions.getItemsForDate(breakdownDate).length === 0 && (
-                            <div className="text-center py-8 text-slate-300 text-xs italic">
-                                この日の負荷に影響するタスクはありません
-                            </div>
-                        )}
-                    </div>
+                    {settings.managementMode === 'Integration' && (
+                        <div className="border-t border-slate-100 dark:border-slate-700 my-1">
+                            <div className="px-4 py-1 text-[10px] text-slate-400">統合管理モード</div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

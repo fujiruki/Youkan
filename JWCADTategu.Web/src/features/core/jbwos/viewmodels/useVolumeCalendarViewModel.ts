@@ -12,7 +12,7 @@ import {
 import { VolumeService, DailyVolume, TaskVolume, VolumeSettings } from '../services/VolumeService';
 
 export interface VolumeCalendarState {
-    currentMonth: Date;
+    // currentMonth: Date; // Removed
     days: Date[];
     dailyVolumes: Record<string, DailyVolume & { isHighlighted?: boolean }>;
     selectedDate: string | null;
@@ -25,23 +25,28 @@ export const useVolumeCalendarViewModel = (
     tasks: TaskVolume[],
     initialSettings: VolumeSettings
 ) => {
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [activeContextId, setActiveContextId] = useState<string | 'all' | 'company'>('all');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
-    const [activeContextId, setActiveContextId] = useState<string | 'all' | 'company'>('all');
+
+    // [MODIFIED] Infinite Scroll State
+    // Initial range: Last month start -> Next 2 months end
+    const [activeRange, setActiveRange] = useState<{ start: Date; end: Date }>(() => {
+        const now = new Date();
+        return {
+            start: startOfWeek(startOfMonth(subMonths(now, 1))),
+            end: endOfWeek(endOfMonth(addMonths(now, 2)))
+        };
+    });
 
     // We maintain nothingDays locally for the simulation, but in a real app 
     // this would probably be persisted back to the server/settings.
     const [nothingDays, setNothingDays] = useState<string[]>(initialSettings.nothingDays || []);
 
-    // Calculate days to display (full weeks of the current month)
+    // Calculate days to display based on activeRange
     const days = useMemo(() => {
-        // [MODIFIED] Seamless Range: Previous Month to Next Month (approx 3 months)
-        // This provides natural scrolling without hard month boundaries.
-        const start = startOfWeek(startOfMonth(subMonths(currentMonth, 1)));
-        const end = endOfWeek(endOfMonth(addMonths(currentMonth, 1)));
-        return eachDayOfInterval({ start, end });
-    }, [currentMonth]);
+        return eachDayOfInterval({ start: activeRange.start, end: activeRange.end });
+    }, [activeRange]);
 
     // Construct the settings object with current local state
     const currentSettings = useMemo((): VolumeSettings => ({
@@ -77,8 +82,16 @@ export const useVolumeCalendarViewModel = (
         return result;
     }, [baseVolumes, highlightedTaskId]);
 
-    const changeMonth = useCallback((offset: number) => {
-        setCurrentMonth(prev => addMonths(prev, offset));
+    const loadNextMonth = useCallback(() => {
+        setActiveRange(prev => {
+            // Extend end date by 1 month (but ensure it covers full weeks)
+            // We take the current end date, add 1 month, then extend to end of week/month
+            // To be safe, let's take the first day of the next month relative to current end
+            // Actually, simply adding 1 month to the current end is safer
+            const newEndBase = addMonths(prev.end, 1);
+            const newEnd = endOfWeek(endOfMonth(newEndBase));
+            return { ...prev, end: newEnd };
+        });
     }, []);
 
     const selectDate = useCallback((dateStr: string) => {
@@ -116,7 +129,6 @@ export const useVolumeCalendarViewModel = (
 
     return {
         state: {
-            currentMonth,
             days,
             dailyVolumes: extendedVolumes,
             selectedDate,
@@ -125,7 +137,7 @@ export const useVolumeCalendarViewModel = (
             nothingDays
         },
         actions: {
-            changeMonth,
+            loadNextMonth,
             selectDate,
             highlightTask,
             setFilterContext,
