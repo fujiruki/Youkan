@@ -86,12 +86,10 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
                 getThemeColors()
             )}
             onClick={(e) => {
-                console.log('[VolumeDayCell] Click:', dateKey);
                 e.stopPropagation();
                 onClick?.();
             }}
             onDoubleClick={(e) => {
-                console.log('[VolumeDayCell] DoubleClick:', dateKey);
                 e.stopPropagation();
                 onDoubleClick?.();
             }}

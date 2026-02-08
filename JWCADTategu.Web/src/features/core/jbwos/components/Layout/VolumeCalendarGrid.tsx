@@ -167,11 +167,6 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
             {/* Scrollable Grid */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                 <div className="grid grid-cols-7 relative">
-                    {/* Connection lines layer */}
-                    <VolumeConnectionLayer
-                        selectedDate={state.selectedDate}
-                        dailyVolumes={state.dailyVolumes}
-                    />
 
                     {state.days.map(day => {
                         const dateKey = format(day, 'yyyy-MM-dd');
@@ -184,14 +179,10 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                                 volume={state.dailyVolumes[dateKey]}
                                 isSelected={state.selectedDate === dateKey}
                                 activeContextId={state.activeContextId}
-                                onClick={() => {
-                                    console.log('[VolumeCalendarGrid] Select Date:', dateKey);
-                                    actions.selectDate(dateKey);
-                                }}
+                                onClick={() => actions.selectDate(dateKey)}
                                 onDoubleClick={() => {
                                     // e.stopPropagation(); // Handled in VolumeDayCell
                                     const nextState = breakdownDate === dateKey ? null : dateKey;
-                                    console.log('[VolumeCalendarGrid] Toggle Breakdown:', dateKey, '->', nextState);
                                     setBreakdownDate(nextState);
                                 }}
                                 onContextMenu={(e) => handleContextMenu(dateKey, e)}
@@ -201,6 +192,12 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                             />
                         );
                     })}
+
+                    {/* Connection lines layer (Moved to top of stack) */}
+                    <VolumeConnectionLayer
+                        selectedDate={state.selectedDate}
+                        dailyVolumes={state.dailyVolumes}
+                    />
 
                     {/* Sentinel for Infinite Scroll */}
                     <div ref={observerTarget} className="col-span-7 h-24 w-full flex items-center justify-center text-slate-400">
