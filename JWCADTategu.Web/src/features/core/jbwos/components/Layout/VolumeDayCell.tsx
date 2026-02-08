@@ -80,16 +80,20 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
             className={cn(
                 "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col hover:bg-slate-50 dark:hover:bg-slate-800/20 overflow-hidden",
                 // isDiffMonth && "opacity-30", // [v4.5] User request: Seamless view
-                isSelected && "ring-2 ring-inset ring-blue-500 z-10 bg-blue-50/10 dark:bg-blue-900/10",
+                isSelected && "ring-2 ring-inset ring-blue-600 bg-blue-100/50 dark:bg-blue-800/40 z-20", // Enhanced visibility
                 volume?.isHighlighted && "ring-2 ring-inset ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.4)] z-10",
                 volume?.isNothingDay && "bg-slate-50 dark:bg-slate-900/30",
                 getThemeColors()
             )}
             onClick={(e) => {
+                console.log('[VolumeDayCell] Click:', dateKey);
+                e.preventDefault(); // Add preventDefault just in case
                 e.stopPropagation();
                 onClick?.();
             }}
             onDoubleClick={(e) => {
+                console.log('[VolumeDayCell] DoubleClick:', dateKey);
+                e.preventDefault();
                 e.stopPropagation();
                 onDoubleClick?.();
             }}
