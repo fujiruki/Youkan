@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useJBWOSViewModel } from '../../jbwos/viewmodels/useJBWOSViewModel';
-import { useAuth } from '../../../auth/providers/AuthProvider';
+import { useAuth } from '../../auth/providers/AuthProvider';
 import { VolumeCalendarGrid } from '../../jbwos/components/Layout/VolumeCalendarGrid';
 import { TaskVolume, VolumeSettings } from '../../jbwos/services/VolumeService';
 import { Loader2 } from 'lucide-react';

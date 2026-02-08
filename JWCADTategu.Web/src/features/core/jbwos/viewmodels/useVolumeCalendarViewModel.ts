@@ -89,7 +89,7 @@ export const useVolumeCalendarViewModel = (
         setHighlightedTaskId(taskId);
     }, []);
 
-    const setFilterContext = useCallback((contextId: string | 'all') => {
+    const setFilterContext = useCallback((contextId: string | 'all' | 'company') => {
         setActiveContextId(contextId);
     }, []);
 
