@@ -11,11 +11,15 @@ function cn(...inputs: ClassValue[]) {
 interface VolumeDayCellProps {
     date: Date;
     currentMonth: Date;
-    volume?: DailyVolume;
+    volume?: DailyVolume & { isHighlighted?: boolean };
     isSelected?: boolean;
     activeContextId?: string | 'all';
     onClick?: () => void;
+    onDoubleClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
+    onOpenItem?: (id: string) => void;
+    onHighlightTask?: (id: string | null) => void;
+    highlightedTaskId?: string | null;
 }
 
 export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
@@ -25,7 +29,11 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
     isSelected,
     activeContextId = 'all',
     onClick,
-    onContextMenu
+    onDoubleClick,
+    onContextMenu,
+    onOpenItem,
+    onHighlightTask,
+    highlightedTaskId
 }) => {
     const isDiffMonth = !isSameMonth(date, currentMonth);
     const dayOfMonth = format(date, 'd');
@@ -39,7 +47,6 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
         const ratio = volume.loadRatio;
 
         // Intensity Engine (Haruki-centric)
-        // 100%+ is "Intensity" (Brave Orange/Violet), not error red
         if (ratio > 100) return 'bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-inner animate-pulse';
 
         // Normal ranges based on context
@@ -66,16 +73,18 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
         <div
             data-date={dateKey}
             className={cn(
-                "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col",
+                "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col hover:bg-slate-50 dark:hover:bg-slate-800/20 overflow-hidden",
                 isDiffMonth && "opacity-30",
-                isSelected && "ring-2 ring-blue-500 z-10",
+                isSelected && "ring-2 ring-blue-500 z-10 bg-blue-50/10 dark:bg-blue-900/10",
+                volume?.isHighlighted && "ring-2 ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.4)] z-10",
                 volume?.isNothingDay && "bg-slate-50 dark:bg-slate-900/30",
                 getThemeColors()
             )}
             onClick={onClick}
+            onDoubleClick={onDoubleClick}
             onContextMenu={handleContextMenu}
         >
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start pointer-events-none">
                 <span className={cn(
                     "text-[10px] font-bold p-1 rounded-full w-5 h-5 flex items-center justify-center",
                     isToday(date) ? "bg-blue-600 text-white" : "text-slate-500 dark:text-slate-400",
@@ -97,24 +106,34 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
 
             {/* Task Card Container (Deadlines/Absolute Points) */}
             <div className="mt-1 flex-grow overflow-y-auto custom-scrollbar space-y-0.5">
-                {volume?.tasksEndingOnThisDay.map(task => (
-                    <div
-                        key={task.id}
-                        id={`dead-line-card-${task.id}`}
-                        className={cn(
-                            "text-[8px] leading-tight border rounded px-1 py-0.5 truncate shadow-sm font-medium",
-                            "bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
-                        )}
-                        title={`${task.title} (${task.projectTitle})`}
-                    >
-                        <span className="opacity-60">{task.projectTitle}:</span> {task.title}
-                    </div>
-                ))}
+                {volume?.tasksEndingOnThisDay.map(task => {
+                    const isTaskHighlighted = highlightedTaskId === task.id;
+                    return (
+                        <div
+                            key={task.id}
+                            id={`dead-line-card-${task.id}`}
+                            className={cn(
+                                "text-[8px] leading-tight border rounded px-1 py-0.5 truncate shadow-sm font-medium transition-all active:scale-95",
+                                isTaskHighlighted
+                                    ? "bg-yellow-400 border-yellow-500 text-yellow-900 scale-105 z-20"
+                                    : "bg-white/95 dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                            )}
+                            title={`${task.title} (${task.projectTitle})`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onHighlightTask?.(isTaskHighlighted ? null : task.id);
+                                onOpenItem?.(task.id);
+                            }}
+                        >
+                            <span className="opacity-60">[{task.projectTitle.substring(0, 4)}]:</span> {task.title}
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Bottom: Buffers/Indicators if needed */}
             {volume && volume.loadRatio > 0 && !volume.isNothingDay && (
-                <div className="h-1 w-full bg-black/10 rounded-full mt-auto overflow-hidden">
+                <div className="h-1 w-full bg-black/10 rounded-full mt-auto overflow-hidden pointer-events-none">
                     <div
                         className="h-full bg-current opacity-40 transition-all duration-500"
                         style={{ width: `${Math.min(100, volume.loadRatio)}%` }}
@@ -124,9 +143,6 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
 
             {/* Connection Point */}
             <div id={`conn-point-${dateKey}`} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0" />
-
-            {/* Legend Dot (if this day has contributing work for another context not currently filtered) */}
-            {/* TODO: Add logic to show dots for hidden context load */}
         </div>
     );
 };

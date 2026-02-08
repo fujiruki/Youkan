@@ -14,9 +14,9 @@ import { VolumeService, DailyVolume, TaskVolume, VolumeSettings } from '../servi
 export interface VolumeCalendarState {
     currentMonth: Date;
     days: Date[];
-    dailyVolumes: Record<string, DailyVolume>;
+    dailyVolumes: Record<string, DailyVolume & { isHighlighted?: boolean }>;
     selectedDate: string | null;
-    hoveredItemId: string | null;
+    highlightedTaskId: string | null;
     activeContextId: string | 'all';
     nothingDays: string[];
 }
@@ -27,7 +27,7 @@ export const useVolumeCalendarViewModel = (
 ) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
-    const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+    const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
     const [activeContextId, setActiveContextId] = useState<string | 'all'>('all');
 
     // We maintain nothingDays locally for the simulation, but in a real app 
@@ -50,7 +50,7 @@ export const useVolumeCalendarViewModel = (
     }), [initialSettings, nothingDays]);
 
     // Calculate volumes for the displayed range
-    const dailyVolumes = useMemo(() => {
+    const baseVolumes = useMemo(() => {
         if (days.length === 0) return {};
         const startDateStr = format(days[0], 'yyyy-MM-dd');
         const endDateStr = format(days[days.length - 1], 'yyyy-MM-dd');
@@ -64,6 +64,19 @@ export const useVolumeCalendarViewModel = (
         );
     }, [tasks, currentSettings, days, activeContextId]);
 
+    // [NEW] Enhanced Volumes with Highlight Info
+    const extendedVolumes = useMemo(() => {
+        if (!highlightedTaskId) return baseVolumes;
+
+        const result: Record<string, DailyVolume & { isHighlighted?: boolean }> = {};
+        Object.entries(baseVolumes).forEach(([date, vol]) => {
+            const hasTask = vol.tasksContributingToThisDay.some(t => t.id === highlightedTaskId) ||
+                vol.tasksEndingOnThisDay.some(t => t.id === highlightedTaskId);
+            result[date] = { ...vol, isHighlighted: hasTask };
+        });
+        return result;
+    }, [baseVolumes, highlightedTaskId]);
+
     const changeMonth = useCallback((offset: number) => {
         setCurrentMonth(prev => addMonths(prev, offset));
     }, []);
@@ -72,8 +85,8 @@ export const useVolumeCalendarViewModel = (
         setSelectedDate(prev => prev === dateStr ? null : dateStr);
     }, []);
 
-    const setHoveredItem = useCallback((itemId: string | null) => {
-        setHoveredItemId(itemId);
+    const highlightTask = useCallback((taskId: string | null) => {
+        setHighlightedTaskId(taskId);
     }, []);
 
     const setFilterContext = useCallback((contextId: string | 'all') => {
@@ -89,11 +102,9 @@ export const useVolumeCalendarViewModel = (
     }, []);
 
     const getItemsForDate = useCallback((dateStr: string): TaskVolume[] => {
-        // Logic change: return combined tasks from both contribution and deadline
-        const dayVolume = dailyVolumes[dateStr];
+        const dayVolume = extendedVolumes[dateStr];
         if (!dayVolume) return [];
 
-        // Return unique tasks
         const allTasks = [...dayVolume.tasksContributingToThisDay, ...dayVolume.tasksEndingOnThisDay];
         const uniqueIds = new Set();
         return allTasks.filter(t => {
@@ -101,22 +112,22 @@ export const useVolumeCalendarViewModel = (
             uniqueIds.add(t.id);
             return true;
         });
-    }, [dailyVolumes]);
+    }, [extendedVolumes]);
 
     return {
         state: {
             currentMonth,
             days,
-            dailyVolumes,
+            dailyVolumes: extendedVolumes,
             selectedDate,
-            hoveredItemId,
+            highlightedTaskId,
             activeContextId,
             nothingDays
         },
         actions: {
             changeMonth,
             selectDate,
-            setHoveredItem,
+            highlightTask,
             setFilterContext,
             toggleNothingDay,
             getItemsForDate

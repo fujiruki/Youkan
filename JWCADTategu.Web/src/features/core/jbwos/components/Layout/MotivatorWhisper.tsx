@@ -52,8 +52,19 @@ export const MotivatorWhisper: React.FC = () => {
     // Helper: Select a random quote
     const selectRandomQuote = useCallback(() => {
         if (quotes.length === 0) return;
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-        setCurrentQuote(randomQuote);
+
+        // 30% chance to pick from top 3, 70% chance to pick from all
+        // (Only if there are at least 3 quotes to make the choice meaningful)
+        const isPriorityPick = Math.random() < 0.3 && quotes.length >= 3;
+
+        if (isPriorityPick) {
+            const topQuotes = quotes.slice(0, 3);
+            const randomQuote = topQuotes[Math.floor(Math.random() * topQuotes.length)];
+            setCurrentQuote(randomQuote);
+        } else {
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            setCurrentQuote(randomQuote);
+        }
     }, [quotes]);
 
     // 2. Initial Display Logic

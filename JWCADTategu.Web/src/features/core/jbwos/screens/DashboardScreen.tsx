@@ -232,6 +232,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                             nothingDays: [],
                                             managementMode: 'Separation'
                                         }}
+                                        onOpenItem={(id) => {
+                                            const item = allItemsForCalendar.find(i => i.id === id);
+                                            if (item) setSelectedItem(item);
+                                        }}
                                     />
                                 </div>
                             ) : viewMode === 'newspaper' ? (

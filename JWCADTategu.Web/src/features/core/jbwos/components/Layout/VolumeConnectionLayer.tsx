@@ -26,13 +26,14 @@ export const VolumeConnectionLayer: React.FC<VolumeConnectionLayerProps> = ({ se
         const startPointElement = document.getElementById(startPointId);
         if (!startPointElement) return;
 
-        const container = startPointElement.closest('.relative');
-        if (!container) return;
-        const containerRect = container.getBoundingClientRect();
+        const layerRoot = startPointElement.closest('.connection-layer-root');
+        if (!layerRoot) return;
+        const rootRect = layerRoot.getBoundingClientRect();
 
         const startRect = startPointElement.getBoundingClientRect();
-        const startX = startRect.left - containerRect.left;
-        const startY = startRect.top - containerRect.top;
+        // [FIX] Calculate relative coordinates to the grid-wide connection layer root
+        const startX = (startRect.left + startRect.width / 2) - rootRect.left;
+        const startY = (startRect.top + startRect.height / 2) - rootRect.top;
 
         const newConnections: Connection[] = [];
         const processedTaskIds = new Set<string>();
@@ -56,9 +57,9 @@ export const VolumeConnectionLayer: React.FC<VolumeConnectionLayerProps> = ({ se
 
             if (endPointElement) {
                 const endRect = endPointElement.getBoundingClientRect();
-                // [MODIFIED] Center of the target element
-                const endX = (endRect.left + endRect.width / 2) - containerRect.left;
-                const endY = (endRect.top + endRect.height / 2) - containerRect.top;
+                // [FIX] Center of the target element relative to the same layer root
+                const endX = (endRect.left + endRect.width / 2) - rootRect.left;
+                const endY = (endRect.top + endRect.height / 2) - rootRect.top;
 
                 // Create a quadratic bezier curve path
                 const cpX = (startX + endX) / 2;
@@ -73,14 +74,14 @@ export const VolumeConnectionLayer: React.FC<VolumeConnectionLayerProps> = ({ se
 
         const timer = setTimeout(() => {
             setConnections([]);
-        }, 2000);
+        }, 10000); // 10 seconds for easier verification
 
         return () => clearTimeout(timer);
     }, [selectedDate, dailyVolumes]);
 
     return (
-        <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-            <svg className="w-full h-full">
+        <div className="absolute inset-0 pointer-events-none z-20">
+            <svg className="w-full h-full overflow-visible">
                 <AnimatePresence>
                     {connections.map(conn => (
                         <motion.path
@@ -94,7 +95,7 @@ export const VolumeConnectionLayer: React.FC<VolumeConnectionLayerProps> = ({ se
                             initial={{ pathLength: 0, opacity: 0 }}
                             animate={{ pathLength: 1, opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.6, ease: "easeOut" }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
                         />
                     ))}
                 </AnimatePresence>
