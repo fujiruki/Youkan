@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { VolumeDayCell } from './VolumeDayCell';
 import { useVolumeCalendarViewModel } from '../../viewmodels/useVolumeCalendarViewModel';
 import { TaskVolume, VolumeSettings } from '../../services/VolumeService';
-import { Wind, Layers, User, Briefcase, Loader2 } from 'lucide-react';
+import { Wind, Layers, User, Briefcase, Loader2, X, Clock } from 'lucide-react';
 import { VolumeConnectionLayer } from './VolumeConnectionLayer';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -236,6 +236,69 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                             <div className="px-4 py-1 text-[10px] text-slate-400">統合管理モード</div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* [NEW] Breakdown Overlay for Double Click */}
+            {breakdownDate && (
+                <div
+                    className="absolute right-4 top-20 w-80 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 z-30 flex flex-col overflow-hidden animate-in slide-in-from-right-10 duration-200"
+                    style={{ maxHeight: 'calc(100% - 6rem)' }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="font-bold flex items-center gap-2">
+                            <span className="text-lg">{format(new Date(breakdownDate), 'M/d')}</span>
+                            <span className="text-xs text-slate-400 font-normal">({format(new Date(breakdownDate), 'EEEE', { locale: undefined })})</span>
+                        </div>
+                        <button
+                            onClick={() => setBreakdownDate(null)}
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto p-2 custom-scrollbar flex-1">
+                        {actions.getItemsForDate(breakdownDate).length === 0 ? (
+                            <div className="text-center py-8 text-slate-400 text-sm">
+                                タスクはありません
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                {actions.getItemsForDate(breakdownDate).map(task => {
+                                    const isDue = task.dueDate === breakdownDate;
+                                    return (
+                                        <div
+                                            key={task.id}
+                                            className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                                            onClick={() => onOpenItem?.(task.id)}
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
+                                                    {task.title}
+                                                </div>
+                                                {isDue && (
+                                                    <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ml-2">
+                                                        締切
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                                <div className="flex items-center gap-1">
+                                                    <Briefcase size={12} />
+                                                    <span className="truncate max-w-[100px]">{task.projectTitle}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Clock size={12} />
+                                                    <span>Total {task.estimatedTime}h</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
