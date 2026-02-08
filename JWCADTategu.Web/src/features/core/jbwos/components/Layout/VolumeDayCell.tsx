@@ -1,5 +1,5 @@
 import React from 'react';
-import { format, isSameMonth, isToday } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { DailyVolume } from '../../services/VolumeService';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -24,7 +24,7 @@ interface VolumeDayCellProps {
 
 export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
     date,
-    currentMonth,
+    // currentMonth, // [v4.5] Unused
     volume,
     isSelected,
     activeContextId = 'all',
@@ -35,7 +35,7 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
     onHighlightTask,
     highlightedTaskId
 }) => {
-    const isDiffMonth = !isSameMonth(date, currentMonth);
+    // const isDiffMonth = !isSameMonth(date, currentMonth); // [v4.5] Removed
     const dayOfMonth = format(date, 'd');
     const dateKey = format(date, 'yyyy-MM-dd');
 
@@ -74,7 +74,7 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
             data-date={dateKey}
             className={cn(
                 "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col hover:bg-slate-50 dark:hover:bg-slate-800/20 overflow-hidden",
-                isDiffMonth && "opacity-30",
+                // isDiffMonth && "opacity-30", // [v4.5] User request: Seamless view
                 isSelected && "ring-2 ring-blue-500 z-10 bg-blue-50/10 dark:bg-blue-900/10",
                 volume?.isHighlighted && "ring-2 ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.4)] z-10",
                 volume?.isNothingDay && "bg-slate-50 dark:bg-slate-900/30",

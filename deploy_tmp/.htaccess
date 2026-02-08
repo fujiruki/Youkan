@@ -1,0 +1,23 @@
+# SPA (Single Page Application) Routing for React
+# API requests go to index.php, all other requests go to index.html
+
+# Enable RewriteEngine
+RewriteEngine On
+
+# Set the base for rewrites
+RewriteBase /contents/TateguDesignStudio/
+
+# === API ROUTING ===
+# If the request starts with /api, route to index.php
+RewriteCond %{REQUEST_URI} ^/contents/TateguDesignStudio/api [NC]
+RewriteRule ^api/(.*)$ index.php/$1 [L]
+
+# If the request starts with index.php, let it pass through
+RewriteCond %{REQUEST_URI} ^/contents/TateguDesignStudio/index\.php [NC]
+RewriteRule . - [L]
+
+# === SPA ROUTING ===
+# If the request is not a file and not a directory, serve index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.html [L]
