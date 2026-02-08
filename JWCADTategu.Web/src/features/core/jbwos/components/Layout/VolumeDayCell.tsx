@@ -13,8 +13,9 @@ interface VolumeDayCellProps {
     currentMonth: Date;
     volume?: DailyVolume;
     isSelected?: boolean;
+    activeContextId?: string | 'all';
     onClick?: () => void;
-    onDoubleClick?: () => void;
+    onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
@@ -22,79 +23,110 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
     currentMonth,
     volume,
     isSelected,
+    activeContextId = 'all',
     onClick,
-    onDoubleClick
+    onContextMenu
 }) => {
     const isDiffMonth = !isSameMonth(date, currentMonth);
     const dayOfMonth = format(date, 'd');
+    const dateKey = format(date, 'yyyy-MM-dd');
 
-    // Determine background color based on load ratio
-    const getBgColor = () => {
+    // Determine color theme based on active context
+    const getThemeColors = () => {
         if (!volume || volume.loadRatio === 0) return 'bg-transparent';
+        if (volume.isNothingDay) return 'bg-slate-100 dark:bg-slate-900/40 text-slate-400';
+
         const ratio = volume.loadRatio;
 
-        if (ratio <= 60) return 'bg-emerald-50 dark:bg-emerald-900/20';
-        if (ratio <= 90) return 'bg-amber-50 dark:bg-amber-900/20';
-        if (ratio <= 110) return 'bg-orange-100 dark:bg-orange-900/40';
-        return 'bg-rose-200 dark:bg-rose-900/60';
+        // Intensity Engine (Haruki-centric)
+        // 100%+ is "Intensity" (Brave Orange/Violet), not error red
+        if (ratio > 100) return 'bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-inner animate-pulse';
+
+        // Normal ranges based on context
+        switch (activeContextId) {
+            case 'personal':
+                if (ratio <= 60) return 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700';
+                return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800';
+            case 'all':
+                if (ratio <= 50) return 'bg-indigo-50 dark:bg-indigo-900/10 text-indigo-700';
+                if (ratio <= 80) return 'bg-indigo-100 dark:bg-indigo-900/20 text-indigo-800';
+                return 'bg-violet-100 dark:bg-violet-900/30 text-violet-900';
+            default: // Company specific
+                if (ratio <= 60) return 'bg-blue-50 dark:bg-blue-900/20 text-blue-700';
+                return 'bg-blue-100 dark:bg-blue-900/40 text-blue-800';
+        }
     };
 
-    const getTextColor = () => {
-        if (!volume || volume.loadRatio === 0) return '';
-        const ratio = volume.loadRatio;
-        if (ratio <= 60) return 'text-emerald-700 dark:text-emerald-400';
-        if (ratio <= 90) return 'text-amber-700 dark:text-amber-400';
-        if (ratio <= 110) return 'text-orange-700 dark:text-orange-400';
-        return 'text-rose-700 dark:text-rose-400';
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        onContextMenu?.(e);
     };
 
     return (
         <div
+            data-date={dateKey}
             className={cn(
-                "relative h-24 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group",
-                isDiffMonth && "opacity-30 bg-slate-50/50 dark:bg-slate-900/50",
+                "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col",
+                isDiffMonth && "opacity-30",
                 isSelected && "ring-2 ring-blue-500 z-10",
-                getBgColor()
+                volume?.isNothingDay && "bg-slate-50 dark:bg-slate-900/30",
+                getThemeColors()
             )}
             onClick={onClick}
-            onDoubleClick={onDoubleClick}
+            onContextMenu={handleContextMenu}
         >
             <div className="flex justify-between items-start">
                 <span className={cn(
-                    "text-[10px] font-medium p-1 rounded-full w-5 h-5 flex items-center justify-center",
-                    isToday(date) ? "bg-blue-600 text-white" : "text-slate-500 dark:text-slate-400"
+                    "text-[10px] font-bold p-1 rounded-full w-5 h-5 flex items-center justify-center",
+                    isToday(date) ? "bg-blue-600 text-white" : "text-slate-500 dark:text-slate-400",
+                    volume && volume.loadRatio > 100 && "bg-white text-orange-600"
                 )}>
                     {dayOfMonth}
                 </span>
 
-                {volume && volume.loadRatio > 0 && (
-                    <span className={cn("text-[9px] font-bold px-1", getTextColor())}>
+                {volume && volume.loadRatio > 0 && !volume.isNothingDay && (
+                    <span className="text-[9px] font-black px-1 opacity-80">
                         {Math.round(volume.loadRatio)}%
                     </span>
                 )}
+
+                {volume?.isNothingDay && (
+                    <span className="text-[9px] font-medium px-1 text-slate-400 italic">Silence</span>
+                )}
             </div>
 
-            {/* Task Card Container (Deadlines) */}
-            <div className="mt-1 space-y-0.5 overflow-hidden">
-                {volume?.tasks.map(task => {
-                    // Only show if this is the DEADLINE day (simplified for now)
-                    if (format(new Date(task.dueDate), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')) {
-                        return (
-                            <div
-                                key={task.id}
-                                className="text-[9px] bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 truncate shadow-sm"
-                                title={`${task.title} (${task.projectTitle})`}
-                            >
-                                <span className="font-bold">{task.projectTitle.substring(0, 4)}:</span> {task.title}
-                            </div>
-                        );
-                    }
-                    return null;
-                })}
+            {/* Task Card Container (Deadlines/Absolute Points) */}
+            <div className="mt-1 flex-grow overflow-y-auto custom-scrollbar space-y-0.5">
+                {volume?.tasksEndingOnThisDay.map(task => (
+                    <div
+                        key={task.id}
+                        id={`dead-line-card-${task.id}`}
+                        className={cn(
+                            "text-[8px] leading-tight border rounded px-1 py-0.5 truncate shadow-sm font-medium",
+                            "bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                        )}
+                        title={`${task.title} (${task.projectTitle})`}
+                    >
+                        <span className="opacity-60">{task.projectTitle}:</span> {task.title}
+                    </div>
+                ))}
             </div>
 
-            {/* Connection Point (Center of the cell) */}
-            <div id={`conn-point-${format(date, 'yyyy-MM-dd')}`} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0" />
+            {/* Bottom: Buffers/Indicators if needed */}
+            {volume && volume.loadRatio > 0 && !volume.isNothingDay && (
+                <div className="h-1 w-full bg-black/10 rounded-full mt-auto overflow-hidden">
+                    <div
+                        className="h-full bg-current opacity-40 transition-all duration-500"
+                        style={{ width: `${Math.min(100, volume.loadRatio)}%` }}
+                    />
+                </div>
+            )}
+
+            {/* Connection Point */}
+            <div id={`conn-point-${dateKey}`} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-0" />
+
+            {/* Legend Dot (if this day has contributing work for another context not currently filtered) */}
+            {/* TODO: Add logic to show dots for hidden context load */}
         </div>
     );
 };

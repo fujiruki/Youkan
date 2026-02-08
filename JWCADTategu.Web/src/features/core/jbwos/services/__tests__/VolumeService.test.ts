@@ -1,108 +1,92 @@
 import { describe, it, expect } from 'vitest';
 import { VolumeService, TaskVolume, VolumeSettings } from '../VolumeService';
 
-describe('VolumeService', () => {
+describe('VolumeService (Sequential Packing Engine)', () => {
 
     const defaultSettings: VolumeSettings = {
-        workCapacity: 8,
-        lifeCapacity: 2,
+        contexts: [
+            {
+                contextId: 'personal',
+                weeklySchedule: [0, 4, 4, 4, 4, 4, 0] // 4h on weekdays
+            },
+            {
+                contextId: 'companyA',
+                weeklySchedule: [0, 8, 8, 8, 8, 8, 0] // 8h on weekdays
+            }
+        ],
+        nothingDays: [],
         managementMode: 'Separation'
     };
 
-    it('should calculate correct daily volume for a single task (Daily Split)', () => {
+    it('should pack a task backward from myDueDate', () => {
         const tasks: TaskVolume[] = [{
             id: 't1',
-            title: 'Test Task',
+            title: '16h Task',
             projectId: 'p1',
-            projectTitle: 'Project A',
-            estimatedTime: 10, // 10 hours
-            startDate: '2026-02-01',
-            dueDate: '2026-02-05' // 5 days (1, 2, 3, 4, 5)
+            projectTitle: 'P1',
+            estimatedTime: 16,
+            dueDate: '2026-02-10',
+            myDueDate: '2026-02-05', // Thursday
+            contextId: 'companyA'
         }];
 
-        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-01', '2026-02-05');
+        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-01', '2026-02-10');
 
-        // Check if evenly split: 10h / 5 days = 2h/day
-        expect(volumes['2026-02-01'].workVolume).toBe(2);
-        expect(volumes['2026-02-03'].workVolume).toBe(2);
-        expect(volumes['2026-02-05'].workVolume).toBe(2);
+        expect(volumes['2026-02-05'].loadByContext['companyA']).toBe(8);
+        expect(volumes['2026-02-04'].loadByContext['companyA']).toBe(8);
 
-        // Load ratio: 2h / 8h capacity = 25%
-        expect(volumes['2026-02-01'].loadRatio).toBe(25);
+        // Exact load ratio: (8 / 12) * 100 = 66.666666...
+        expect(volumes['2026-02-05'].loadRatio).toBeGreaterThan(66);
+        expect(volumes['2026-02-05'].loadRatio).toBeLessThan(67);
     });
 
-    it('should aggregate multiple tasks correctly', () => {
-        const tasks: TaskVolume[] = [
-            {
-                id: 't1',
-                title: 'Task A',
-                projectId: 'p1',
-                projectTitle: 'P1',
-                estimatedTime: 8,
-                startDate: '2026-02-01',
-                dueDate: '2026-02-01' // 1 day, 8h
-            },
-            {
-                id: 't2',
-                title: 'Task B',
-                projectId: 'p1',
-                projectTitle: 'P1',
-                estimatedTime: 4,
-                startDate: '2026-02-01',
-                dueDate: '2026-02-02' // 2 days, 2h/day
-            }
-        ];
+    it('should calculate load ratios correctly when filtered', () => {
+        const tasks: TaskVolume[] = [{
+            id: 't1',
+            estimatedTime: 4,
+            dueDate: '2026-02-05',
+            myDueDate: '2026-02-05',
+            contextId: 'companyA',
+            title: '', projectId: '', projectTitle: ''
+        }];
 
-        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-01', '2026-02-02');
-
-        // 2026-02-01: 8h (Task A) + 2h (Task B) = 10h
-        expect(volumes['2026-02-01'].workVolume).toBe(10);
-        // Load ratio: 10h / 8h capacity = 125%
-        expect(volumes['2026-02-01'].loadRatio).toBe(125);
-
-        // 2026-02-02: 2h (Task B)
-        expect(volumes['2026-02-02'].workVolume).toBe(2);
-        expect(volumes['2026-02-02'].loadRatio).toBe(25);
+        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-05', '2026-02-05', 'companyA');
+        expect(volumes['2026-02-05'].loadRatio).toBe(50);
     });
 
-    it('should respect Integration Mode (Total Capacity)', () => {
+    it('should skip Nothing Days', () => {
         const settings: VolumeSettings = {
-            workCapacity: 8,
-            lifeCapacity: 2,
-            managementMode: 'Integration' // Total 10h
+            ...defaultSettings,
+            nothingDays: ['2026-02-04']
         };
 
         const tasks: TaskVolume[] = [{
             id: 't1',
-            title: 'Heavy Task',
-            projectId: 'p1',
-            projectTitle: 'P1',
-            estimatedTime: 10,
-            startDate: '2026-02-01',
-            dueDate: '2026-02-01'
+            estimatedTime: 12,
+            dueDate: '2026-02-10',
+            myDueDate: '2026-02-05',
+            contextId: 'companyA',
+            title: '', projectId: '', projectTitle: ''
         }];
 
-        const volumes = VolumeService.calculateDailyVolumes(tasks, settings, '2026-02-01', '2026-02-01');
+        const volumes = VolumeService.calculateDailyVolumes(tasks, settings, '2026-02-01', '2026-02-10');
 
-        // 10h task on 10h total capacity = 100% (not 125% if only workCapacity used)
-        expect(volumes['2026-02-01'].loadRatio).toBe(100);
+        expect(volumes['2026-02-05'].loadByContext['companyA']).toBe(8);
+        expect(volumes['2026-02-04'].loadByContext['companyA']).toBe(0);
+        expect(volumes['2026-02-03'].loadByContext['companyA']).toBe(4);
     });
 
-    it('should handle tasks outside the requested date range', () => {
+    it('should show card on DueDate', () => {
         const tasks: TaskVolume[] = [{
             id: 't1',
-            title: 'Task',
-            projectId: 'p1',
-            projectTitle: 'P1',
-            estimatedTime: 10,
-            startDate: '2026-01-01',
-            dueDate: '2026-01-01'
+            estimatedTime: 4,
+            dueDate: '2026-02-10',
+            myDueDate: '2026-02-05',
+            contextId: 'companyA',
+            title: 'Card Task', projectId: '', projectTitle: ''
         }];
 
-        // Requested range is in February
-        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-01', '2026-02-01');
-
-        expect(volumes['2026-02-01'].workVolume).toBe(0);
-        expect(volumes['2026-02-01'].tasks).toHaveLength(0);
+        const volumes = VolumeService.calculateDailyVolumes(tasks, defaultSettings, '2026-02-10', '2026-02-10');
+        expect(volumes['2026-02-10'].tasksEndingOnThisDay).toHaveLength(1);
     });
 });

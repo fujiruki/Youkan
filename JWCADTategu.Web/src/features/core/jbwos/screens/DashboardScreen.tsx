@@ -196,18 +196,40 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             {viewMode === 'calendar' ? (
                                 <div className="p-6 h-full overflow-hidden">
                                     <VolumeCalendarGrid
-                                        tasks={allItemsForCalendar.map(item => ({
-                                            id: item.id,
-                                            title: item.title,
-                                            projectId: item.projectId || 'personal',
-                                            projectTitle: item.projectTitle || '個人',
-                                            estimatedTime: (item.estimatedMinutes || 60) / 60,
-                                            startDate: item.due_date || new Date().toISOString().split('T')[0],
-                                            dueDate: item.due_date || new Date().toISOString().split('T')[0]
-                                        }))}
+                                        tasks={allItemsForCalendar
+                                            .filter(item => item.due_date) // 期限があるもののみ
+                                            .map(item => ({
+                                                id: item.id,
+                                                title: item.title,
+                                                projectId: item.projectId || 'personal',
+                                                projectTitle: item.projectTitle || (item.tenantId ? item.tenantName || '会社' : '個人'),
+                                                estimatedTime: (item.estimatedMinutes || 60) / 60,
+                                                dueDate: item.due_date!,
+                                                // prep_date があれば使用、なければ due_date
+                                                myDueDate: (() => {
+                                                    if (!item.prep_date) return item.due_date!;
+                                                    const d = new Date(item.prep_date);
+                                                    return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : item.due_date!;
+                                                })(),
+                                                contextId: item.tenantId || 'personal'
+                                            }))}
                                         settings={{
-                                            workCapacity: capacityLimit / 60,
-                                            lifeCapacity: 2,
+                                            contexts: [
+                                                {
+                                                    contextId: 'personal',
+                                                    weeklySchedule: [0, 4, 4, 4, 4, 4, 0] // 毎日4h (平日)
+                                                },
+                                                // 参加しているテナント（会社）のスケジュールを動的に構築
+                                                ...joinedTenants.map((t, idx) => ({
+                                                    contextId: t.id,
+                                                    // 例: 会社A(月火4h)、会社B(水木金8h) のユーザー入力を反映
+                                                    // ここでは簡易的に 偶数番目のテナントをA、奇数をBと見なす等のモック
+                                                    weeklySchedule: idx % 2 === 0
+                                                        ? [0, 4, 4, 0, 0, 0, 0] // 月火4h
+                                                        : [0, 0, 0, 8, 8, 8, 0] // 水木金8h
+                                                }))
+                                            ],
+                                            nothingDays: [],
                                             managementMode: 'Separation'
                                         }}
                                     />

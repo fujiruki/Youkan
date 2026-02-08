@@ -1,4 +1,4 @@
-import { differenceInDays, addDays, format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, addDays, subDays, getDay } from 'date-fns';
 
 export interface TaskVolume {
     id: string;
@@ -6,91 +6,163 @@ export interface TaskVolume {
     projectId: string;
     projectTitle: string;
     estimatedTime: number; // hours
-    startDate: string; // YYYY-MM-DD
-    dueDate: string; // YYYY-MM-DD
+    dueDate: string; // YYYY-MM-DD (Absolute Deadline)
+    myDueDate: string; // YYYY-MM-DD (User target deadline for packing)
+    contextId: string; // 'personal' or companyId
+}
+
+export interface ContextCapacity {
+    contextId: string;
+    weeklySchedule: number[]; // [Sun, Mon, Tue, Wed, Thu, Fri, Sat] in hours
 }
 
 export interface VolumeSettings {
-    workCapacity: number; // default 8
-    lifeCapacity: number; // default 2
-    managementMode: 'Separation' | 'Integration' | 'Dual';
+    contexts: ContextCapacity[];
+    nothingDays: string[]; // YYYY-MM-DD list of absolute rest days
+    managementMode: 'Separation' | 'Integration'; // Separation: Filter strictly, Integration: Sum all
 }
 
 export interface DailyVolume {
     date: string;
-    workVolume: number;
-    lifeVolume: number;
-    totalVolume: number;
-    workCapacity: number;
-    lifeCapacity: number;
+    loadByContext: Record<string, number>; // contextId -> consumed hours
+    capacityByContext: Record<string, number>; // contextId -> max hours
+    totalLoad: number;
     totalCapacity: number;
-    loadRatio: number; // percentage
-    tasks: TaskVolume[];
+    loadRatio: number; // percentage based on filter
+    tasksEndingOnThisDay: TaskVolume[]; // Deadlines fall here
+    tasksContributingToThisDay: TaskVolume[]; // Work is being done here
+    isNothingDay: boolean;
 }
 
 export class VolumeService {
     /**
-     * Calculates daily volumes for a given date range based on tasks and settings.
+     * Calculates daily volumes using the Sequential Packing (Backward Consumption) Engine.
      */
     static calculateDailyVolumes(
         tasks: TaskVolume[],
         settings: VolumeSettings,
-        startDateStr: string,
-        endDateStr: string
+        viewStartDateStr: string,
+        viewEndDateStr: string,
+        filterContextId: string | 'all' = 'all'
     ): Record<string, DailyVolume> {
         const volumes: Record<string, DailyVolume> = {};
-        const start = parseISO(startDateStr);
-        const end = parseISO(endDateStr);
 
-        // Initialize daily volume objects for the range
-        let current = start;
-        while (current <= end) {
+        // We need a wider calculation range to account for tasks that start before viewStartDate
+        // because of backward packing. Let's calculate for a broad enough range (e.g., 3 months).
+        const viewStart = parseISO(viewStartDateStr);
+        const viewEnd = parseISO(viewEndDateStr);
+
+        // Preparation: Initialize volumes for the requested view range
+        let current = viewStart;
+        while (current <= viewEnd) {
             const dateKey = format(current, 'yyyy-MM-dd');
-            volumes[dateKey] = {
-                date: dateKey,
-                workVolume: 0,
-                lifeVolume: 0,
-                totalVolume: 0,
-                workCapacity: settings.workCapacity,
-                lifeCapacity: settings.lifeCapacity,
-                totalCapacity: settings.workCapacity + settings.lifeCapacity,
-                loadRatio: 0,
-                tasks: []
-            };
+            volumes[dateKey] = this.createEmptyDailyVolume(dateKey, settings);
             current = addDays(current, 1);
         }
 
-        // Distribute task volumes
-        tasks.forEach(task => {
-            const taskStart = startOfDay(parseISO(task.startDate));
-            const taskEnd = startOfDay(parseISO(task.dueDate));
+        // Sequential Packing Engine
+        // 1. Sort tasks by My Due Date (earlier dates first get the "closer" slots)
+        const sortedTasks = [...tasks].sort((a, b) => a.myDueDate.localeCompare(b.myDueDate));
 
-            // Calculate overlap with the requested range
-            const dayCount = Math.max(1, differenceInDays(taskEnd, taskStart) + 1);
-            const volumePerDay = task.estimatedTime / dayCount;
+        // 2. Available Capacity Tracking (Registry)
+        // date string -> contextId -> available hours
+        const capacityRegistry: Record<string, Record<string, number>> = {};
 
-            // Iterate over each day of the task and apply to volumes map if within range
-            let d = taskStart;
-            while (d <= taskEnd) {
-                const dKey = format(d, 'yyyy-MM-dd');
-                if (volumes[dKey]) {
-                    volumes[dKey].workVolume += volumePerDay;
-                    volumes[dKey].totalVolume += volumePerDay;
-                    volumes[dKey].tasks.push(task);
+        const getCapacity = (dateStr: string, cid: string): number => {
+            if (settings.nothingDays.includes(dateStr)) return 0;
+            if (!capacityRegistry[dateStr]) {
+                capacityRegistry[dateStr] = {};
+                const date = parseISO(dateStr);
+                const dayIdx = getDay(date);
+                settings.contexts.forEach(c => {
+                    capacityRegistry[dateStr][c.contextId] = c.weeklySchedule[dayIdx];
+                });
+            }
+            return capacityRegistry[dateStr][cid] || 0;
+        };
+
+        const consumeCapacity = (dateStr: string, cid: string, hours: number) => {
+            if (!capacityRegistry[dateStr]) getCapacity(dateStr, cid);
+            capacityRegistry[dateStr][cid] -= hours;
+        };
+
+        // 3. Process each task backward from myDueDate
+        sortedTasks.forEach(task => {
+            let remaining = task.estimatedTime;
+            let checkDate = parseISO(task.myDueDate);
+            const limitDate = subDays(checkDate, 60); // Safety limit to prevent infinite loops
+
+            while (remaining > 0 && checkDate >= limitDate) {
+                const dateKey = format(checkDate, 'yyyy-MM-dd');
+                const avail = getCapacity(dateKey, task.contextId);
+
+                if (avail > 0) {
+                    const consumption = Math.min(remaining, avail);
+                    consumeCapacity(dateKey, task.contextId, consumption);
+                    remaining -= consumption;
+
+                    // If this date is in our view range, record the contribution
+                    if (volumes[dateKey]) {
+                        volumes[dateKey].loadByContext[task.contextId] += consumption;
+                        volumes[dateKey].totalLoad += consumption;
+                        volumes[dateKey].tasksContributingToThisDay.push(task);
+                    }
                 }
-                d = addDays(d, 1);
+                checkDate = subDays(checkDate, 1);
+            }
+
+            // Also record the deadline card
+            const dueKey = task.dueDate;
+            if (volumes[dueKey]) {
+                volumes[dueKey].tasksEndingOnThisDay.push(task);
             }
         });
 
-        // Calculate load ratios
+        // 4. Finalize Load Ratios based on filter
         Object.values(volumes).forEach(v => {
-            const capacity = settings.managementMode === 'Integration'
-                ? v.totalCapacity
-                : v.workCapacity;
+            let activeLoad = 0;
+            let activeCap = 0;
 
-            v.loadRatio = capacity > 0 ? (v.workVolume / capacity) * 100 : 0;
+            if (filterContextId === 'all') {
+                activeLoad = v.totalLoad;
+                activeCap = v.totalCapacity;
+            } else {
+                activeLoad = v.loadByContext[filterContextId] || 0;
+                activeCap = v.capacityByContext[filterContextId] || 0;
+            }
+
+            v.loadRatio = activeCap > 0 ? (activeLoad / activeCap) * 100 : (activeLoad > 0 ? 999 : 0);
         });
 
         return volumes;
+    }
+
+    private static createEmptyDailyVolume(dateKey: string, settings: VolumeSettings): DailyVolume {
+        const date = parseISO(dateKey);
+        const dayIdx = getDay(date);
+        const isNothingDay = settings.nothingDays.includes(dateKey);
+
+        const loadByContext: Record<string, number> = {};
+        const capacityByContext: Record<string, number> = {};
+        let totalCapacity = 0;
+
+        settings.contexts.forEach(c => {
+            loadByContext[c.contextId] = 0;
+            const cap = isNothingDay ? 0 : c.weeklySchedule[dayIdx];
+            capacityByContext[c.contextId] = cap;
+            totalCapacity += cap;
+        });
+
+        return {
+            date: dateKey,
+            loadByContext,
+            capacityByContext,
+            totalLoad: 0,
+            totalCapacity,
+            loadRatio: 0,
+            tasksEndingOnThisDay: [],
+            tasksContributingToThisDay: [],
+            isNothingDay
+        };
     }
 }

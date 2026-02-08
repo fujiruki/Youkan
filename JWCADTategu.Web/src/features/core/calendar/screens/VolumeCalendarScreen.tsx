@@ -29,19 +29,30 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                 id: item.id,
                 title: item.title,
                 projectId: item.projectId || 'personal',
-                projectTitle: item.projectTitle || '個人',
-                estimatedTime: (item.estimatedMinutes || 60) / 60, // Convert mins to hours
-                startDate: item.due_date!, // Simple: assume one-day task for now OR use prep_date
-                dueDate: item.due_date!
+                projectTitle: item.projectTitle || (item.tenantId ? item.tenantName || '会社' : '個人'),
+                estimatedTime: (item.estimatedMinutes || 60) / 60,
+                dueDate: item.due_date!,
+                myDueDate: (() => {
+                    if (!item.prep_date) return item.due_date!;
+                    const d = new Date(item.prep_date);
+                    return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : item.due_date!;
+                })(),
+                contextId: item.tenantId || 'personal'
             }));
     }, [allItems]);
 
     // Adapter: CapacityConfig -> VolumeSettings
     const volumeSettings = useMemo<VolumeSettings>(() => ({
-        workCapacity: vm.capacityConfig.defaultDailyMinutes / 60,
-        lifeCapacity: 2, // Default
-        managementMode: 'Separation' // Default
-    }), [vm.capacityConfig]);
+        contexts: [
+            {
+                contextId: 'personal',
+                weeklySchedule: [0, 4, 4, 4, 4, 4, 0] // Mock default
+            },
+            // Note: If joinedTenants is needed here, we should fetch it via useAuth
+        ],
+        nothingDays: [],
+        managementMode: 'Separation'
+    }), []);
 
     if (vm.todayCandidates.length === 0 && vm.gdbActive.length === 0 && allItems.length === 0) {
         // Still loading or empty
