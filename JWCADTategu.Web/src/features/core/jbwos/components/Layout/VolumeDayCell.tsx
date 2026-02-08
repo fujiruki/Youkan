@@ -121,8 +121,18 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
                             title={`${task.title} (${task.projectTitle})`}
                             onClick={(e) => {
                                 e.stopPropagation();
+                                console.log('[VolumeDayCell] card clicked! ID:', task.id, 'Type:', typeof task.id);
                                 onHighlightTask?.(isTaskHighlighted ? null : task.id);
-                                onOpenItem?.(task.id);
+                            }}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                console.log('[VolumeDayCell] card DOUBLE-CLICKED! ID:', task.id, 'Type:', typeof task.id);
+                                if (onOpenItem) {
+                                    console.log('[VolumeDayCell] calling onOpenItem with:', task.id);
+                                    onOpenItem(task.id);
+                                } else {
+                                    console.warn('[VolumeDayCell] onOpenItem is NOT defined in props');
+                                }
                             }}
                         >
                             <span className="opacity-60">[{task.projectTitle.substring(0, 4)}]:</span> {task.title}

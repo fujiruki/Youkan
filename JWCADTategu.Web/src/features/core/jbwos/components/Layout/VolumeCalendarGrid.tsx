@@ -244,7 +244,10 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                             <div
                                 key={task.id}
                                 className="p-2 border border-slate-100 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer group active:scale-95 transition-all"
-                                onClick={() => onOpenItem?.(task.id)}
+                                onClick={() => {
+                                    console.log('[VolumeCalendarGrid] breakdown item clicked:', task.id);
+                                    onOpenItem?.(task.id);
+                                }}
                             >
                                 <div className="text-[10px] text-slate-400 font-bold mb-0.5">[{task.projectTitle.substring(0, 4)}]</div>
                                 <div className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">

@@ -70,11 +70,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         gdbActive: inboxItems,
         gdbIntent: pendingItems,
         gdbPreparation: waitingItems,
+        gdbLog: doneItems,
         todayCandidates,
         todayCommits,
         capacityUsed,
         capacityLimit,
-        filterMode,
         ghostGdbCount,
         executionItem,
         refreshAll: handleRefresh,
@@ -84,7 +84,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         createSubTask,
         getSubTasks,
         skipTask,
-        setEngaged
+        setEngaged,
+        allProjects
     } = vm;
 
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
@@ -233,8 +234,19 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                             managementMode: 'Separation'
                                         }}
                                         onOpenItem={(id) => {
-                                            const item = allItemsForCalendar.find(i => i.id === id);
-                                            if (item) setSelectedItem(item);
+                                            console.log('[Dashboard] onOpenItem called with ID:', id, 'Type:', typeof id);
+                                            const all = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems, ...doneItems, ...allProjects];
+                                            console.log('[Dashboard] Total search pool size:', all.length);
+                                            console.log('[Dashboard] Search pool sample (IDs):', all.slice(0, 10).map(i => i.id));
+
+                                            const item = all.find(i => String(i.id) === String(id));
+                                            if (item) {
+                                                console.log('[Dashboard] SUCCESS: Found item in pool:', item.title, 'ID Match:', item.id);
+                                                setSelectedItem(item);
+                                            } else {
+                                                console.error('[Dashboard] FAILURE: Item NOT FOUND in search pool. Item ID to find:', id);
+                                                console.log('[Dashboard] First 50 IDs in pool:', all.map(i => i.id).slice(0, 50));
+                                            }
                                         }}
                                     />
                                 </div>

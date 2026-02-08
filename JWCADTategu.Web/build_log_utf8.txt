@@ -1,0 +1,4 @@
+﻿
+> jwcade-tategu-web@0.0.0 build
+> tsc -b && vite build
+

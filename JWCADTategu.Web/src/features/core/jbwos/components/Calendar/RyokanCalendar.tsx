@@ -13,6 +13,7 @@ export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 interface RyokanCalendarProps {
     items: Item[];
     onItemClick: (item: Item) => void;
+    onItemDoubleClick?: (item: Item) => void;
     capacityConfig?: CapacityConfig;
     members?: Member[];
 
@@ -70,6 +71,7 @@ const isSameDate = (d1: Date, d2: Date) => {
 export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items,
     onItemClick,
+    onItemDoubleClick,
     capacityConfig,
     members = [],
     layoutMode = 'panorama',
@@ -96,6 +98,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
     const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+    const [hoveredDateKey, setHoveredDateKey] = useState<string | null>(null); // [NEW] Hover tracking
     const lastScrolledDateRef = useRef<string | null>(null);
 
     const safeConfig = useMemo(() => {
@@ -191,6 +194,14 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             setSelectedSigns(signs);
             setPressureConnections([]);
         } else {
+            // [NEW] Clear emphasis if clicking an empty cell or already active empty state
+            if (signs.length === 0) {
+                setPressureConnections([]);
+                setFlashingItemIds(new Set());
+                setHighlightedItemId(null);
+                return;
+            }
+
             if (!rect || !containerRef.current) return;
             const containerRect = containerRef.current.getBoundingClientRect();
             const sourceX = rect.left + rect.width / 2 - containerRect.left;
@@ -277,7 +288,16 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     }, [allDays, today, displayMode, propFocusDate, propSelectedDate]);
 
     return (
-        <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")} ref={containerRef}>
+        <div
+            className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")}
+            ref={containerRef}
+            onClick={() => {
+                // [NEW] Clear emphasis when clicking background
+                setPressureConnections([]);
+                setFlashingItemIds(new Set());
+                setHighlightedItemId(null);
+            }}
+        >
             {!isMini && (
                 <div className="flex-none px-4 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between z-10">
                     <div className="flex items-center gap-2">
@@ -338,6 +358,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         pressureConnections={pressureConnections}
                         onItemClick={handleItemAction}
                         onAction={handleDayAction}
+                        onHover={setHoveredDateKey} // [NEW]
+                        hoveredDateKey={hoveredDateKey} // [NEW]
+                        onItemDoubleClick={onItemDoubleClick}
                         safeConfig={safeConfig}
                         commitPeriod={commitPeriod}
                         projects={projects}
@@ -351,6 +374,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         today={today}
                         onItemClick={handleItemAction}
                         onAction={handleDayAction}
+                        onHover={setHoveredDateKey} // [NEW]
+                        hoveredDateKey={hoveredDateKey} // [NEW]
+                        onItemDoubleClick={onItemDoubleClick}
                         selectedDate={propSelectedDate}
                         prepDate={propPrepDate}
                         commitPeriod={commitPeriod}
@@ -403,7 +429,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                                 return (
                                     <div
                                         key={s.id}
-                                        onClick={() => { onItemClick(s); setSelectedSigns([]); }}
+                                        onClick={(e) => { e.stopPropagation(); onItemClick(s); }}
+                                        onDoubleClick={(e) => { e.stopPropagation(); onItemDoubleClick?.(s); setSelectedSigns([]); }}
                                         className={cn(
                                             "group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/20 transition-all cursor-pointer bg-white dark:bg-slate-900",
                                             "border-l-4",
@@ -462,8 +489,11 @@ interface TimelineViewProps {
     isMini: boolean;
     flashingItemIds: Set<string>;
     pressureConnections: PressureConnection[];
-    onItemClick: (item: Item) => void;
+    onItemClick: (item: Item) => void; // [FIX] Re-added
     onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
+    onHover: (dateKey: string | null) => void;
+    hoveredDateKey: string | null;
+    onItemDoubleClick?: (item: Item) => void;
     safeConfig: any;
     commitPeriod?: Date[];
     projects?: any[];
@@ -473,6 +503,8 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     allDays, metrics, heatMap, today,
     selectedDate, prepDate, isMini,
     flashingItemIds, pressureConnections, onItemClick, onAction,
+    onHover, hoveredDateKey, // [NEW]
+    onItemDoubleClick,
     safeConfig: _safeConfig, commitPeriod = [], projects = []
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
@@ -531,6 +563,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 isFirst={isFirst}
                                 intensity={intensity}
                                 isMini={isMini}
+                                isHovered={hoveredDateKey === dateKey} // [NEW]
                                 isSelected={isS}
                                 isPrep={isP}
                                 isCommitPeriod={commitPeriod.some(d => isSameDate(d, date))}
@@ -538,6 +571,8 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 ref={isToday ? todayRef : null}
                                 onAction={handleCellAction}
                                 onItemClick={onItemClick}
+                                onHover={onHover} // [NEW]
+                                onItemDoubleClick={onItemDoubleClick}
                                 projects={projects}
                             />
                         );
@@ -561,11 +596,14 @@ interface CalendarCellProps {
     flashingIds: Set<string>;
     onAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     onItemClick: (item: Item) => void;
+    onItemDoubleClick?: (item: Item) => void;
+    onHover: (dateKey: string | null) => void; // [NEW]
+    isHovered?: boolean; // [NEW]
     projects?: any[];
 }
 
 const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
-    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = []
+    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, onItemDoubleClick, onHover, isHovered, projects = []
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -594,6 +632,8 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             )}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
+            onMouseEnter={() => onHover(date.toDateString())}
+            onMouseLeave={() => onHover(null)}
         >
             <div className="absolute inset-0 bg-amber-500/40 dark:bg-amber-400/30 pointer-events-none" style={{ opacity: intensity / 100 }} />
 
@@ -608,17 +648,33 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 </div>
 
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
-                    {items.slice(0, isMini ? 10 : 3).map(i => {
+                    {(metric?.deadlineItems || []).slice(0, isMini ? 10 : 3).map(i => {
                         const proj = projects.find(p => p.id === i.projectId);
                         return (
-                            <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
-                                {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
+                            <div
+                                key={i.id}
+                                id={`cal-chip-${i.id}`}
+                                onClick={(e) => { e.stopPropagation(); onItemClick(i); }}
+                                onDoubleClick={(e) => { e.stopPropagation(); onItemDoubleClick?.(i); }}
+                                className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
+                                {proj && <span className="text-slate-400 mr-1">[{proj.name.substring(0, 4)}]</span>}
                                 {i.title}
                             </div>
                         );
                     })}
-                    {!isMini && items.length > 3 && <span className="text-[8px] text-slate-400 text-center">+{items.length - 3}</span>}
-                    {isMini && items.length > 10 && <span className="text-[8px] text-slate-400">...</span>}
+                    {!isMini && (metric?.deadlineItems || []).length > 3 && <span className="text-[8px] text-slate-400 text-center">+{(metric?.deadlineItems || []).length - 3}</span>}
+                    {isMini && (metric?.deadlineItems || []).length > 10 && <span className="text-[8px] text-slate-400">...</span>}
+
+                    {/* [NEW] Faint Titles on Hover */}
+                    {isHovered && !isMini && (metric?.contributingItems || []).filter(ci => !(metric?.deadlineItems || []).some(di => di.id === ci.id)).length > 0 && (
+                        <div className="mt-2 space-y-0.5 opacity-30 pointer-events-none">
+                            {(metric?.contributingItems || []).filter(ci => !(metric?.deadlineItems || []).some(di => di.id === ci.id)).slice(0, 5).map(i => (
+                                <div key={i.id} className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate">
+                                    ・{i.title}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -632,6 +688,9 @@ interface GridViewProps {
     today: Date;
     onItemClick: (item: Item) => void;
     onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
+    onHover: (dateKey: string | null) => void;
+    hoveredDateKey: string | null;
+    onItemDoubleClick?: (item: Item) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
     commitPeriod?: Date[];
@@ -642,6 +701,8 @@ interface GridViewProps {
 
 const RyokanGridView: React.FC<GridViewProps> = ({
     allDays, metrics, heatMap, today, onItemClick, onAction,
+    onHover, hoveredDateKey, // [NEW]
+    onItemDoubleClick,
     selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = []
 }) => {
     return (
@@ -660,18 +721,20 @@ const RyokanGridView: React.FC<GridViewProps> = ({
 
                     const isS = selectedDate ? isSameDate(date, selectedDate) : false;
                     const isP = prepDate ? isSameDate(date, prepDate) : false;
-                    const isCP = commitPeriod.some(d => isSameDate(d, date));
+                    const isCP = commitPeriod?.some(d => isSameDate(d, date)) || false;
                     const isH = highlightedItemId && dayItems.some(i => i.id === highlightedItemId);
 
                     return (
                         <div
                             key={dateKey}
                             onClick={(e) => {
-                                // [FIX] Use currentTarget instead of activeElement for precise coordinate tracking
+                                e.stopPropagation(); // Stop bubbling to container click
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 onAction(date, 'click', rect);
                             }}
-                            onDoubleClick={() => onAction(date, 'doubleClick')}
+                            onDoubleClick={(e) => { e.stopPropagation(); onAction(date, 'doubleClick'); }}
+                            onMouseEnter={() => onHover(dateKey)}
+                            onMouseLeave={() => onHover(null)}
                             className={cn(
                                 "min-h-[120px] p-2 relative transition-all group border-b border-r border-slate-200 dark:border-slate-800",
                                 isHol ? "bg-red-50/20 dark:bg-red-900/10" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
@@ -698,7 +761,7 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                             </div>
 
                             <div className="relative z-10 space-y-1">
-                                {dayItems.slice(0, 4).map(item => {
+                                {(metric?.deadlineItems || []).slice(0, 4).map(item => {
                                     const proj = projects.find(p => p.id === item.projectId);
                                     const isHighlightedItem = highlightedItemId === item.id;
                                     return (
@@ -706,19 +769,31 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                                             key={item.id}
                                             id={`cal-chip-${item.id}`}
                                             onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                                            onDoubleClick={(e) => { e.stopPropagation(); onItemDoubleClick?.(item); }}
                                             className={cn(
                                                 "px-1.5 py-1 bg-white/90 dark:bg-slate-800/90 border-l-2 text-[9px] font-bold rounded shadow-sm truncate cursor-pointer transition-transform",
                                                 isHighlightedItem ? "border-amber-400 scale-105 z-30 ring-1 ring-amber-200" : "border-red-400 text-slate-700 dark:text-slate-300",
                                                 item.tenantId ? "border-l-indigo-400" : "border-l-red-400"
                                             )}
                                         >
-                                            {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
+                                            {proj && <span className="text-slate-400 mr-1">[{proj.name.substring(0, 4)}]</span>}
                                             {item.title}
                                         </div>
                                     );
                                 })}
-                                {dayItems.length > 4 && (
-                                    <div className="text-[8px] text-slate-400 pl-1 font-bold">他 {dayItems.length - 4} 件 ...</div>
+                                {(metric?.deadlineItems || []).length > 4 && (
+                                    <div className="text-[8px] text-slate-400 pl-1 font-bold">他 {(metric?.deadlineItems || []).length - 4} 件 ...</div>
+                                )}
+
+                                {/* [NEW] Faint Titles on Hover (Grid View) */}
+                                {hoveredDateKey === dateKey && (metric?.contributingItems || []).filter(ci => !(metric?.deadlineItems || []).some(di => di.id === ci.id)).length > 0 && (
+                                    <div className="mt-2 space-y-0.5 opacity-30 pointer-events-none border-t border-slate-100 pt-1">
+                                        {(metric?.contributingItems || []).filter(ci => !(metric?.deadlineItems || []).some(di => di.id === ci.id)).slice(0, 6).map(i => (
+                                            <div key={i.id} className="text-[8px] font-bold text-slate-400 dark:text-slate-500 truncate italic">
+                                                ・{i.title}
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         </div>

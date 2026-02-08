@@ -3,6 +3,8 @@ import { useJBWOSViewModel } from '../../jbwos/viewmodels/useJBWOSViewModel';
 import { VolumeCalendarGrid } from '../../jbwos/components/Layout/VolumeCalendarGrid';
 import { TaskVolume, VolumeSettings } from '../../jbwos/services/VolumeService';
 import { Loader2 } from 'lucide-react';
+import { Item } from '../../jbwos/types';
+import { DecisionDetailModal } from '../../jbwos/components/Modal/DecisionDetailModal';
 
 interface Props {
     onNavigateHome: () => void;
@@ -10,6 +12,7 @@ interface Props {
 
 export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
     const vm = useJBWOSViewModel();
+    const [selectedItem, setSelectedItem] = React.useState<Item | null>(null);
 
     // Aggregated items from all shelf zones
     const allItems = useMemo(() => [
@@ -78,8 +81,48 @@ export const VolumeCalendarScreen: React.FC<Props> = ({ onNavigateHome }) => {
                 <VolumeCalendarGrid
                     tasks={taskVolumes}
                     settings={volumeSettings}
+                    onOpenItem={(id) => {
+                        console.log('[VolumeCalendarScreen] onOpenItem called with ID:', id);
+                        const all = [...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbIntent, ...vm.todayCandidates, ...vm.todayCommits, ...vm.allProjects];
+                        const item = all.find(i => String(i.id) === String(id));
+                        if (item) {
+                            console.log('[VolumeCalendarScreen] Found item:', item.title);
+                            setSelectedItem(item);
+                        } else {
+                            console.error('[VolumeCalendarScreen] Item not found:', id);
+                        }
+                    }}
                 />
             </div>
+
+            {selectedItem && (
+                <DecisionDetailModal
+                    item={selectedItem}
+                    onClose={() => {
+                        setSelectedItem(null);
+                        vm.refreshAll();
+                    }}
+                    onDelete={async (id: string) => {
+                        await vm.deleteItem(id);
+                        setSelectedItem(null);
+                        vm.refreshAll();
+                    }}
+                    onDecision={async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+                        await vm.resolveDecision(id, decision, note, updates);
+                        setSelectedItem(null);
+                        vm.refreshAll();
+                    }}
+                    onUpdate={async (id: string, updates: Partial<Item>) => {
+                        await vm.updateItem(id, updates);
+                        vm.refreshAll();
+                    }}
+                    onCreateSubTask={vm.createSubTask}
+                    onGetSubTasks={vm.getSubTasks}
+                    members={vm.members}
+                    allProjects={vm.allProjects}
+                    onOpenItem={setSelectedItem}
+                />
+            )}
         </div>
     );
 };
