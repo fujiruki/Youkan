@@ -172,7 +172,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
 
     return (
-        <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
+        <div className="h-full bg-youkan-base transition-colors duration-300 flex flex-col overflow-hidden relative">
             {/* 密度調整等のコントロール (必要な場合のみ表示) */}
             {(viewMode === 'calendar' || viewMode === 'panorama') && (
                 <div className="shrink-0 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 px-6 py-1 flex items-center justify-end gap-2 z-10">

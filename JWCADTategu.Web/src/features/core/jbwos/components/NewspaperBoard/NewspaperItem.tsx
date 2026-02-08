@@ -36,7 +36,7 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
     const base = "px-[0.3em] py-0 rounded-[0.2em] font-bold whitespace-nowrap uppercase tracking-tighter leading-normal scale-90 origin-left";
     // [FIX] inbox (受信) is now hidden per user request - not needed for this view
     if (status === 'inbox') return null;
-    if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
+    if (status === 'pending') return <span className={cn(base, "bg-youkan-muted/10 text-youkan-muted")}>保留</span>;
     if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
 
     return null;
@@ -49,7 +49,7 @@ const IndentLines = ({ depth }: { depth: number }) => {
             {Array.from({ length: depth }).map((_, i) => (
                 <div
                     key={i}
-                    className="h-full border-l border-slate-300 dark:border-slate-700"
+                    className="h-full border-l border-youkan-muted/20"
                     style={{ width: '1.5rem', marginLeft: i === 0 ? '0.75rem' : '0' }}
                 />
             ))}
@@ -94,8 +94,8 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             >
                 <IndentLines depth={depth} />
                 <div className={cn(
-                    "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold p-1 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
-                    depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
+                    "flex items-center gap-[0.5em] text-youkan-text font-bold p-1 rounded transition-colors cursor-pointer hover:bg-youkan-base",
+                    depth === 0 ? "border-b border-youkan-muted/20 pb-[2px]" : "text-[0.9em] text-youkan-muted font-bold mt-[0.3em]"
                 )}
                     style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }} // インデントを強化
                     onClick={() => onClick(item)}

@@ -92,7 +92,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     externalWorkloadItems // [v3.2] Added to destructuring
 }) => {
     const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || 'grid');
-    const today = getStartOfToday();
+    // [FIX] Memoize today to prevent unstable dependency chain for startDate/endDate/allDays/useEffect
+    const today = useMemo(() => getStartOfToday(), []);
     const isMini = layoutMode === 'mini';
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -254,7 +255,6 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         // [FIX] Avoid unnecessary scroll jump if same date (unless explicit focus change)
         const dateKey = targetDate.toDateString();
-        const isUserAction = !!propFocusDate || !!propSelectedDate;
 
         if (!propFocusDate && !propSelectedDate) {
             if (displayMode === 'gantt') targetDate = today;
@@ -277,37 +277,28 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         }
 
         const targetIndex = allDays.findIndex(d => isSameDate(d, targetDate));
-        if (targetIndex !== -1) {
-            if (displayMode === 'grid') {
-                const row = Math.floor(targetIndex / 7);
-                const targetScrollTop = row * 120;
+        if (targetIndex !== -1 && scrollContainerRef.current) {
+            // [FIX] Scroll only on initial load or when target date explicitly changes
+            const shouldScroll = lastScrolledDateRef.current === null || lastScrolledDateRef.current !== dateKey;
+
+            if (shouldScroll) {
                 const container = scrollContainerRef.current;
-
-                // [FIX] Smart Scroll: Only scroll if target is NOT currently visible
-                const isVisible = targetScrollTop >= container.scrollTop &&
-                    targetScrollTop <= (container.scrollTop + container.clientHeight - 120);
-
-                if (!isVisible || (isUserAction && lastScrolledDateRef.current !== dateKey)) {
+                if (displayMode === 'grid') {
+                    const row = Math.floor(targetIndex / 7);
+                    const targetScrollTop = row * 120;
                     container.scrollTop = targetScrollTop;
-                    lastScrolledDateRef.current = dateKey;
-                }
-            } else {
-                const targetScrollLeft = Math.max(0, (targetIndex + offsetDays) * cellWidth);
-                const container = scrollContainerRef.current;
-                const isVisible = targetScrollLeft >= container.scrollLeft &&
-                    targetScrollLeft <= (container.scrollLeft + container.clientWidth - cellWidth);
-
-                if (!isVisible || (isUserAction && lastScrolledDateRef.current !== dateKey)) {
+                } else {
+                    const targetScrollLeft = Math.max(0, (targetIndex + offsetDays) * cellWidth);
                     container.scrollLeft = targetScrollLeft;
-                    lastScrolledDateRef.current = dateKey;
                 }
+                lastScrolledDateRef.current = dateKey;
             }
         }
     }, [allDays, today, displayMode, propFocusDate, propSelectedDate]);
 
     return (
         <div
-            className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")}
+            className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden", isMini ? "bg-youkan-base" : "bg-youkan-base", isMini ? "border-l-4 border-indigo-200 dark:border-indigo-800" : "")}
             ref={containerRef}
             onClick={() => {
                 // [NEW] Clear emphasis when clicking background
@@ -655,8 +646,8 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             ref={cellRef}
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300",
-                isMini ? "w-full h-10 border-b flex items-center px-4" : "w-28 h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
-                isHoliday ? "bg-red-50/10 dark:bg-red-900/5" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
+                isMini ? "w-full h-10 border-b flex items-center px-4" : "w-28 h-full border-r flex flex-col p-2 border-b border-youkan-muted/20",
+                isHoliday ? "bg-red-50/10 dark:bg-red-900/5" : "bg-youkan-surface hover:bg-youkan-base transition-colors",
                 isSelected ? "z-10 bg-red-50 dark:bg-red-900/20 shadow-[inset_0_0_0_2px_rgba(244,63,94,1)]" : "",
                 (isPrep || isCommitPeriod) && !isSelected ? "z-10 bg-indigo-50 dark:bg-indigo-900/20 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : ""
             )}
@@ -740,9 +731,9 @@ const RyokanGridView: React.FC<GridViewProps> = ({
     return (
         <div
             ref={scrollRef} // [FIX] Attached Ref
-            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide"
+            className="w-full h-full overflow-auto p-4 bg-youkan-base scrollbar-hide"
         >
-            <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
+            <div className="grid grid-cols-7 gap-px bg-youkan-muted/20 border border-youkan-muted/20 rounded-lg overflow-hidden shadow-sm">
                 {allDays.map(date => {
                     const dateKey = date.toDateString();
                     const metric = metrics.get(dateKey);

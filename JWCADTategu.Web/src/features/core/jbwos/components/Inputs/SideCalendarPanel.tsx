@@ -37,7 +37,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
 
     const borderColorClass = targetMode === 'my'
         ? "border-indigo-200 dark:border-indigo-800"
-        : "border-slate-100 dark:border-slate-800";
+        : "border-youkan-muted/20";
 
     // [FIX] Memoize focus date to maintain stable identity for RyokanCalendar effects
     const focusDate = React.useMemo(() => {
@@ -46,11 +46,11 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     }, [targetMode, prepDate?.getTime() || null, selectedDate?.getTime() || null]);
 
     return (
-        <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
+        <div className={cn("flex flex-col h-full bg-youkan-base transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
 
             {/* [v3.2] Local Filter Selector */}
             <div className="flex-none p-2 flex justify-end">
-                <div className="flex bg-slate-200/50 dark:bg-slate-800/50 rounded-lg p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+                <div className="flex bg-youkan-muted/10 rounded-lg p-0.5 border border-youkan-muted/10">
                     {(['all', 'personal', 'company'] as FilterMode[]).map(f => (
                         <button
                             key={f}
@@ -58,7 +58,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                             className={cn(
                                 "px-2 py-0.5 text-[9px] font-bold rounded transition-all",
                                 localFilterMode === f
-                                    ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-600"
+                                    ? "bg-youkan-surface text-youkan-primary shadow-sm ring-1 ring-youkan-muted/20"
                                     : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                             )}
                         >
@@ -86,7 +86,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
             </div>
 
             {/* Quick Select Buttons */}
-            <div className={cn("p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20", borderColorClass)}>
+            <div className={cn("p-1.5 flex justify-center gap-1 bg-youkan-surface border-t z-20", borderColorClass)}>
                 {['today:今日', 'tomorrow:明日', 'next_mon:来週月'].map(opt => {
                     const [key, label] = opt.split(':');
                     return (
@@ -96,7 +96,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                                 const d = (key === 'today' ? today : key === 'tomorrow' ? addDays(today, 1) : nextDay(today, 1 as Day));
                                 onSelectDate(d);
                             }}
-                            className="px-2 py-1 text-[10px] border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-all font-bold"
+                            className="px-2 py-1 text-[10px] border border-youkan-muted/20 rounded bg-youkan-base text-youkan-muted hover:text-youkan-primary hover:border-indigo-300 transition-all font-bold"
                         >
                             {label}
                         </button>

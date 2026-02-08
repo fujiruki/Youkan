@@ -7,8 +7,14 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Emeraldをアクセントカラーとして採用
-                // Slateをベース背景色として採用
+                youkan: {
+                    base: 'var(--youkan-bg-base)',
+                    surface: 'var(--youkan-surface)',
+                    text: 'var(--youkan-text)',
+                    muted: 'var(--youkan-muted)',
+                    primary: 'var(--youkan-primary)',
+                    volume: 'var(--youkan-volume)',
+                },
             },
             fontFamily: {
                 sans: ['Inter', 'sans-serif'],

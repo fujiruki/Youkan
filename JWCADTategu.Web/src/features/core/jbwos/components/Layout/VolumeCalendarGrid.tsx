@@ -94,7 +94,7 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
 
     return (
         <div
-            className="flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xl relative"
+            className="flex flex-col h-full bg-youkan-surface border border-youkan-muted/20 rounded-xl overflow-hidden shadow-xl relative"
             onClick={() => {
                 closeMenu();
                 actions.highlightTask(null);
@@ -102,15 +102,15 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
             }}
         >
             {/* Header / Filter Ribbon */}
-            <div className="flex flex-col border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div className="flex flex-col border-b border-youkan-muted/20 shrink-0">
                 <div className="flex items-center justify-between px-6 py-4">
                     <div className="flex items-center gap-4">
-                        <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+                        <h2 className="text-xl font-black text-youkan-text tracking-tight">
                             {format(state.currentMonth, 'yyyy年 M月')}
                         </h2>
 
                         {/* Context Filters */}
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full gap-1 ml-4 shadow-inner">
+                        <div className="flex items-center bg-youkan-base p-1 rounded-full gap-1 ml-4 shadow-inner">
                             <FilterBtn
                                 active={state.activeContextId === 'all'}
                                 onClick={() => actions.setFilterContext('all')}
@@ -141,13 +141,13 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => handleMonthJump(-1)}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all active:scale-95"
+                            className="p-2 hover:bg-youkan-base rounded-lg transition-all active:scale-95"
                         >
                             <ChevronLeft size={20} />
                         </button>
                         <button
                             onClick={() => handleMonthJump(1)}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all active:scale-95"
+                            className="p-2 hover:bg-youkan-base rounded-lg transition-all active:scale-95"
                         >
                             <ChevronRight size={20} />
                         </button>
@@ -155,9 +155,9 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                 </div>
 
                 {/* Weekdays Header */}
-                <div className="grid grid-cols-7 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20">
+                <div className="grid grid-cols-7 border-t border-youkan-muted/10 bg-youkan-base">
                     {weekDays.map(day => (
-                        <div key={day} className="py-2 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        <div key={day} className="py-2 text-center text-[10px] font-black text-youkan-muted uppercase tracking-widest">
                             {day}
                         </div>
                     ))}
@@ -204,11 +204,11 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
             {/* Context Menu (Nothing Day Toggle) */}
             {contextMenu && (
                 <div
-                    className="fixed z-[100] bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden py-1 min-w-[160px] animate-in fade-in zoom-in duration-100"
+                    className="fixed z-[100] bg-youkan-surface shadow-2xl border border-youkan-muted/20 rounded-lg overflow-hidden py-1 min-w-[160px] animate-in fade-in zoom-in duration-100"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
                     <button
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-youkan-base flex items-center gap-2 transition-colors"
                         onClick={(e) => {
                             e.stopPropagation();
                             actions.toggleNothingDay(contextMenu.date);
@@ -224,16 +224,16 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
             {/* Breakdown Popover */}
             {breakdownDate && (
                 <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 rounded-2xl w-[320px] max-h-[400px] flex flex-col p-4 animate-in fade-in zoom-in duration-200"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] bg-youkan-surface shadow-2xl border border-youkan-muted/20 rounded-2xl w-[320px] max-h-[400px] flex flex-col p-4 animate-in fade-in zoom-in duration-200"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-center mb-4 shrink-0">
-                        <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 italic">
+                        <h3 className="text-sm font-black text-youkan-text italic">
                             {format(new Date(breakdownDate), 'yyyy.MM.dd')} の内訳
                         </h3>
                         <button
                             onClick={() => setBreakdownDate(null)}
-                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            className="text-youkan-muted hover:text-youkan-text"
                         >
                             <ChevronLeft size={16} />
                         </button>
@@ -243,14 +243,14 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
                         {actions.getItemsForDate(breakdownDate).map(task => (
                             <div
                                 key={task.id}
-                                className="p-2 border border-slate-100 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer group active:scale-95 transition-all"
+                                className="p-2 border border-youkan-muted/20 rounded-lg hover:bg-youkan-base cursor-pointer group active:scale-95 transition-all"
                                 onClick={() => {
                                     console.log('[VolumeCalendarGrid] breakdown item clicked:', task.id);
                                     onOpenItem?.(task.id);
                                 }}
                             >
-                                <div className="text-[10px] text-slate-400 font-bold mb-0.5">[{task.projectTitle.substring(0, 4)}]</div>
-                                <div className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                <div className="text-[10px] text-youkan-muted font-bold mb-0.5">[{task.projectTitle.substring(0, 4)}]</div>
+                                <div className="text-xs font-medium text-youkan-text group-hover:text-blue-600 dark:group-hover:text-blue-400">
                                     {task.title}
                                 </div>
                             </div>
