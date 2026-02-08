@@ -55,13 +55,16 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
 
     const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
 
-    // [NEW] Initial scroll to today
+    const hasScrolledRef = useRef(false);
+
+    // [NEW] Initial scroll to today (Only once)
     useEffect(() => {
-        if (scrollRef.current && state.days.length > 0) {
+        if (!hasScrolledRef.current && scrollRef.current && state.days.length > 0) {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             const todayCell = scrollRef.current.querySelector(`[data-date="${todayStr}"]`);
             if (todayCell) {
                 todayCell.scrollIntoView({ block: 'center', behavior: 'auto' });
+                hasScrolledRef.current = true;
             }
         }
     }, [state.days.length]); // Run once when days load
