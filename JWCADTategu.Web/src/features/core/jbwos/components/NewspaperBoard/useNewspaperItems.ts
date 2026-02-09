@@ -27,10 +27,17 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
     return useMemo(() => {
 
-        // [UUID v7] Simplified: Single ID format only
-        const activeProjectId = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
+        // Helper to normalize IDs (remove prj- prefix)
+        const normalizeId = (id: string | null | undefined): string | null => {
+            if (!id) return null;
+            return id.replace(/^prj-/, '');
+        };
+
+        const activeProjectIdRaw = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
+        const activeProjectId = normalizeId(activeProjectIdRaw);
 
         // [NEW] Helper to get all descendant project IDs (recursive)
+        // Returns a Set of NORMALIZED IDs
         const getRelevantProjectIds = (rootId: string): Set<string> => {
             const ids = new Set<string>([rootId]);
             const stack = [rootId];
@@ -42,10 +49,15 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 iterations++;
                 const currentId = stack.pop()!;
                 viewModelProjects.forEach(p => {
-                    const pid = String(p.id);
+                    const pid = normalizeId(String(p.id));
+                    if (!pid) return;
+
+                    const pParentId = normalizeId(p.parentId ? String(p.parentId) : null);
+                    const pProjectId = normalizeId(p.projectId ? String(p.projectId) : null);
+
                     // [FIX] Projects are descendants if they have a parentId link OR a projectId link
-                    const isParentMatch = p.parentId && String(p.parentId) === currentId;
-                    const isProjectMatch = p.projectId && String(p.projectId) === currentId;
+                    const isParentMatch = pParentId && pParentId === currentId;
+                    const isProjectMatch = pProjectId && pProjectId === currentId;
 
                     if ((isParentMatch || isProjectMatch) && !ids.has(pid)) {
                         ids.add(pid);
@@ -81,8 +93,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
             // [FIX] Project Focused Filtering (including descendants + dual ID format support)
             if (relevantProjectIds) {
-                const itemProjectId = item.projectId ? String(item.projectId) : null;
-                const itemParentId = item.parentId ? String(item.parentId) : null;
+                const itemProjectId = normalizeId(item.projectId ? String(item.projectId) : null);
+                const itemParentId = normalizeId(item.parentId ? String(item.parentId) : null);
                 return (itemProjectId && relevantProjectIds.has(itemProjectId)) ||
                     (itemParentId && relevantProjectIds.has(itemParentId));
             }
@@ -114,21 +126,22 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
         // 2. Identify all relevant projects for grouping
         const projectsInView = relevantProjectIds
-            ? viewModelProjects.filter(p => relevantProjectIds.has(String(p.id)))
+            ? viewModelProjects.filter(p => relevantProjectIds.has(normalizeId(String(p.id))!))
             : viewModelProjects;
 
         const projectGroups = projectsInView.map(proj => {
+            const projId = normalizeId(String(proj.id));
             const items = allFilteredItems.filter(item => {
-                const ipid = item.projectId ? String(item.projectId) : null;
-                const iparentId = item.parentId ? String(item.parentId) : null;
+                const ipid = normalizeId(item.projectId ? String(item.projectId) : null);
+                const iparentId = normalizeId(item.parentId ? String(item.parentId) : null);
 
                 // [FIX] Priority Allocation:
                 // 1. If parentId matches this project, it belongs here.
-                if (iparentId === String(proj.id)) return true;
+                if (iparentId === projId) return true;
 
                 // 2. If no parentId matches ANY other project in projectsInView, and projectId matches this project, it belongs here.
-                if (ipid === String(proj.id)) {
-                    const hasOtherParentInView = iparentId && projectsInView.some(p => String(p.id) === iparentId);
+                if (ipid === projId) {
+                    const hasOtherParentInView = iparentId && projectsInView.some(p => normalizeId(String(p.id)) === iparentId);
                     return !hasOtherParentInView;
                 }
 
@@ -142,9 +155,12 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
         // 3. Process items without a valid project ID/Parent ID match (Root Inbox items)
         const noProjectItems = allFilteredItems.filter(item => {
-            const ipid = item.projectId ? String(item.projectId) : null;
-            const iparentId = item.parentId ? String(item.parentId) : null;
-            const hasProjectInView = projectsInView.some(p => String(p.id) === ipid || String(p.id) === iparentId);
+            const ipid = normalizeId(item.projectId ? String(item.projectId) : null);
+            const iparentId = normalizeId(item.parentId ? String(item.parentId) : null);
+            const hasProjectInView = projectsInView.some(p => {
+                const pid = normalizeId(String(p.id));
+                return pid === ipid || pid === iparentId;
+            });
             return !hasProjectInView;
         });
 
@@ -170,10 +186,11 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
         // [NEW] Recursive function to add projects with their children
         const addProjectWithChildren = (proj: Item, depth: number, processedProjectIds: Set<string>) => {
-            if (processedProjectIds.has(proj.id)) return;
-            processedProjectIds.add(proj.id);
+            const projId = normalizeId(proj.id)!;
+            if (processedProjectIds.has(projId)) return;
+            processedProjectIds.add(projId);
 
-            const group = projectGroups.find(g => String(g.project.id) === String(proj.id));
+            const group = projectGroups.find(g => normalizeId(String(g.project.id)) === projId);
             if (!group) return;
 
             // Add Header
@@ -200,10 +217,10 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
             // [NEW] Find and add child projects (recursively)
             const childProjects = viewModelProjects.filter(p => {
-                if (!p.isProject || String(p.id) === String(proj.id)) return false;
-                const isParentMatch = p.parentId && String(p.parentId) === String(proj.id);
-                const isProjectMatch = p.projectId && String(p.projectId) === String(proj.id);
-                return isParentMatch || isProjectMatch;
+                if (!p.isProject || normalizeId(String(p.id)) === projId) return false;
+                const pParentId = normalizeId(p.parentId ? String(p.parentId) : null);
+                const pProjectId = normalizeId(p.projectId ? String(p.projectId) : null);
+                return pParentId === projId || pProjectId === projId;
             });
 
             // Sort child projects
@@ -218,13 +235,14 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         const rootProjects = sortedProjectGroups
             .map(g => g.project)
             .filter(p => {
-                const pId = p.parentId ? String(p.parentId) : null;
-                const prId = p.projectId ? String(p.projectId) : null;
+                const pId = normalizeId(p.parentId ? String(p.parentId) : null);
+                const prId = normalizeId(p.projectId ? String(p.projectId) : null);
                 if (!pId && !prId) return true;
 
-                const parentInView = projectsInView.some(pp =>
-                    (pId && String(pp.id) === pId) || (prId && String(pp.id) === prId)
-                );
+                const parentInView = projectsInView.some(pp => {
+                    const ppid = normalizeId(String(pp.id));
+                    return (pId && ppid === pId) || (prId && ppid === prId);
+                });
                 return !parentInView;
             });
 

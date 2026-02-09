@@ -447,6 +447,7 @@ const AppContent: React.FC<{
                                 tenant={tenant} // [NEW]
                                 joinedTenants={joinedTenants}
                                 onSwitchTenant={switchTenant}
+                                activeProject={activeProject} // [NEW] Pass active project context
                             />
                         )}
 

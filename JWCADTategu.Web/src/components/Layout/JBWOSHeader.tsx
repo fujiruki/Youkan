@@ -43,6 +43,7 @@ interface JBWOSHeaderProps {
     // Optional load info
     usedMinutes?: number;
     limitMinutes?: number;
+    activeProject?: any | null; // [NEW] Active project context
 }
 
 export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
@@ -62,7 +63,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     joinedTenants = [],
     onSwitchTenant,
     usedMinutes: initialUsed = 0,
-    limitMinutes: initialLimit = 480
+    limitMinutes: initialLimit = 480,
+    activeProject // [NEW] Read active project
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [filterMode, setFilterMode] = useState<FilterMode>(() => {
@@ -184,7 +186,27 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 </div>
 
                 {/* Center: 集約コントロール */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 w-full max-w-[900px] justify-center">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 w-full max-w-[1000px] justify-center">
+
+                    {/* [NEW] Project Focused Label */}
+                    {activeProject && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/20 rounded-lg border border-indigo-500/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex flex-col">
+                                <span className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter leading-none">Project Focused</span>
+                                <span className="text-[11px] font-black text-white leading-tight truncate max-w-[180px]">
+                                    {activeProject.title || activeProject.name}
+                                </span>
+                            </div>
+                            <button
+                                onClick={onNavigateToDashboard}
+                                className="ml-1 p-0.5 hover:bg-indigo-500/40 rounded transition-colors text-indigo-300 hover:text-white"
+                                title="解除"
+                            >
+                                <Plus size={14} className="rotate-45" />
+                            </button>
+                        </div>
+                    )}
+
                     {/* Logo */}
                     <button
                         onClick={onNavigateToDashboard}
