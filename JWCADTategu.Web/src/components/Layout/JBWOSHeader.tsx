@@ -29,7 +29,7 @@ interface JBWOSHeaderProps {
     onNavigateToToday: () => void;
     onNavigateToDashboard: () => void;
     onNavigateToHistory: () => void;
-    onNavigateToProjects: () => void;
+    onNavigateToProjects: (scope?: 'personal' | 'company') => void;
     onNavigateToSettings: () => void;
     onNavigateToCustomers?: () => void;
     onNavigateToPlanning?: () => void;
@@ -275,8 +275,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     {/* プロジェクト Section */}
                     <NavSection title="プロジェクト" isActive={isProjects} icon={<FolderKanban size={14} />}>
                         <div className="flex gap-1 items-center">
-                            <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => { onNavigateToProjects(); setFilterMode('personal'); }} />
-                            <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => { onNavigateToProjects(); setFilterMode('company'); }} />
+                            <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => { onNavigateToProjects('personal'); setFilterMode('personal'); }} />
+                            <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => { onNavigateToProjects('company'); setFilterMode('company'); }} />
 
                             {isProjects && (
                                 <div className="flex items-center bg-slate-900/50 p-0.5 rounded ml-2 border border-slate-700/50">
