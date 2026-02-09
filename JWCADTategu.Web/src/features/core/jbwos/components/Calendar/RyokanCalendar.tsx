@@ -212,10 +212,13 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             setSelectedSigns(signs);
             setPressureConnections([]);
         } else {
-            if (!rect || !containerRef.current) return;
-            const containerRect = containerRef.current.getBoundingClientRect();
-            const sourceX = rect.left + rect.width / 2 - containerRect.left;
-            const sourceY = rect.top + rect.height / 2 - containerRect.top;
+            if (!rect || !scrollContainerRef.current) return;
+            const container = scrollContainerRef.current;
+            const containerRect = container.getBoundingClientRect();
+
+            // Adjust for scroll offset to get coordinate relative to CONTENT origin
+            const sourceX = rect.left + rect.width / 2 - containerRect.left + container.scrollLeft;
+            const sourceY = rect.top + rect.height / 2 - containerRect.top + container.scrollTop;
 
             const newConnections: PressureConnection[] = [];
             const newFlashingIds = new Set<string>();
@@ -227,7 +230,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                     newConnections.push({
                         id: `${date.getTime()}-${item.id}`,
                         source: { x: sourceX, y: sourceY },
-                        target: { x: chipRect.left + chipRect.width / 2 - containerRect.left, y: chipRect.top + chipRect.height / 2 - containerRect.top },
+                        target: {
+                            x: chipRect.left + chipRect.width / 2 - containerRect.left + container.scrollLeft,
+                            y: chipRect.top + chipRect.height / 2 - containerRect.top + container.scrollTop
+                        },
                         color: '#fbbf24'
                     });
                     newFlashingIds.add(item.id);
@@ -326,25 +332,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                 </div>
             )}
 
-            <div className="flex-1 overflow-hidden relative">
-                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
-                    <AnimatePresence>
-                        {pressureConnections.map(conn => (
-                            <motion.path
-                                key={conn.id}
-                                d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
-                                fill="none"
-                                stroke={conn.color}
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{ pathLength: 1, opacity: 0.7 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.5 }}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </svg>
+            <div className="flex-1 overflow-hidden relative" ref={scrollContainerRef}>
                 {displayMode === 'timeline' && (
                     <RyokanTimelineView
                         allDays={allDays}
@@ -362,6 +350,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         commitPeriod={commitPeriod}
                         projects={projects}
                         renderItemTitle={renderItemTitle}
+                        scrollRef={scrollContainerRef as any}
                     />
                 )}
                 {displayMode === 'grid' && (
@@ -376,9 +365,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         prepDate={propPrepDate}
                         commitPeriod={commitPeriod}
                         scrollRef={scrollContainerRef as any}
-                        highlightedItemId={highlightedItemId}
                         projects={projects}
                         renderItemTitle={renderItemTitle}
+                        pressureConnections={pressureConnections}
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -491,6 +480,7 @@ interface TimelineViewProps {
     commitPeriod?: Date[];
     projects?: any[];
     renderItemTitle: (item: Item) => string;
+    scrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 const RyokanTimelineView: React.FC<TimelineViewProps> = ({
@@ -498,7 +488,8 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     selectedDate, prepDate, isMini,
     flashingItemIds, pressureConnections, onItemClick, onAction,
     safeConfig: _safeConfig, commitPeriod = [], projects = [],
-    renderItemTitle
+    renderItemTitle,
+    scrollRef
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -515,29 +506,27 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
 
     return (
         <div className="w-full h-full relative overflow-hidden" ref={containerRef}>
-            {!isMini && (
-                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
-                    <AnimatePresence>
-                        {pressureConnections.map(conn => (
-                            <motion.path
-                                key={conn.id}
-                                d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
-                                fill="none"
-                                stroke={conn.color}
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                initial={{ pathLength: 0, opacity: 0 }}
-                                animate={{ pathLength: 1, opacity: 0.7 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.4 }}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </svg>
-            )}
 
-            <div className={cn("flex-1 h-full overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")}>
-                <div className={cn("flex min-w-max h-full", isMini ? "flex-col w-full" : "flex-row")}>
+            <div className={cn("flex-1 h-full overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef}>
+                <div className={cn("flex min-w-max h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
+                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                        <AnimatePresence>
+                            {pressureConnections.map(conn => (
+                                <motion.path
+                                    key={conn.id}
+                                    d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
+                                    fill="none"
+                                    stroke={conn.color}
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    initial={{ pathLength: 0, opacity: 0 }}
+                                    animate={{ pathLength: 1, opacity: 0.7 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                />
+                            ))}
+                        </AnimatePresence>
+                    </svg>
                     {allDays.map(date => {
                         const dateKey = date.toDateString();
                         const metric = metrics.get(dateKey);
@@ -666,11 +655,13 @@ interface GridViewProps {
     highlightedItemId?: string | null;
     projects?: any[];
     renderItemTitle: (item: Item) => string;
+    pressureConnections?: PressureConnection[];
 }
 
 const RyokanGridView: React.FC<GridViewProps> = ({
     allDays, metrics, heatMap, today, onItemClick, onAction,
-    selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = [], renderItemTitle
+    selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = [], renderItemTitle,
+    pressureConnections = []
 }) => {
     return (
         <div
@@ -692,6 +683,24 @@ const RyokanGridView: React.FC<GridViewProps> = ({
             </div>
 
             <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm relative z-10">
+                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                    <AnimatePresence>
+                        {pressureConnections.map(conn => (
+                            <motion.path
+                                key={conn.id}
+                                d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
+                                fill="none"
+                                stroke={conn.color}
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                initial={{ pathLength: 0, opacity: 0 }}
+                                animate={{ pathLength: 1, opacity: 0.7 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.4 }}
+                            />
+                        ))}
+                    </AnimatePresence>
+                </svg>
                 {allDays.map(date => {
                     const dateKey = date.toDateString();
                     const metric = metrics.get(dateKey);
