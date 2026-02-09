@@ -1,7 +1,0 @@
-﻿
-> jwcade-tategu-web@0.0.0 build
-> tsc -b && vite build
-
-src/features/core/jbwos/components/Modal/DecisionDetailModal.tsx(687,41): error TS2322: Type '{ items: Item[]; selectedDate: Date | null; onSelectDate: (d: Date) => Promise<void>; onItemClick: (selected: Item) => void; prepDate: Date | null; targetMode: "due" | ... 1 more ... | null; filterMode: string; }' is not assignable to type 'IntrinsicAttributes & SideCalendarPanelProps'.
-  Property 'filterMode' does not exist on type 'IntrinsicAttributes & SideCalendarPanelProps'.
-src/features/core/jbwos/screens/DashboardScreen.tsx(77,9): error TS6133: 'filterMode' is declared but its value is never read.

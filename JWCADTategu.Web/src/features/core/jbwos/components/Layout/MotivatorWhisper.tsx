@@ -33,54 +33,27 @@ export const MotivatorWhisper: React.FC = () => {
 
     // 1. Load User Preferences
     useEffect(() => {
-        if (user?.preferences) {
-            console.log('[MotivatorWhisper] User preferences found:', user.preferences);
+        if (user?.preferences?.motivation_quotes) {
+            const userQuotes = (user.preferences.motivation_quotes as string)
+                .split('\n')
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
 
-            let prefs: any = {};
-            try {
-                prefs = typeof user.preferences === 'string'
-                    ? JSON.parse(user.preferences)
-                    : user.preferences;
-            } catch (e) {
-                console.error('[MotivatorWhisper] Failed to parse preferences:', e);
+            if (userQuotes.length > 0) {
+                setQuotes(userQuotes);
+            } else {
+                setQuotes(DEFAULT_QUOTES);
             }
-
-            if (prefs && prefs.motivation_quotes) {
-                console.log('[MotivatorWhisper] Motivation quotes found:', prefs.motivation_quotes);
-                const userQuotes = (prefs.motivation_quotes as string)
-                    .split('\n')
-                    .map(q => q.trim())
-                    .filter(q => q.length > 0);
-
-                console.log('[MotivatorWhisper] Parsed user quotes:', userQuotes);
-
-                if (userQuotes.length > 0) {
-                    setQuotes(userQuotes);
-                    return; // Successfully set user quotes
-                }
-            }
+        } else {
+            setQuotes(DEFAULT_QUOTES);
         }
-
-        console.log('[MotivatorWhisper] Using default quotes.');
-        setQuotes(DEFAULT_QUOTES);
     }, [user]);
 
     // Helper: Select a random quote
     const selectRandomQuote = useCallback(() => {
         if (quotes.length === 0) return;
-
-        // 30% chance to pick from top 3, 70% chance to pick from all
-        // (Only if there are at least 3 quotes to make the choice meaningful)
-        const isPriorityPick = Math.random() < 0.3 && quotes.length >= 3;
-
-        if (isPriorityPick) {
-            const topQuotes = quotes.slice(0, 3);
-            const randomQuote = topQuotes[Math.floor(Math.random() * topQuotes.length)];
-            setCurrentQuote(randomQuote);
-        } else {
-            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-            setCurrentQuote(randomQuote);
-        }
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        setCurrentQuote(randomQuote);
     }, [quotes]);
 
     // 2. Initial Display Logic

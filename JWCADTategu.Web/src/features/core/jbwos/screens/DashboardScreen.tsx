@@ -13,12 +13,11 @@ import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
+import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
-import { VolumeCalendarGrid } from '../components/Layout/VolumeCalendarGrid';
-
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -70,11 +69,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         gdbActive: inboxItems,
         gdbIntent: pendingItems,
         gdbPreparation: waitingItems,
-        gdbLog: doneItems,
         todayCandidates,
         todayCommits,
         capacityUsed,
         capacityLimit,
+        filterMode,
         ghostGdbCount,
         executionItem,
         refreshAll: handleRefresh,
@@ -84,8 +83,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         createSubTask,
         getSubTasks,
         skipTask,
-        setEngaged,
-        allProjects
+        setEngaged
     } = vm;
 
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
@@ -172,7 +170,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
 
     return (
-        <div className="h-full bg-youkan-base transition-colors duration-300 flex flex-col overflow-hidden relative">
+        <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
             {/* 密度調整等のコントロール (必要な場合のみ表示) */}
             {(viewMode === 'calendar' || viewMode === 'panorama') && (
                 <div className="shrink-0 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 px-6 py-1 flex items-center justify-end gap-2 z-10">
@@ -195,63 +193,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-hidden">
                             {viewMode === 'calendar' ? (
-                                <div className="p-6 h-full overflow-hidden">
-                                    <VolumeCalendarGrid
-                                        tasks={allItemsForCalendar
-                                            .filter(item => item.due_date) // 期限があるもののみ
-                                            .map(item => ({
-                                                id: item.id,
-                                                title: item.title,
-                                                projectId: item.projectId || 'personal',
-                                                projectTitle: item.projectTitle || (item.tenantId ? item.tenantName || '会社' : '個人'),
-                                                estimatedTime: (item.estimatedMinutes || 60) / 60,
-                                                dueDate: item.due_date!,
-                                                // prep_date があれば使用、なければ due_date
-                                                myDueDate: (() => {
-                                                    if (!item.prep_date) return item.due_date!;
-                                                    const d = new Date(item.prep_date);
-                                                    return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : item.due_date!;
-                                                })(),
-                                                contextId: item.tenantId || 'personal'
-                                            }))}
-                                        settings={{
-                                            contexts: [
-                                                {
-                                                    contextId: 'personal',
-                                                    weeklySchedule: [0, 4, 4, 4, 4, 4, 0] // 毎日4h (平日)
-                                                },
-                                                // 参加しているテナント（会社）のスケジュールを動的に構築
-                                                ...joinedTenants.map((t, idx) => ({
-                                                    contextId: t.id,
-                                                    // 例: 会社A(月火4h)、会社B(水木金8h) のユーザー入力を反映
-                                                    // ここでは簡易的に 偶数番目のテナントをA、奇数をBと見なす等のモック
-                                                    weeklySchedule: idx % 2 === 0
-                                                        ? [0, 4, 4, 0, 0, 0, 0] // 月火4h
-                                                        : [0, 0, 0, 8, 8, 8, 0] // 水木金8h
-                                                }))
-                                            ],
-                                            nothingDays: [],
-                                            managementMode: 'Separation'
-                                        }}
-                                        onOpenItem={(id) => {
-                                            console.log('[Dashboard] onOpenItem called with ID:', id, 'Type:', typeof id);
-                                            const all = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems, ...doneItems, ...allProjects];
-                                            console.log('[Dashboard] Total search pool size:', all.length);
-                                            console.log('[Dashboard] Search pool sample (IDs):', all.slice(0, 10).map(i => i.id));
-
-                                            const item = all.find(i => String(i.id) === String(id));
-                                            if (item) {
-                                                console.log('[Dashboard] SUCCESS: Found item in pool:', item.title, 'ID Match:', item.id);
-                                                setSelectedItem(item);
-                                            } else {
-                                                console.error('[Dashboard] FAILURE: Item NOT FOUND in search pool. Item ID to find:', id);
-                                                console.log('[Dashboard] First 50 IDs in pool:', all.map(i => i.id).slice(0, 50));
-                                            }
-                                        }}
-                                    />
-                                </div>
+                                <RyokanCalendar
+                                    items={allItemsForCalendar}
+                                    projects={allItemsForCalendar.filter(i => i.isProject)}
+                                    onItemClick={setSelectedItem}
+                                    filterMode={filterMode}
+                                    displayMode="timeline"
+                                    rowHeight={ganttRowHeight}
+                                />
                             ) : viewMode === 'newspaper' ? (
-
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             ) : (
                                 <JbwosBoard
@@ -451,7 +401,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     allProjects={vm.allProjects}
                     joinedTenants={joinedTenants}
                     onOpenItem={setSelectedItem}
-                    allWorkloadItems={allItemsForCalendar} // [v3.2]
                 />
             )}
 

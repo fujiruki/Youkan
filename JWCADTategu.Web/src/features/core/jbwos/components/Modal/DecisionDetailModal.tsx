@@ -24,13 +24,12 @@ interface DecisionDetailModalProps {
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
-    allWorkloadItems?: Item[]; // [v3.2]
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
     onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
-    initialFocus, yesButtonLabel, allWorkloadItems = [] // [v3.2]
+    initialFocus, yesButtonLabel
 }) => {
     // [NEW] History Stack for Drill-Down
     const [history, setHistory] = React.useState<Item[]>([]);
@@ -297,7 +296,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     return (
         <AnimatePresence>
             {item && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <motion.div
                         data-testid="modal-backdrop"
@@ -423,12 +422,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     <div className="flex items-center gap-1.5 min-w-0" onClick={() => setIsEditingTitle(true)}>
                                                         <span className={cn(
                                                             "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest cursor-pointer",
-                                                            tenant ? "bg-indigo-600 text-white" : "bg-youkan-muted/20 text-youkan-muted"
+                                                            tenant ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-800"
                                                         )}>
                                                             {tenant ? tenant.name : 'Private'}
                                                         </span>
 
-                                                        <span className="text-youkan-muted font-bold">/</span>
+                                                        <span className="text-slate-300 font-bold">/</span>
 
                                                         {project ? (
                                                             <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold truncate cursor-pointer hover:bg-amber-200 transition-colors">
@@ -445,13 +444,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                                             <button
                                                 onClick={() => setIsEditingTitle(true)}
-                                                className="ml-auto flex-none text-[10px] font-bold text-youkan-muted hover:text-youkan-primary transition-colors uppercase tracking-widest"
+                                                className="ml-auto flex-none text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest"
                                             >
                                                 Change
                                             </button>
                                         </div>
                                         <h2
-                                            className="text-2xl md:text-3xl font-bold text-youkan-text leading-tight cursor-text hover:bg-youkan-base rounded px-1 -ml-1 transition-colors"
+                                            className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 -ml-1 transition-colors"
                                             onClick={() => setIsEditingTitle(true)}
                                         >
                                             {item.title}
@@ -474,7 +473,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                className="absolute right-0 top-full mt-2 w-48 bg-youkan-surface rounded-xl shadow-2xl border border-youkan-muted/10 p-2 z-50 overflow-hidden"
+                                                className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-700 p-2 z-50 overflow-hidden"
                                             >
                                                 {confirmDelete ? (
                                                     <div className="p-2 space-y-2">
@@ -521,10 +520,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                             {/* LEFT COLUMN: Inputs & Calendar */}
                             {/* LEFT COLUMN: Inputs & Calendar */}
-                            <div className="flex-1 flex flex-col min-w-0 md:border-r border-youkan-muted/20 h-full">
+                            <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800 h-full">
 
                                 {/* Top: Inputs Section (Compact) */}
-                                <div className="p-3 pb-1 flex-none border-b border-youkan-muted/20 bg-youkan-surface z-10">
+                                <div className="p-3 pb-1 flex-none border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
                                         {/* Due Date */}
@@ -560,7 +559,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         if (onUpdate) await onUpdate(item.id, updates);
                                                         else await ApiClient.updateItem(item.id, updates);
                                                     }}
-                                                    className="bg-youkan-base hover:bg-youkan-muted/10 rounded px-2 py-1.5 text-xs text-youkan-muted font-medium border border-dashed border-youkan-muted/20 cursor-pointer hover:border-youkan-primary hover:text-youkan-primary transition-colors text-center"
+                                                    className="bg-slate-50 dark:bg-slate-800/50 rounded px-2 py-1.5 text-xs text-slate-400 font-medium border border-dashed border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-colors text-center"
                                                 >
                                                     未記入
                                                 </div>
@@ -628,7 +627,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         }}
                                                         placeholder="目標日..."
                                                         className={cn(
-                                                            "w-full bg-youkan-base border border-transparent hover:border-youkan-muted/20 rounded px-2 py-1.5 text-xs text-youkan-text outline-none focus:bg-youkan-surface transition-colors",
+                                                            "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
                                                             activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-1 focus:ring-indigo-400"
                                                         )}
                                                     />
@@ -650,7 +649,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                             setActiveDateInput('my');
                                                         }}
                                                         className={cn(
-                                                            "bg-youkan-base border border-transparent hover:border-youkan-muted/20 rounded px-2 py-1.5 text-xs text-youkan-text outline-none focus:bg-youkan-surface focus:ring-1 w-full transition-colors",
+                                                            "bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 w-full transition-colors",
                                                             activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-indigo-400"
                                                         )}
                                                     />
@@ -661,10 +660,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 </div>
 
                                 {/* Middle: Calendar (Fills remaining space) */}
-                                <div className="flex-1 min-h-0 hidden md:flex bg-youkan-base flex-col overflow-hidden relative">
+                                <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
                                         items={subTasks.length > 0 ? subTasks : (item ? [item] : [])}
-                                        workloadItems={allWorkloadItems} // [v3.2]
                                         selectedDate={memoizedSelectedDate}
                                         onSelectDate={async (d) => {
                                             const val = format(d, 'yyyy-MM-dd');
@@ -691,7 +689,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 </div>
 
                                 {/* Bottom: Boost & Note (Moved here) */}
-                                <div className="flex-none p-3 space-y-2 border-t border-youkan-muted/20 bg-youkan-surface z-10 shadow-inner">
+                                <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
                                     {/* Boost Button Line */}
                                     <div className="flex justify-center">
                                         <button
@@ -705,7 +703,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
                                                 item.is_boosted
                                                     ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                    : "bg-youkan-base text-youkan-muted border-youkan-muted/20 hover:bg-youkan-surface"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
                                             )}
                                         >
                                             <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
@@ -724,23 +722,23 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }}
                                             placeholder="メモ・条件・懸念点..."
-                                            className="w-full text-xs bg-youkan-base rounded p-2 border-none focus:ring-1 focus:ring-indigo-300 resize-none min-h-[50px] text-youkan-text placeholder:text-youkan-muted transition-all focus:min-h-[80px]"
+                                            className="w-full text-xs bg-slate-50 dark:bg-slate-800/30 rounded p-2 border-none focus:ring-1 focus:ring-indigo-300 resize-none min-h-[50px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 transition-all focus:min-h-[80px]"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* RIGHT COLUMN: Estimated Time & Subtasks */}
-                            <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-youkan-muted/20 bg-youkan-surface overflow-y-auto p-5 space-y-6">
+                            <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
 
                                 {/* Estimated Time Preset Grid */}
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between pb-1 border-b border-youkan-muted/20">
-                                        <span className="text-xs font-bold text-youkan-muted uppercase tracking-wider flex items-center gap-1">
+                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                             <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
                                             目安時間 (Estimate)
                                         </span>
-                                        <span className="text-sm font-bold text-youkan-text">
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                                             {estimatedMinutes > 0 ? (estimatedMinutes >= 60 ? `${(estimatedMinutes / 60).toFixed(1)}h` : `${estimatedMinutes}m`) : '-'}
                                         </span>
                                     </div>
@@ -766,7 +764,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",
                                                         isActive
                                                             ? "bg-amber-50 border-amber-300 shadow-md shadow-amber-100 dark:bg-amber-900/40 dark:border-amber-700 dark:shadow-none"
-                                                            : "bg-youkan-surface border-youkan-muted/20 hover:border-indigo-300 hover:bg-youkan-base hover:shadow-sm"
+                                                            : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:shadow-sm dark:bg-slate-800/50 dark:border-slate-700 dark:hover:bg-slate-800"
                                                     )}
                                                 >
                                                     {/* Icon Box */}
@@ -774,7 +772,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         "flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors",
                                                         isActive
                                                             ? "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
-                                                            : "bg-youkan-base text-youkan-muted group-hover:bg-youkan-surface group-hover:text-indigo-500"
+                                                            : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-indigo-500 dark:bg-slate-700 dark:text-slate-400"
                                                     )}>
                                                         {preset.icon}
                                                     </div>
@@ -783,7 +781,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     <div className="flex flex-col items-start gap-0.5">
                                                         <span className={cn(
                                                             "text-sm font-bold leading-none",
-                                                            isActive ? "text-amber-900 dark:text-amber-100" : "text-youkan-text group-hover:text-indigo-700"
+                                                            isActive ? "text-amber-900 dark:text-amber-100" : "text-slate-700 dark:text-slate-200 group-hover:text-indigo-700"
                                                         )}>
                                                             {preset.label}
                                                         </span>
@@ -804,8 +802,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
 
                                     {/* Manual Input (Subtle) */}
-                                    <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-youkan-muted/20">
-                                        <span className="text-[10px] text-youkan-muted">微調整:</span>
+                                    <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-[10px] text-slate-400">微調整:</span>
                                         <input
                                             type="number"
                                             value={estimatedMinutes / 60}
@@ -818,8 +816,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 </div>
 
                                 {/* Assignment Selection (Haruki Plan) */}
-                                <div className="space-y-2 pt-1 pb-4 border-b border-youkan-muted/20">
-                                    <span className="text-[10px] font-bold text-youkan-muted uppercase tracking-wider flex items-center gap-1">
+                                <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                         <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
                                         担当者 (Assignee)
                                     </span>
@@ -833,7 +831,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 if (onUpdate) await onUpdate(item.id, updates);
                                                 else await ApiClient.updateItem(item.id, updates);
                                             }}
-                                            className="w-full bg-youkan-base border border-youkan-muted/20 rounded-lg px-3 py-2 text-xs font-medium text-youkan-text outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                                            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
                                         >
                                             <option value="">自分 (Unassigned)</option>
                                             {members.map(m => (
@@ -851,9 +849,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                                 {/* Sub-Tasks Section (Project Mode) - Moved to Right Column */}
                                 {isProject && (
-                                    <div className="pt-4 border-t border-youkan-muted/20">
+                                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center justify-between mb-2">
-                                            <div className="text-xs font-bold text-youkan-muted flex items-center gap-1">
+                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
                                                 <Folder size={12} className="text-blue-400" />
                                                 サブタスク (Project Check)
                                             </div>
@@ -883,7 +881,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 <div
                                                     key={sub.id}
                                                     onClick={() => handleDrillDown(sub)}
-                                                    className="flex items-center gap-2 p-2 bg-youkan-base rounded-md border border-youkan-muted/20 hover:bg-youkan-surface hover:border-blue-300 cursor-pointer transition-all group"
+                                                    className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all group"
                                                 >
                                                     <CheckSquare size={14} className={cn(
                                                         "transition-colors",
@@ -891,20 +889,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     )} />
                                                     <span className={cn(
                                                         "text-xs font-medium flex-1 truncate",
-                                                        sub.status === 'done' ? "text-youkan-muted line-through" : "text-youkan-text"
+                                                        sub.status === 'done' ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"
                                                     )}>{sub.title}</span>
 
                                                     {/* Work Days & Time Display */}
                                                     <div className="flex items-center gap-1">
                                                         {sub.estimatedMinutes && sub.estimatedMinutes > 0 ? (
-                                                            <span className="text-[10px] font-mono text-youkan-muted bg-youkan-surface px-1.5 py-0.5 rounded border border-youkan-muted/20">
+                                                            <span className="text-[10px] font-mono text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                                                                 {sub.estimatedMinutes >= 60
                                                                     ? `${(sub.estimatedMinutes / 60).toFixed(1)}h`
                                                                     : `${sub.estimatedMinutes}m`}
                                                             </span>
                                                         ) : (
                                                             sub.work_days !== undefined && sub.work_days > 0 && (
-                                                                <span className="text-[10px] sm:text-xs font-mono text-youkan-muted bg-youkan-surface px-1.5 py-0.5 rounded border border-youkan-muted/20">
+                                                                <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                                                                     {Number(sub.work_days).toFixed(1)}日
                                                                 </span>
                                                             )
@@ -935,7 +933,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     }
                                                 }}
                                                 placeholder="サブタスクを追加..."
-                                                className="flex-1 bg-transparent border-b border-youkan-muted/20 text-sm py-1 focus:outline-none focus:border-blue-400 transition-colors"
+                                                className="flex-1 bg-transparent border-b border-slate-200 dark:border-slate-800 text-sm py-1 focus:outline-none focus:border-blue-400 transition-colors"
                                             />
                                             <button
                                                 onClick={async () => {
@@ -950,7 +948,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         }
                                                     }
                                                 }}
-                                                className="p-1 hover:bg-youkan-base rounded text-youkan-muted hover:text-blue-500 transition-colors"
+                                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-blue-500 transition-colors"
                                             >
                                                 <Plus size={16} />
                                             </button>
@@ -962,7 +960,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         </div>
 
                         {/* Actions Footer */}
-                        <div className="mt-6 p-4 bg-youkan-base border-t border-youkan-muted/20 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
 
                             {/* LEFT GROUP: Negative / Defer */}
                             <div className="flex items-center gap-2 w-full md:w-auto">
@@ -973,8 +971,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         className={cn(
                                             "flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-transparent transition-all",
                                             isMenuOpen
-                                                ? "bg-youkan-muted/20 text-youkan-text"
-                                                : "hover:bg-youkan-muted/20 text-youkan-muted hover:text-youkan-text"
+                                                ? "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                                : "hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                         )}
                                         title="ゴミ箱・その他"
                                     >
@@ -984,7 +982,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     {/* Popup Menu */}
                                     <div
                                         className={cn(
-                                            "absolute bottom-full left-0 w-56 bg-youkan-surface shadow-xl rounded-xl border border-youkan-muted/20 p-2 mb-2 z-50",
+                                            "absolute bottom-full left-0 w-56 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
                                             isMenuOpen ? "block" : "hidden group-hover/notnow:block"
                                         )}
                                     >
@@ -1079,7 +1077,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 {/* SAVE TO INBOX (New) */}
                                 <button
                                     onClick={handleClose}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-youkan-muted/20 text-youkan-muted hover:border-youkan-muted/50 hover:bg-youkan-base font-bold text-sm transition-all"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm transition-all"
                                     title="内容を保存してInbox(スタンバイ)に置く"
                                 >
                                     スタンバイに置く

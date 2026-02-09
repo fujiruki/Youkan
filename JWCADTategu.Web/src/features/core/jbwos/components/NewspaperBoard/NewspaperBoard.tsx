@@ -50,7 +50,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     // So it should be the very first element inside the columns.
 
     return (
-        <div className="h-full flex flex-col bg-youkan-base overflow-hidden">
+        <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
             {/* Controls Header (Floating or Fixed) */}
             <div className="flex-none px-4 py-2 flex justify-end relative z-20 pointer-events-none">
@@ -65,7 +65,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
             </div>
 
             {/* Main Content Area (Horizontal Scroll, No Vertical) */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 scrollbar-thin scrollbar-thumb-youkan-muted/20">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
                 <div
                     className="h-full py-2"
                     style={{
@@ -81,7 +81,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                     }}
                 >
                     {/* Quick Input (Inside Columns) - Always uses activeProject context */}
-                    <div className="break-inside-avoid mb-[0.5em] p-[0.5em] bg-youkan-surface rounded shadow-sm border border-youkan-muted/20">
+                    <div className="break-inside-avoid mb-[0.5em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
                         <QuickInputWidget
                             viewModel={viewModel}
                             projectContext={activeProject ? {

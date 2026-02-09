@@ -7,8 +7,7 @@ export interface QuantityMetric {
     capacityMinutes: number;
     ratio: number; // volume / capacity
     isHoliday: boolean;
-    contributingItems: Item[]; // Items that add load to this specific day
-    deadlineItems: Item[];      // [NEW] Items that have their primary deadline on this day
+    contributingItems: Item[]; // [NEW] Items that add load to this specific day
 }
 
 export interface QuantityContext {
@@ -34,7 +33,7 @@ export class QuantityEngine {
         context: QuantityContext
     ): Map<string, QuantityMetric> {
         const metricsMap = new Map<string, QuantityMetric>();
-        const { volumeMap, contributorsMap, deadlinesMap } = this.calculateVolume(context);
+        const { volumeMap, contributorsMap } = this.calculateVolume(context);
 
         days.forEach(date => {
             const dateKey = date.toDateString();
@@ -42,7 +41,6 @@ export class QuantityEngine {
             const capacity = this.calculateCapacityForDate(date, context);
             const isHol = this.checkIsHoliday(date, context);
             const contributors = contributorsMap.get(dateKey) || [];
-            const deadlines = deadlinesMap.get(dateKey) || [];
 
             metricsMap.set(dateKey, {
                 date,
@@ -50,8 +48,7 @@ export class QuantityEngine {
                 capacityMinutes: capacity,
                 ratio: capacity > 0 ? volume / capacity : (volume > 0 ? 2 : 0),
                 isHoliday: isHol,
-                contributingItems: contributors,
-                deadlineItems: deadlines
+                contributingItems: contributors
             });
         });
 
@@ -63,13 +60,11 @@ export class QuantityEngine {
      */
     private static calculateVolume(context: QuantityContext): {
         volumeMap: Map<string, number>,
-        contributorsMap: Map<string, Item[]>,
-        deadlinesMap: Map<string, Item[]>
+        contributorsMap: Map<string, Item[]>
     } {
         const { items, filterMode, focusedTenantId, focusedProjectId } = context;
         const volumeMap = new Map<string, number>();
         const contributorsMap = new Map<string, Item[]>();
-        const deadlinesMap = new Map<string, Item[]>();
 
         // Filter items based on viewing context
         const relevantItems = items.filter(item => {
@@ -88,13 +83,11 @@ export class QuantityEngine {
         });
 
         relevantItems.forEach(item => {
-            // [NEW] Backward allocation base: use prep_date if exists, otherwise use due_date
-            const baseDateSource = item.prep_date ? new Date(item.prep_date * 1000) : (item.due_date ? new Date(item.due_date) : null);
-
-            if (baseDateSource && !isNaN(baseDateSource.getTime())) {
+            if (item.prep_date) {
+                const prepDate = new Date(item.prep_date * 1000);
                 let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
 
-                let current = new Date(baseDateSource);
+                let current = new Date(prepDate);
                 let safety = 0;
 
                 while (remainingMinutes > 0 && safety < 90) { // Max 90 days lookback
@@ -122,18 +115,19 @@ export class QuantityEngine {
                     remainingMinutes -= alloc;
                     current.setDate(current.getDate() - 1);
                 }
-            }
-
-            // [NEW] Deadline Card logic: Show on due_date if exists, otherwise on prep_date
-            const primaryDeadline = item.due_date ? new Date(item.due_date) : (item.prep_date ? new Date(item.prep_date * 1000) : null);
-            if (primaryDeadline && !isNaN(primaryDeadline.getTime())) {
-                const dkey = primaryDeadline.toDateString();
-                if (!deadlinesMap.has(dkey)) deadlinesMap.set(dkey, []);
-                deadlinesMap.get(dkey)?.push(item);
+            } else if (item.due_date) {
+                // Warning volume on due date if no prep_date
+                const d = new Date(item.due_date);
+                if (!isNaN(d.getTime())) {
+                    const key = d.toDateString();
+                    volumeMap.set(key, (volumeMap.get(key) || 0) + 60);
+                    if (!contributorsMap.has(key)) contributorsMap.set(key, []);
+                    contributorsMap.get(key)?.push(item);
+                }
             }
         });
 
-        return { volumeMap, contributorsMap, deadlinesMap };
+        return { volumeMap, contributorsMap };
     }
 
     /**

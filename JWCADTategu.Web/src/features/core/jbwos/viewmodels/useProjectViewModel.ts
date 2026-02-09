@@ -52,20 +52,8 @@ export const useProjectViewModel = () => {
             if (path.includes('/projects/company')) setActiveScope('company');
             else if (path.includes('/projects/personal')) setActiveScope('personal');
         };
-
-        const handleFilterChange = (e: any) => {
-            const mode = e.detail?.mode;
-            if (mode === 'personal' || mode === 'company') {
-                setActiveScope(mode);
-            }
-        };
-
         window.addEventListener('popstate', handlePopState);
-        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-        return () => {
-            window.removeEventListener('popstate', handlePopState);
-            window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-        };
+        return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
     const createProject = async (project: Partial<Project>) => {

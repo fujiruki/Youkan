@@ -2,27 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --youkan-bg-base: #f9fafb;
-  --youkan-surface: #ffffff;
-  --youkan-text: #1a1a1c;
-  --youkan-muted: #9ca3af;
-  --youkan-primary: #4f46e5;
-  --youkan-volume: #f59e0b;
-}
-
-.dark {
-  --youkan-bg-base: #080709;
-  --youkan-surface: #16141a;
-  --youkan-text: #dcdde1;
-  --youkan-muted: #5a5860;
-  --youkan-primary: #818cf8;
-  --youkan-volume: rgba(180, 83, 9, 0.8);
-}
-
 body {
-  @apply bg-[var(--youkan-bg-base)] text-[var(--youkan-text)] transition-colors duration-300;
-  font-feature-settings: "palt";
+    @apply bg-slate-950 text-slate-200;
 }
 
 /* Form elements base styles */
