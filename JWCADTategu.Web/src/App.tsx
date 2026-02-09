@@ -521,6 +521,8 @@ const AppContent: React.FC<{
                             {currentView === 'calendar' && (
                                 <VolumeCalendarScreen
                                     onNavigateHome={handleBackToDashboard}
+                                    activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null)}
+                                    activeTenantId={tenant?.id}
                                 />
                             )}
 

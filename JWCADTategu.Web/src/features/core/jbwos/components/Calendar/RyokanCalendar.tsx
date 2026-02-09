@@ -37,6 +37,7 @@ interface RyokanCalendarProps {
     // Context Focus
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
+    currentUserId?: string | null;
 }
 
 interface PressureConnection {
@@ -83,7 +84,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     rowHeight = 12,
     projects = [],
     focusedTenantId,
-    focusedProjectId
+    focusedProjectId,
+    currentUserId
 }) => {
     const [displayMode, setDisplayMode] = useState<RyokanDisplayMode>(propDisplayMode || 'grid');
     const today = getStartOfToday();
@@ -169,6 +171,25 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     }, [propPrepDate, workDays, safeConfig]);
 
     // Interactions
+    // Helers for Privacy & Visibility
+    const renderItemTitle = (item: Item) => {
+        // [Privacy Logic]
+        // Show title if:
+        // 1. I am the creator
+        // 2. I am the assignee
+        // 3. It belongs to the focused project (Assumed public within project context)
+        // 4. It's a system/public task (no tenant, etc. - though here mostly private)
+
+        const isMine = item.created_by === currentUserId || item.assignedTo === currentUserId;
+        const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
+
+        if (isMine || isProjectContext) {
+            return item.title;
+        }
+
+        return "予定あり (Private)";
+    };
+
     const handleItemAction = (item: Item) => {
         if (highlightedItemId === item.id) {
             setHighlightedItemId(null);
@@ -324,7 +345,6 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         ))}
                     </AnimatePresence>
                 </svg>
-
                 {displayMode === 'timeline' && (
                     <RyokanTimelineView
                         allDays={allDays}
@@ -341,6 +361,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         safeConfig={safeConfig}
                         commitPeriod={commitPeriod}
                         projects={projects}
+                        renderItemTitle={renderItemTitle}
                     />
                 )}
                 {displayMode === 'grid' && (
@@ -357,6 +378,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         scrollRef={scrollContainerRef as any}
                         highlightedItemId={highlightedItemId}
                         projects={projects}
+                        renderItemTitle={renderItemTitle}
                     />
                 )}
                 {displayMode === 'gantt' && (
@@ -376,6 +398,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                                 scrollContainerRef.current.scrollTo({ left: targetScroll, behavior: 'smooth' });
                             }
                         }}
+                        renderItemTitle={renderItemTitle}
                     />
                 )}
             </div>
@@ -467,13 +490,15 @@ interface TimelineViewProps {
     safeConfig: any;
     commitPeriod?: Date[];
     projects?: any[];
+    renderItemTitle: (item: Item) => string;
 }
 
 const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     allDays, metrics, heatMap, today,
     selectedDate, prepDate, isMini,
     flashingItemIds, pressureConnections, onItemClick, onAction,
-    safeConfig: _safeConfig, commitPeriod = [], projects = []
+    safeConfig: _safeConfig, commitPeriod = [], projects = [],
+    renderItemTitle
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -539,6 +564,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 onAction={handleCellAction}
                                 onItemClick={onItemClick}
                                 projects={projects}
+                                renderItemTitle={renderItemTitle}
                             />
                         );
                     })}
@@ -562,10 +588,11 @@ interface CalendarCellProps {
     onAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     onItemClick: (item: Item) => void;
     projects?: any[];
+    renderItemTitle: (item: Item) => string;
 }
 
 const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
-    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = []
+    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -613,7 +640,7 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                         return (
                             <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
                                 {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
-                                {i.title}
+                                {renderItemTitle(i)}
                             </div>
                         );
                     })}
@@ -638,18 +665,33 @@ interface GridViewProps {
     scrollRef?: React.RefObject<HTMLDivElement>;
     highlightedItemId?: string | null;
     projects?: any[];
+    renderItemTitle: (item: Item) => string;
 }
 
 const RyokanGridView: React.FC<GridViewProps> = ({
     allDays, metrics, heatMap, today, onItemClick, onAction,
-    selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = []
+    selectedDate, prepDate, commitPeriod = [], scrollRef, highlightedItemId, projects = [], renderItemTitle
 }) => {
     return (
         <div
-            ref={scrollRef} // [FIX] Attached Ref
-            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide"
+            ref={scrollRef}
+            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide relative"
         >
-            <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
+            {/* Background Volume Curve */}
+            <div className="absolute inset-0 pointer-events-none z-0">
+                <svg className="w-full h-full opacity-30 dark:opacity-20 overflow-visible">
+                    <defs>
+                        <linearGradient id="volumeGradient" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#818cf8" />
+                            <stop offset="50%" stopColor="#6366f1" />
+                            <stop offset="100%" stopColor="#4f46e5" />
+                        </linearGradient>
+                    </defs>
+                    <VolumeCurve allDays={allDays} metrics={metrics} />
+                </svg>
+            </div>
+
+            <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm relative z-10">
                 {allDays.map(date => {
                     const dateKey = date.toDateString();
                     const metric = metrics.get(dateKey);
@@ -667,7 +709,6 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                         <div
                             key={dateKey}
                             onClick={(e) => {
-                                // [FIX] Use currentTarget instead of activeElement for precise coordinate tracking
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 onAction(date, 'click', rect);
                             }}
@@ -713,7 +754,7 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                                             )}
                                         >
                                             {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
-                                            {item.title}
+                                            {renderItemTitle(item)}
                                         </div>
                                     );
                                 })}
@@ -739,10 +780,11 @@ interface GanttViewProps {
     rowHeight: number;
     projects: any[];
     onJumpToDate?: (date: Date) => void;
+    renderItemTitle: (item: Item) => string;
 }
 
 const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
+    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate, renderItemTitle
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -800,7 +842,9 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                 >
                                     <div className="flex-1 min-w-0 pr-2 cursor-pointer" onClick={() => deadlineDate && onJumpToDate?.(deadlineDate)}>
                                         <div className="flex items-baseline gap-1.5">
-                                            <span className={cn("truncate font-bold tracking-tight", hoveredItemId === item.id ? "text-xs text-indigo-600 dark:text-indigo-400" : "text-[10px] text-slate-500")}>{item.title}</span>
+                                            <span className={cn("truncate font-bold tracking-tight", hoveredItemId === item.id ? "text-xs text-indigo-600 dark:text-indigo-400" : "text-[10px] text-slate-500")}>
+                                                {renderItemTitle(item)}
+                                            </span>
                                             {project && <span className="truncate text-[9px] text-slate-400 ml-1">{project.name}</span>}
                                         </div>
                                         {/* [NEW] Subtly display My Due & Work Days */}
@@ -837,5 +881,71 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                 </div>
             </div>
         </div>
+    );
+};
+
+// --- New Visualization Components ---
+
+interface VolumeCurveProps {
+    allDays: Date[];
+    metrics: Map<string, QuantityMetric>;
+}
+
+const VolumeCurve: React.FC<VolumeCurveProps> = ({ allDays, metrics }) => {
+    const rowHeight = 120;
+    const totalRows = Math.ceil(allDays.length / 7);
+    const totalHeight = totalRows * rowHeight;
+
+    const path = useMemo(() => {
+        if (allDays.length === 0) return "";
+
+        const cellWidthPerc = 100 / 7;
+
+        let d = "";
+        for (let r = 0; r < totalRows; r++) {
+            const rowPoints: { x: number, y: number }[] = [];
+            for (let c = 0; c < 7; c++) {
+                const idx = r * 7 + c;
+                if (idx >= allDays.length) break;
+
+                const dateKey = allDays[idx].toDateString();
+                const metric = metrics.get(dateKey);
+                const ratio = metric?.ratio || 0;
+
+                const x = c * cellWidthPerc + cellWidthPerc / 2;
+                const y = (r + 1) * rowHeight - Math.min(ratio, 1.5) * (rowHeight * 0.4);
+
+                rowPoints.push({ x, y });
+            }
+
+            if (rowPoints.length > 0) {
+                d += `M ${rowPoints[0].x} ${rowPoints[0].y} `;
+                for (let i = 1; i < rowPoints.length; i++) {
+                    const prev = rowPoints[i - 1];
+                    const curr = rowPoints[i];
+                    const cx = (prev.x + curr.x) / 2;
+                    d += `Q ${cx} ${prev.y} ${curr.x} ${curr.y} `;
+                }
+            }
+        }
+        return d;
+    }, [allDays, metrics, totalRows]);
+
+    return (
+        <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
+            viewBox={`0 0 100 ${totalHeight}`}
+            preserveAspectRatio="none"
+        >
+            <path
+                d={path}
+                fill="none"
+                stroke="url(#volumeGradient)"
+                strokeWidth="0.5"
+                strokeLinecap="round"
+                className="filter drop-shadow-sm transition-all duration-700"
+                vectorEffect="non-scaling-stroke"
+            />
+        </svg>
     );
 };

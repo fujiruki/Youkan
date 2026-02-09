@@ -129,6 +129,7 @@ export interface Item {
     // --- Priority Boost [NEW] ---
     is_boosted?: boolean;    // 優先度ブースト
     boosted_date?: number;   // ブースト設定日時
+    created_by?: string;     // [NEW] Owner ID
 
     // Legacy / Door Props
     category?: string;
