@@ -33,25 +33,36 @@ export const MotivatorWhisper: React.FC = () => {
 
     // 1. Load User Preferences
     useEffect(() => {
-        if (user?.preferences?.motivation_quotes) {
-            console.log('[MotivatorWhisper] Raw preference found:', user.preferences.motivation_quotes);
-            const userQuotes = (user.preferences.motivation_quotes as string)
-                .split('\n')
-                .map(q => q.trim())
-                .filter(q => q.length > 0);
+        if (user?.preferences) {
+            console.log('[MotivatorWhisper] User preferences found:', user.preferences);
 
-            console.log('[MotivatorWhisper] Parsed user quotes:', userQuotes);
-
-            if (userQuotes.length > 0) {
-                setQuotes(userQuotes);
-            } else {
-                console.log('[MotivatorWhisper] User quotes empty after filter, using defaults.');
-                setQuotes(DEFAULT_QUOTES);
+            let prefs: any = {};
+            try {
+                prefs = typeof user.preferences === 'string'
+                    ? JSON.parse(user.preferences)
+                    : user.preferences;
+            } catch (e) {
+                console.error('[MotivatorWhisper] Failed to parse preferences:', e);
             }
-        } else {
-            console.log('[MotivatorWhisper] No user preferences for quotes, using defaults.');
-            setQuotes(DEFAULT_QUOTES);
+
+            if (prefs && prefs.motivation_quotes) {
+                console.log('[MotivatorWhisper] Motivation quotes found:', prefs.motivation_quotes);
+                const userQuotes = (prefs.motivation_quotes as string)
+                    .split('\n')
+                    .map(q => q.trim())
+                    .filter(q => q.length > 0);
+
+                console.log('[MotivatorWhisper] Parsed user quotes:', userQuotes);
+
+                if (userQuotes.length > 0) {
+                    setQuotes(userQuotes);
+                    return; // Successfully set user quotes
+                }
+            }
         }
+
+        console.log('[MotivatorWhisper] Using default quotes.');
+        setQuotes(DEFAULT_QUOTES);
     }, [user]);
 
     // Helper: Select a random quote
