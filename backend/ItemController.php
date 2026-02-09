@@ -33,7 +33,7 @@ class ItemController extends BaseController {
              } else {
                  $this->create();
              }
-        } elseif ($method === 'PUT' && $id) {
+        } elseif (($method === 'PUT' || $method === 'PATCH') && $id) {
             $this->update($id);
         } elseif ($method === 'DELETE' && $id) {
             $this->delete($id);
@@ -590,188 +590,80 @@ class ItemController extends BaseController {
     }
 
     private function update($id) {
-        // [Security Rule] Multi-Tenant Support
-        // Allow updates to items in ANY tenant the user belongs to (e.g. Personal or Company),
-        // not just the currently active context.
         $tenantIds = $this->joinedTenants;
         if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
         if (!in_array($this->currentTenantId, $tenantIds)) $tenantIds[] = $this->currentTenantId;
 
         $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
         
-        // Fetch item's actual tenant_id
-        // [Security Fix] Allow access if:
-        // 1. Tenant match (Shared Organization)
-        // 2. Creator match (Personal/Private or Owner)
-        $query = "SELECT project_id, created_by, tenant_id FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR created_by = ?)";
+        $query = "SELECT project_id, created_by, tenant_id, is_project FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR created_by = ?)";
         $check = $this->pdo->prepare($query);
         $check->execute(array_merge([$id], $tenantIds, [$this->currentUserId]));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
         if (!$existing) {
-             error_log("[ItemController] Update failed: Item $id not found or access denied for user {$this->currentUserId}. Joined tenants: " . implode(',', $tenantIds));
              $this->sendError(404, 'Item not found');
         }
         
-        // [Security Rule] Edit Permission
-        // Allow if: Project Item (Shared) OR My Item OR Admin
         $isAdmin = ($this->currentUser['role'] ?? '') === 'admin';
-
-        // Ideally: Project Items should only be editable by members, but for now Tenant Public.
-        // However, Private Items (project_id IS NULL) MUST be created_by me unless Admin.
         if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] != (string)$this->currentUserId) {
             $this->sendError(403, 'Access Denied: Cannot edit private item of another user');
         }
 
         $data = $this->getInput();
-        $fields = [];
-        $params = [];
-        
-        $simpleFields = [
-            'title', 'status', 'memo', 'due_date', // Removed 'due_status'
-            'is_boosted', 'boosted_date', 'prep_date', 'parent_id', 'is_project',
-            'project_category', 'estimated_minutes', 'assigned_to', 'project_id',
-            'project_type', 'client_name', 'gross_profit_target', 'tenant_id',
-            'is_archived', 'deleted_at' // Add new fields
-        ];
 
-        foreach ($simpleFields as $f) {
-            // Retrieve camelCase from input if exists, else snake_case
-            $inputKey = $this->toCamel($f); // e.g. estimated_minutes -> estimatedMinutes
-            // Hand-mapping for specific keys that might differ or simple logic
-            if ($f === 'parent_id') $inputKey = 'parentId';
-            if ($f === 'is_project') $inputKey = 'isProject';
-            if ($f === 'project_category') $inputKey = 'projectCategory';
-            if ($f === 'estimated_minutes') $inputKey = 'estimatedMinutes';
-            if ($f === 'assigned_to') $inputKey = 'assignedTo';
-            if ($f === 'project_id') $inputKey = 'projectId';
-            if ($f === 'project_type') $inputKey = 'projectType';
-            if ($f === 'client_name') $inputKey = 'clientName';
-            if ($f === 'gross_profit_target') $inputKey = 'grossProfitTarget';
-            if ($f === 'tenant_id') $inputKey = 'tenantId';
-            if ($f === 'is_archived') $inputKey = 'isArchived';
-            if ($f === 'deleted_at') $inputKey = 'deletedAt';
-
-            if (array_key_exists($inputKey, $data)) {
-                $val = $data[$inputKey];
-                if (is_bool($val)) $val = $val ? 1 : 0;
-                // Special handling for meta array -> string
-                if ($f === 'meta' && is_array($val)) $val = json_encode($val);
+        // 1. [Hook] Automated Assignment Logic on Project Move
+        // We do this BEFORE the main update because it might change values in $data
+        if (array_key_exists('projectId', $data) && $data['projectId'] !== $existing['project_id']) {
+            $newProjectId = $data['projectId'];
+            if ($newProjectId) {
+                $projStmt = $this->pdo->prepare("SELECT tenant_id, assigned_to FROM items WHERE id = ?");
+                $projStmt->execute([$newProjectId]);
+                $targetProj = $projStmt->fetch(PDO::FETCH_ASSOC);
                 
-                $fields[] = "$f = ?";
-                $params[] = $val;
-            } else if (array_key_exists($f, $data)) {
-                 // Try straight key
-                $val = $data[$f];
-                if (is_bool($val)) $val = $val ? 1 : 0;
-                if ($f === 'meta' && is_array($val)) $val = json_encode($val);
-                $fields[] = "$f = ?";
-                $params[] = $val;
-            }
-        }
-        
-        if (isset($data['status'])) {
-             $fields[] = "status_updated_at = ?";
-             $params[] = time();
-             
-             // [JBWOS] Reset Intent if task is moved out of 'focus' or completed
-             if ($data['status'] === 'done') {
-                $fields[] = "is_intent = ?";
-                $params[] = 0;
-             }
-        }
-        
-        // [JBWOS] Handle new Judgment Columns explicitly
-        $judgmentFields = ['focus_order' => 'focusOrder', 'is_intent' => 'isIntent', 'due_status' => 'dueStatus'];
-        foreach ($judgmentFields as $dbCol => $apiCol) {
-            if (array_key_exists($apiCol, $data)) {
-                $val = $data[$apiCol];
-                // Boolean conversion for intent
-                if ($dbCol === 'is_intent') $val = $val ? 1 : 0;
-                
-                $fields[] = "$dbCol = ?";
-                $params[] = $val;
-            }
-        }
-
-        if (array_key_exists('delegation', $data)) {
-            $fields[] = "delegation = ?";
-            $params[] = isset($data['delegation']) ? json_encode($data['delegation']) : null;
-        }
-
-        if (empty($fields)) {
-            $this->sendJSON(['success' => true, 'changed' => false]);
-            return;
-        }
-
-        $fields[] = "updated_at = ?";
-        $params[] = time();
-
-        $whereClause = " WHERE id = ? AND (tenant_id = ? OR (tenant_id IS NULL AND ? IS NULL))";
-        $whereParams = [$id, $existing['tenant_id'], $existing['tenant_id']];
-
-        try {
-            // [NEW] Automated Assignment Logic on Project Move
-            if (array_key_exists('projectId', $data) && $data['projectId'] !== $existing['project_id']) {
-                $newProjectId = $data['projectId'];
-                
-                if ($newProjectId) {
-                    // Moving TO a project
-                    $projStmt = $this->pdo->prepare("SELECT tenant_id, assigned_to FROM items WHERE id = ?");
-                    $projStmt->execute([$newProjectId]);
-                    $targetProj = $projStmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($targetProj) {
-                        $targetTenantId = $targetProj['tenant_id'];
-                        $currentAssignee = $data['assignedTo'] ?? $this->getItemAssignee($id);
+                if ($targetProj) {
+                    $targetTenantId = $targetProj['tenant_id'];
+                    if (!isset($data['assignedTo'])) {
+                        $currentAssignee = $this->getItemAssignee($id);
                         $currentEmail = $this->getAssigneeEmail($currentAssignee);
-                        
-                        $newAssigneeId = null;
-                        if ($currentEmail) {
-                            $newAssigneeId = $this->findAssigneeIdByEmail($targetTenantId, $currentEmail);
-                        }
-                        
-                        // If same email user found in new tenant, keep them (via new ID), 
-                        // otherwise fallback to project's default assignee.
-                        if ($newAssigneeId) {
-                            $fields[] = "assigned_to = ?";
-                            $params[] = $newAssigneeId;
-                        } else {
-                            $fields[] = "assigned_to = ?";
-                            $params[] = $targetProj['assigned_to'];
-                        }
-                        
-                        // Also sync tenant_id if it changes
-                        if (!array_key_exists('tenantId', $data) && $targetTenantId !== $existing['tenant_id']) {
-                            $fields[] = "tenant_id = ?";
-                            $params[] = $targetTenantId;
-                        }
+                        $newAssigneeId = $currentEmail ? $this->findAssigneeIdByEmail($targetTenantId, $currentEmail) : null;
+                        $data['assignedTo'] = $newAssigneeId ?: $targetProj['assigned_to'];
                     }
-                } else {
-                    // Moving OUT of project (to Inbox/Personal)
-                    if (!array_key_exists('assignedTo', $data)) {
-                        $fields[] = "assigned_to = ?";
-                        $params[] = $this->currentUserId; // Back to self
-                    }
-                    if (!array_key_exists('tenantId', $data)) {
-                        $fields[] = "tenant_id = ?";
-                        $params[] = null; // Back to Personal
+                    if (!isset($data['tenantId']) && $targetTenantId !== $existing['tenant_id']) {
+                        $data['tenantId'] = $targetTenantId;
                     }
                 }
+            } else {
+                if (!isset($data['assignedTo'])) $data['assignedTo'] = $this->currentUserId;
+                if (!isset($data['tenantId'])) $data['tenantId'] = null;
             }
-
-            $sql = "UPDATE items SET " . implode(', ', $fields) . $whereClause;
-            $finalParams = array_merge($params, $whereParams);
-            
-            $this->pdo->prepare($sql)->execute($finalParams);
-            
-            // [v23] Sync Manufacturing Data
-            ManufacturingSyncService::syncItem($this->pdo, $id, $data);
-            
-            $this->sendJSON(['success' => true]);
-        } catch (PDOException $e) {
-            $this->sendError(500, 'Database Error: ' . $e->getMessage());
         }
+
+        // 2. Main Update using BaseController helper
+        $allowedFields = [
+            'title', 'status', 'memo', 'due_date', 'is_boosted', 'boosted_date', 
+            'prep_date', 'parent_id', 'is_project', 'project_category', 
+            'estimated_minutes', 'assigned_to', 'project_id', 'project_type', 
+            'client_name', 'gross_profit_target', 'tenant_id', 'is_archived', 
+            'deleted_at', 'focus_order', 'is_intent', 'due_status', 'delegation'
+        ];
+
+        $result = $this->updateEntity('items', $id, $allowedFields);
+
+        // 3. [Hook] Extra logic for status updates
+        if (isset($data['status'])) {
+            $this->pdo->prepare("UPDATE items SET status_updated_at = ? WHERE id = ?")
+                ->execute([time(), $id]);
+            if ($data['status'] === 'done') {
+                $this->pdo->prepare("UPDATE items SET is_intent = 0 WHERE id = ?")
+                    ->execute([$id]);
+            }
+        }
+
+        // 4. [Hook] Sync Manufacturing Data
+        ManufacturingSyncService::syncItem($this->pdo, $id, $data);
+        
+        $this->sendJSON(['success' => true]);
     }
 
     // --- Automated Assignment Helpers ---
@@ -916,9 +808,6 @@ class ItemController extends BaseController {
         return $descendantIds;
     }
 
-    private function toCamel($snake) {
-        return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $snake))));
-    }
 
     // [JBWOS] Bulk Reorder Logic
     private function reorderFocus() {

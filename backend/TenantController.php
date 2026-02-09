@@ -23,7 +23,7 @@ class TenantController extends BaseController {
         elseif (preg_match('#^/members/(.+)$#', $path, $matches)) {
             if ($method === 'DELETE') {
                  $this->removeMember($matches[1]);
-            } elseif ($method === 'PUT') {
+            } elseif ($method === 'PUT' || $method === 'PATCH') {
                  $this->updateMember($matches[1]);
             } else {
                  $this->sendError(405, 'Method Not Allowed');
@@ -33,7 +33,7 @@ class TenantController extends BaseController {
         elseif (preg_match('#^/info$#', $path)) {
             if ($method === 'GET') {
                 $this->getInfo();
-            } elseif ($method === 'PUT') {
+            } elseif ($method === 'PUT' || $method === 'PATCH') {
                  $this->updateInfo();
             } else {
                 $this->sendError(405, 'Method Not Allowed');

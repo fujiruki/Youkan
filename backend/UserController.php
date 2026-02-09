@@ -11,7 +11,7 @@ class UserController extends BaseController {
         if (preg_match('#^/profile$#', $path)) {
             if ($method === 'GET') {
                 $this->getProfile();
-            } elseif ($method === 'PUT') {
+            } elseif ($method === 'PUT' || $method === 'PATCH') {
                 $this->updateProfile();
             } else {
                 $this->sendError(405, 'Method Not Allowed');
@@ -60,52 +60,12 @@ class UserController extends BaseController {
             $this->sendError(400, 'User context required');
         }
 
-        $input = $this->getInput();
-        $updates = [];
-        $params = [];
+        $allowedFields = [
+            'display_name', 'birthday', 'daily_capacity_minutes', 
+            'non_working_hours', 'preferences', 'active_task_id'
+        ];
 
-        if (isset($input['display_name'])) {
-            $updates[] = "display_name = ?";
-            $params[] = $input['display_name'];
-        }
-        if (isset($input['birthday'])) {
-            $updates[] = "birthday = ?";
-            $params[] = $input['birthday'];
-        }
-        if (isset($input['daily_capacity_minutes'])) {
-            $updates[] = "daily_capacity_minutes = ?";
-            $params[] = intval($input['daily_capacity_minutes']);
-        }
-        if (isset($input['non_working_hours'])) {
-             // Expecting JSON-encoded string or array to be JSON encoded
-            $val = is_array($input['non_working_hours']) ? json_encode($input['non_working_hours']) : $input['non_working_hours'];
-            $updates[] = "non_working_hours = ?";
-            $params[] = $val;
-        }
-        if (isset($input['preferences'])) {
-            $val = is_array($input['preferences']) ? json_encode($input['preferences']) : $input['preferences'];
-            $updates[] = "preferences = ?";
-            $params[] = $val;
-        }
-        
-        // [JBWOS] Active Task Pointer Update
-        if (array_key_exists('activeTaskId', $input) || array_key_exists('active_task_id', $input)) {
-            $val = $input['activeTaskId'] ?? $input['active_task_id'];
-            $updates[] = "active_task_id = ?";
-            $params[] = $val;
-        }
-
-        if (empty($updates)) {
-            $this->sendJSON(['success' => true, 'message' => 'No changes']);
-            return;
-        }
-
-        $sql = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
-        $params[] = $this->currentUserId;
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-
+        $result = $this->updateEntity('users', $this->currentUserId, $allowedFields);
         $this->sendJSON(['success' => true]);
     }
 

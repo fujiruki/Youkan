@@ -160,4 +160,76 @@ class BaseController {
 
         return $item;
     }
+
+    /**
+     * Common Update Logic for Entities (Supports PATCH/PUT)
+     * Automatically maps camelCase inputs to snake_case DB columns.
+     */
+    protected function updateEntity(string $table, string $id, array $allowedFields) {
+        $data = $this->getInput();
+        if (empty($data)) {
+            return ['success' => true, 'changed' => false];
+        }
+
+        $fields = [];
+        $params = [];
+
+        foreach ($allowedFields as $dbCol) {
+            $apiKey = $this->toCamel($dbCol);
+            
+            // Allow both snake_case and camelCase in input
+            $val = null;
+            $found = false;
+
+            if (array_key_exists($apiKey, $data)) {
+                $val = $data[$apiKey];
+                $found = true;
+            } elseif (array_key_exists($dbCol, $data)) {
+                $val = $data[$dbCol];
+                $found = true;
+            }
+
+            if ($found) {
+                // Type conversion
+                if (is_bool($val)) {
+                    $val = $val ? 1 : 0;
+                } elseif (is_array($val)) {
+                    $val = json_encode($val);
+                }
+
+                $fields[] = "$dbCol = ?";
+                $params[] = $val;
+            }
+        }
+
+        if (empty($fields)) {
+            return ['success' => true, 'changed' => false];
+        }
+
+        // Always update updated_at if exists in table (assumed for standard tables)
+        $fields[] = "updated_at = ?";
+        $params[] = time();
+
+        $sql = "UPDATE $table SET " . implode(', ', $fields) . " WHERE id = ?";
+        $params[] = $id;
+
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return ['success' => true, 'count' => $stmt->rowCount()];
+        } catch (PDOException $e) {
+            error_log("[BaseController] Update Error on $table ($id): " . $e->getMessage());
+            $this->sendError(500, 'Database Error during update');
+        }
+    }
+
+    /**
+     * Helper to convert snake_case to camelCase
+     */
+    protected function toCamel($str) {
+        $str = str_replace('_', ' ', $str);
+        $str = ucwords($str);
+        $str = str_replace(' ', '', $str);
+        return lcfirst($str);
+    }
 }

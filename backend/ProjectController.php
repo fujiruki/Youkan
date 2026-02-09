@@ -15,7 +15,7 @@ class ProjectController extends BaseController {
             }
         } elseif ($method === 'POST') {
             $this->create();
-        } elseif ($method === 'PUT' && $id) {
+        } elseif (($method === 'PUT' || $method === 'PATCH') && $id) {
             $this->update($id);
         } elseif ($method === 'DELETE' && $id) {
             $this->delete($id);
@@ -204,7 +204,6 @@ class ProjectController extends BaseController {
     }
 
     private function update($id) {
-        // Fetch current to check auth
         $stmt = $this->pdo->prepare("SELECT * FROM items WHERE id = ?");
         $stmt->execute([$id]);
         $item = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -213,59 +212,38 @@ class ProjectController extends BaseController {
             $this->sendError(404, 'Project not found');
         }
 
-        // Auth Logic same as show (simplified)
+        // Auth Logic
         $itemTenantId = (string)($item['tenant_id'] ?? '');
         if ($itemTenantId !== '') {
             if (!in_array($itemTenantId, $this->joinedTenants)) {
                 $this->sendError(403, 'Access Denied');
             }
-        } else {
-            if ($item['created_by'] != (string)$this->currentUserId) {
-                $this->sendError(403, 'Access Denied');
-            }
+        } elseif ($item['created_by'] != (string)$this->currentUserId) {
+            $this->sendError(403, 'Access Denied');
         }
 
         $data = $this->getInput();
-        $fields = [];
-        $params = [];
-
-        // Map updates
-        $pTitle = $data['title'] ?? $data['name'] ?? null;
-        if ($pTitle !== null) { $fields[] = "title = ?"; $params[] = $pTitle; }
-        if (isset($data['clientName'])) { $fields[] = "client_name = ?"; $params[] = $data['clientName']; }
-        else if (isset($data['client'])) { $fields[] = "client_name = ?"; $params[] = $data['client']; }
         
-        $grossProfitTarget = $data['grossProfitTarget'] ?? $data['gross_profit_target'] ?? null;
-        if ($grossProfitTarget !== null) { $fields[] = "gross_profit_target = ?"; $params[] = $grossProfitTarget; }
-        if (isset($data['judgment_status'])) { $fields[] = "status = ?"; $params[] = $data['judgment_status']; }
-        
-        // Meta Updates (Merge)
-        $meta = json_decode($item['meta'] ?? '{}', true);
-        $metaUpdated = false;
-        
-        if (isset($data['settings'])) { $meta['settings'] = $data['settings']; $metaUpdated = true; }
-        if (isset($data['dxf_config'])) { $meta['dxf_config'] = $data['dxf_config']; $metaUpdated = true; }
-        if (isset($data['view_mode'])) { $meta['view_mode'] = $data['view_mode']; $metaUpdated = true; }
-        // Note: gross_profit_target is now a top-level column, but we might keep it in meta for very old clients?
-        // Let's stick to columns for new data.
-        if (isset($data['color'])) { $meta['color'] = $data['color']; $metaUpdated = true; }
-
-        if ($metaUpdated) {
-            $fields[] = "meta = ?";
-            $params[] = json_encode($meta);
+        // Handle Meta Merge if needed
+        if (isset($data['settings']) || isset($data['dxf_config']) || isset($data['view_mode']) || isset($data['color'])) {
+            $meta = json_decode($item['meta'] ?? '{}', true);
+            if (isset($data['settings'])) $meta['settings'] = $data['settings'];
+            if (isset($data['dxf_config'])) $meta['dxf_config'] = $data['dxf_config'];
+            if (isset($data['view_mode'])) $meta['view_mode'] = $data['view_mode'];
+            if (isset($data['color'])) $meta['color'] = $data['color'];
+            $data['meta'] = $meta;
         }
 
-        if (empty($fields)) {
-            $this->show($id);
-            return;
-        }
-
-        $fields[] = "updated_at = ?";
-        $params[] = time();
-        $params[] = $id;
-
-        $sql = "UPDATE items SET " . implode(', ', $fields) . " WHERE id = ?";
-        $this->pdo->prepare($sql)->execute($params);
+        $allowedFields = [
+            'title', 'client_name', 'gross_profit_target', 'status', 'meta', 'project_type'
+        ];
+        
+        // Map alias keys for updateEntity to find in $data
+        if (isset($data['judgment_status'])) $data['status'] = $data['judgment_status'];
+        if (isset($data['clientName'])) $data['client_name'] = $data['clientName'];
+        elseif (isset($data['client'])) $data['client_name'] = $data['client'];
+        
+        $this->updateEntity('items', $id, $allowedFields);
         $this->show($id);
     }
 

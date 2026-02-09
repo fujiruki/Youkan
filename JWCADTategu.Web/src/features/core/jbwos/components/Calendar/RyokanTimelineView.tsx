@@ -50,10 +50,10 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     }, [isMini]);
 
     return (
-        <div className="w-full h-full relative overflow-hidden" ref={containerRef} onClick={onBackgroundClick}>
-            <div className={cn("flex-1 h-full overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef}>
-                <div className={cn("flex min-w-max h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
-                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible pressure-lines-svg">
+        <div className="w-full h-full relative" ref={containerRef} onClick={onBackgroundClick}>
+            <div className={cn("flex-1 h-full overflow-auto select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef}>
+                <div className={cn("flex min-w-max min-h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
+                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full pressure-lines-svg">
                         <AnimatePresence>
                             {pressureConnections.map(conn => (
                                 <motion.path

@@ -77,10 +77,18 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     const renderItemTitle = (item: Item) => {
         const isMine = item.created_by === currentUserId || item.assignedTo === currentUserId;
         const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
-        if (isMine || isProjectContext) {
-            return item.title;
+
+        let title = item.title;
+        const proj = projects.find(p => p.id === item.projectId);
+        if (proj) {
+            const shortProj = proj.name.substring(0, 4);
+            title = `${title} [${shortProj}]`;
         }
-        return "予定あり (Private)";
+
+        if (isMine || isProjectContext) {
+            return title;
+        }
+        return `予定あり [${proj?.name.substring(0, 4) || '???'}]`;
     };
 
     const resetHighlights = () => {

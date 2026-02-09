@@ -99,9 +99,14 @@ export class QuantityEngine {
                         continue;
                     }
 
-                    // For single task allocation, use 8h cap per day as default chunk
-                    const dailyChunk = 480;
-                    const alloc = Math.min(remainingMinutes, dailyChunk);
+                    // For single task allocation, use actual day's capacity or 480 fallback
+                    const dailyCapacity = this.calculateCapacityForDate(current, context);
+                    if (dailyCapacity <= 0) {
+                        current.setDate(current.getDate() - 1);
+                        continue;
+                    }
+
+                    const alloc = Math.min(remainingMinutes, dailyCapacity);
 
                     const key = current.toDateString();
                     volumeMap.set(key, (volumeMap.get(key) || 0) + alloc);
@@ -136,20 +141,27 @@ export class QuantityEngine {
     private static calculateCapacityForDate(date: Date, context: QuantityContext): number {
         const { members, capacityConfig, focusedTenantId, focusedProjectId, filterMode } = context;
 
-        // 1. Organizational View (Company or Project) -> Sum of Main Members
-        if (focusedTenantId || focusedProjectId || filterMode === 'company') {
-            const mainMembers = members.filter(m => m.isCore);
-            if (mainMembers.length > 0) {
-                // TODO: In actual implementation, check each member's personal holiday
-                // For now, use global holiday rule and sum their daily capacity
-                if (this.checkIsHoliday(date, context)) return 0;
-                return mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
+        let totalCap = 0;
+        const isHol = this.checkIsHoliday(date, context);
+
+        // 1. Personal Capacity
+        if (filterMode === 'all' || filterMode === 'personal') {
+            if (!isHol) {
+                totalCap += (capacityConfig.defaultDailyMinutes || 480);
             }
         }
 
-        // 2. Personal View
-        if (this.checkIsHoliday(date, context)) return 0;
-        return capacityConfig.defaultDailyMinutes || 480;
+        // 2. Organizational Capacity (Sum of Core members)
+        if (filterMode === 'all' || filterMode === 'company' || focusedTenantId || focusedProjectId) {
+            const mainMembers = members.filter(m => m.isCore);
+            if (mainMembers.length > 0) {
+                if (!isHol) {
+                    totalCap += mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
+                }
+            }
+        }
+
+        return totalCap;
     }
 
     private static checkIsHoliday(date: Date, context: QuantityContext): boolean {

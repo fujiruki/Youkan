@@ -16,10 +16,13 @@ export const isHoliday = (date: Date, config: CapacityConfig): boolean => {
     const dayIndex = getDay(date) as WeekDay;
     const isWeekly = config.holidays.some(h => h.type === 'weekly' && h.value === dayIndex.toString());
 
-    if (isWeekly) {
-        // Check if there is a manual OVERRIDE to work on this holiday
+    // [FIX] Treat Sat(6)/Sun(0) as default holidays if no holidays defined
+    const isDefaultWeekend = (config.holidays.length === 0 && (dayIndex === 0 || dayIndex === 6));
+
+    if (isWeekly || isDefaultWeekend) {
+        // Double check for manual WORK override
         if (config.exceptions && config.exceptions[dateStr] > 0) {
-            return false; // Working on a holiday!
+            return false;
         }
         return true;
     }

@@ -50,7 +50,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 } else {
     header("Access-Control-Allow-Origin: *");
 }
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-HTTP-Method-Override, X-AI-Debug-Secret");
 header("Content-Type: application/json; charset=UTF-8");
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0"); // [FIX] Prevent browser caching
@@ -178,7 +178,7 @@ if (preg_match('#^(/api)?/members(?:/([^/]+))?$#', $path, $matches)) {
 
     if ($method === 'GET' && !$id) {
         $controller->index();
-    } elseif ($method === 'PUT' && $id) {
+    } elseif (($method === 'PUT' || $method === 'PATCH') && $id) {
         $controller->update($id, $input);
     } else {
         http_response_code(405);
@@ -421,7 +421,7 @@ if (preg_match('#^(/api)?/stocks$#', $path)) {
     }
     exit;
 }
-if (preg_match('#^(/api)?/stocks/([^/]+)$#', $path, $matches) && $method === 'PUT') {
+if (preg_match('#^(/api)?/stocks/([^/]+)$#', $path, $matches) && ($method === 'PUT' || $method === 'PATCH')) {
     $controller = new StockController();
     $controller->update($matches[2]);
     exit;
