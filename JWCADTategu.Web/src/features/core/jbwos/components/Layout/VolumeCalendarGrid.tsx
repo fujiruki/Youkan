@@ -101,7 +101,7 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
 
     return (
         <div
-            className="flex flex-col h-full bg-youkan-surface border border-youkan-muted/20 rounded-xl overflow-hidden shadow-xl relative connection-layer-root"
+            className="flex flex-col h-full bg-youkan-surface border border-youkan-muted/20 rounded-xl overflow-hidden shadow-xl relative"
             onClick={() => {
                 closeMenu();
                 actions.highlightTask(null);
@@ -166,7 +166,7 @@ export const VolumeCalendarGrid: React.FC<VolumeCalendarGridProps> = ({ tasks, s
 
             {/* Scrollable Grid */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="grid grid-cols-7 relative">
+                <div className="grid grid-cols-7 relative connection-layer-root">
 
                     {state.days.map(day => {
                         const dateKey = format(day, 'yyyy-MM-dd');

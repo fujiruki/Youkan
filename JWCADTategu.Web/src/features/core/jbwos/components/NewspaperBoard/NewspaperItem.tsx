@@ -161,6 +161,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
     return (
         <div
+            id={`dead-line-card-${item.id}`}
             onMouseUp={(e) => {
                 if (e.button === 0) { // Left click only
                     onClick(item);

@@ -76,7 +76,6 @@ export const VolumeDayCell: React.FC<VolumeDayCellProps> = ({
 
     return (
         <div
-            id={`conn-point-${dateKey}`}
             data-date={dateKey}
             className={cn(
                 "relative h-28 border-r border-b border-slate-200 dark:border-slate-700 p-1 transition-all cursor-pointer group flex flex-col hover:bg-slate-50 dark:hover:bg-slate-800/20 overflow-hidden",
