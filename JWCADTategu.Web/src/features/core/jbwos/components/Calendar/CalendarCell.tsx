@@ -46,8 +46,8 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
         <div
             ref={cellRef}
             className={cn(
-                "calendar-cell relative flex-shrink-0 transition-all duration-300",
-                isMini ? "w-full h-10 border-b flex items-center px-4" : "w-28 h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
+                "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full",
+                isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
                 isHoliday ? "bg-red-50/10 dark:bg-red-900/5" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
                 isSelected ? "z-10 bg-red-50 dark:bg-red-900/20 shadow-[inset_0_0_0_2px_rgba(244,63,94,1)]" : "",
                 (isPrep || isCommitPeriod) && !isSelected ? "z-10 bg-indigo-50 dark:bg-indigo-900/20 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : ""
@@ -78,9 +78,13 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                     e.stopPropagation();
                                     if (onItemClick) onItemClick(i);
                                 }}
-                                className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}
+                                className={cn(
+                                    "px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-bold transition-transform hover:scale-105",
+                                    flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "",
+                                    i.tenantId ? "border-l-indigo-400" : "border-l-red-400"
+                                )}
                             >
-                                {proj && <span className="text-slate-400 mr-1">[{proj.name.substring(0, 4)}]</span>}
+                                {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
                                 {renderItemTitle(i)}
                             </div>
                         );
