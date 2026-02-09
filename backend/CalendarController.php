@@ -40,13 +40,25 @@ class CalendarController extends BaseController {
         $prepEnd = strtotime($rangeEnd);
 
         // Fetch simplified item objects
+        // [FIX] Loosened filter to include items created by self but not yet assigned (Inbox)
+        // Also respect tenant context if specified
+        $tenantId = $params['tenantId'] ?? null;
+        $tenantClause = "";
+        $sqlParams = [$targetUserId, $this->currentUserId];
+
+        if ($tenantId) {
+            $tenantClause = " AND (tenant_id = ? OR tenant_id IS NULL) ";
+            $sqlParams[] = $tenantId;
+        }
+
         $sql = "
             SELECT 
                 id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes AS estimatedMinutes,
-                created_by
+                created_by, project_id
             FROM items 
             WHERE 
-                assigned_to = ?
+                (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
+                $tenantClause
                 AND (
                     (due_date >= ? AND due_date <= ?)
                     OR
@@ -55,14 +67,10 @@ class CalendarController extends BaseController {
                 AND status NOT IN ('decision_rejected', 'archive', 'done')
         ";
 
+        array_push($sqlParams, $rangeStart, $rangeEnd, $rangeStart, $rangeEnd);
+
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([
-            $targetUserId,
-            $rangeStart,
-            $rangeEnd,
-            $prepStart,
-            $prepEnd
-        ]);
+        $stmt->execute($sqlParams);
         
         $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $result = [];
@@ -122,22 +130,32 @@ class CalendarController extends BaseController {
         $targetUserId = $params['target_user_id'] ?? $this->currentUserId;
 
         // Fetch Logic using simple range
-        // Similar to getLoad but dynamic range
-        // Masking logic also applies.
+        // [FIX] Loosened filter to include items created by self but not yet assigned (Inbox)
+        $tenantId = $params['tenantId'] ?? null;
+        $tenantClause = "";
+        $sqlParams = [$targetUserId, $this->currentUserId];
+
+        if ($tenantId) {
+            $tenantClause = " AND (tenant_id = ? OR tenant_id IS NULL) ";
+            $sqlParams[] = $tenantId;
+        }
 
         $sql = "
             SELECT 
                 id, tenant_id, title, due_date, estimated_minutes AS estimatedMinutes,
-                status, created_by
+                status, created_by, project_id
             FROM items 
             WHERE 
-                assigned_to = ?
+                (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
+                $tenantClause
                 AND due_date >= ? AND due_date <= ?
                 AND status NOT IN ('decision_rejected', 'archive', 'done')
         ";
 
+        array_push($sqlParams, $startDate, $endDate);
+
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$targetUserId, $startDate, $endDate]);
+        $stmt->execute($sqlParams);
         $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $result = [];

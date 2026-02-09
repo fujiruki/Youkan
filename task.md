@@ -125,9 +125,28 @@
     - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
     - [x] API 500エラーの調査と特定 (ItemController.php での ManufacturingSyncService 読み込み漏れ)
 - [x] 修正計画の策定 (implementation_plan.md)
-- [x] ItemController.php の修正: `require_once` の追加
-- [x] ItemController.php の修正: `UPDATE` クエリの `NULL` 安全化
-- [x] ブラウザサブエージェントによる動作検証
+### 第2フェーズ：UI刷新とプライバシー問題の解決 [/]
+- [x] 指示線（量感カレンダー）の位置ズレ修正
+- [/] 詳細設計の策定 (/sekkei)
+    - [x] `implementation_plan.md` の更新 (MVVM/TDD詳細設計)
+    - [x] `task.md` の更新 (具体的タスク分解)
+- [ ] バックエンド：プライバシー問題の解決
+    - [ ] `CalendarController.php` の SELECT に `assigned_to` を追加
+    - [ ] `BaseController::mapItemRow` による全項目マッピングの徹底
+- [ ] ドメインロジック：期日優先度判定の実装
+    - [ ] `useNewspaperItems.ts` で `displayDate` (Due/Prepの近い方) を算出
+    - [ ] `displayDateType` による色の識別フラグを追加
+- [ ] コンポーネント：全体一覧2の刷新
+    - [ ] `NewspaperItem.tsx` の `justify-between` レイアウト実装
+    - [ ] 右寄せ項目（StatusDot + 納期）の配置
+    - [ ] StatusDot の多色化 (FOCUS: 青, 他: 薄グレー)
+    - [ ] インデント縦線のスタイリング調整
+- [ ] コンポーネント：量感カレンダーの表示改善
+    - [ ] アイテム名にプロジェクト名(先頭4文字)を結合して表示
+    - [ ] 指示線アニメーション時間を 0.5s に調整
+    - [ ] カレンダー背景クリックによる発光リセットの実装
+- [ ] UI調整：最小列幅の確保
+    - [ ] 25文字（設定可能）の最小幅を確保し、横スクロールを制御
 - [x] 完了報告の作成 (walkthrough.md)
     - [x] `docs` フォルダの整理 (アーカイブ化) <!-- id: 117 -->
     - [x] 計画書の日本語化 (`implementation_plan.md`, `task.md`) <!-- id: 119 -->

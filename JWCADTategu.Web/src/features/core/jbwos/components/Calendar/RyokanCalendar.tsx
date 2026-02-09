@@ -12,7 +12,7 @@ export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
 interface RyokanCalendarProps {
     items: Item[];
-    onItemClick: (item: Item) => void;
+    onItemClick?: (item: Item) => void;
     capacityConfig?: CapacityConfig;
     members?: Member[];
 
@@ -198,7 +198,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             setHighlightedItemId(item.id);
             setFlashingItemIds(new Set([item.id]));
         }
-        onItemClick(item);
+        if (onItemClick) onItemClick(item);
     };
 
     const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
@@ -214,11 +214,14 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         } else {
             if (!rect || !scrollContainerRef.current) return;
             const container = scrollContainerRef.current;
-            const containerRect = container.getBoundingClientRect();
+            const svg = container.querySelector('.pressure-lines-svg');
+            const svgRect = svg ? svg.getBoundingClientRect() : container.getBoundingClientRect();
 
-            // Adjust for scroll offset to get coordinate relative to CONTENT origin
-            const sourceX = rect.left + rect.width / 2 - containerRect.left + container.scrollLeft;
-            const sourceY = rect.top + rect.height / 2 - containerRect.top + container.scrollTop;
+            // Fixed: Use SVG's viewport rect as the origin.
+            // Since SVG is now inside the scroll area, Target_Viewport - SVG_Viewport
+            // gives the exact coordinate relative to the SVG's (0,0).
+            const sourceX = rect.left + rect.width / 2 - svgRect.left;
+            const sourceY = rect.top + rect.height / 2 - svgRect.top;
 
             const newConnections: PressureConnection[] = [];
             const newFlashingIds = new Set<string>();
@@ -231,8 +234,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         id: `${date.getTime()}-${item.id}`,
                         source: { x: sourceX, y: sourceY },
                         target: {
-                            x: chipRect.left + chipRect.width / 2 - containerRect.left + container.scrollLeft,
-                            y: chipRect.top + chipRect.height / 2 - containerRect.top + container.scrollTop
+                            x: chipRect.left + chipRect.width / 2 - svgRect.left,
+                            y: chipRect.top + chipRect.height / 2 - svgRect.top
                         },
                         color: '#fbbf24'
                     });
@@ -415,7 +418,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                                 return (
                                     <div
                                         key={s.id}
-                                        onClick={() => { onItemClick(s); setSelectedSigns([]); }}
+                                        onClick={() => { onItemClick?.(s); setSelectedSigns([]); }}
                                         className={cn(
                                             "group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/20 transition-all cursor-pointer bg-white dark:bg-slate-900",
                                             "border-l-4",
@@ -474,7 +477,7 @@ interface TimelineViewProps {
     isMini: boolean;
     flashingItemIds: Set<string>;
     pressureConnections: PressureConnection[];
-    onItemClick: (item: Item) => void;
+    onItemClick?: (item: Item) => void;
     onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     safeConfig: any;
     commitPeriod?: Date[];
@@ -509,7 +512,7 @@ const RyokanTimelineView: React.FC<TimelineViewProps> = ({
 
             <div className={cn("flex-1 h-full overflow-auto scrollbar-hide select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef}>
                 <div className={cn("flex min-w-max h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
-                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                    <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible pressure-lines-svg">
                         <AnimatePresence>
                             {pressureConnections.map(conn => (
                                 <motion.path
@@ -575,7 +578,7 @@ interface CalendarCellProps {
     isCommitPeriod: boolean;
     flashingIds: Set<string>;
     onAction: (date: Date, signs: Item[], actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
-    onItemClick: (item: Item) => void;
+    onItemClick?: (item: Item) => void;
     projects?: any[];
     renderItemTitle: (item: Item) => string;
 }
@@ -627,7 +630,7 @@ const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                     {items.slice(0, isMini ? 10 : 3).map(i => {
                         const proj = projects.find(p => p.id === i.projectId);
                         return (
-                            <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
+                            <div key={i.id} id={`cal-chip-${i.id}`} onClick={(e) => { e.stopPropagation(); if (onItemClick) onItemClick(i); }} className={cn("px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-red-50 text-red-900 font-bold", flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "", i.tenantId ? "border-l-indigo-400" : "border-l-red-400")}>
                                 {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
                                 {renderItemTitle(i)}
                             </div>
@@ -646,7 +649,7 @@ interface GridViewProps {
     metrics: Map<string, QuantityMetric>;
     heatMap: Map<string, number>;
     today: Date;
-    onItemClick: (item: Item) => void;
+    onItemClick?: (item: Item) => void;
     onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
@@ -683,7 +686,7 @@ const RyokanGridView: React.FC<GridViewProps> = ({
             </div>
 
             <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm relative z-10">
-                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible">
+                <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full overflow-visible pressure-lines-svg">
                     <AnimatePresence>
                         {pressureConnections.map(conn => (
                             <motion.path
@@ -755,7 +758,7 @@ const RyokanGridView: React.FC<GridViewProps> = ({
                                         <div
                                             key={item.id}
                                             id={`cal-chip-${item.id}`}
-                                            onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+                                            onClick={(e) => { e.stopPropagation(); if (onItemClick) onItemClick(item); }}
                                             className={cn(
                                                 "px-1.5 py-1 bg-white/90 dark:bg-slate-800/90 border-l-2 text-[9px] font-bold rounded shadow-sm truncate cursor-pointer transition-transform",
                                                 isHighlightedItem ? "border-amber-400 scale-105 z-30 ring-1 ring-amber-200" : "border-red-400 text-slate-700 dark:text-slate-300",
@@ -784,7 +787,7 @@ interface GanttViewProps {
     items: Item[];
     heatMap: Map<string, number>;
     today: Date;
-    onItemClick: (item: Item) => void;
+    onItemClick?: (item: Item) => void;
     safeConfig: any;
     rowHeight: number;
     projects: any[];
@@ -869,7 +872,7 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         </div>
                                     </div>
                                     {hoveredItemId === item.id && (
-                                        <button onClick={(e) => { e.stopPropagation(); onItemClick(item); }} className="p-1 rounded bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-500 hover:text-indigo-600"><ChevronRight size={10} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-500 hover:text-indigo-600"><ChevronRight size={10} /></button>
                                     )}
                                 </div>
                                 <div className={cn("flex relative transition-all cursor-pointer", hoveredItemId === item.id ? "bg-indigo-50/20 dark:bg-indigo-900/10" : "")} style={{ height: `${rowHeight}px` }}>
@@ -877,7 +880,7 @@ const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         const isDue = item.due_date && isSameDate(date, new Date(item.due_date));
                                         const isCommit = commitStart && myDeadline && date >= commitStart && date <= myDeadline && !isHoliday(date, safeConfig);
                                         return (
-                                            <div key={date.toDateString()} className={cn("w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative", isDue ? "bg-red-50/50" : "")} onClick={(e) => { e.stopPropagation(); onItemClick(item); /* [FIX] Click on flag/bar space opens detail */ }}>
+                                            <div key={date.toDateString()} className={cn("w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/20 relative", isDue ? "bg-red-50/50" : "")} onClick={(e) => { e.stopPropagation(); onItemClick?.(item); /* [FIX] Click on flag/bar space opens detail */ }}>
                                                 {isCommit && <div className="absolute inset-y-1 left-0 right-0 bg-indigo-400 dark:bg-indigo-500 rounded-sm" />}
                                                 {isDue && <div className="absolute inset-y-0 left-1/2 w-0.5 bg-red-600" />}
                                             </div>

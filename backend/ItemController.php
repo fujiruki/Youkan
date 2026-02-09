@@ -537,6 +537,20 @@ class ItemController extends BaseController {
                 $effectiveTenantId = $data['tenantId'];
             }
 
+            // [NEW] Automated Assignment Logic based on JBWOS Spec
+            // 1. If projectId is provided, inherit project's assignee
+            // 2. If Personal item (no projectId, no tenantId), assign to self
+            // 3. If Company item (tenantId), default to unassigned (null)
+            $assignedTo = $data['assignedTo'] ?? null;
+            if (!$assignedTo) {
+                if (!empty($data['projectId'])) {
+                    $assignedTo = $this->getProjectAssignee($data['projectId']);
+                } else if (!$effectiveTenantId) {
+                    // Personal mode (u_... format user ID is stored as TEXT in assigned_to)
+                    $assignedTo = $this->currentUserId;
+                }
+            }
+
             $stmt->execute([
                 $id,
                 $effectiveTenantId, // Use inherited tenant_id
@@ -547,7 +561,7 @@ class ItemController extends BaseController {
                 $isProject,
                 $data['projectCategory'] ?? null,
                 $data['estimatedMinutes'] ?? 0,
-                $data['assignedTo'] ?? null,
+                $assignedTo, // Use automated assignment
                 $delegationJson,
                 $data['projectId'] ?? null, // Link to project if provided
                 $this->currentUserId,
@@ -693,14 +707,63 @@ class ItemController extends BaseController {
         $fields[] = "updated_at = ?";
         $params[] = time();
 
-        $params[] = $id;
-        $params[] = $existing['tenant_id'];
-        $params[] = $existing['tenant_id']; // For NULL-safe check
+        $whereClause = " WHERE id = ? AND (tenant_id = ? OR (tenant_id IS NULL AND ? IS NULL))";
+        $whereParams = [$id, $existing['tenant_id'], $existing['tenant_id']];
 
-        $sql = "UPDATE items SET " . implode(', ', $fields) . " WHERE id = ? AND (tenant_id = ? OR (tenant_id IS NULL AND ? IS NULL))";
-        
         try {
-            $this->pdo->prepare($sql)->execute($params);
+            // [NEW] Automated Assignment Logic on Project Move
+            if (array_key_exists('projectId', $data) && $data['projectId'] !== $existing['project_id']) {
+                $newProjectId = $data['projectId'];
+                
+                if ($newProjectId) {
+                    // Moving TO a project
+                    $projStmt = $this->pdo->prepare("SELECT tenant_id, assigned_to FROM items WHERE id = ?");
+                    $projStmt->execute([$newProjectId]);
+                    $targetProj = $projStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($targetProj) {
+                        $targetTenantId = $targetProj['tenant_id'];
+                        $currentAssignee = $data['assignedTo'] ?? $this->getItemAssignee($id);
+                        $currentEmail = $this->getAssigneeEmail($currentAssignee);
+                        
+                        $newAssigneeId = null;
+                        if ($currentEmail) {
+                            $newAssigneeId = $this->findAssigneeIdByEmail($targetTenantId, $currentEmail);
+                        }
+                        
+                        // If same email user found in new tenant, keep them (via new ID), 
+                        // otherwise fallback to project's default assignee.
+                        if ($newAssigneeId) {
+                            $fields[] = "assigned_to = ?";
+                            $params[] = $newAssigneeId;
+                        } else {
+                            $fields[] = "assigned_to = ?";
+                            $params[] = $targetProj['assigned_to'];
+                        }
+                        
+                        // Also sync tenant_id if it changes
+                        if (!array_key_exists('tenantId', $data) && $targetTenantId !== $existing['tenant_id']) {
+                            $fields[] = "tenant_id = ?";
+                            $params[] = $targetTenantId;
+                        }
+                    }
+                } else {
+                    // Moving OUT of project (to Inbox/Personal)
+                    if (!array_key_exists('assignedTo', $data)) {
+                        $fields[] = "assigned_to = ?";
+                        $params[] = $this->currentUserId; // Back to self
+                    }
+                    if (!array_key_exists('tenantId', $data)) {
+                        $fields[] = "tenant_id = ?";
+                        $params[] = null; // Back to Personal
+                    }
+                }
+            }
+
+            $sql = "UPDATE items SET " . implode(', ', $fields) . $whereClause;
+            $finalParams = array_merge($params, $whereParams);
+            
+            $this->pdo->prepare($sql)->execute($finalParams);
             
             // [v23] Sync Manufacturing Data
             ManufacturingSyncService::syncItem($this->pdo, $id, $data);
@@ -709,6 +772,60 @@ class ItemController extends BaseController {
         } catch (PDOException $e) {
             $this->sendError(500, 'Database Error: ' . $e->getMessage());
         }
+    }
+
+    // --- Automated Assignment Helpers ---
+
+    private function getItemAssignee($id) {
+        $stmt = $this->pdo->prepare("SELECT assigned_to FROM items WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetchColumn();
+    }
+
+    private function getProjectAssignee($projectId) {
+        $stmt = $this->pdo->prepare("SELECT assigned_to FROM items WHERE id = ?");
+        $stmt->execute([$projectId]);
+        return $stmt->fetchColumn();
+    }
+
+    private function getAssigneeEmail($assignedTo) {
+        if (!$assignedTo) return null;
+        
+        // Check if it's a direct User ID (u_...)
+        if (strpos((string)$assignedTo, 'u_') === 0) {
+            $stmt = $this->pdo->prepare("SELECT email FROM users WHERE id = ?");
+            $stmt->execute([$assignedTo]);
+            return $stmt->fetchColumn();
+        }
+        
+        // Otherwise it's an integer ID from assignees table
+        $stmt = $this->pdo->prepare("SELECT email FROM assignees WHERE id = ?");
+        $stmt->execute([$assignedTo]);
+        return $stmt->fetchColumn();
+    }
+
+    private function findAssigneeIdByEmail($tenantId, $email) {
+        if (!$email) return null;
+        
+        // Try to find in assignees table for this tenant
+        $stmt = $this->pdo->prepare("SELECT id FROM assignees WHERE tenant_id = ? AND email = ? AND is_active = 1 LIMIT 1");
+        $stmt->execute([$tenantId, $email]);
+        $id = $stmt->fetchColumn();
+        if ($id) return $id;
+
+        // If not found in assignees, check if it's a system user who is a member of this tenant
+        // In that case, we might want to return their user ID (u_...) if the system supports it,
+        // but the current schema seems to prefer assignees table for company items.
+        // For JBWOS, let's check company_members/memberships.
+        $stmt = $this->pdo->prepare("
+            SELECT u.id 
+            FROM users u
+            JOIN memberships m ON u.id = m.user_id
+            WHERE m.tenant_id = ? AND u.email = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$tenantId, $email]);
+        return $stmt->fetchColumn();
     }
     
     // Physical Delete (Destroy)

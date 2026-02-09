@@ -1,94 +1,60 @@
-# JBWOS Frozen v3 実装計画 (Phase 3: Execution & Life Persistence)
+# JBWOS UI 刷新詳細設計 (全体一覧2 & 量感カレンダー)
 
-## 目的
-JBWOSの第3フェーズとして、**「事実の蓄積 (Persistence)」** と **「経営判断の基盤 (Accounting Base)」** を実装する。
-Vision Story で示された「夢と現実の統合」を実現するため、単なるログ機能を超え、プロジェクトごとの収支や実行時間を集計可能なデータ構造を構築する。
+## 1. 目的
+JBWOS のコア体験である「全体一覧２」と「量感カレンダー」を、ユーザーの視認性と操作性を最大化するように刷新する。特に、納期（Due）とマイ期日（Prep）の管理を視覚的に統合し、「今何をすべきか」を直感的に判断可能にする。
 
-## 概要
-- **Execution Layer**: 「やったこと」を時間（Duration）と共に記録する。
-- **Project Context**: すべての活動を「プロジェクト（稼ぎ/夢）」に紐づけ、原価・粗利計算の基礎とする。
-- **Life Layer**: 仕事以外の「生きた証」を簡単な操作で記録する。
+## 2. システム設計 (MVVM / Logic)
 
----
+### 2.1 状態管理とドメインロジック (ViewMode / ViewModel)
+- **[Domain] 近似期日判定ロジック**:
+    - `due_date` (YYYY-MM-DD) と `prep_date` (Unix Timestamp) を比較。
+    - いずれか近い方、または両方存在する場合は「制約が厳しい方」を優先表示。
+    - フロントエンドの `useNewspaperItems` フックでこの算出を行い、Componentには `displayDate` と `displayDateType` を渡す。
+- **[ViewModel] プライバシー判定の透明化**:
+    - `items` 取得時に `assignedTo` (camelCase) を確実に保持。
+    - `currentUserId` との照合精度を上げ、「自分に関係があるタスク」がマスクされないようにする。
 
-## 2. データベース変更 (Schema Evolution)
+### 2.2 UI/UX 仕様 (View)
 
-### [NEW] `projects` テーブル
-Vision Storyの実現に不可欠な「プロジェクト」エンティティを作成する。
+#### 全体一覧２ (`NewspaperItem.tsx`)
+| 構成要素 | 表示仕様 |
+| :--- | :--- |
+| **全体構造** | `flex items-center justify-between` による左右分割。 |
+| **左側 (Title)** | フォルダアイコン(Project) or 空白 + タイトル。タイトルは `truncate`。 |
+| **右側 (Metadata)** | [StatusDot] [DisplayDate] を右寄せで配置。 |
+| **StatusDot** | FOCUS状態: 青い●、それ以外(Done除く): 薄いグレーの●、実行中: 点滅。 |
+| **DisplayDate** | 納期: 濃い色、マイ期日: 薄い色。形式は `M/d`。 |
+| **インデント** | 親プロジェクトに属する場合、左に縦線を表示し、1.5rem ずつインデント。 |
 
-```sql
-CREATE TABLE projects (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    client_name TEXT,             -- 顧客名（またはコンテキスト名）
-    gross_profit_target INTEGER,  -- 目標粗利 (Vision: "40万円欲しい")
-    status TEXT DEFAULT 'active', -- active | archived
-    color TEXT,                   -- カレンダー上での識別色
-    created_at INTEGER
-);
-```
+#### 量感カレンダー (`RyokanCalendar.tsx`)
+- **カード表記**: `item.title` + `[item.projectTitle.substring(0,4)]`
+- **指示線**:
+    - アニメーション: `framer-motion` の `duration: 0.5`。
+    - リセット: カレンダーの背景クリックで、全てのセル発光（HighLight）を解除。
 
-### [MODIFY] `items` テーブル
-アイテムをプロジェクトに所属させる。
+## 3. テスト計画 (TDD)
 
-- `ADD COLUMN project_id TEXT DEFAULT NULL`
+### 3.1 単体テスト (`useNewspaperItems.test.ts`)
+- [ ] 納期とマイ期日が混在する場合、近い方が `displayDate` に選ばれること。
+- [ ] プロジェクト直下のアイテムが正しい `depth` (インデント) で計算されること。
+- [ ] `isMasked` が `assignedTo === currentUserId` の場合に `false` になること。
 
-### [MODIFY] `daily_logs` テーブル
-単純なテキストログから、集計可能な構造化データへ進化させる。
-
-- `ADD COLUMN project_id TEXT DEFAULT NULL`
-- `ADD COLUMN item_id TEXT DEFAULT NULL`
-- `ADD COLUMN duration_minutes INTEGER DEFAULT 0` -- 実績時間
-- `ADD COLUMN gross_profit_share INTEGER DEFAULT 0` -- (Future) その作業が生んだ価値？一旦保留
-
----
-
-## 3. バックエンド実装 (`backend/`)
-
-#### [NEW] `ProjectController.php`
-- `GET /api/projects`: プロジェクト一覧取得（External View用）。
-- `POST /api/projects`: 新規プロジェクト作成。
-
-#### [MODIFY] `LifeController.php` -> `LogController.php` (Rename & Enhance)
-- **記録機能の強化**:
-    - `POST /api/logs/execution`: 完了時に `duration` と `project_id` を受け取るように修正。
-    - `POST /api/logs/life`: 生活ログ記録。
-
-#### [NEW] `HistoryController.php`
-- **集計機能**:
-    - `GET /api/history/summary?month=2026-01`: プロジェクトごとの稼働時間、完了アイテム数を集計して返す。
-    - これが「今月の粗利予測」の基礎データとなる。
+### 3.2 UIテスト
+- [ ] 列幅が 25ch を下回る場合に横スクロールが発生すること。
+- [ ] 長いタイトルが省略されても、右側の●と日付が重複せず表示されること。
 
 ---
 
-## 4. フロントエンド実装 (`JWCADTategu.Web`)
+## 4. 修正対象ファイル
 
-#### [NEW] `HistoryScreen` (Internal View)
-- **Concept**: 「事実の積み上げ」を確認する場所。
-- **UI**:
-    - タイムライン形式で、その日にやったこと（Execution & Life）を表示。
-    - 「今日はこれだけやった」という肯定感を醸成するデザイン。
+### Backend
+- #### [MODIFY] [CalendarController.php](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/backend/CalendarController.php)
+    - `assigned_to` の SELECT 追加。`mapItemRow` の適用。
 
-#### [NEW] `ProjectRegistry` (External View)
-- **Concept**: プロジェクトの登録・管理画面。
-- **UI**:
-    - プロジェクト名、目標粗利、色の設定。
-    - 「夢系プロジェクト」もここで登録する。
-
-#### [MODIFY] `GlobalBoard` / `ItemCard`
-- **Doneアクション**:
-    - アイテムをDoneにした際、オプションで「何分かかった？」を入力可能にする（必須にはしない）。
-    - デフォルト値（予測時間）があればそれを提示する。
-
----
-
-## 5. 検証手順 (Verification)
-
-1.  **プロジェクト作成**: 「新作キャビネット（夢）」プロジェクトを作成できること。
-2.  **ログ記録**: アイテムを実行し、完了時に「60分」と記録できること。
-3.  **DB確認**: `daily_logs` に `project_id` と `duration_minutes` が正しく保存されていること。
-4.  **History表示**: History画面で、「新作キャビネット」の作業ログが確認できること。
-
-### 特別検証項目
-- **Vision Story Check**:
-    - 「夢のプロジェクト」を作成し、カレンダーやログ上で「仕事」と同列に扱えることを確認する。
+### Frontend
+- #### [MODIFY] [NewspaperItem.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/NewspaperBoard/NewspaperItem.tsx)
+    - レイアウト刷新（左右分割）、StatusDotの多色化、日付の色分け。
+- #### [MODIFY] [useNewspaperItems.ts](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/NewspaperBoard/useNewspaperItems.ts)
+    - 優先度日付算出ロジックの追加。
+- #### [MODIFY] [RyokanCalendar.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx)
+    - カード文字列結合、アニメーション時間変更、リセットハンドラ追加。
