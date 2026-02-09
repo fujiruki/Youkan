@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Item } from '../../types';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
+import { format } from 'date-fns';
 
 export type JBWOSViewModel = ReturnType<typeof useJBWOSViewModel>;
 
@@ -11,6 +12,9 @@ export interface NewspaperItemWrapper {
     project?: Item | null; // Projects are Items in ViewModel
     isHeader: boolean;
     depth: number;
+    // [NEW] Enhanced date info
+    displayDate?: string | null;     // format: 'M/d'
+    displayDateType?: 'due' | 'prep' | null;
 }
 
 export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any | null): NewspaperItemWrapper[] => {
@@ -36,9 +40,31 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         const activeProjectIdRaw = activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null);
         const activeProjectId = normalizeId(activeProjectIdRaw);
 
+        // [NEW] Helper for Date Priority
+        const getEnhancedDate = (item: Item) => {
+            const due = item.due_date ? new Date(item.due_date).getTime() : Infinity;
+            const prep = item.prep_date ? item.prep_date * 1000 : Infinity;
+
+            if (due === Infinity && prep === Infinity) return { displayDate: null, displayDateType: null };
+
+            // Priority: nearest date. If tied, Due is stronger.
+            if (due <= prep) {
+                return {
+                    displayDate: format(new Date(item.due_date!), 'M/d'),
+                    displayDateType: 'due' as const
+                };
+            } else {
+                return {
+                    displayDate: format(new Date(prep), 'M/d'),
+                    displayDateType: 'prep' as const
+                };
+            }
+        };
+
         // [NEW] Helper to get all descendant project IDs (recursive)
         // Returns a Set of NORMALIZED IDs
         const getRelevantProjectIds = (rootId: string): Set<string> => {
+            // ... (omitted for brevity in search, but keep in actual file) ...
             const ids = new Set<string>([rootId]);
             const stack = [rootId];
 
@@ -115,8 +141,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 if (aLimit === Infinity && bLimit === Infinity) {
                     return (b.createdAt || 0) - (a.createdAt || 0);
                 }
-                if (aLimit === Infinity) return -1;
-                if (bLimit === Infinity) return 1;
+                if (aLimit === Infinity) return 1; // [FIX] Push Infinity to end
+                if (bLimit === Infinity) return -1;
                 if (aLimit !== bLimit) return aLimit - bLimit;
                 return (a.createdAt || 0) - (b.createdAt || 0);
             });
@@ -165,12 +191,14 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
         });
 
         sortItems(noProjectItems).forEach(item => {
+            const dateInfo = getEnhancedDate(item);
             result.push({
                 id: item.id,
                 type: 'item',
                 item,
                 isHeader: false,
-                depth: 0
+                depth: 0,
+                ...dateInfo
             });
         });
 
@@ -205,13 +233,15 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
 
             // Add Sorted Tasks for this project
             sortItems(group.items).forEach(task => {
+                const dateInfo = getEnhancedDate(task);
                 result.push({
                     id: task.id,
                     type: 'item',
                     item: task,
                     project: proj,
                     isHeader: false,
-                    depth: depth + 1
+                    depth: depth + 1,
+                    ...dateInfo
                 });
             });
 

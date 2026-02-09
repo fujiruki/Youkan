@@ -1,60 +1,44 @@
-# JBWOS UI 刷新詳細設計 (全体一覧2 & 量感カレンダー)
+# 修正計画：量感カレンダーのデバッグと再発防止
 
-## 1. 目的
-JBWOS のコア体験である「全体一覧２」と「量感カレンダー」を、ユーザーの視認性と操作性を最大化するように刷新する。特に、納期（Due）とマイ期日（Prep）の管理を視覚的に統合し、「今何をすべきか」を直感的に判断可能にする。
+## 目標
+量感カレンダーの不具合（クリック連動、リセット機能）を修正しつつ、リファクタリングによって簡略化されてしまった**リッチなデザインを完全に復元**する。
 
-## 2. システム設計 (MVVM / Logic)
+## ユーザー確認事項
+> [!IMPORTANT]
+> リファクタリングによって、グリッドの質感、SVG曲線の詳細な描画、アニメーション、ガントビューなどのデザイン要素が一時的に失われています。これらを以前の状態に戻し、かつバグ修正（イベントバブリング防止）を適用した状態に再構築します。
 
-### 2.1 状態管理とドメインロジック (ViewMode / ViewModel)
-- **[Domain] 近似期日判定ロジック**:
-    - `due_date` (YYYY-MM-DD) と `prep_date` (Unix Timestamp) を比較。
-    - いずれか近い方、または両方存在する場合は「制約が厳しい方」を優先表示。
-    - フロントエンドの `useNewspaperItems` フックでこの算出を行い、Componentには `displayDate` と `displayDateType` を渡す。
-- **[ViewModel] プライバシー判定の透明化**:
-    - `items` 取得時に `assignedTo` (camelCase) を確実に保持。
-    - `currentUserId` との照合精度を上げ、「自分に関係があるタスク」がマスクされないようにする。
+## 変更内容
+以前の `RyokanCalendar.tsx` (964行) から、各デザインパラメーターとコンポーネント構造を分割後のファイルに再移植します。
 
-### 2.2 UI/UX 仕様 (View)
+### カレンダーコンポーネントの再構築
+#### [MODIFY] [RyokanGridView.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/Calendar/RyokanGridView.tsx)
+- `gap-px` とセルの枠線演出を復元。
+- 背景のボリューム曲線（VolumeCurve）のパス計算ロジックを以前の仕様に戻す。
 
-#### 全体一覧２ (`NewspaperItem.tsx`)
-| 構成要素 | 表示仕様 |
-| :--- | :--- |
-| **全体構造** | `flex items-center justify-between` による左右分割。 |
-| **左側 (Title)** | フォルダアイコン(Project) or 空白 + タイトル。タイトルは `truncate`。 |
-| **右側 (Metadata)** | [StatusDot] [DisplayDate] を右寄せで配置。 |
-| **StatusDot** | FOCUS状態: 青い●、それ以外(Done除く): 薄いグレーの●、実行中: 点滅。 |
-| **DisplayDate** | 納期: 濃い色、マイ期日: 薄い色。形式は `M/d`。 |
-| **インデント** | 親プロジェクトに属する場合、左に縦線を表示し、1.5rem ずつインデント。 |
+#### [MODIFY] [CalendarCell.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/Calendar/CalendarCell.tsx)
+- ホバーエフェクトと intensity オーバーレイのスタイルを以前の豪華なものに復元。
+- イベント伝播の停止 (`stopPropagation`) を維持。
 
-#### 量感カレンダー (`RyokanCalendar.tsx`)
-- **カード表記**: `item.title` + `[item.projectTitle.substring(0,4)]`
-- **指示線**:
-    - アニメーション: `framer-motion` の `duration: 0.5`。
-    - リセット: カレンダーの背景クリックで、全てのセル発光（HighLight）を解除。
+#### [MODIFY] [RyokanCalendar.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx)
+- `framer-motion` を使用した指示線の曲線描画（Quadratic Bezier）とアニメーションを以前の状態に復元。
+- ガントビュー (`RyokanGanttView`) を復帰させる。
+した際の詳細表示が確実に動作するよう、`onItemClick` の呼び出しを確認。
+- **[VolumeCalendarScreen.tsx]**:
+    - 量感カレンダー単体画面での「アイテムクリック」が反応していなかったため、`selectedItem` ステートと `DecisionDetailModal` を正しく統合し、プロップを伝達します。
 
-## 3. テスト計画 (TDD)
+## 3. 「Aを作るとBが消える」現象への対策
+大規模なファイルを一度に改変することで発生する「回帰バグ」を防ぐため、以下の運用を試験的に導入します。
 
-### 3.1 単体テスト (`useNewspaperItems.test.ts`)
-- [ ] 納期とマイ期日が混在する場合、近い方が `displayDate` に選ばれること。
-- [ ] プロジェクト直下のアイテムが正しい `depth` (インデント) で計算されること。
-- [ ] `isMasked` が `assignedTo === currentUserId` の場合に `false` になること。
+> [!IMPORTANT]
+> **再発防止策 (Flashモデル向け)**:
+> 1. **コンポーネントの細分化**: `RyokanCalendar.tsx`（約1000行）を `RyokanGrid`, `RyokanTimeline`, `CalendarCell` 等に分割し、AIが把握すべきコンテキストを最小化します。
+> 2. **自動回帰テストの実施**: 変更後にブラウザサブエージェントを使い、「指示線の表示」「ダブルクリックで一覧表示」「詳細モーダル表示」の3点を必ず自動チェックさせます。
+> 3. **変更点のみの最小編集**: 可能な限り `multi_replace_file_content` を使い、周辺ロジックへの影響を最小限に留めます。
 
-### 3.2 UIテスト
-- [ ] 列幅が 25ch を下回る場合に横スクロールが発生すること。
-- [ ] 長いタイトルが省略されても、右側の●と日付が重複せず表示されること。
+## 4. 実行手順
+1. `RyokanCalendar.tsx` のバブリング問題を修正。
+2. `VolumeCalendarScreen.tsx` に詳細表示ロジックを統合。
+3. ブラウザサブエージェントによる自動検証（上記3点）。
+4. (オプション) 今後の保守性向上のため、コンポーネントの分割リファクタリングを実施。
 
----
-
-## 4. 修正対象ファイル
-
-### Backend
-- #### [MODIFY] [CalendarController.php](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/backend/CalendarController.php)
-    - `assigned_to` の SELECT 追加。`mapItemRow` の適用。
-
-### Frontend
-- #### [MODIFY] [NewspaperItem.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/NewspaperBoard/NewspaperItem.tsx)
-    - レイアウト刷新（左右分割）、StatusDotの多色化、日付の色分け。
-- #### [MODIFY] [useNewspaperItems.ts](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/NewspaperBoard/useNewspaperItems.ts)
-    - 優先度日付算出ロジックの追加。
-- #### [MODIFY] [RyokanCalendar.tsx](file:///c:/Users/doorf/OneDrive/ドキュメント/プロジェクト/TateguDesignStudio/JWCADTategu.Web/src/features/core/jbwos/components/Calendar/RyokanCalendar.tsx)
-    - カード文字列結合、アニメーション時間変更、リセットハンドラ追加。
+承認をいただければ、修正に着手します。

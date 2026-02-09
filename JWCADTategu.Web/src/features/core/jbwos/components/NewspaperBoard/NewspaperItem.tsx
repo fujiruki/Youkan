@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Item } from '../../types';
-import { format } from 'date-fns';
 import { cn } from '../../../../../lib/utils';
 import { NewspaperItemWrapper } from './useNewspaperItems';
 import { Folder, FolderOpen } from 'lucide-react';
@@ -12,8 +11,9 @@ interface NewspaperItemProps {
     onAddChild?: (item: Item, title: string) => void; // [CHANGED] Now receives title directly
 }
 
-const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
-    if (status === 'done' || status === 'completed' || status === 'log') return null;
+const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
+    if (isDone) return null;
+    if (status === 'log') return null;
 
     if (isEngaged) {
         return (
@@ -32,14 +32,20 @@ const StatusDot = ({ status, isEngaged }: { status: string, isEngaged?: boolean 
         );
     }
 
-    // Default badges for other statuses
-    const base = "px-[0.3em] py-0 rounded-[0.2em] font-bold whitespace-nowrap uppercase tracking-tighter leading-normal scale-90 origin-left";
-    // [FIX] inbox (受信) is now hidden per user request - not needed for this view
-    if (status === 'inbox') return null;
-    if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
-    if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
+    if (status === 'waiting') {
+        return (
+            <div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
+                <div className="w-[0.55em] h-[0.55em] rounded-full bg-purple-400 opacity-80" />
+            </div>
+        );
+    }
 
-    return null;
+    // Default: light grey for and-so-on
+    return (
+        <div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
+            <div className="w-[0.45em] h-[0.45em] rounded-full bg-slate-300 dark:bg-slate-600" />
+        </div>
+    );
 };
 
 const IndentLines = ({ depth }: { depth: number }) => {
@@ -49,7 +55,7 @@ const IndentLines = ({ depth }: { depth: number }) => {
             {Array.from({ length: depth }).map((_, i) => (
                 <div
                     key={i}
-                    className="h-full border-l border-slate-300 dark:border-slate-700"
+                    className="h-full border-l border-slate-200 dark:border-slate-800"
                     style={{ width: '1.5rem', marginLeft: i === 0 ? '0.75rem' : '0' }}
                 />
             ))}
@@ -58,7 +64,7 @@ const IndentLines = ({ depth }: { depth: number }) => {
 };
 
 export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu, onAddChild }) => {
-    const { item, isHeader, depth, project } = wrapper; // [FIX] Extract project from wrapper
+    const { item, isHeader, depth, project, displayDate, displayDateType } = wrapper;
     const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
     const [inlineInputValue, setInlineInputValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +78,6 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
 
     const handleInlineSubmit = () => {
         const trimmed = inlineInputValue.trim();
-        // [FIX] Use project (real Item object) instead of item (virtual header object)
         const targetProject = project || item;
         if (trimmed && onAddChild) {
             onAddChild(targetProject as any, trimmed);
@@ -97,7 +102,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                     "flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold p-1 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
                     depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
                 )}
-                    style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }} // インデントを強化
+                    style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
                     onClick={() => onClick(item)}
                     onContextMenu={(e) => {
                         e.preventDefault();
@@ -105,7 +110,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                     }}
                 >
                     {depth > 0 ? (
-                        <FolderOpen size="1em" className="text-indigo-500 fill-indigo-500/10" />
+                        <FolderOpen size="1em" className="text-indigo-400 fill-indigo-400/5" />
                     ) : (
                         <Folder size="1.1em" className="text-blue-500 fill-blue-500/10" />
                     )}
@@ -138,14 +143,13 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
                                 }
                             }}
                             onBlur={() => {
-                                // Delay to allow button clicks
                                 setTimeout(() => {
                                     if (!inlineInputValue.trim()) {
                                         handleInlineCancel();
                                     }
                                 }, 150);
                             }}
-                            placeholder="タイトルを入力して Enter..."
+                            placeholder="Alt+D to add..."
                             className="w-full text-[0.9em] px-2 py-1 border border-blue-300 dark:border-blue-700 rounded bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
@@ -160,7 +164,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
     return (
         <div
             onMouseUp={(e) => {
-                if (e.button === 0) { // Left click only
+                if (e.button === 0) {
                     onClick(item);
                 }
             }}
@@ -170,44 +174,41 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             }}
             className={
                 cn(
-                    "group flex items-center gap-[0.4em] px-[0.4em] py-[0.15em] rounded-[0.3em] transition-all cursor-pointer select-none relative z-10",
-                    "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:shadow-sm",
+                    "group flex items-center justify-between gap-[0.4em] px-[0.4em] py-[0.15em] rounded-[0.3em] transition-all cursor-pointer select-none relative z-10",
+                    "hover:bg-indigo-50 dark:hover:bg-indigo-900/10 hover:shadow-sm",
                     "break-inside-avoid",
                     "mb-[2px]",
-                    isDone && "opacity-60 grayscale-[0.3]"
+                    isDone && "opacity-40 grayscale-[0.5]"
                 )}
             style={{
-                paddingLeft: `${depth * 1.5 + 0.5}rem` // 階層に応じたインデント
+                paddingLeft: `${depth * 1.5 + 0.5}rem`
             }}
         >
             <IndentLines depth={depth} />
 
-            {/* Title & Status wrapper */}
-            <div className="flex-1 min-w-0 flex items-center gap-[0.4em] leading-tight pl-1">
+            {/* Left: Title */}
+            <div className="flex-1 min-w-0 flex items-center leading-tight">
                 <span className={cn(
-                    "text-[1em] font-medium break-words",
+                    "text-[1em] font-medium truncate",
                     isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
                 )}>
                     {item.title}
                 </span>
-
-                {/* Status Dot (Blue/Green) */}
-                <StatusDot status={item.status} isEngaged={item.isEngaged} />
             </div>
 
-            {/* Metadata (Due Date) */}
-            {
-                item.due_date && !isDone && (
-                    <div className="shrink-0">
-                        <span className={cn(
-                            "text-[0.85em] font-bold whitespace-nowrap px-1 rounded",
-                            new Date(item.due_date).getTime() < Date.now() ? "bg-red-50 text-red-500 dark:bg-red-950/20" : "text-slate-400"
-                        )}>
-                            {format(new Date(item.due_date), 'M/d')}
-                        </span>
-                    </div>
-                )
-            }
+            {/* Right: StatusDot + Date */}
+            <div className="flex items-center gap-[0.3em] shrink-0">
+                <StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />
+
+                {displayDate && !isDone && (
+                    <span className={cn(
+                        "text-[0.8em] font-bold whitespace-nowrap",
+                        displayDateType === 'due' ? "text-slate-500 dark:text-slate-400" : "text-slate-310 dark:text-slate-600 font-normal grayscale opacity-70"
+                    )}>
+                        {displayDate}
+                    </span>
+                )}
+            </div>
         </div >
     );
 };

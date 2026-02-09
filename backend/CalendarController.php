@@ -53,8 +53,8 @@ class CalendarController extends BaseController {
 
         $sql = "
             SELECT 
-                id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes AS estimatedMinutes,
-                created_by, project_id
+                id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes,
+                created_by, assigned_to, project_id, status
             FROM items 
             WHERE 
                 (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
@@ -75,27 +75,21 @@ class CalendarController extends BaseController {
         $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $result = [];
 
-        foreach ($rawItems as $item) {
+        foreach ($rawItems as $row) {
+            $item = $this->mapItemRow($row);
             // Masking Logic
             $isVisible = false;
             
-            if ($this->currentUserId === $targetUserId && !$this->currentTenantId) {
+            if ($this->currentUserId === $targetUserId && (!$this->currentTenantId || $this->currentTenantId === '')) {
                 // Viewing my own stuff in Personal Mode -> See everything
                 $isVisible = true;
-            } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId) {
+            } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId && $this->currentTenantId !== '') {
                 // Shared Context (Company Match) -> Visible
                 $isVisible = true;
-            } elseif ($this->currentUserId === $targetUserId && is_null($item['tenant_id']) && $item['created_by'] === $this->currentUserId) {
-                // Personal items are visible to me even in company mode?
-                // Spec says: Unified Dashboard shows all. 
-                // But Load Calendar (for calculating volume) shows quantity.
-                // If I am looking at my own calendar, I should see titles.
-                $isVisible = true;
-            } else {
-                // Others viewing me, or Company View of Personal Task
-                // Actually, if I am looking at my own stuff, I want to see it.
-                // Masking is for OTHERS viewing ME.
-                if ($this->currentUserId === $targetUserId) {
+            } elseif ($this->currentUserId === $targetUserId) {
+                // [v3.2] Always visible if I am the owner or assignee, even in different tenant context
+                $isOwnerOrAssignee = ($item['created_by'] === $this->currentUserId || $item['assignedTo'] === $this->currentUserId);
+                if ($isOwnerOrAssignee) {
                     $isVisible = true;
                 }
             }
@@ -109,7 +103,7 @@ class CalendarController extends BaseController {
                     'title' => '予定あり (Private)',
                     'due_date' => $item['due_date'], // Maintain Date
                     'prep_date' => $item['prep_date'],
-                    'estimatedMinutes' => $item['estimatedMinutes'], // Maintain Load
+                    'estimatedMinutes' => $item['estimatedMinutes'] ?? 0, // Maintain Load
                     'isMasked' => true
                 ];
             }
@@ -142,8 +136,8 @@ class CalendarController extends BaseController {
 
         $sql = "
             SELECT 
-                id, tenant_id, title, due_date, estimated_minutes AS estimatedMinutes,
-                status, created_by, project_id
+                id, tenant_id, title, due_date, estimated_minutes,
+                status, created_by, assigned_to, project_id
             FROM items 
             WHERE 
                 (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
@@ -159,16 +153,19 @@ class CalendarController extends BaseController {
         $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $result = [];
-        foreach ($rawItems as $item) {
+        foreach ($rawItems as $row) {
+             $item = $this->mapItemRow($row);
              // Masking Logic (Simplified for now - reuse logic logic if possible)
              // Determine visibility
              $isVisible = false;
              if ($this->currentUserId === $targetUserId) {
                  $isVisible = true; // Viewing self
-             } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId) {
+             } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId && $this->currentTenantId !== '') {
                  $isVisible = true; // Same company
+             } elseif ($item['created_by'] === $this->currentUserId || $item['assignedTo'] === $this->currentUserId) {
+                 $isVisible = true; // Related to me
              }
-
+ 
              if ($isVisible) {
                  $result[] = $item;
              } else {
@@ -176,7 +173,7 @@ class CalendarController extends BaseController {
                      'id' => $item['id'],
                      'title' => '予定あり (Private)',
                      'due_date' => $item['due_date'],
-                     'estimatedMinutes' => $item['estimatedMinutes'],
+                     'estimatedMinutes' => $item['estimatedMinutes'] ?? 0,
                      'status' => $item['status'],
                      'isMasked' => true
                  ];
