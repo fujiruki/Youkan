@@ -157,7 +157,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     }, [selectedDate, workDays]);
 
     return (
-        <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-900 border-l-4 border-indigo-200 dark:border-indigo-800 font-sans")} ref={scrollContainerRef}>
+        <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-900 border-l-4 border-indigo-200 dark:border-indigo-800 font-sans max-w-full")} ref={scrollContainerRef}>
             {!isMini && (
                 <div className="flex-none px-4 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between z-10">
                     <div className="flex items-center gap-2">

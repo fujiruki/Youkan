@@ -62,8 +62,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const [dueDate, setDueDate] = React.useState('');
     const [prepDate, setPrepDate] = React.useState('');
     const [workDays, setWorkDays] = React.useState(1);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [isWorkDaysDirty] = React.useState(false);
+    const [isWorkDaysDirty, setIsWorkDaysDirty] = React.useState(false);
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [editedTitle, setEditedTitle] = React.useState('');
     const [estimatedMinutes, setEstimatedMinutes] = React.useState(0);
@@ -86,6 +85,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setDueDate(item.due_date || '');
             setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
             setWorkDays(item.work_days ?? 1);
+            setIsWorkDaysDirty(false); // Reset dirty flag on new item load
             setEditedTitle(item.title);
             setEstimatedMinutes(item.estimatedMinutes ?? 0);
             setIsProject(item.isProject ?? false);

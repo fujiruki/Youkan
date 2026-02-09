@@ -152,6 +152,8 @@ class BaseController {
 
         // Dates & Trash
         $item['deletedAt'] = $item['deleted_at'] ?? null;
+        $item['prep_date'] = $item['prep_date'] ?? null;
+        $item['work_days'] = (int)($item['work_days'] ?? 1);
 
         // JSON handling
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
