@@ -131,6 +131,7 @@ class BaseController {
         $item['projectId'] = $item['project_id'] ?? null;
         $item['tenantId'] = $item['tenant_id'] ?? null;
         $item['assignedTo'] = $item['assigned_to'] ?? null;
+        $item['createdBy'] = $item['created_by'] ?? null;
 
         // Standard Property mapping
         $item['estimatedMinutes'] = (int)($item['estimated_minutes'] ?? 0);

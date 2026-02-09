@@ -74,7 +74,6 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     }, [metrics]);
 
     const renderItemTitle = (item: Item) => {
-        const isMine = item.created_by === currentUserId || item.assignedTo === currentUserId;
         const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
 
         let title = item.title;
@@ -84,7 +83,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             title = `${title} [${shortProj}]`;
         }
 
-        if (isMine || isProjectContext) {
+        if (String(item.createdBy) === String(currentUserId) ||
+            String(item.assignedTo) === String(currentUserId) ||
+            isProjectContext) {
             return title;
         }
         return `予定あり [${proj?.name.substring(0, 4) || '???'}]`;

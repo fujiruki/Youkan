@@ -137,19 +137,20 @@ export class QuantityEngine {
         const isHol = this.checkIsHoliday(date, context);
 
         // 1. Personal Capacity
-        if (filterMode === 'all' || filterMode === 'personal') {
-            if (!isHol) {
-                totalCap += (capacityConfig.defaultDailyMinutes || 480);
-            }
-        }
-
         // 2. Organizational Capacity (Sum of Core members)
-        if (filterMode === 'all' || filterMode === 'company' || focusedTenantId || focusedProjectId) {
+        if (filterMode === 'company' || focusedTenantId || focusedProjectId) {
             const mainMembers = members.filter(m => m.isCore);
             if (mainMembers.length > 0) {
                 if (!isHol) {
-                    totalCap += mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
+                    totalCap = mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
                 }
+            }
+        }
+
+        // 3. Fallback/Combined Mode ('all')
+        if (filterMode === 'all' && totalCap === 0) {
+            if (!isHol) {
+                totalCap = (capacityConfig.defaultDailyMinutes || 480);
             }
         }
 

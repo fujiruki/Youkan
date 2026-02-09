@@ -52,24 +52,6 @@ export const useJBWOSViewModel = (projectId?: string) => {
         return (saved === 'company' || saved === 'personal') ? saved as FilterMode : 'all';
     });
 
-    useEffect(() => {
-        localStorage.setItem('jbwos_filter_mode', filterMode);
-        // Dispatch global event
-        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
-    }, [filterMode]);
-
-    // Listen for global changes from other components
-    useEffect(() => {
-        const handleGlobalFilterChange = (e: any) => {
-            const newMode = e.detail?.mode;
-            if (newMode && newMode !== filterMode) {
-                setFilterMode(newMode);
-            }
-        };
-        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
-        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
-    }, [filterMode]);
-
     // Loading & Error
     const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +108,26 @@ export const useJBWOSViewModel = (projectId?: string) => {
     // const refreshContextData = useCallback(async () => {
     //     // Fetching context-related data if needed in future
     // }, []);
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_filter_mode', filterMode);
+        // Dispatch global event
+        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
+        // [FIX] Trigger refresh when filter changes to avoid stale view
+        refreshGdb(projectId);
+    }, [filterMode, projectId, refreshGdb]);
+
+    // Listen for global changes from other components
+    useEffect(() => {
+        const handleGlobalFilterChange = (e: any) => {
+            const newMode = e.detail?.mode;
+            if (newMode && newMode !== filterMode) {
+                setFilterMode(newMode);
+            }
+        };
+        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
+        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
+    }, [filterMode]);
 
 
     const refreshMembers = useCallback(async () => {

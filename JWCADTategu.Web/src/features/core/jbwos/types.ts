@@ -130,6 +130,7 @@ export interface Item {
     is_boosted?: boolean;    // 優先度ブースト
     boosted_date?: number;   // ブースト設定日時
     created_by?: string;     // [NEW] Owner ID
+    createdBy?: string;      // [NEW] Mapped Owner ID
 
     // Legacy / Door Props
     category?: string;
