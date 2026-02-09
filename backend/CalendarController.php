@@ -136,13 +136,17 @@ class CalendarController extends BaseController {
 
         $sql = "
             SELECT 
-                id, tenant_id, title, due_date, estimated_minutes,
+                id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes,
                 status, created_by, assigned_to, project_id
             FROM items 
             WHERE 
                 (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
                 $tenantClause
-                AND due_date >= ? AND due_date <= ?
+                AND (
+                    (due_date >= ? AND due_date <= ?)
+                    OR
+                    (prep_date >= ? AND prep_date <= ?)
+                )
                 AND status NOT IN ('decision_rejected', 'archive', 'done')
         ";
 

@@ -83,11 +83,12 @@ export class QuantityEngine {
         });
 
         relevantItems.forEach(item => {
-            if (item.prep_date) {
-                const prepDate = new Date(item.prep_date * 1000);
+            const endDateRaw = item.prep_date ? (item.prep_date * 1000) : (item.due_date ? new Date(item.due_date).getTime() : null);
+            if (endDateRaw) {
+                const endDate = new Date(endDateRaw);
                 let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
 
-                let current = new Date(prepDate);
+                let current = new Date(endDate);
                 let safety = 0;
 
                 while (remainingMinutes > 0 && safety < 90) { // Max 90 days lookback
@@ -119,15 +120,6 @@ export class QuantityEngine {
 
                     remainingMinutes -= alloc;
                     current.setDate(current.getDate() - 1);
-                }
-            } else if (item.due_date) {
-                // Warning volume on due date if no prep_date
-                const d = new Date(item.due_date);
-                if (!isNaN(d.getTime())) {
-                    const key = d.toDateString();
-                    volumeMap.set(key, (volumeMap.get(key) || 0) + 60);
-                    if (!contributorsMap.has(key)) contributorsMap.set(key, []);
-                    contributorsMap.get(key)?.push(item);
                 }
             }
         });

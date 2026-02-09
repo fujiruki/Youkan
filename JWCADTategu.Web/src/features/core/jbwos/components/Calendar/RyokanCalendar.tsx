@@ -7,7 +7,6 @@ import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
 import { RyokanGridView } from './RyokanGridView';
 import { RyokanTimelineView } from './RyokanTimelineView';
 import { RyokanGanttView } from './RyokanGanttView';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../../../lib/utils';
 import { ChevronRight } from 'lucide-react';
 
