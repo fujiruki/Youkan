@@ -29,4 +29,5 @@ export interface RyokanCalendarProps {
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
     currentUserId?: string | null;
+    joinedTenants?: string[];
 }

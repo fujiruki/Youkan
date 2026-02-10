@@ -75,8 +75,11 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
                     {items
                         .filter(i => {
-                            if (!i.due_date) return false;
-                            const itemDate = new Date(i.due_date);
+                            // [FIX] Fallback for items without due_date using prep_date for visualization
+                            const rawDate = i.due_date || (i.prep_date ? new Date(i.prep_date * 1000).toISOString() : null);
+                            if (!rawDate) return false;
+
+                            const itemDate = new Date(rawDate);
                             // Set time to noon to avoid timezone shift issues during comparison
                             itemDate.setHours(12, 0, 0, 0);
                             const cellDate = new Date(date);

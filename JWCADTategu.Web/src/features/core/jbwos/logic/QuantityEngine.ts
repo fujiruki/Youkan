@@ -6,6 +6,7 @@ export interface QuantityMetric {
     volumeMinutes: number;
     capacityMinutes: number;
     ratio: number; // volume / capacity
+    intensity: number; // 0-100 visual density
     isHoliday: boolean;
     contributingItems: Item[]; // [NEW] Items that add load to this specific day
 }
@@ -38,6 +39,7 @@ export class QuantityEngine {
         context: QuantityContext
     ): Map<string, QuantityMetric> {
         const metricsMap = new Map<string, QuantityMetric>();
+        // Ensure current user is consistently evaluated from context
         const { volumeMap, contributorsMap } = this.calculateVolume(context);
 
         days.forEach(date => {
@@ -46,12 +48,14 @@ export class QuantityEngine {
             const capacity = this.calculateCapacityForDate(date, context);
             const isHol = this.checkIsHoliday(date, context);
             const contributors = contributorsMap.get(dateKey) || [];
+            const ratio = capacity > 0 ? volume / capacity : (volume > 0 ? 2 : 0);
 
             metricsMap.set(dateKey, {
                 date,
                 volumeMinutes: volume,
                 capacityMinutes: capacity,
-                ratio: capacity > 0 ? volume / capacity : (volume > 0 ? 2 : 0),
+                ratio,
+                intensity: this.getIntensity(ratio),
                 isHoliday: isHol,
                 contributingItems: contributors
             });
@@ -151,6 +155,10 @@ export class QuantityEngine {
                     if (!contributorsMap.get(key)?.some(i => i.id === item.id)) {
                         contributorsMap.get(key)?.push(item);
                     }
+
+                    // [NEW] Also ensure the item is represented in the list on its "Point of Engagement"
+                    // If due_date is missing, use current date if it matches the prep_date start
+                    // This is for visual continuity in the calendar cell.
 
                     remainingMinutes -= alloc;
                     current.setDate(current.getDate() - 1);

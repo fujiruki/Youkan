@@ -21,7 +21,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items, onItemClick, capacityConfig, members,
     layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
     onSelectDate, selectedDate, prepDate, focusDate, workDays = 1, projects = [],
-    focusedTenantId, focusedProjectId, currentUserId
+    focusedTenantId, focusedProjectId, currentUserId, joinedTenants = []
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
@@ -36,13 +36,15 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     const allDays = useMemo(() => {
         const start = focusDate ? new Date(focusDate) : new Date(today);
         start.setDate(start.getDate() - (isMini ? 15 : 90));
+        start.setHours(0, 0, 0, 0);
 
-        // [FIX] Align to the start of the week (Sunday) to ensure 7-column grid works like a calendar
+        // [FIX] Align to the start of the week (Sunday)
         const dayOfWeek = start.getDay();
         start.setDate(start.getDate() - dayOfWeek);
 
         const end = focusDate ? new Date(focusDate) : new Date(today);
         end.setDate(end.getDate() + (isMini ? 15 : 90));
+        end.setHours(23, 59, 59, 999);
         // Align end to the end of the week (Saturday)
         const endDayOfWeek = end.getDay();
         end.setDate(end.getDate() + (6 - endDayOfWeek));
@@ -51,19 +53,31 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         let cur = new Date(start);
         while (cur <= end) {
             days.push(new Date(cur));
+            // Force midnight to avoid timezone issues during loop
+            cur.setHours(12, 0, 0, 0);
             cur.setDate(cur.getDate() + 1);
+            cur.setHours(0, 0, 0, 0);
+
+            if (days.length > 500) break; // Safety
         }
         return days;
     }, [today, focusDate, isMini]);
 
-    const metrics = useMemo(() => QuantityEngine.calculateMetrics(allDays, {
+    const qCtx = useMemo(() => ({
         items,
         members: members || [],
         capacityConfig: capacityConfig || { defaultDailyMinutes: 480, holidays: [], exceptions: {} },
         filterMode: filterMode || 'all',
         focusedTenantId,
-        focusedProjectId
-    }), [items, allDays, capacityConfig, filterMode, members, focusedTenantId, focusedProjectId]);
+        focusedProjectId,
+        currentUser: {
+            id: currentUserId || '',
+            isCompanyAccount: (currentUserId?.length || 0) > 20,
+            joinedTenants: joinedTenants.map(id => ({ id, name: `Tenant ${id?.substring?.(0, 4) || '???'}` }))
+        }
+    }), [items, capacityConfig, filterMode, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
+
+    const metrics = useMemo(() => QuantityEngine.calculateMetrics(allDays, qCtx), [allDays, qCtx]);
 
     const heatMap = useMemo(() => {
         const hMap = new Map<string, number>();

@@ -698,7 +698,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             // joinedTenants is now string[], find doesn't apply to objects here anymore.
             // If we need the name, we should fetch it from elsewhere, but for now ID = Name fallback or just check existence.
             const exists = joinedTenants.includes(resolvedTenantId);
-            if (exists) tenantName = `Tenant ${resolvedTenantId.substring(0, 4)}`;
+            if (exists) tenantName = `Tenant ${resolvedTenantId?.substring?.(0, 4) || '???'}`;
         }
 
         // 1. Optimistic Update (Immediate Feedback)
@@ -886,7 +886,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         if ('tenantId' in updates) {
             if (updates.tenantId) {
                 const exists = joinedTenants.includes(updates.tenantId);
-                if (exists) (updates as any).tenantName = `Tenant ${updates.tenantId.substring(0, 4)}`;
+                if (exists) (updates as any).tenantName = `Tenant ${updates.tenantId?.substring?.(0, 4) || '???'}`;
             } else {
                 // Clearing Tenant (Private)
                 (updates as any).tenantName = undefined;
