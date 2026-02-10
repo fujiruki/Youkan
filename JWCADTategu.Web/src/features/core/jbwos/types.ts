@@ -51,6 +51,20 @@ export interface Member {
     role: string;
     isCore: boolean;
     dailyCapacityMinutes: number;
+    capacityProfile?: CapacityProfile; // [NEW] Weekly pattern & exceptions
+}
+
+// [NEW] Multi-Tenant Capacity Logic
+export interface WeeklyPattern {
+    // Key: 0(Sun) - 6(Sat), Value: Minutes (e.g. 480)
+    [day: number]: number;
+}
+
+export interface CapacityProfile {
+    // 基準となる週間パターン（デフォルトはテナント設定または0）
+    standardWeeklyPattern: WeeklyPattern;
+    // 日ごとの例外設定（YYYY-MM-DD -> Minutes）
+    exceptions: { [dateStr: string]: number };
 }
 
 // [NEW] Item Flags (Attributes) - Haruki Model
