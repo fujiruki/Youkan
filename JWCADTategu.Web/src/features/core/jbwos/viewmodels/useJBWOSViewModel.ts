@@ -5,6 +5,7 @@ import { Item, SideMemo, CapacityConfig, Member, FilterMode } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
+import { QuantityEngine } from '../logic/QuantityEngine';
 
 const getUseCloud = () => {
     // Enforce Cloud Mode by default (User Request)
@@ -44,7 +45,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // [NEW] All Projects & Tenants
     const [allProjects, setAllProjects] = useState<Item[]>([]);
-    const [joinedTenants, setJoinedTenants] = useState<{ id: string; name: string; role: string }[]>([]);
+    const [joinedTenants, setJoinedTenants] = useState<string[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // [NEW] Filter Mode (Public/Private Filtering - Option 3)
     const [filterMode, setFilterMode] = useState<FilterMode>(() => {
@@ -147,7 +149,17 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
             // Fetch joined tenants
             const tenants = await getRepository().getJoinedTenants();
-            setJoinedTenants(tenants);
+            // Ensure we only store IDs (strings) as per state type definition
+            setJoinedTenants(tenants.map((t: any) => typeof t === 'string' ? t : t.id));
+
+            // [NEW] Try to resolve currentUserId from repository
+            // Many repositories expose a getCurrentUser or similar
+            try {
+                const user = await (getRepository() as any).getCurrentUser?.();
+                if (user) setCurrentUserId(user.id);
+            } catch (e) {
+                console.warn('Failed to fetch current user id:', e);
+            }
         } catch (e) {
             console.error('Failed to fetch context metadata:', e);
         }
@@ -683,8 +695,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // [NEW] Find Tenant Metadata for Optimistic UI
         let tenantName = undefined;
         if (resolvedTenantId) {
-            const t = joinedTenants.find(ten => ten.id === resolvedTenantId);
-            if (t) tenantName = t.name;
+            // joinedTenants is now string[], find doesn't apply to objects here anymore.
+            // If we need the name, we should fetch it from elsewhere, but for now ID = Name fallback or just check existence.
+            const exists = joinedTenants.includes(resolvedTenantId);
+            if (exists) tenantName = `Tenant ${resolvedTenantId.substring(0, 4)}`;
         }
 
         // 1. Optimistic Update (Immediate Feedback)
@@ -871,8 +885,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // Handle Tenant Updates (including those set by Project logic above)
         if ('tenantId' in updates) {
             if (updates.tenantId) {
-                const t = joinedTenants.find(ten => ten.id === updates.tenantId);
-                if (t) (updates as any).tenantName = t.name;
+                const exists = joinedTenants.includes(updates.tenantId);
+                if (exists) (updates as any).tenantName = `Tenant ${updates.tenantId.substring(0, 4)}`;
             } else {
                 // Clearing Tenant (Private)
                 (updates as any).tenantName = undefined;
@@ -946,6 +960,63 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 
 
+    // --- JBWOS v2: View Matrix Context ---
+    const getQuantityContext = useCallback((): any => {
+        // [Haruki Model] Detect if Company or Person
+        const accountId = localStorage.getItem('jbwos_account_id') || '';
+        const isCompanyAcc = accountId.length > 20; // Rough check (UUID length vs individual short IDs)
+
+        return {
+            items: [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits],
+            members,
+            capacityConfig,
+            filterMode,
+            focusedTenantId: projectId ? (allProjects.find(p => p.id === projectId)?.tenantId || null) : null,
+            focusedProjectId: projectId,
+            currentUser: {
+                id: accountId,
+                isCompanyAccount: isCompanyAcc,
+                joinedTenants: joinedTenants.map(id => ({ id, name: `Tenant ${id?.substring?.(0, 4) || '???'}` }))
+            }
+        };
+    }, [gdbActive, gdbPreparation, gdbIntent, todayCandidates, todayCommits, members, capacityConfig, filterMode, projectId, joinedTenants, allProjects]);
+
+    // [NEW] Import from Plugin (Future Board Drag & Drop)
+    const importFromPlugin = async (sourceId: string, itemId: string, date: number) => {
+        // 1. Fetch source item details (via Bus)
+        const sources = await ManufacturingBus.getSources();
+        const source = sources.find(s => s.id === sourceId);
+        const item = source?.items.find(i => i.id === itemId);
+
+        if (!item) {
+            console.error('Import failed: Source item not found', sourceId, itemId);
+            return;
+        }
+
+        // 2. Create JBWOS Item
+        const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+            title: item.title, // Use title from external source
+            status: 'focus',   // Haruki Model: Imported to Scheduled = Ready
+            prep_date: date,
+            // Defaults
+            weight: 1,
+            interrupt: false,
+            category: 'import',
+            type: 'generic',
+            memo: `Imported from ${source?.name}`,
+            focusOrder: 0,
+            isEngaged: false
+        };
+
+        try {
+            await getRepository().createItem(newItem);
+            refreshAll(); // Refresh to show new item
+            console.log('Import successful', item.title);
+        } catch (e) {
+            console.error('Import failed', e);
+        }
+    };
+
     // --- Computed Filtered Data & Ghost Counts ---
     const filterItems = useCallback((items: Item[]) => {
         if (filterMode === 'all') return items;
@@ -969,9 +1040,13 @@ export const useJBWOSViewModel = (projectId?: string) => {
     const ghostGdbCount = gdbActive.length + gdbPreparation.length + gdbIntent.length - (filteredGdbActive.length + filteredGdbPreparation.length + filteredGdbIntent.length);
     const ghostTodayCount = todayCandidates.length + todayCommits.length - (filteredTodayCandidates.length + filteredTodayCommits.length);
 
-    // --- Capacity Used (Always Integrated/Unfiltered) ---
-    const capacityUsed = [...todayCommits, ...todayCandidates, ...(executionItem ? [executionItem] : [])]
-        .reduce((sum, item) => sum + (item.estimatedMinutes || 0), 0);
+    // --- Capacity Used (Always Integrated/Unfiltered based on Matrix) ---
+    const capacityUsed = (() => {
+        const context = getQuantityContext();
+        const today = new Date();
+        const metrics = QuantityEngine.calculateMetrics([today], context);
+        return metrics.get(today.toDateString())?.volumeMinutes || 0;
+    })();
     const capacityLimit = capacityConfig.defaultDailyMinutes;
     const isOverCapacity = capacityUsed > capacityLimit;
 
@@ -1075,7 +1150,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         }
 
         // Create project item
-        const projectItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
+        const projectItem: any = {
             ...project,
             type: 'project',     // Explicitly set type as project
             isProject: true,     // Flag
@@ -1098,41 +1173,6 @@ export const useJBWOSViewModel = (projectId?: string) => {
         return projectId;
     };
 
-    // [NEW] Import from Plugin (Future Board Drag & Drop)
-    const importFromPlugin = async (sourceId: string, itemId: string, date: number) => {
-        // 1. Fetch source item details (via Bus)
-        const sources = await ManufacturingBus.getSources();
-        const source = sources.find(s => s.id === sourceId);
-        const item = source?.items.find(i => i.id === itemId);
-
-        if (!item) {
-            console.error('Import failed: Source item not found', sourceId, itemId);
-            return;
-        }
-
-        // 2. Create JBWOS Item
-        const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
-            title: item.title, // Use title from external source
-            status: 'focus',   // Haruki Model: Imported to Scheduled = Ready
-            prep_date: date,
-            // Defaults
-            weight: 1,
-            interrupt: false,
-            category: 'import',
-            type: 'generic',
-            memo: `Imported from ${source?.name}`,
-            focusOrder: 0,
-            isEngaged: false
-        };
-
-        try {
-            await getRepository().createItem(newItem);
-            refreshAll(); // Refresh to show new item
-            console.log('Import successful', item.title);
-        } catch (e) {
-            console.error('Import failed', e);
-        }
-    };
 
     // --- Return to UI (Aligned with Dashboard Requirements) ---
     return {
@@ -1158,6 +1198,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         capacityLimit,
         isOverCapacity,
         capacityConfig, // New state
+        currentUserId, // [NEW] Context for ABAC
 
         // Meta
         error,

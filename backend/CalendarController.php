@@ -77,33 +77,39 @@ class CalendarController extends BaseController {
 
         foreach ($rawItems as $row) {
             $item = $this->mapItemRow($row);
-            // Masking Logic
+            
+            // --- JBWOS ABAC Visibility Logic ---
             $isVisible = false;
             
+            // 1. Ownership/Assignment Principle (Trans-tenant)
+            // If I am the creator or the one meant to do it, I MUST see the reality.
+            $isMine = ($item['created_by'] === $this->currentUserId || ($item['assignedTo'] ?? null) === $this->currentUserId);
+
+            // 2. Membership Principle (Company/Team)
+            // If the item belongs to a tenant I am a member of, I see it (Managerial/Peer view).
+            // Fetch my joined tenants if not already cached in session
+            $myTenants = $this->joinedTenants; // Corrected: BaseController already loads this
+            $isSameCompany = in_array($item['tenant_id'], $myTenants);
+
             if ($this->currentUserId === $targetUserId && (!$this->currentTenantId || $this->currentTenantId === '')) {
-                // Viewing my own stuff in Personal Mode -> See everything
-                $isVisible = true;
-            } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId && $this->currentTenantId !== '') {
-                // Shared Context (Company Match) -> Visible
-                $isVisible = true;
-            } elseif ($this->currentUserId === $targetUserId) {
-                // [v3.2] Always visible if I am the owner or assignee, even in different tenant context
-                $isOwnerOrAssignee = ($item['created_by'] === $this->currentUserId || $item['assignedTo'] === $this->currentUserId);
-                if ($isOwnerOrAssignee) {
-                    $isVisible = true;
-                }
+                // Personal Mode: High visibility of my own reality
+                $isVisible = $isMine || $isSameCompany;
+            } else {
+                // Company Mode: Focus on business load
+                // But still, if I own it or belong to the tenant, it's visible.
+                $isVisible = $isMine || $isSameCompany;
             }
 
             if ($isVisible) {
                 $result[] = $item;
             } else {
-                // Masked
+                // Masked: Hide details but keep LOAD (for capacity calculation accuracy)
                 $result[] = [
                     'id' => $item['id'],
-                    'title' => '予定あり (Private)',
-                    'due_date' => $item['due_date'], // Maintain Date
+                    'title' => '予定あり (Scheduled)',
+                    'due_date' => $item['due_date'],
                     'prep_date' => $item['prep_date'],
-                    'estimatedMinutes' => $item['estimatedMinutes'] ?? 0, // Maintain Load
+                    'estimatedMinutes' => $item['estimatedMinutes'] ?? 0,
                     'isMasked' => true
                 ];
             }
@@ -159,15 +165,17 @@ class CalendarController extends BaseController {
         $result = [];
         foreach ($rawItems as $row) {
              $item = $this->mapItemRow($row);
-             // Masking Logic (Simplified for now - reuse logic logic if possible)
-             // Determine visibility
+             
+             // --- JBWOS ABAC Visibility Logic (Consistent with getLoad) ---
              $isVisible = false;
+             $isMine = ($item['created_by'] === $this->currentUserId || ($item['assignedTo'] ?? null) === $this->currentUserId);
+             $myTenants = $this->joinedTenants; // Corrected to use property directly as BaseController loads it
+             $isSameCompany = in_array($item['tenant_id'], $myTenants);
+
              if ($this->currentUserId === $targetUserId) {
-                 $isVisible = true; // Viewing self
-             } elseif ($item['tenant_id'] === $this->currentTenantId && $this->currentTenantId && $this->currentTenantId !== '') {
-                 $isVisible = true; // Same company
-             } elseif ($item['created_by'] === $this->currentUserId || $item['assignedTo'] === $this->currentUserId) {
-                 $isVisible = true; // Related to me
+                 $isVisible = $isMine || $isSameCompany;
+             } else {
+                 $isVisible = $isMine || $isSameCompany;
              }
  
              if ($isVisible) {
@@ -175,7 +183,7 @@ class CalendarController extends BaseController {
              } else {
                  $result[] = [
                      'id' => $item['id'],
-                     'title' => '予定あり (Private)',
+                     'title' => '予定あり (Scheduled)',
                      'due_date' => $item['due_date'],
                      'estimatedMinutes' => $item['estimatedMinutes'] ?? 0,
                      'status' => $item['status'],

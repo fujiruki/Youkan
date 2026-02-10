@@ -83,8 +83,16 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         createSubTask,
         getSubTasks,
         skipTask,
-        setEngaged
+        setEngaged,
+        currentUserId,
+        joinedTenants: vmJoinedTenants,
+        members,
+        capacityConfig,
+        allProjects
     } = vm;
+
+    const { user: authUser } = useAuth();
+    const effectiveUserId = currentUserId || authUser?.id;
 
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
     useEffect(() => {
@@ -195,11 +203,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             {viewMode === 'calendar' ? (
                                 <RyokanCalendar
                                     items={allItemsForCalendar}
-                                    projects={allItemsForCalendar.filter(i => i.isProject)}
+                                    projects={allProjects || []}
                                     onItemClick={setSelectedItem}
                                     filterMode={filterMode}
-                                    displayMode="timeline"
+                                    displayMode="grid"
                                     rowHeight={ganttRowHeight}
+                                    currentUserId={effectiveUserId}
+                                    members={members}
+                                    capacityConfig={capacityConfig}
+                                    joinedTenants={vmJoinedTenants}
                                 />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />

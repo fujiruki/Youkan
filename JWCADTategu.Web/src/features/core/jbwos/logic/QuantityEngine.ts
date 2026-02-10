@@ -17,6 +17,11 @@ export interface QuantityContext {
     filterMode: FilterMode;
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
+    currentUser: {
+        id: string;
+        isCompanyAccount: boolean;
+        joinedTenants: { id: string; name: string }[];
+    } | null;
 }
 
 /**
@@ -62,24 +67,50 @@ export class QuantityEngine {
         volumeMap: Map<string, number>,
         contributorsMap: Map<string, Item[]>
     } {
-        const { items, filterMode, focusedTenantId, focusedProjectId } = context;
+        const { items, filterMode, focusedTenantId, focusedProjectId, currentUser } = context;
         const volumeMap = new Map<string, number>();
         const contributorsMap = new Map<string, Item[]>();
 
-        // Filter items based on viewing context
+        if (!currentUser) return { volumeMap, contributorsMap };
+
+        const me = currentUser.id;
+        const isCompanyAcc = currentUser.isCompanyAccount;
+
+        // --- View Matrix Logic: Determine Molecule (Relevant Items) ---
         const relevantItems = items.filter(item => {
-            // Project Focus
-            if (focusedProjectId && item.projectId === focusedProjectId) return true;
-            if (focusedProjectId && item.id === focusedProjectId) return false; // Don't count the project itself
+            // Priority 1: Focus context (Explicitly looking at a project or company)
+            if (focusedProjectId) return item.projectId === focusedProjectId;
+            if (focusedTenantId) {
+                // In Company Focus Mode, show everything for that company (Managerial view)
+                // but keep individual owned items visible as truth
+                return item.tenantId === focusedTenantId;
+            }
 
-            // Company Focus (Tenant)
-            if (focusedTenantId && item.tenantId === focusedTenantId) return true;
-
-            // Global Filter Mode
-            if (filterMode === 'company') return !!item.tenantId;
-            if (filterMode === 'personal') return !item.tenantId;
-
-            return true; // 'all'
+            // Priority 2: Global Matrix
+            if (!isCompanyAcc) {
+                // I am logged in as a Person
+                if (filterMode === 'personal') {
+                    // Vision: Show only my OWN reality (Personal + Company duties)
+                    // Rule: Created by me OR Assigned to me
+                    return item.assignedTo === me || item.createdBy === me;
+                } else if (filterMode === 'company') {
+                    // Vision: Focus on a specific company (from user side)
+                    // Rule: Must be this company AND owned by me
+                    // If focusedTenantId is not set, we assume 'all my companies' duties?
+                    // User Request says: "user selection -> that company duty"
+                    // If no focusedTenantId, fall back to owner check across all companies
+                    return (item.assignedTo === me || item.createdBy === me) && !!item.tenantId;
+                } else {
+                    // filterMode === 'all'
+                    // Vision: Sum of my life (Personal + All Company duties)
+                    return item.assignedTo === me || item.createdBy === me || !item.tenantId;
+                }
+            } else {
+                // I am logged in as a Company (Corporate Identity)
+                // Vision: Total load of this business entity
+                // If company account, it's always bound to a tenantId (me)
+                return item.tenantId === me;
+            }
         });
 
         relevantItems.forEach(item => {
@@ -109,7 +140,10 @@ export class QuantityEngine {
 
                     const alloc = Math.min(remainingMinutes, dailyCapacity);
 
-                    const key = current.toDateString();
+                    // Normalize date for robust key matching
+                    const keyDate = new Date(current);
+                    keyDate.setHours(12, 0, 0, 0);
+                    const key = keyDate.toDateString();
                     volumeMap.set(key, (volumeMap.get(key) || 0) + alloc);
 
                     // Add to contributors
@@ -128,29 +162,50 @@ export class QuantityEngine {
     }
 
     /**
-     * Capacity Logic: Sum of members or personal capacity.
+     * Capacity Logic: Determine Denominator based on Matrix.
      */
     private static calculateCapacityForDate(date: Date, context: QuantityContext): number {
-        const { members, capacityConfig, focusedTenantId, focusedProjectId, filterMode } = context;
+        const { members, capacityConfig, focusedTenantId, filterMode, currentUser } = context;
 
-        let totalCap = 0;
+        if (!currentUser) return 0;
+        const isCompanyAcc = currentUser.isCompanyAccount;
         const isHol = this.checkIsHoliday(date, context);
 
-        // 1. Personal Capacity
-        // 2. Organizational Capacity (Sum of Core members)
-        if (filterMode === 'company' || focusedTenantId || focusedProjectId) {
+        let totalCap = 0;
+
+        // --- View Matrix Logic: Determine Denominator (Capacity) ---
+        if (!isCompanyAcc) {
+            // I am logged in as a Person
+            if (filterMode === 'personal') {
+                // Vision: My whole capacity (Life + All Work Slots)
+                // Haruki Model: total available hours in a day
+                if (!isHol) {
+                    totalCap = capacityConfig.defaultDailyMinutes || 480;
+                }
+            } else if (filterMode === 'company' || focusedTenantId) {
+                // Vision: My dedicated hours for 'THIS' company
+                // Requires a way to know "how many minutes I assigned to Tenant X"
+                // For now, fallback to a slice (e.g. 50% if multi-tenant, or full if single)
+                // TODO: Fetch explicit per-tenant capacity from backend
+                if (!isHol) {
+                    const tenantCount = Math.max(currentUser.joinedTenants.length, 1);
+                    totalCap = (capacityConfig.defaultDailyMinutes || 480) / tenantCount;
+                }
+            } else {
+                // filterMode === 'all'
+                // Vision: Universal 24h capacity (already handled by 'personal' logic in JBWOS v2)
+                if (!isHol) {
+                    totalCap = capacityConfig.defaultDailyMinutes || 480;
+                }
+            }
+        } else {
+            // I am logged in as a Company (Corporate Identity)
+            // Vision: Managerial. Sum of all core team members for THIS business.
             const mainMembers = members.filter(m => m.isCore);
             if (mainMembers.length > 0) {
                 if (!isHol) {
                     totalCap = mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
                 }
-            }
-        }
-
-        // 3. Fallback/Combined Mode ('all')
-        if (filterMode === 'all' && totalCap === 0) {
-            if (!isHol) {
-                totalCap = (capacityConfig.defaultDailyMinutes || 480);
             }
         }
 

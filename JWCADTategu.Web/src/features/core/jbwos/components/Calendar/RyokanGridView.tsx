@@ -73,7 +73,9 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                         </AnimatePresence>
                     </svg>
                     {allDays.map(date => {
-                        const dateKey = date.toDateString();
+                        const cellDate = new Date(date);
+                        cellDate.setHours(12, 0, 0, 0);
+                        const dateKey = cellDate.toDateString();
                         const metric = metrics.get(dateKey);
                         const isToday = isSameDate(date, today);
                         const isFirst = date.getDate() === 1;

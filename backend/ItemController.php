@@ -12,6 +12,7 @@ class ItemController extends BaseController {
             // Distinguish between "My Inbox" and "Project Items"
             $projectId = $_GET['project_id'] ?? null;
             $type = $_GET['type'] ?? 'all'; // 'inbox', 'project', 'all' (legacy)
+            $isRefresh = isset($_GET['refresh']) || isset($_GET['isRefresh']); // [NEW] Support refresh flag
 
             if ($id) {
                 // Single item retrieval - requires permission check

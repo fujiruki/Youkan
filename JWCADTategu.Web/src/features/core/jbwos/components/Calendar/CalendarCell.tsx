@@ -27,6 +27,8 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
+    // [FIX] Use metric.intensity if available, fallback to prop
+    const displayIntensity = metric?.intensity ?? intensity;
     const cellRef = useRef<HTMLDivElement>(null);
     useImperativeHandle(ref, () => cellRef.current!);
 
@@ -55,7 +57,10 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
         >
-            <div className="absolute inset-0 bg-amber-500/40 dark:bg-amber-400/30 pointer-events-none" style={{ opacity: intensity / 100 }} />
+            <div
+                className="absolute inset-0 bg-amber-500/40 dark:bg-amber-400/30 pointer-events-none transition-opacity duration-500"
+                style={{ opacity: (displayIntensity || 0) / 100 }}
+            />
 
             <div className={cn("flex relative z-10", isMini ? "items-center gap-4 w-full" : "flex-col w-full h-full")}>
                 <div className={isMini ? "w-10 flex-shrink-0" : "flex items-start justify-between mb-1"}>
@@ -68,27 +73,37 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 </div>
 
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
-                    {items.slice(0, isMini ? 10 : 3).map(i => {
-                        const proj = projects.find(p => p.id === i.projectId);
-                        return (
-                            <div
-                                key={i.id}
-                                id={`cal-chip-${i.id}`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onItemClick) onItemClick(i);
-                                }}
-                                className={cn(
-                                    "px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-bold transition-transform hover:scale-105",
-                                    flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "",
-                                    i.tenantId ? "border-l-indigo-400" : "border-l-red-400"
-                                )}
-                            >
-                                {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
-                                {renderItemTitle(i)}
-                            </div>
-                        );
-                    })}
+                    {items
+                        .filter(i => {
+                            if (!i.due_date) return false;
+                            const itemDate = new Date(i.due_date);
+                            // Set time to noon to avoid timezone shift issues during comparison
+                            itemDate.setHours(12, 0, 0, 0);
+                            const cellDate = new Date(date);
+                            cellDate.setHours(12, 0, 0, 0);
+                            return itemDate.toDateString() === cellDate.toDateString();
+                        })
+                        .slice(0, isMini ? 10 : 3).map(i => {
+                            const proj = projects.find(p => p.id === i.projectId);
+                            return (
+                                <div
+                                    key={i.id}
+                                    id={`cal-chip-${i.id}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onItemClick) onItemClick(i);
+                                    }}
+                                    className={cn(
+                                        "px-1.5 py-0.5 rounded text-[10px] truncate shadow-sm cursor-pointer border-l-2 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 font-bold transition-transform hover:scale-105",
+                                        flashingIds.has(i.id) ? "ring-2 ring-amber-400 scale-105" : "",
+                                        i.tenantId ? "border-l-indigo-400" : "border-l-red-400"
+                                    )}
+                                >
+                                    {proj && <span className="text-slate-400 mr-1">[{proj.name}]</span>}
+                                    {renderItemTitle(i)}
+                                </div>
+                            );
+                        })}
                     {!isMini && items.length > 3 && <span className="text-[8px] text-slate-400 text-center">+{items.length - 3}</span>}
                     {isMini && items.length > 10 && <span className="text-[8px] text-slate-400">...</span>}
                 </div>
