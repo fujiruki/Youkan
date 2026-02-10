@@ -67,6 +67,14 @@ export interface CapacityProfile {
     exceptions: { [dateStr: string]: number };
 }
 
+export interface JoinedTenant {
+    id: string; // tenant_id
+    name: string;
+    role: string;
+    description?: string; // [NEW]
+    capacityProfile?: CapacityProfile; // [NEW] Personal capacity setting for this tenant
+}
+
 // [NEW] Item Flags (Attributes) - Haruki Model
 export interface ItemFlags {
     has_deadline?: boolean;      // 期限あり

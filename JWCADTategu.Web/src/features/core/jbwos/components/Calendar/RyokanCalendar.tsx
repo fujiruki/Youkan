@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { Item } from '../../types';
 import { QuantityEngine } from '../../logic/QuantityEngine';
-import { X } from 'lucide-react';
+import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
 import { RyokanGridView } from './RyokanGridView';
@@ -9,6 +9,8 @@ import { RyokanTimelineView } from './RyokanTimelineView';
 import { RyokanGanttView } from './RyokanGanttView';
 import { cn } from '../../../../../lib/utils';
 import { ChevronRight } from 'lucide-react';
+import { SimpleModal } from '../Modal/SimpleModal';
+import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
 
 const getStartOfToday = () => {
     const d = new Date();
@@ -21,11 +23,14 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items, onItemClick, capacityConfig, members,
     layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
     onSelectDate, selectedDate, prepDate, focusDate, workDays = 1, projects = [],
-    focusedTenantId, focusedProjectId, currentUserId, joinedTenants = []
+    focusedTenantId, focusedProjectId, currentUserId, joinedTenants = [],
+    tenantProfiles, onUpdateCapacityException
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
     const isMini = layoutMode === 'mini';
+
+    const [editingDate, setEditingDate] = useState<Date | null>(null); // [NEW]
 
     const [selectedSigns, setSelectedSigns] = useState<Item[]>([]);
     const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
@@ -73,7 +78,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         currentUser: {
             id: currentUserId || '',
             isCompanyAccount: (currentUserId?.length || 0) > 20,
-            joinedTenants: joinedTenants.map(id => ({ id, name: `Tenant ${id?.substring?.(0, 4) || '???'}` }))
+            // [Modified] joinedTenants is already JoinedTenant[], pass directly
+            joinedTenants: joinedTenants
         }
     }), [items, capacityConfig, filterMode, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
 
@@ -139,6 +145,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
             signs.forEach(item => {
                 const chip = document.getElementById(`cal-chip-${item.id}`);
+                const itemDateRaw = item.due_date || (item.prep_date ? new Date(item.prep_date * 1000).toISOString() : null);
+
                 if (chip) {
                     const chipRect = chip.getBoundingClientRect();
                     newConnections.push({
@@ -151,6 +159,51 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         color: '#fbbf24'
                     });
                     newFlashingIds.add(item.id);
+                } else if (itemDateRaw) {
+                    const itemDate = new Date(itemDateRaw);
+                    const cell = container.querySelector(`[data-date="${itemDate.toDateString()}"]`);
+
+                    if (cell) {
+                        const cellRect = cell.getBoundingClientRect();
+                        newConnections.push({
+                            id: `${date.getTime()}-${item.id}-cell`,
+                            source: { x: sourceX, y: sourceY },
+                            target: {
+                                x: cellRect.left + cellRect.width / 2 - svgRect.left,
+                                y: cellRect.top + cellRect.height / 2 - svgRect.top
+                            },
+                            color: '#fbbf24'
+                        });
+                        newFlashingIds.add(item.id);
+                    } else {
+                        // [NEW] Off-screen logic (Plan B: Directional Hints)
+                        const startView = allDays[0];
+                        const endView = allDays[allDays.length - 1];
+
+                        let offScreen: 'left' | 'right' | undefined;
+                        let targetX = 0;
+
+                        if (itemDate < startView) {
+                            offScreen = 'left';
+                            targetX = -20;
+                        } else if (itemDate > endView) {
+                            offScreen = 'right';
+                            targetX = container.clientWidth + 20;
+                        }
+
+                        if (offScreen) {
+                            newConnections.push({
+                                id: `${date.getTime()}-${item.id}-off`,
+                                source: { x: sourceX, y: sourceY },
+                                target: {
+                                    x: targetX,
+                                    y: sourceY
+                                },
+                                color: '#fbbf24',
+                                isOffScreen: offScreen
+                            });
+                        }
+                    }
                 }
             });
 
@@ -196,6 +249,17 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                                 <span>{mode.label}</span>
                             </button>
                         ))}
+                    </div>
+
+                    <div className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-600">
+                        <button
+                            onClick={() => setEditingDate(focusDate ? new Date(focusDate) : today)}
+                            className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors border border-slate-200 dark:border-slate-600"
+                            title="表示中の日付の稼働設定"
+                        >
+                            <Settings className="w-3 h-3" />
+                            <span>日次設定</span>
+                        </button>
                     </div>
                 </div>
             )}
@@ -318,6 +382,28 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                     </div>
                 </div>
             )}
+            {/* Daily Capacity Editor Modal */}
+            <SimpleModal
+                isOpen={!!editingDate}
+                onClose={() => setEditingDate(null)}
+                title="日次稼働設定"
+            >
+                {editingDate && (
+                    <DailyCapacityEditor
+                        date={editingDate}
+                        // Limit to focused tenant for now to ensure update consistency
+                        joinedTenants={joinedTenants.filter(t => !focusedTenantId || t.id === focusedTenantId)}
+                        tenantProfiles={tenantProfiles || new Map()}
+                        onSave={async (updates) => {
+                            if (onUpdateCapacityException) {
+                                onUpdateCapacityException(editingDate, updates);
+                                setEditingDate(null);
+                            }
+                        }}
+                        onCancel={() => setEditingDate(null)}
+                    />
+                )}
+            </SimpleModal>
         </div>
     );
 };

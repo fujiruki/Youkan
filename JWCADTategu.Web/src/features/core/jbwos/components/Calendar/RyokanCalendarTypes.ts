@@ -1,4 +1,4 @@
-import { Item, Member, CapacityConfig } from '../../types';
+import { Item, Member, CapacityConfig, JoinedTenant } from '../../types';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
@@ -7,6 +7,7 @@ export interface PressureConnection {
     source: { x: number, y: number };
     target: { x: number, y: number };
     color: string;
+    isOffScreen?: 'left' | 'right'; // [NEW] Indicates the target is out of the current view
 }
 
 export interface RyokanCalendarProps {
@@ -26,8 +27,11 @@ export interface RyokanCalendarProps {
     workDays?: number;
     rowHeight?: number;
     projects?: any[];
-    focusedTenantId?: string | null;
+    focusedTenantId?: string | null; // Keep as string for selection
     focusedProjectId?: string | null;
     currentUserId?: string | null;
-    joinedTenants?: string[];
+    joinedTenants?: JoinedTenant[]; // [Modified] Rich object
+    // [NEW] Capacity Editing
+    tenantProfiles?: Map<string, any>;
+    onUpdateCapacityException?: (date: Date, updates: { tenantId: string, minutes: number }[]) => void;
 }

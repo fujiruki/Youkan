@@ -59,13 +59,14 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                             {pressureConnections.map(conn => (
                                 <motion.path
                                     key={conn.id}
-                                    d={`M ${conn.source.x} ${conn.source.y} Q ${Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
+                                    d={`M ${conn.source.x} ${conn.source.y} Q ${conn.isOffScreen ? (conn.source.x + conn.target.x) / 2 : Math.max(conn.source.x, conn.target.x) + 60} ${(conn.source.y + conn.target.y) / 2} ${conn.target.x} ${conn.target.y}`}
                                     fill="none"
                                     stroke={conn.color}
                                     strokeWidth="2.5"
                                     strokeLinecap="round"
+                                    strokeDasharray={conn.isOffScreen ? "4 4" : "0"}
                                     initial={{ pathLength: 0, opacity: 0 }}
-                                    animate={{ pathLength: 1, opacity: 0.7 }}
+                                    animate={{ pathLength: 1, opacity: conn.isOffScreen ? 0.4 : 0.7 }}
                                     exit={{ opacity: 0 }}
                                     transition={{ duration: 0.5 }}
                                 />

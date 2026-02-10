@@ -47,6 +47,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     return (
         <div
             ref={cellRef}
+            data-date={date.toDateString()}
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
@@ -107,7 +108,16 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                 </div>
                             );
                         })}
-                    {!isMini && items.length > 3 && <span className="text-[8px] text-slate-400 text-center">+{items.length - 3}</span>}
+                    {!isMini && items.length > 3 && (
+                        <div className="flex items-center justify-center gap-1 py-0.5 bg-slate-50 dark:bg-slate-800/50 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm mt-0.5">
+                            <span className="text-[9px] font-bold text-slate-500">+{items.length - 3}</span>
+                            <div className="flex gap-0.5">
+                                <span className="w-1 h-1 rounded-full bg-slate-400" />
+                                <span className="w-1 h-1 rounded-full bg-slate-400" />
+                                <span className="w-1 h-1 rounded-full bg-slate-400" />
+                            </div>
+                        </div>
+                    )}
                     {isMini && items.length > 10 && <span className="text-[8px] text-slate-400">...</span>}
                 </div>
             </div>

@@ -18,6 +18,7 @@ export interface QuantityContext {
     filterMode: FilterMode;
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
+    tenantProfiles?: Map<string, any>; // [NEW] Capacity Profiles (Map<tenantId, Profile>)
     currentUser: {
         id: string;
         isCompanyAccount: boolean;
@@ -173,49 +174,97 @@ export class QuantityEngine {
      * Capacity Logic: Determine Denominator based on Matrix.
      */
     private static calculateCapacityForDate(date: Date, context: QuantityContext): number {
-        const { members, capacityConfig, focusedTenantId, filterMode, currentUser } = context;
+        const { members, capacityConfig, tenantProfiles, focusedTenantId, filterMode, currentUser } = context;
 
         if (!currentUser) return 0;
         const isCompanyAcc = currentUser.isCompanyAccount;
         const isHol = this.checkIsHoliday(date, context);
 
-        let totalCap = 0;
+        // 1. Identification: Who is the subject?
+        // If Company Account -> Use Member aggregation logic (Legacy/Enterprise)
+        if (isCompanyAcc) {
+            const mainMembers = members.filter(m => m.isCore);
+            if (mainMembers.length > 0 && !isHol) {
+                return mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
+            }
+            return 0;
+        }
 
-        // --- View Matrix Logic: Determine Denominator (Capacity) ---
-        if (!isCompanyAcc) {
-            // I am logged in as a Person
-            if (filterMode === 'personal') {
-                // Vision: My whole capacity (Life + All Work Slots)
-                // Haruki Model: total available hours in a day
-                if (!isHol) {
-                    totalCap = capacityConfig.defaultDailyMinutes || 480;
+        // 2. Personal Account: Tenant-based Capacity Aggregation
+        // Determine which tenants to include in the sum
+        let targetTenantIds: string[] = [];
+
+        if (focusedTenantId) {
+            targetTenantIds = [focusedTenantId];
+        } else if (filterMode === 'company') {
+            // In Company Mode (without specific focus), we sum all tenants that the user belongs to?
+            // Or adhere to context. In current UI, 'Company' usually means 'Work'.
+            // Let's sum all joined tenants for 'Company' mode to represent "Total Work Capacity".
+            // Note: If distinct separation is needed, UI should enforce focusedTenantId.
+            targetTenantIds = currentUser.joinedTenants.map(t => t.id);
+        } else {
+            // 'personal' or 'all' -> Sum all capacities (Life + Work)
+            // Personal usually entails private tasks too.
+            // For now, we sum up all tenancy capacities.
+            // Private capacity is handled via Default fallback if no tenants?
+            // Actually, 'Personal' filter often implies "My Tasks".
+            // If I have 2 companies, my capacity is Sum(A + B).
+            targetTenantIds = currentUser.joinedTenants.map(t => t.id);
+        }
+
+        let totalCap = 0;
+        const dateKey = this.formatDateKey(date);
+        const dayOfWeek = date.getDay();
+
+        // 3. Calculation per Tenant
+        if (targetTenantIds.length === 0) {
+            // No tenants (Private only?) -> Use System Default
+            return isHol ? 0 : (capacityConfig.defaultDailyMinutes || 480);
+        }
+
+        // Logic: specific setting > pattern > default
+        // let hasMatchedProfile = false; // [Deleted] Unused
+
+        targetTenantIds.forEach(tid => {
+            const profile = tenantProfiles?.get(tid);
+            let tenantMinutes = 0;
+
+            if (profile) {
+                // hasMatchedProfile = true; 
+                const standard = profile.standardWeeklyPattern;
+                const exceptions = profile.exceptions;
+
+                // Priority 1: Exception
+                if (exceptions && exceptions[dateKey] !== undefined) {
+                    tenantMinutes = exceptions[dateKey];
                 }
-            } else if (filterMode === 'company' || focusedTenantId) {
-                // Vision: My dedicated hours for 'THIS' company
-                // Requires a way to know "how many minutes I assigned to Tenant X"
-                // For now, fallback to a slice (e.g. 50% if multi-tenant, or full if single)
-                // TODO: Fetch explicit per-tenant capacity from backend
-                if (!isHol) {
-                    const tenantCount = Math.max(currentUser.joinedTenants.length, 1);
-                    totalCap = (capacityConfig.defaultDailyMinutes || 480) / tenantCount;
+                // Priority 2: Holiday (System/Global) 
+                // Note: If Exception is set (e.g. 0 or 480), it overrides Holiday check above.
+                // If NO exception, Holiday takes precedence over Weekly.
+                else if (isHol) {
+                    tenantMinutes = 0;
+                }
+                // Priority 3: Weekly Pattern
+                else if (standard && standard[dayOfWeek] !== undefined) {
+                    tenantMinutes = standard[dayOfWeek];
+                }
+                // Priority 4: Default (Fallback for profile gap)
+                else {
+                    tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
                 }
             } else {
-                // filterMode === 'all'
-                // Vision: Universal 24h capacity (already handled by 'personal' logic in JBWOS v2)
-                if (!isHol) {
-                    totalCap = capacityConfig.defaultDailyMinutes || 480;
+                // No Profile for this tenant -> Use System Default
+                if (isHol) {
+                    tenantMinutes = 0;
+                } else {
+                    tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
                 }
             }
-        } else {
-            // I am logged in as a Company (Corporate Identity)
-            // Vision: Managerial. Sum of all core team members for THIS business.
-            const mainMembers = members.filter(m => m.isCore);
-            if (mainMembers.length > 0) {
-                if (!isHol) {
-                    totalCap = mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
-                }
-            }
-        }
+            totalCap += tenantMinutes;
+        });
+
+        // Special Case: "All" mode or "Personal" mode might imply pure private capacity if no tenants?
+        // But logic above handles targetTenantIds.length === 0.
 
         return totalCap;
     }
@@ -233,5 +282,12 @@ export class QuantityEngine {
         // 100% -> 70
         // 150%+ -> 100
         return Math.min(ratio * 70, 100);
+    }
+
+    private static formatDateKey(date: Date): string {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 }

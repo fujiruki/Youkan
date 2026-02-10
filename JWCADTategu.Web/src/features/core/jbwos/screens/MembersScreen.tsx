@@ -1,9 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMembersViewModel } from '../viewmodels/useMembersViewModel';
-import { Loader2, Users, AlertCircle } from 'lucide-react';
+import { Loader2, Users, AlertCircle, Settings } from 'lucide-react';
+import { SimpleModal } from '../components/Modal/SimpleModal';
+import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
+import { CapacityProfile } from '../types';
 
 export const MembersScreen: React.FC = () => {
     const { members, loading, error, updateMember } = useMembersViewModel();
+    const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+
+    const handleSavePattern = async (pattern: any) => {
+        if (!editingMemberId) return;
+
+        const member = members.find(m => m.id === editingMemberId);
+        if (!member) return;
+
+        const currentProfile = member.capacityProfile || {
+            standardWeeklyPattern: {},
+            exceptions: {}
+        } as CapacityProfile;
+
+        const newProfile: CapacityProfile = {
+            ...currentProfile,
+            standardWeeklyPattern: pattern,
+            exceptions: currentProfile.exceptions || {}
+        };
+
+        await updateMember(editingMemberId, { capacityProfile: newProfile });
+        setEditingMemberId(null);
+    };
 
     if (loading) {
         return (
@@ -22,6 +47,8 @@ export const MembersScreen: React.FC = () => {
             </div>
         );
     }
+
+    const editingMember = members.find(m => m.id === editingMemberId);
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900">
@@ -52,14 +79,15 @@ export const MembersScreen: React.FC = () => {
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <table className="w-full text-left">
                         <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs uppercase text-slate-500 font-semibold">
                             <tr>
                                 <th className="px-6 py-4">メンバー</th>
                                 <th className="px-6 py-4">主力設定 (Core)</th>
-                                <th className="px-6 py-4">日次キャパシティ</th>
+                                <th className="px-6 py-4">日次キャパシティ (基準)</th>
+                                <th className="px-6 py-4">週間パターン</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -113,6 +141,19 @@ export const MembersScreen: React.FC = () => {
                                             </span>
                                         </div>
                                     </td>
+
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={() => setEditingMemberId(member.id)}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md transition-colors border border-slate-200 dark:border-slate-700"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            <span>パターン設定</span>
+                                        </button>
+                                        {member.capacityProfile && (
+                                            <div className="mt-1 text-xs text-blue-500">設定済み</div>
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -126,9 +167,26 @@ export const MembersScreen: React.FC = () => {
                 </div>
 
                 <div className="mt-4 text-xs text-slate-400 text-center">
-                    ※ ここの設定は Volume Calendar の負荷計算に使用されます。
+                    ※ ここの設定は Quantity Calendar の負荷計算に使用されます。
+                    <br />
+                    ※ 「週間パターン」を設定すると、「日次キャパシティ(基準)」よりも優先されます。
                 </div>
             </div>
+
+            {/* Modal */}
+            <SimpleModal
+                isOpen={!!editingMemberId}
+                onClose={() => setEditingMemberId(null)}
+                title={editingMember ? `${editingMember.display_name} の稼働設定` : '稼働設定'}
+            >
+                {editingMember && (
+                    <WeeklyPatternEditor
+                        initialPattern={editingMember.capacityProfile?.standardWeeklyPattern}
+                        onSave={handleSavePattern}
+                        onCancel={() => setEditingMemberId(null)}
+                    />
+                )}
+            </SimpleModal>
         </div>
     );
 };

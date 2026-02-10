@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
-import { Item, SideMemo, CapacityConfig, Member, FilterMode } from '../types';
+import { Item, SideMemo, CapacityConfig, Member, FilterMode, JoinedTenant } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
 import { QuantityEngine } from '../logic/QuantityEngine';
+import { ApiClient } from '../../../../api/client';
+import { format } from 'date-fns';
 
 const getUseCloud = () => {
     // Enforce Cloud Mode by default (User Request)
@@ -45,7 +47,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     // [NEW] All Projects & Tenants
     const [allProjects, setAllProjects] = useState<Item[]>([]);
-    const [joinedTenants, setJoinedTenants] = useState<string[]>([]);
+    const [joinedTenants, setJoinedTenants] = useState<JoinedTenant[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // [NEW] Filter Mode (Public/Private Filtering - Option 3)
@@ -148,9 +150,19 @@ export const useJBWOSViewModel = (projectId?: string) => {
             setAllProjects(projs);
 
             // Fetch joined tenants
-            const tenants = await getRepository().getJoinedTenants();
-            // Ensure we only store IDs (strings) as per state type definition
-            setJoinedTenants(tenants.map((t: any) => typeof t === 'string' ? t : t.id));
+            const tenants: any[] = await getRepository().getJoinedTenants();
+            // Map to JoinedTenant schema
+            const mappedTenants: JoinedTenant[] = tenants.map(t => {
+                if (typeof t === 'string') return { id: t, name: `Tenant ${t.substring(0, 4)}`, role: 'member' };
+                // Assuming t has id, name, role, etc.
+                return {
+                    id: t.id,
+                    name: t.name || `Tenant ${t.id?.substring(0, 4) || '???'}`,
+                    role: t.role || 'member',
+                    capacityProfile: t.capacityProfile // [NEW] Pass through if available
+                };
+            });
+            setJoinedTenants(mappedTenants);
 
             // [NEW] Try to resolve currentUserId from repository
             // Many repositories expose a getCurrentUser or similar
@@ -695,10 +707,13 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // [NEW] Find Tenant Metadata for Optimistic UI
         let tenantName = undefined;
         if (resolvedTenantId) {
-            // joinedTenants is now string[], find doesn't apply to objects here anymore.
-            // If we need the name, we should fetch it from elsewhere, but for now ID = Name fallback or just check existence.
-            const exists = joinedTenants.includes(resolvedTenantId);
-            if (exists) tenantName = `Tenant ${resolvedTenantId?.substring?.(0, 4) || '???'}`;
+            // joinedTenants is JoinedTenant[], use find
+            const tenantObj = joinedTenants.find(t => t.id === resolvedTenantId);
+            if (tenantObj) {
+                tenantName = tenantObj.name;
+            } else {
+                tenantName = `Tenant ${resolvedTenantId?.substring?.(0, 4) || '???'}`;
+            }
         }
 
         // 1. Optimistic Update (Immediate Feedback)
@@ -885,7 +900,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // Handle Tenant Updates (including those set by Project logic above)
         if ('tenantId' in updates) {
             if (updates.tenantId) {
-                const exists = joinedTenants.includes(updates.tenantId);
+                const exists = joinedTenants.some(t => t.id === updates.tenantId);
                 if (exists) (updates as any).tenantName = `Tenant ${updates.tenantId?.substring?.(0, 4) || '???'}`;
             } else {
                 // Clearing Tenant (Private)
@@ -966,6 +981,14 @@ export const useJBWOSViewModel = (projectId?: string) => {
         const accountId = localStorage.getItem('jbwos_account_id') || '';
         const isCompanyAcc = accountId.length > 20; // Rough check (UUID length vs individual short IDs)
 
+        // [NEW] Create Tenant Profiles Map for QuantityEngine
+        const tenantProfiles = new Map<string, any>();
+        joinedTenants.forEach(t => {
+            if (t.capacityProfile) {
+                tenantProfiles.set(t.id, t.capacityProfile);
+            }
+        });
+
         return {
             items: [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits],
             members,
@@ -973,10 +996,11 @@ export const useJBWOSViewModel = (projectId?: string) => {
             filterMode,
             focusedTenantId: projectId ? (allProjects.find(p => p.id === projectId)?.tenantId || null) : null,
             focusedProjectId: projectId,
+            tenantProfiles, // [NEW] Inject Profiles
             currentUser: {
                 id: accountId,
                 isCompanyAccount: isCompanyAcc,
-                joinedTenants: joinedTenants.map(id => ({ id, name: `Tenant ${id?.substring?.(0, 4) || '???'}` }))
+                joinedTenants: joinedTenants // [Modified] Pass rich objects
             }
         };
     }, [gdbActive, gdbPreparation, gdbIntent, todayCandidates, todayCommits, members, capacityConfig, filterMode, projectId, joinedTenants, allProjects]);
@@ -1173,6 +1197,57 @@ export const useJBWOSViewModel = (projectId?: string) => {
         return projectId;
     };
 
+    // [New] Update Capacity Exception
+    const updateCapacityException = async (date: Date, updates: { tenantId: string, minutes: number }[]) => {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const focusedTenantId = projectId ? (allProjects.find(p => p.id === projectId)?.tenantId || null) : null;
+
+        // 1. Update JoinedTenants (Local State for Context)
+        setJoinedTenants(prev => prev.map(t => {
+            const update = updates.find(u => u.tenantId === t.id);
+            if (update) {
+                const currentProfile = t.capacityProfile || { standardWeeklyPattern: {}, exceptions: {} };
+                return {
+                    ...t,
+                    capacityProfile: {
+                        ...currentProfile,
+                        exceptions: {
+                            ...currentProfile.exceptions,
+                            [dateKey]: update.minutes
+                        }
+                    }
+                };
+            }
+            return t;
+        }));
+
+        // 2. Persist to Backend (only for focused tenant context where we have memberId)
+        // In a real multi-tenant app, we would need an API to update "my profile in tenant X".
+        // Here we fallback to updateMember if the tenant matches.
+        const currentMember = members.find(m => m.userId === currentUserId || m.userId === localStorage.getItem('jbwos_account_id')); // Robust check
+
+        if (currentMember && focusedTenantId) {
+            const updateForCurrentContext = updates.find(u => u.tenantId === focusedTenantId);
+            if (updateForCurrentContext) {
+                const currentProfile = currentMember.capacityProfile || { standardWeeklyPattern: {}, exceptions: {} };
+                const newProfile = {
+                    ...currentProfile,
+                    exceptions: {
+                        ...currentProfile.exceptions,
+                        [dateKey]: updateForCurrentContext.minutes
+                    }
+                };
+                try {
+                    await ApiClient.updateMember(currentMember.id, { capacityProfile: newProfile });
+                    // Refresh members to sync
+                    refreshMembers();
+                } catch (e) {
+                    console.error('Failed to update capacity exception', e);
+                }
+            }
+        }
+    };
+
 
     // --- Return to UI (Aligned with Dashboard Requirements) ---
     return {
@@ -1225,6 +1300,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         startImmediately,
         updateItemTitle,
         updateItem,
+        updateCapacityException, // [NEW]
         projectizeItem, // [NEW]
         createSubTask,
         getSubTasks,
