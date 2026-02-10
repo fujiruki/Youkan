@@ -145,7 +145,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
             signs.forEach(item => {
                 const chip = document.getElementById(`cal-chip-${item.id}`);
-                const itemDateRaw = item.due_date || (item.prep_date ? new Date(item.prep_date * 1000).toISOString() : null);
+                // [UI] Find the date where this item's chip SHOULD appear based on UI priority rules
+                const uiDateRaw = item.due_date || (item.prep_date ? new Date(item.prep_date * 1000).toISOString() : null);
 
                 if (chip) {
                     const chipRect = chip.getBoundingClientRect();
@@ -159,9 +160,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         color: '#fbbf24'
                     });
                     newFlashingIds.add(item.id);
-                } else if (itemDateRaw) {
-                    const itemDate = new Date(itemDateRaw);
-                    const cell = container.querySelector(`[data-date="${itemDate.toDateString()}"]`);
+                } else if (uiDateRaw) {
+                    const uiDate = new Date(uiDateRaw);
+                    const cell = container.querySelector(`[data-date="${uiDate.toDateString()}"]`);
 
                     if (cell) {
                         const cellRect = cell.getBoundingClientRect();
@@ -176,17 +177,17 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         });
                         newFlashingIds.add(item.id);
                     } else {
-                        // [NEW] Off-screen logic (Plan B: Directional Hints)
+                        // Off-screen logic (Plan B: Directional Hints)
                         const startView = allDays[0];
                         const endView = allDays[allDays.length - 1];
 
                         let offScreen: 'left' | 'right' | undefined;
                         let targetX = 0;
 
-                        if (itemDate < startView) {
+                        if (uiDate < startView) {
                             offScreen = 'left';
                             targetX = -20;
-                        } else if (itemDate > endView) {
+                        } else if (uiDate > endView) {
                             offScreen = 'right';
                             targetX = container.clientWidth + 20;
                         }

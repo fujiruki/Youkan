@@ -119,10 +119,22 @@ export class QuantityEngine {
         });
 
         relevantItems.forEach(item => {
-            const endDateRaw = item.prep_date ? (item.prep_date * 1000) : (item.due_date ? new Date(item.due_date).getTime() : null);
+            // [Engine] Priority: prep_date (My Deadline) > due_date (Official Deadline)
+            const endDateRaw = (item.prep_date ? item.prep_date * 1000 : null) || (item.due_date ? new Date(item.due_date).getTime() : null);
+
             if (endDateRaw) {
                 const endDate = new Date(endDateRaw);
                 let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
+
+                // [NEW] Visual Engagement Point: Always register item on its primary deadline date for UI Chip visibility
+                // even if capacity is 0 on that specific day.
+                const startKeyDate = new Date(endDate);
+                startKeyDate.setHours(12, 0, 0, 0);
+                const startKey = startKeyDate.toDateString();
+                if (!contributorsMap.has(startKey)) contributorsMap.set(startKey, []);
+                if (!contributorsMap.get(startKey)?.some(i => i.id === item.id)) {
+                    contributorsMap.get(startKey)?.push(item);
+                }
 
                 let current = new Date(endDate);
                 let safety = 0;
@@ -151,15 +163,11 @@ export class QuantityEngine {
                     const key = keyDate.toDateString();
                     volumeMap.set(key, (volumeMap.get(key) || 0) + alloc);
 
-                    // Add to contributors
+                    // Add to contributors for work days
                     if (!contributorsMap.has(key)) contributorsMap.set(key, []);
                     if (!contributorsMap.get(key)?.some(i => i.id === item.id)) {
                         contributorsMap.get(key)?.push(item);
                     }
-
-                    // [NEW] Also ensure the item is represented in the list on its "Point of Engagement"
-                    // If due_date is missing, use current date if it matches the prep_date start
-                    // This is for visual continuity in the calendar cell.
 
                     remainingMinutes -= alloc;
                     current.setDate(current.getDate() - 1);

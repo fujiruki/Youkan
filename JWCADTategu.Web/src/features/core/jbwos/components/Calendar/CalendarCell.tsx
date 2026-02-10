@@ -76,12 +76,11 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
                     {items
                         .filter(i => {
-                            // [FIX] Fallback for items without due_date using prep_date for visualization
-                            const rawDate = i.due_date || (i.prep_date ? new Date(i.prep_date * 1000).toISOString() : null);
-                            if (!rawDate) return false;
+                            // [UI] Rule: Chip appears on due_date (Primary). If absent, appears on prep_date.
+                            const uiDateRaw = i.due_date || (i.prep_date ? new Date(i.prep_date * 1000).toISOString() : null);
+                            if (!uiDateRaw) return false;
 
-                            const itemDate = new Date(rawDate);
-                            // Set time to noon to avoid timezone shift issues during comparison
+                            const itemDate = new Date(uiDateRaw);
                             itemDate.setHours(12, 0, 0, 0);
                             const cellDate = new Date(date);
                             cellDate.setHours(12, 0, 0, 0);
