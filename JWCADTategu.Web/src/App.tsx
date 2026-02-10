@@ -94,13 +94,13 @@ function App() {
     // --- Navigation Handlers ---
 
     // 1. To Project List (External View)
-    const handleNavigateToProjects = () => {
+    const handleNavigateToProjects = (scope: 'personal' | 'company' = 'personal') => {
         setCurrentView('projects');
         setActiveProject(null);
 
-        // Update URL
+        // Update URL based on scope
         const deployBase = '/contents/TateguDesignStudio/';
-        window.history.pushState({ view: 'projects' }, '', `${deployBase}projects/personal`);
+        window.history.pushState({ view: 'projects', scope }, '', `${deployBase}projects/${scope}`);
     };
 
     // 2. To Specific Project (Schedule View)
