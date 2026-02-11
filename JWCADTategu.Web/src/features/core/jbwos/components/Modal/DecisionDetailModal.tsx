@@ -122,8 +122,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             });
         }
 
-        // Optimistic Due Date Logic (Default to Today if Waiting)
-        if (item.dueStatus === 'waiting_external') {
+        // Optimistic Due Date Logic (Default to Today if Waiting and Empty)
+        if (item.dueStatus === 'waiting_external' && !dueDate) {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             setDueDate(todayStr); // In-memory only until save
             setDueStatus('confirmed');
@@ -137,8 +137,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const commitPeriodDates = React.useMemo(() => {
         if (!item || !capacityConfig) return [];
 
-        // 1. Determine anchor date
-        const anchorStr = activeDateInput === 'my' ? prepDate : dueDate;
+        // 1. Determine anchor date: マイ期限があればそれ、なければ納期
+        const anchorStr = prepDate || dueDate;
         if (!anchorStr) return [];
         const anchor = new Date(anchorStr);
 

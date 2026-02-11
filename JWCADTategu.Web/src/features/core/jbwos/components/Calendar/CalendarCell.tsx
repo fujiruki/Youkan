@@ -55,10 +55,16 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
-                volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`, // Applied rowHeight in volumeOnly
+                volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`,
                 isHoliday ? "bg-slate-200 dark:bg-slate-800/80" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
-                isSelected ? "z-10 bg-red-50 dark:bg-red-900/10 shadow-[0_0_0_2px_rgba(239,68,68,1)]" :
-                    (isPrep || isCommitPeriod) ? "z-10 bg-blue-50 dark:bg-blue-900/10 shadow-[0_0_0_2px_rgba(59,130,246,1)]" : "",
+                // [FIX] 赤枠(納期)と青枠(マイ期限/目安期間)を独立表示
+                isSelected && (isPrep || isCommitPeriod)
+                    ? "z-10 bg-purple-50 dark:bg-purple-900/10 shadow-[0_0_0_2px_rgba(239,68,68,1),0_0_0_4px_rgba(59,130,246,1)]"  // 赤+青 二重枠
+                    : isSelected
+                        ? "z-10 bg-red-50 dark:bg-red-900/10 shadow-[0_0_0_2px_rgba(239,68,68,1)]"                                // 赤枠のみ
+                        : (isPrep || isCommitPeriod)
+                            ? "z-10 bg-blue-50 dark:bg-blue-900/10 shadow-[0_0_0_2px_rgba(59,130,246,1)]"                          // 青枠のみ
+                            : "",
                 volumeOnly && isTarget && !isSelected && "shadow-[0_0_0_2px_rgba(239,68,68,1)]",
                 volumeOnly && isPrep && !isSelected && !isCommitPeriod && "shadow-[0_0_0_2px_rgba(59,130,246,1)]"
             )}

@@ -6,10 +6,10 @@ import { addDays, nextDay, Day } from 'date-fns';
 
 interface SideCalendarPanelProps {
     items?: Item[];
-    selectedDate: Date | null;
+    selectedDate: Date | null;       // 納期 (赤枠)
     onSelectDate: (date: Date) => void;
     onItemClick: (item: Item) => void;
-    prepDate?: Date | null;
+    prepDate?: Date | null;          // マイ期限 (青枠)
     workDays?: number;
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
@@ -42,7 +42,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         ? "border-indigo-200 dark:border-indigo-800"
         : "border-slate-100 dark:border-slate-800";
 
-    // [FIX] Memoize focus date to maintain stable identity for RyokanCalendar effects
+    // [FIX] focusDate: モードに応じてカレンダーのスクロール位置を決定
     const focusDate = React.useMemo(() => {
         const d = targetMode === 'my' ? (prepDate || null) : (selectedDate || null);
         return d ? new Date(d) : null;
@@ -52,11 +52,9 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         <div className={cn(
             "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4",
             borderColorClass.replace('border-', 'border-l-'),
-            volumeOnly && "bg-white dark:bg-slate-900 border-l-0", // Remove border-l in volumeOnly
+            volumeOnly && "bg-white dark:bg-slate-900 border-l-0",
             className
         )}>
-            {/* Header Removed */}
-
             {/* RyokanCalendar (Mini Mode) */}
             <div className="flex-1 overflow-hidden">
                 <RyokanCalendar
@@ -64,16 +62,16 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     onItemClick={onItemClick}
                     layoutMode="mini"
                     filterMode={filterMode}
-                    selectedDate={targetMode === 'my' ? (prepDate || null) : (selectedDate || null)} // [FIX] Use mode-appropriate anchor
+                    selectedDate={selectedDate}
                     prepDate={prepDate}
-                    focusDate={focusDate} // [NEW]
+                    focusDate={focusDate}
                     workDays={workDays}
                     onSelectDate={onSelectDate}
                     displayMode="grid"
                     volumeOnly={volumeOnly}
                     targetItemId={targetItemId}
-                    commitPeriod={commitPeriod} // [NEW]
-                    capacityConfig={capacityConfig} // [NEW]
+                    commitPeriod={commitPeriod}
+                    capacityConfig={capacityConfig}
                 />
             </div>
 
