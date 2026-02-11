@@ -1090,6 +1090,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             // [FIX] Inherit projectId: If parent is a project, use it. If parent has a project, use that.
             projectId: parentItem ? (parentItem.isProject ? parentItem.id : parentItem.projectId) : undefined,
             due_date: initialDueDate, // [NEW] Inherit due date
+            dueStatus: initialDueDate ? 'confirmed' : 'waiting_external', // [FIX] サブタスクの納期ステータスも継承
             // Defaults
             weight: 1,
             interrupt: false,

@@ -667,12 +667,24 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         items={quantityItems || []}
                                         selectedDate={dueDate ? new Date(dueDate) : null}
                                         onSelectDate={(d) => {
-                                            setDueDate(format(d, 'yyyy-MM-dd'));
+                                            const val = format(d, 'yyyy-MM-dd');
+                                            if (activeDateInput === 'my') {
+                                                // [FIX] マイ期限モード時はマイ期限を更新
+                                                setPrepDate(val);
+                                                const timestamp = Math.floor(new Date(val).getTime() / 1000);
+                                                if (onUpdate) onUpdate(item.id, { prep_date: timestamp });
+                                                else ApiClient.updateItem(item.id, { prep_date: timestamp });
+                                            } else {
+                                                // 納期モード (デフォルト)
+                                                setDueDate(val);
+                                                if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
+                                                else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
+                                            }
                                         }}
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         workDays={item.work_days || 1}
                                         onItemClick={() => { }} // No item interaction in this view
-                                        targetMode="due"
+                                        targetMode={activeDateInput || 'due'}
                                         filterMode={filterMode}
                                         volumeOnly={true}
                                         targetItemId={item.id}
