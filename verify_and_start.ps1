@@ -152,36 +152,40 @@ if ($viteConn) {
 if (-not $frontendAlreadyRunning) {
     Write-Status "⚡ [2/2] Starting Vite Frontend..." "Cyan"
     $npmCmd = "npm.cmd"
-    $viteProcess = Start-Process -FilePath $npmCmd -ArgumentList "run dev -- --port $VITE_PORT" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
+    # [FIX] --host 127.0.0.1 を強制: 未指定だと IPv6 等にバインドされ 127.0.0.1 から到達不能になる
+    $viteProcess = Start-Process -FilePath $npmCmd -ArgumentList "run dev -- --port $VITE_PORT --host 127.0.0.1" -WorkingDirectory (Join-Path $PSScriptRoot "JWCADTategu.Web") -PassThru -NoNewWindow
 }
 
-# 5. Verify Frontend (skip if already running)
+# 5. Verify Frontend (HTTP-level check, skip if already running)
 if (-not $frontendAlreadyRunning) {
-    Write-Status "🩺 Waiting for Frontend..." "Yellow"
+    Write-Status "🩺 Waiting for Frontend (HTTP-level verification)..." "Yellow"
     $frontendReady = $false
     $retryCount = 0
     $maxRetries = 30
 
     while (-not $frontendReady -and $retryCount -lt $maxRetries) {
         try {
-            $tcp = Test-NetConnection -ComputerName "localhost" -Port $VITE_PORT -InformationLevel Quiet
-            if ($tcp) {
+            # [FIX] TCP ポートチェックではなく HTTP GET で実際に到達可能か確認
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:$VITE_PORT" -Method Head -TimeoutSec 2 -ErrorAction Stop -UseBasicParsing
+            if ($response.StatusCode -lt 500) {
                 $frontendReady = $true
-                Write-Status "✅ Frontend Ready!" "Green"
-            }
-            else {
-                Start-Sleep -Seconds 1
-                $retryCount++
+                Write-Status "✅ Frontend Ready! (HTTP $($response.StatusCode))" "Green"
             }
         }
         catch {
+            Write-Host "." -NoNewline
             Start-Sleep -Seconds 1
             $retryCount++
         }
     }
+    Write-Host ""
 
     if (-not $frontendReady) {
-        Write-Status "❌ Frontend Startup Timeout." "Red"
+        Write-Status "❌ Frontend HTTP verification failed after ${maxRetries}s." "Red"
+        Write-Status "   Possible causes:" "Yellow"
+        Write-Status "   - Vite not bound to 127.0.0.1 (check --host option)" "Yellow"
+        Write-Status "   - Port $VITE_PORT occupied by another process" "Yellow"
+        Write-Status "   - Build errors preventing dev server startup" "Yellow"
         exit 1
     }
 }
