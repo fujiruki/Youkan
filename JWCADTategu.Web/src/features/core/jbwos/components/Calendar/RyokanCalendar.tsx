@@ -58,6 +58,15 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     React.useEffect(() => {
         const anchor = focusDate ? new Date(focusDate) : new Date(today);
 
+        // [NEW] Avoid resetting range if the new focusDate is already within the current range 
+        // AND we've already done the initial scroll. This prevents jumping on selection/click.
+        if (range && hasInitialScrolled) {
+            const fDate = new Date(anchor);
+            if (fDate >= range.start && fDate <= range.end) {
+                return;
+            }
+        }
+
         // Start: 2 months back, align to start of week
         const start = new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1);
         const dayOfWeek = start.getDay();
@@ -71,6 +80,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         end.setHours(23, 59, 59, 999);
 
         setRange({ start, end });
+        // Reset scroll flag if we are doing a major jump to a distant date
+        if (range && (anchor < range.start || anchor > range.end)) {
+            setHasInitialScrolled(false);
+        }
     }, [today.getTime(), focusDate?.getTime()]);
 
     // Update allDays when range changes
@@ -83,7 +96,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             cur.setHours(12, 0, 0, 0);
             cur.setDate(cur.getDate() + 1);
             cur.setHours(0, 0, 0, 0);
-            if (days.length > 2000) break; // Hard safety
+            if (days.length > 3000) break; // Hard safety
         }
         setAllDays(days);
     }, [range]);
@@ -111,7 +124,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                 setHasInitialScrolled(true);
             }
         }
-    }, [allDays.length, focusDate?.getTime(), hasInitialScrolled]);
+    }, [allDays.length, hasInitialScrolled]); // Remove focusDate from deps here to prevent re-triggering
 
     // Handle Infinite Scroll Extension
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -119,20 +132,29 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         const { scrollTop, scrollHeight, clientHeight } = container;
 
         // Upward extension
-        if (scrollTop < 100 && range) {
+        if (scrollTop < 200 && range) {
+            // Record current scrollHeight to maintain position after prepend
+            const prevScrollHeight = scrollHeight;
+            const prevScrollTop = scrollTop;
+
             setRange(prev => {
                 if (!prev) return prev;
                 const newStart = new Date(prev.start);
                 newStart.setDate(newStart.getDate() - 28); // Add 4 weeks
-
-                // Adjustment to maintain scroll position
-                // This is tricky without layout measurements, but React will handleDOM updates.
-                // We'll rely on browser scroll anchoring if available or just accept the jump for now.
                 return { ...prev, start: newStart };
+            });
+
+            // Adjust scrollTop in next frame to compensate for added height
+            requestAnimationFrame(() => {
+                const newScrollHeight = container.scrollHeight;
+                const addedHeight = newScrollHeight - prevScrollHeight;
+                if (addedHeight > 0) {
+                    container.scrollTop = prevScrollTop + addedHeight;
+                }
             });
         }
         // Downward extension
-        else if (scrollTop + clientHeight > scrollHeight - 300 && range) {
+        else if (scrollTop + clientHeight > scrollHeight - 400 && range) {
             setRange(prev => {
                 if (!prev) return prev;
                 const newEnd = new Date(prev.end);
