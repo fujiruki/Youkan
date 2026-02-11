@@ -63,8 +63,12 @@ export interface WeeklyPattern {
 export interface CapacityProfile {
     // 基準となる週間パターン（デフォルトはテナント設定または0）
     standardWeeklyPattern: WeeklyPattern;
+    // [NEW] 曜日ごとの会社別配分
+    defaultCompanyWeeklyPattern?: WeeklyCompanyPattern;
     // 日ごとの例外設定（YYYY-MM-DD -> Minutes）
     exceptions: { [dateStr: string]: number };
+    // [NEW] 日ごとの会社別例外設定
+    dailyCompanyExceptions?: Record<string, CompanyAllocation>;
 }
 
 export interface JoinedTenant {
@@ -206,10 +210,20 @@ export interface HolidayRule {
     label?: string; // "定休日", "元日"
 }
 
+export interface CompanyAllocation {
+    [companyId: string]: number; // 分単位の持ち時間
+}
+
+export interface WeeklyCompanyPattern {
+    [day: number]: CompanyAllocation; // 曜日ごとの配分 (0:日〜6:土)
+}
+
 export interface CapacityConfig {
     defaultDailyMinutes: number; // e.g. 480 (8h)
     holidays: HolidayRule[];
     exceptions: Record<string, number>; // "2026-01-20": 240 (Half day)
+    defaultCompanyWeeklyPattern?: WeeklyCompanyPattern; // [NEW] 曜日ごとの会社別配分
+    dailyCompanyExceptions?: Record<string, CompanyAllocation>; // [NEW] 日ごとの会社別例外設定
 }
 
 // --- Delegation (外注) [NEW] ---

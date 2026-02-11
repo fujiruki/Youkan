@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Item } from '../types';
 import { Project as LocalProject } from '../../../../db/db';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
@@ -212,6 +213,21 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     members={members}
                                     capacityConfig={capacityConfig}
                                     joinedTenants={vmJoinedTenants}
+                                    onUpdateCapacityException={async (date, totalMinutes, allocation) => {
+                                        const dateKey = format(date, 'yyyy-MM-dd');
+                                        const newConfig = {
+                                            ...capacityConfig,
+                                            exceptions: {
+                                                ...capacityConfig.exceptions,
+                                                [dateKey]: totalMinutes
+                                            },
+                                            dailyCompanyExceptions: {
+                                                ...capacityConfig.dailyCompanyExceptions,
+                                                [dateKey]: allocation
+                                            }
+                                        };
+                                        await vm.updateCapacityConfig(newConfig);
+                                    }}
                                 />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />

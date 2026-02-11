@@ -3,13 +3,15 @@ import { useMembersViewModel } from '../viewmodels/useMembersViewModel';
 import { Loader2, Users, AlertCircle, Settings } from 'lucide-react';
 import { SimpleModal } from '../components/Modal/SimpleModal';
 import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
-import { CapacityProfile } from '../types';
+import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
+import { useAuth } from '../../auth/providers/AuthProvider';
 
 export const MembersScreen: React.FC = () => {
     const { members, loading, error, updateMember } = useMembersViewModel();
+    const { joinedTenants } = useAuth();
     const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
-    const handleSavePattern = async (pattern: any) => {
+    const handleSavePattern = async (pattern: WeeklyPattern, companyPattern: WeeklyCompanyPattern) => {
         if (!editingMemberId) return;
 
         const member = members.find(m => m.id === editingMemberId);
@@ -23,6 +25,7 @@ export const MembersScreen: React.FC = () => {
         const newProfile: CapacityProfile = {
             ...currentProfile,
             standardWeeklyPattern: pattern,
+            defaultCompanyWeeklyPattern: companyPattern,
             exceptions: currentProfile.exceptions || {}
         };
 
@@ -182,6 +185,8 @@ export const MembersScreen: React.FC = () => {
                 {editingMember && (
                     <WeeklyPatternEditor
                         initialPattern={editingMember.capacityProfile?.standardWeeklyPattern}
+                        initialCompanyPattern={editingMember.capacityProfile?.defaultCompanyWeeklyPattern}
+                        joinedTenants={joinedTenants}
                         onSave={handleSavePattern}
                         onCancel={() => setEditingMemberId(null)}
                     />

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { WeeklyPattern } from '../../types';
-import { Check, RefreshCw } from 'lucide-react';
+import { WeeklyPattern, WeeklyCompanyPattern, JoinedTenant, CompanyAllocation } from '../../types';
+import { Check, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { CompanyAllocationEditor } from './CompanyAllocationEditor';
 
 interface WeeklyPatternEditorProps {
     initialPattern?: WeeklyPattern;
-    onSave: (pattern: WeeklyPattern) => void;
+    initialCompanyPattern?: WeeklyCompanyPattern; // [NEW]
+    joinedTenants?: JoinedTenant[]; // [NEW]
+    onSave: (pattern: WeeklyPattern, companyPattern: WeeklyCompanyPattern) => void;
     onCancel: () => void;
 }
 
@@ -12,6 +15,8 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const WeeklyPatternEditor: React.FC<WeeklyPatternEditorProps> = ({
     initialPattern,
+    initialCompanyPattern,
+    joinedTenants,
     onSave,
     onCancel
 }) => {
@@ -27,6 +32,8 @@ export const WeeklyPatternEditor: React.FC<WeeklyPatternEditorProps> = ({
     };
 
     const [pattern, setPattern] = useState<WeeklyPattern>(initialPattern || defaultPattern);
+    const [companyPattern, setCompanyPattern] = useState<WeeklyCompanyPattern>(initialCompanyPattern || {});
+    const [expandedDay, setExpandedDay] = useState<number | null>(null);
 
     // Apply change to a specific day
     const handleChange = (dayIndex: number, minutes: number) => {
@@ -36,8 +43,15 @@ export const WeeklyPatternEditor: React.FC<WeeklyPatternEditorProps> = ({
         }));
     };
 
+    const handleCompanyAllocationChange = (dayIndex: number, allocation: CompanyAllocation) => {
+        setCompanyPattern(prev => ({
+            ...prev,
+            [dayIndex]: allocation
+        }));
+    };
+
     const handleSave = () => {
-        onSave(pattern);
+        onSave(pattern, companyPattern);
     };
 
     // Calculate total hours
@@ -56,45 +70,67 @@ export const WeeklyPatternEditor: React.FC<WeeklyPatternEditorProps> = ({
                     const minutes = pattern[index] || 0;
                     const hours = (minutes / 60).toFixed(1);
                     const isWeekend = index === 0 || index === 6;
+                    const isExpanded = expandedDay === index;
+                    const dayAllocation = companyPattern[index] || {};
 
                     return (
-                        <div key={dayName} className="flex items-center gap-4">
-                            <div className={`w-12 font-bold ${isWeekend ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
-                                {dayName}
-                            </div>
+                        <div key={dayName} className="border-b dark:border-gray-700 pb-4 last:border-0">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => setExpandedDay(isExpanded ? null : index)}
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors text-gray-400"
+                                >
+                                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                </button>
+                                <div className={`w-12 font-bold ${isWeekend ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
+                                    {dayName}
+                                </div>
 
-                            {/* Slider (Rough adjustment: 0-12h) */}
-                            <div className="flex-1">
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={720} // 12h max on slider for precision
-                                    step={30}
-                                    value={minutes > 720 ? 720 : minutes}
-                                    onChange={(e) => handleChange(index, parseInt(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                                />
-                            </div>
-
-                            {/* Number Input (Precise adjustment) */}
-                            <div className="w-20">
-                                <div className="relative">
+                                {/* Slider (Rough adjustment: 0-12h) */}
+                                <div className="flex-1">
                                     <input
-                                        type="number"
+                                        type="range"
                                         min={0}
-                                        max={1440}
-                                        value={minutes}
-                                        onChange={(e) => handleChange(index, parseInt(e.target.value) || 0)}
-                                        className="w-full p-1 border rounded text-right pr-6"
+                                        max={720} // 12h max on slider for precision
+                                        step={30}
+                                        value={minutes > 720 ? 720 : minutes}
+                                        onChange={(e) => handleChange(index, parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                                     />
-                                    <span className="absolute right-1 top-1 text-xs text-gray-400">m</span>
+                                </div>
+
+                                {/* Number Input (Precise adjustment) */}
+                                <div className="w-20">
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            max={1440}
+                                            value={minutes}
+                                            onChange={(e) => handleChange(index, parseInt(e.target.value) || 0)}
+                                            className="w-full p-1 border rounded text-right pr-6 dark:bg-gray-800 dark:border-gray-600"
+                                        />
+                                        <span className="absolute right-1 top-1 text-xs text-gray-400">m</span>
+                                    </div>
+                                </div>
+
+                                {/* Hours Display */}
+                                <div className="w-12 text-sm text-gray-500 text-right">
+                                    {hours}h
                                 </div>
                             </div>
 
-                            {/* Hours Display */}
-                            <div className="w-12 text-sm text-gray-500 text-right">
-                                {hours}h
-                            </div>
+                            {/* [NEW] Expanded Company Allocation Section */}
+                            {isExpanded && joinedTenants && joinedTenants.length > 0 && (
+                                <div className="mt-4 ml-8 animate-in slide-in-from-top-2 duration-200">
+                                    <CompanyAllocationEditor
+                                        tenants={joinedTenants}
+                                        allocation={dayAllocation}
+                                        totalAvailableMinutes={minutes}
+                                        onChange={(newAlloc) => handleCompanyAllocationChange(index, newAlloc)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     );
                 })}

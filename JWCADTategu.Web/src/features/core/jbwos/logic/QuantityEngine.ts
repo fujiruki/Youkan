@@ -42,11 +42,13 @@ export class QuantityEngine {
         const metricsMap = new Map<string, QuantityMetric>();
         // Ensure current user is consistently evaluated from context
         const { volumeMap, contributorsMap } = this.calculateVolume(context);
+        const { focusedTenantId } = context;
 
         days.forEach(date => {
             const dateKey = date.toDateString();
             const volume = volumeMap.get(dateKey) || 0;
-            const capacity = this.calculateCapacityForDate(date, context);
+            // [NEW] Use focusedTenantId if available to show specific capacity for that company
+            const capacity = this.calculateCapacityForDate(date, context, focusedTenantId);
             const isHol = this.checkIsHoliday(date, context);
             const contributors = contributorsMap.get(dateKey) || [];
             const ratio = capacity > 0 ? volume / capacity : (volume > 0 ? 2 : 0);
@@ -148,8 +150,8 @@ export class QuantityEngine {
                         continue;
                     }
 
-                    // For single task allocation, use actual day's capacity or 480 fallback
-                    const dailyCapacity = this.calculateCapacityForDate(current, context);
+                    // [NEW] Use item's specific company capacity if available
+                    const dailyCapacity = this.calculateCapacityForDate(current, context, item.tenantId);
                     if (dailyCapacity <= 0) {
                         current.setDate(current.getDate() - 1);
                         continue;
@@ -181,12 +183,39 @@ export class QuantityEngine {
     /**
      * Capacity Logic: Determine Denominator based on Matrix.
      */
-    private static calculateCapacityForDate(date: Date, context: QuantityContext): number {
+    private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null): number {
         const { members, capacityConfig, tenantProfiles, focusedTenantId, filterMode, currentUser } = context;
 
         if (!currentUser) return 0;
         const isCompanyAcc = currentUser.isCompanyAccount;
         const isHol = this.checkIsHoliday(date, context);
+        const dateKey = this.formatDateKey(date);
+        const dayOfWeek = date.getDay();
+
+        // --- Core Allocation Logic (Company Specific) ---
+        // Priority 1: Specific Target Tenant (A社のみ、B社のみ等)
+        const targetId = forTenantId !== undefined ? forTenantId : focusedTenantId;
+        if (targetId) {
+            // Check Company Specific Allocation first
+            const companyException = capacityConfig.dailyCompanyExceptions?.[dateKey];
+            if (companyException && companyException[targetId] !== undefined) {
+                return companyException[targetId];
+            }
+
+            if (isHol) return 0;
+
+            const companyPattern = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
+            if (companyPattern && companyPattern[targetId] !== undefined) {
+                return companyPattern[targetId];
+            }
+
+            // If no company-specific allocation but it's a company focus, 
+            // maybe it should fallback or be 0? Sum logic is handled below if no specific ID.
+            // For now, if specified but not found, we assume 0 for that specific company context.
+            if (forTenantId !== undefined) return 0;
+        }
+
+        // --- Aggregation Logic (General Matrix) ---
 
         // 1. Identification: Who is the subject?
         // If Company Account -> Use Member aggregation logic (Legacy/Enterprise)
@@ -199,82 +228,89 @@ export class QuantityEngine {
         }
 
         // 2. Personal Account: Tenant-based Capacity Aggregation
-        // Determine which tenants to include in the sum
         let targetTenantIds: string[] = [];
 
         if (focusedTenantId) {
             targetTenantIds = [focusedTenantId];
         } else if (filterMode === 'company') {
-            // In Company Mode (without specific focus), we sum all tenants that the user belongs to?
-            // Or adhere to context. In current UI, 'Company' usually means 'Work'.
-            // Let's sum all joined tenants for 'Company' mode to represent "Total Work Capacity".
-            // Note: If distinct separation is needed, UI should enforce focusedTenantId.
             targetTenantIds = currentUser.joinedTenants.map(t => t.id);
         } else {
-            // 'personal' or 'all' -> Sum all capacities (Life + Work)
-            // Personal usually entails private tasks too.
-            // For now, we sum up all tenancy capacities.
-            // Private capacity is handled via Default fallback if no tenants?
-            // Actually, 'Personal' filter often implies "My Tasks".
-            // If I have 2 companies, my capacity is Sum(A + B).
+            // Sum all (including Personal)
             targetTenantIds = currentUser.joinedTenants.map(t => t.id);
+            // If No Tenants but 'all' mode, we usually use default base capacity
         }
 
         let totalCap = 0;
-        const dateKey = this.formatDateKey(date);
-        const dayOfWeek = date.getDay();
 
         // 3. Calculation per Tenant
         if (targetTenantIds.length === 0) {
-            // No tenants (Private only?) -> Use System Default
             return isHol ? 0 : (capacityConfig.defaultDailyMinutes || 480);
         }
 
-        // Logic: specific setting > pattern > default
-        // let hasMatchedProfile = false; // [Deleted] Unused
-
         targetTenantIds.forEach(tid => {
+            // Check Company Allocations first (New Logic)
+            const companyEx = capacityConfig.dailyCompanyExceptions?.[dateKey];
+            if (companyEx && companyEx[tid] !== undefined) {
+                totalCap += companyEx[tid];
+                return;
+            }
+
+            if (isHol) return;
+
+            const companyPat = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
+            if (companyPat && companyPat[tid] !== undefined) {
+                totalCap += companyPat[tid];
+                return;
+            }
+
+            // Fallback to Profiles (Legacy/Complex Logic)
             const profile = tenantProfiles?.get(tid);
             let tenantMinutes = 0;
 
             if (profile) {
-                // hasMatchedProfile = true; 
                 const standard = profile.standardWeeklyPattern;
                 const exceptions = profile.exceptions;
 
-                // Priority 1: Exception
                 if (exceptions && exceptions[dateKey] !== undefined) {
                     tenantMinutes = exceptions[dateKey];
                 }
-                // Priority 2: Holiday (System/Global) 
-                // Note: If Exception is set (e.g. 0 or 480), it overrides Holiday check above.
-                // If NO exception, Holiday takes precedence over Weekly.
-                else if (isHol) {
-                    tenantMinutes = 0;
-                }
-                // Priority 3: Weekly Pattern
                 else if (standard && standard[dayOfWeek] !== undefined) {
                     tenantMinutes = standard[dayOfWeek];
                 }
-                // Priority 4: Default (Fallback for profile gap)
                 else {
                     tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
                 }
             } else {
-                // No Profile for this tenant -> Use System Default
-                if (isHol) {
-                    tenantMinutes = 0;
-                } else {
-                    tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
-                }
+                tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
             }
             totalCap += tenantMinutes;
         });
 
-        // Special Case: "All" mode or "Personal" mode might imply pure private capacity if no tenants?
-        // But logic above handles targetTenantIds.length === 0.
-
         return totalCap;
+    }
+
+    static calculateAllocationDays(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): Date[] {
+        const days: Date[] = [];
+        let remainingMinutes = estimatedMinutes || 60;
+        let current = new Date(endDate);
+        let safety = 0;
+
+        while (remainingMinutes > 0 && safety < 90) {
+            safety++;
+            const isHol = this.checkIsHoliday(current, context);
+            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
+
+            if (isHol || dailyCapacity <= 0) {
+                current.setDate(current.getDate() - 1);
+                continue;
+            }
+
+            const alloc = Math.min(remainingMinutes, dailyCapacity);
+            days.push(new Date(current));
+            remainingMinutes -= alloc;
+            current.setDate(current.getDate() - 1);
+        }
+        return days;
     }
 
     private static checkIsHoliday(date: Date, context: QuantityContext): boolean {

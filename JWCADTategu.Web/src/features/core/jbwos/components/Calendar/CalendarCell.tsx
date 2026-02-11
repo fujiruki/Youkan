@@ -57,10 +57,10 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
                 volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`, // Applied rowHeight in volumeOnly
                 isHoliday ? "bg-slate-200 dark:bg-slate-800/80" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
-                isSelected ? "z-10 bg-red-50 dark:bg-red-900/20 shadow-[inset_0_0_0_2px_rgba(244,63,94,1)]" : "",
-                (isPrep || isCommitPeriod) && !isSelected ? "z-10 bg-indigo-50 dark:bg-indigo-900/20 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : "",
-                volumeOnly && isTarget && "shadow-[inset_0_0_0_2px_rgba(239,68,68,1)] border-red-500", // Red solid border for due date
-                volumeOnly && isPrep && !isTarget && "shadow-[inset_0_0_0_2px_rgba(59,130,246,1)] border-blue-400 border-dashed" // Blue dashed for prep
+                isSelected ? "z-10 bg-red-50 dark:bg-red-900/10 shadow-[0_0_0_2px_rgba(239,68,68,1)]" :
+                    (isPrep || isCommitPeriod) ? "z-10 bg-blue-50 dark:bg-blue-900/10 shadow-[0_0_0_2px_rgba(59,130,246,1)]" : "",
+                volumeOnly && isTarget && !isSelected && "shadow-[0_0_0_2px_rgba(239,68,68,1)]",
+                volumeOnly && isPrep && !isSelected && !isCommitPeriod && "shadow-[0_0_0_2px_rgba(59,130,246,1)]"
             )}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}

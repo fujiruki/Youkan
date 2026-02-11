@@ -105,4 +105,64 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
         // fallback to capacityConfig.defaultDailyMinutes = 480
         expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(480);
     });
+
+    describe('Company Capacity Allocation (New Logic)', () => {
+        it('Scenario 6: Company Specific Weekly Pattern (A社:1h, B社:2h)', () => {
+            const context: QuantityContext = {
+                ...baseContext,
+                capacityConfig: {
+                    ...mockConfig,
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 60, 'company-B': 120 } // Monday
+                    }
+                }
+            };
+
+            const monday = new Date('2026-02-09T00:00:00');
+
+            // A社指定での取得
+            expect(QuantityEngine.calculateCapacityForDate(monday, context, 'company-A')).toBe(60);
+            // B社指定での取得
+            expect(QuantityEngine.calculateCapacityForDate(monday, context, 'company-B')).toBe(120);
+            // 指定なし（合計）: 既存のjoinedTenantsを参照するため、適宜設定が必要
+            context.currentUser!.joinedTenants = [{ id: 'company-A', name: 'A' }, { id: 'company-B', name: 'B' }];
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(180); // 60 + 120
+        });
+
+        it('Scenario 7: Company Daily Exception Override', () => {
+            const context: QuantityContext = {
+                ...baseContext,
+                capacityConfig: {
+                    ...mockConfig,
+                    dailyCompanyExceptions: {
+                        '2026-02-09': { 'company-A': 0 } // Monday sick day for company A
+                    },
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 480 }
+                    }
+                }
+            };
+
+            const targetDate = new Date('2026-02-09T00:00:00');
+            expect(QuantityEngine.calculateCapacityForDate(targetDate, context, 'company-A')).toBe(0);
+        });
+
+        it('Scenario 8: Priority - Company Exception > Company Weekly > Tenant Profile', () => {
+            const profileA = createProfile({ 1: 300 }); // Profile says 5h
+            const context: QuantityContext = {
+                ...baseContext,
+                capacityConfig: {
+                    ...mockConfig,
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 480 } // Weekly says 8h
+                    }
+                },
+                tenantProfiles: new Map([['company-A', profileA]])
+            };
+
+            const monday = new Date('2026-02-09T00:00:00');
+            // Company Weekly (480) should win over Profile (300)
+            expect(QuantityEngine.calculateCapacityForDate(monday, context, 'company-A')).toBe(480);
+        });
+    });
 });

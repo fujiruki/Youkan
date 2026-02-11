@@ -15,6 +15,8 @@ interface SideCalendarPanelProps {
     filterMode?: FilterMode;
     volumeOnly?: boolean;
     targetItemId?: string;
+    commitPeriod?: Date[]; // [NEW] Accurate Allocation List
+    capacityConfig?: any; // [NEW]
     className?: string;
 }
 
@@ -29,6 +31,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     filterMode = 'all',
     volumeOnly = false,
     targetItemId,
+    commitPeriod,
+    capacityConfig,
     className
 }) => {
     const today = new Date();
@@ -60,7 +64,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     onItemClick={onItemClick}
                     layoutMode="mini"
                     filterMode={filterMode}
-                    selectedDate={selectedDate}
+                    selectedDate={targetMode === 'my' ? (prepDate || null) : (selectedDate || null)} // [FIX] Use mode-appropriate anchor
                     prepDate={prepDate}
                     focusDate={focusDate} // [NEW]
                     workDays={workDays}
@@ -68,6 +72,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     displayMode="grid"
                     volumeOnly={volumeOnly}
                     targetItemId={targetItemId}
+                    commitPeriod={commitPeriod} // [NEW]
+                    capacityConfig={capacityConfig} // [NEW]
                 />
             </div>
 

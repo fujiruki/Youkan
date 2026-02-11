@@ -173,7 +173,27 @@ export const CloudJBWOSRepository = {
     },
 
     getCapacityConfig: async () => {
-        return { defaultDailyMinutes: 480, holidays: [], exceptions: {} };
+        try {
+            const profile = await ApiClient.getUserProfile();
+            const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
+
+            const baseConfig = {
+                defaultDailyMinutes: profile.daily_capacity_minutes || 480,
+                holidays: [],
+                exceptions: {}
+            };
+
+            if (prefs.capacity_profile) {
+                return {
+                    ...baseConfig,
+                    ...prefs.capacity_profile
+                };
+            }
+            return baseConfig;
+        } catch (e) {
+            console.error('CloudRepo: GetCapacityConfig Failed', e);
+            return { defaultDailyMinutes: 480, holidays: [], exceptions: {} };
+        }
     },
 
     getProjects: async (scope?: 'personal' | 'company' | 'dashboard' | 'aggregated'): Promise<JudgableItem[]> => {
@@ -189,7 +209,20 @@ export const CloudJBWOSRepository = {
         return await ApiClient.getJoinedTenants();
     },
 
-    saveCapacityConfig: async (_config: any) => {
-        // TODO
+    saveCapacityConfig: async (config: any) => {
+        try {
+            const profile = await ApiClient.getUserProfile();
+            const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
+
+            prefs.capacity_profile = config;
+
+            await ApiClient.updateUserProfile({
+                preferences: prefs,
+                daily_capacity_minutes: config.defaultDailyMinutes
+            });
+        } catch (e) {
+            console.error('CloudRepo: SaveCapacityConfig Failed', e);
+            throw e;
+        }
     }
 };

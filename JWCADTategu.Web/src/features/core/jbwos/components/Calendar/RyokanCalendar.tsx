@@ -27,9 +27,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     rowHeight: propRowHeight,
     projects = [],
     focusedTenantId, focusedProjectId, currentUserId, joinedTenants = [],
-    tenantProfiles, onUpdateCapacityException,
+    onUpdateCapacityException,
     volumeOnly = false,
-    targetItemId
+    targetItemId,
+    commitPeriod // [NEW]
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
@@ -235,16 +236,19 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         }
     };
 
-    const commitPeriod = useMemo(() => {
+    // [NEW] Commit Period Calculation (Priority: Prop > Simple workDays logic)
+    const commitPeriodDates = useMemo(() => {
+        if (commitPeriod) return commitPeriod;
         if (!selectedDate || workDays <= 1) return [];
-        const days = [];
+
+        const days: Date[] = [];
         for (let i = 0; i < workDays; i++) {
-            const d = new Date(selectedDate);
+            const d = new Date(selectedDate); // Re-create date for each iteration to avoid modifying selectedDate
             d.setDate(d.getDate() - i);
             days.push(d);
         }
         return days;
-    }, [selectedDate, workDays]);
+    }, [commitPeriod, selectedDate, workDays]);
 
     return (
         <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-900 border-l-4 border-indigo-200 dark:border-indigo-800 font-sans max-w-full")} ref={scrollContainerRef}>
@@ -300,7 +304,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         pressureConnections={pressureConnections}
                         onItemClick={onItemClick}
                         onAction={handleDayAction}
-                        commitPeriod={commitPeriod}
+                        commitPeriod={commitPeriodDates}
                         projects={projects}
                         renderItemTitle={renderItemTitle}
                         scrollRef={scrollContainerRef}
@@ -317,7 +321,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         onAction={handleDayAction}
                         selectedDate={selectedDate}
                         prepDate={prepDate}
-                        commitPeriod={commitPeriod}
+                        commitPeriod={commitPeriodDates}
                         scrollRef={scrollContainerRef}
                         projects={projects}
                         renderItemTitle={renderItemTitle}
@@ -413,21 +417,27 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                 onClose={() => setEditingDate(null)}
                 title="日次稼働設定"
             >
-                {editingDate && (
-                    <DailyCapacityEditor
-                        date={editingDate}
-                        // Limit to focused tenant for now to ensure update consistency
-                        joinedTenants={joinedTenants.filter(t => !focusedTenantId || t.id === focusedTenantId)}
-                        tenantProfiles={tenantProfiles || new Map()}
-                        onSave={async (updates) => {
-                            if (onUpdateCapacityException) {
-                                onUpdateCapacityException(editingDate, updates);
-                                setEditingDate(null);
-                            }
-                        }}
-                        onCancel={() => setEditingDate(null)}
-                    />
-                )}
+                {editingDate && (() => {
+                    const dateKey = format(editingDate, 'yyyy-MM-dd');
+                    const initialTotal = capacityConfig?.exceptions?.[dateKey] ?? capacityConfig?.defaultDailyMinutes ?? 480;
+                    const initialAlloc = capacityConfig?.dailyCompanyExceptions?.[dateKey] ?? {};
+
+                    return (
+                        <DailyCapacityEditor
+                            date={editingDate}
+                            joinedTenants={joinedTenants}
+                            initialTotalMinutes={initialTotal}
+                            initialAllocation={initialAlloc}
+                            onSave={async (date, totalMinutes, allocation) => {
+                                if (onUpdateCapacityException) {
+                                    onUpdateCapacityException(date, totalMinutes, allocation);
+                                    setEditingDate(null);
+                                }
+                            }}
+                            onCancel={() => setEditingDate(null)}
+                        />
+                    );
+                })()}
             </SimpleModal>
         </div>
     );

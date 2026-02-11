@@ -2,15 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
 import { ApiClient } from '../../../../api/client';
 import { useToast } from '../../../../contexts/ToastContext';
-import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson, Settings } from 'lucide-react';
+import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings';
+import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
+import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
 
 interface PersonalSettingsScreenProps {
     onBack: () => void;
 }
 
 export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ onBack }) => {
-    const { checkAuth } = useAuth();
+    const { checkAuth, joinedTenants: authJoinedTenants } = useAuth();
     const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -22,6 +24,11 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
     // Capacity State
     const [dailyCapacity, setDailyCapacity] = useState(480); // minutes
     const [nonWorkingHours, setNonWorkingHours] = useState('');
+    const [capacityProfile, setCapacityProfile] = useState<CapacityProfile>({
+        standardWeeklyPattern: { 1: 480, 2: 480, 3: 480, 4: 480, 5: 480 },
+        exceptions: {}
+    });
+    const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
 
     // Password State
     const [currentPassword, setCurrentPassword] = useState('');
@@ -63,9 +70,13 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
             }
             setNonWorkingHours(nwh || '');
 
-            // Handle preferences (Motivation Quotes)
+            // Handle preferences (Motivation Quotes & Capacity Profile)
             const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
             setMotivationQuotes(prefs.motivation_quotes || '');
+
+            if (prefs.capacity_profile) {
+                setCapacityProfile(prefs.capacity_profile);
+            }
         } catch (error) {
             console.error('Failed to load profile', error);
             showToast({ type: 'error', title: 'エラー', message: 'プロフィールの読み込みに失敗しました' });
@@ -92,6 +103,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
             const currentProfile = await ApiClient.getUserProfile();
             const prefs = currentProfile.preferences ? (typeof currentProfile.preferences === 'string' ? JSON.parse(currentProfile.preferences) : currentProfile.preferences) : {};
             prefs.motivation_quotes = motivationQuotes;
+            prefs.capacity_profile = capacityProfile;
 
             await ApiClient.updateUserProfile({
                 display_name: displayName,
@@ -226,42 +238,85 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
                 {/* Capacity Section (Restored) */}
                 <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-slate-500" />
-                        業務キャパシティ設定
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-indigo-500" />
+                            業務キャパシティ設定
+                        </div>
+                        <button
+                            onClick={() => setShowWeeklyEditor(!showWeeklyEditor)}
+                            className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+                        >
+                            {showWeeklyEditor ? (
+                                <>
+                                    詳細設定を閉じる
+                                    <ChevronUp size={14} />
+                                </>
+                            ) : (
+                                <>
+                                    曜日別・会社別設定を開く
+                                    <ChevronDown size={14} />
+                                </>
+                            )}
+                        </button>
                     </h2>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                1日の業務可能時間 (分)
-                            </label>
-                            <div className="flex items-center gap-4">
-                                <input
-                                    type="number"
-                                    value={dailyCapacity}
-                                    onChange={(e) => setDailyCapacity(Number(e.target.value))}
-                                    className="w-32 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                                />
-                                <span className="text-slate-500 dark:text-slate-400 text-sm">
-                                    {(dailyCapacity / 60).toFixed(1)} 時間
-                                </span>
-                            </div>
-                            <p className="text-xs text-slate-400">業務量の計算とスケジューリングに使用されます。</p>
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                定休日・祝日設定 (JSON)
-                            </label>
-                            <textarea
-                                value={nonWorkingHours}
-                                onChange={(e) => setNonWorkingHours(e.target.value)}
-                                rows={4}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-mono text-sm"
-                                placeholder='{"weekends": ["Sat", "Sun"], "holidays": []}'
-                            />
-                            <p className="text-xs text-slate-400">定休日や祝日の詳細設定です (Advanced)。</p>
-                        </div>
+                    <div className="space-y-6">
+                        {!showWeeklyEditor ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                        デフォルトの1日の業務可能時間 (分)
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        <input
+                                            type="number"
+                                            value={dailyCapacity}
+                                            onChange={(e) => setDailyCapacity(Number(e.target.value))}
+                                            className="w-32 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                                        />
+                                        <span className="text-slate-500 dark:text-slate-400 text-sm">
+                                            {(dailyCapacity / 60).toFixed(1)} 時間
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-400">特定の曜日設定がない場合の基本値として使用されます。</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                        定休日・祝日設定 (Advanced JSON)
+                                    </label>
+                                    <textarea
+                                        value={nonWorkingHours}
+                                        onChange={(e) => setNonWorkingHours(e.target.value)}
+                                        rows={2}
+                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-mono text-sm"
+                                        placeholder='{"weekends": ["Sat", "Sun"], "holidays": []}'
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                <WeeklyPatternEditor
+                                    initialPattern={capacityProfile.standardWeeklyPattern}
+                                    initialCompanyPattern={capacityProfile.defaultCompanyWeeklyPattern}
+                                    joinedTenants={authJoinedTenants || []}
+                                    onSave={(standard: WeeklyPattern, company: WeeklyCompanyPattern) => {
+                                        setCapacityProfile({
+                                            ...capacityProfile,
+                                            standardWeeklyPattern: standard,
+                                            defaultCompanyWeeklyPattern: company
+                                        });
+                                        setShowWeeklyEditor(false); // エディタを閉じる
+                                    }}
+                                    onCancel={() => setShowWeeklyEditor(false)}
+                                />
+                                <p className="mt-4 text-xs text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    ※ 曜日ごとの配分を設定することで、カレンダー上での「目安期間（キャパシティ）」が動的に計算されます。
+                                    未設定の曜日は上記のデフォルト時間（{dailyCapacity}分）が適用されます。
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </section>
 

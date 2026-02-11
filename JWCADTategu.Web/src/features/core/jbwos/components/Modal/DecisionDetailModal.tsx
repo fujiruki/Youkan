@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 'lucide-react';
-import { Item, Member, FilterMode } from '../../types';
+import { Item, Member, FilterMode, CapacityConfig } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
+import { QuantityEngine } from '../../logic/QuantityEngine';
 
 interface DecisionDetailModalProps {
     item: Item | null;
@@ -23,6 +24,7 @@ interface DecisionDetailModalProps {
     joinedTenants?: { id: string; name: string }[]; // [NEW] Company list
     quantityItems?: Item[]; // [NEW] For background color calculation
     filterMode?: FilterMode; // [NEW] Current filter context
+    capacityConfig?: CapacityConfig; // [NEW]
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
@@ -31,7 +33,7 @@ interface DecisionDetailModalProps {
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
     onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
-    quantityItems = [], filterMode = 'all',
+    quantityItems = [], filterMode = 'all', capacityConfig,
     initialFocus, yesButtonLabel
 }) => {
     // [NEW] History Stack for Drill-Down
@@ -131,7 +133,43 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
     }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
-    // [NOTE] memoized date identities will be added when CalendarPanel is wired up
+    // [NOTE] Accurate Allocation Period Logic (Integrated with QuantityEngine)
+    const commitPeriodDates = React.useMemo(() => {
+        if (!item || !capacityConfig) return [];
+
+        // 1. Determine anchor date
+        const anchorStr = activeDateInput === 'my' ? prepDate : dueDate;
+        if (!anchorStr) return [];
+        const anchor = new Date(anchorStr);
+
+        // 2. Determine minutes (minutes > days)
+        const minutes = estimatedMinutes || (workDays * 480);
+
+        // 3. Build QuantityContext
+        const tenantProfiles = new Map<string, any>();
+        joinedTenants.forEach((t: any) => {
+            if (t.capacityProfile) {
+                tenantProfiles.set(t.id, t.capacityProfile);
+            }
+        });
+
+        const context: any = {
+            items: quantityItems,
+            members,
+            capacityConfig,
+            filterMode,
+            focusedTenantId: item.tenantId,
+            focusedProjectId: item.projectId,
+            tenantProfiles,
+            currentUser: {
+                id: localStorage.getItem('jbwos_account_id') || '',
+                isCompanyAccount: (localStorage.getItem('jbwos_account_id') || '').length > 20,
+                joinedTenants: joinedTenants
+            }
+        };
+
+        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, item.tenantId);
+    }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
 
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -361,7 +399,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 }}
                                                 className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold p-1 rounded border-none focus:ring-1 focus:ring-blue-500 uppercase tracking-tighter"
                                             >
-                                                <option value="">(個人・プライベート)</option>
+                                                <option value="">(個人・プライベート) </option>
                                                 {joinedTenants.map(t => (
                                                     <option key={t.id} value={t.id}>{t.name}</option>
                                                 ))}
@@ -384,7 +422,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 }}
                                                 className="bg-slate-100 dark:bg-slate-800 text-[11px] font-bold p-1 rounded border-none focus:ring-1 focus:ring-blue-500"
                                             >
-                                                <option value="">(なし / Inbox)</option>
+                                                <option value="">(なし / Inbox) </option>
                                                 {allProjects
                                                     .filter(p => !localTenantId ? !p.tenantId : p.tenantId === localTenantId)
                                                     .map(p => (
@@ -688,6 +726,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         filterMode={filterMode}
                                         volumeOnly={true}
                                         targetItemId={item.id}
+                                        commitPeriod={commitPeriodDates} // [NEW] Accurate Allocation List
+                                        capacityConfig={capacityConfig} // [NEW] Pass config
                                         className="h-full border-l-0"
                                     />
                                 </div>
@@ -995,11 +1035,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <button
                                                 onClick={async () => {
                                                     setIsProject(true);
-                                                    const updates: any = { isProject: true };
-                                                    // [FIX] Inherit hierarchy: If item has projectId, set it as parentId too
-                                                    if (item.projectId) {
-                                                        updates.parentId = item.projectId;
-                                                    }
+                                                    const updates: Partial<Item> = { isProject: true };
 
                                                     if (onUpdate) {
                                                         await onUpdate(item.id, updates);
@@ -1007,7 +1043,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         await ApiClient.updateItem(item.id, updates);
                                                     }
 
-                                                    // [FIX] Reload subtasks after projectization to show the breakdown UI immediately
+                                                    // Reload subtasks after projectization to show the breakdown UI immediately
                                                     if (onGetSubTasks) {
                                                         const tasks = await onGetSubTasks(item.id);
                                                         setSubTasks(tasks);

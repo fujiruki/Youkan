@@ -1,4 +1,4 @@
-import { Item, Member, CapacityConfig, JoinedTenant } from '../../types';
+import { Item, Member, CapacityConfig, JoinedTenant, CompanyAllocation } from '../../types';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
@@ -33,8 +33,9 @@ export interface RyokanCalendarProps {
     joinedTenants?: JoinedTenant[]; // [Modified] Rich object
     // [NEW] Capacity Editing
     tenantProfiles?: Map<string, any>;
-    onUpdateCapacityException?: (date: Date, updates: { tenantId: string, minutes: number }[]) => void;
+    onUpdateCapacityException?: (date: Date, totalMinutes: number, allocation: CompanyAllocation) => void;
     // [NEW] Volume-Only mode for detail modal
     volumeOnly?: boolean;
     targetItemId?: string;
+    commitPeriod?: Date[]; // [NEW] Accurate Allocation List
 }
