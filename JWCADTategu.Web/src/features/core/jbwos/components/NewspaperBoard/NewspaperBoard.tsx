@@ -64,20 +64,21 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                 </div>
             </div>
 
-            {/* Main Content Area (Horizontal Scroll, No Vertical) */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+            {/* Main Content Area (Vertical Scroll is Primary) */}
+            <div className="flex-1 overflow-x-auto overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
                 <div
-                    className="h-full py-2"
+                    className="py-2"
                     style={{
                         columnCount: columnCount,
-                        columnFill: 'auto',
+                        columnFill: 'balance',
                         columnGap: '2em',
                         columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
                         fontSize: `${fontSize}px`,
-                        columnWidth: `${fontSize * 25}px`, // [NEW] Minimum 25 characters width
-                        width: 'max-content',
-                        minWidth: '100%',
-                        maxHeight: '100%' // Ensure no vertical spill
+                        // [FIX] Minimum width control: 20 characters + icons/status
+                        // Each char ~ 1em. Adding 5em for dot + date + extra space = 25em.
+                        columnWidth: `${fontSize * 25}px`,
+                        width: '100%',
+                        minWidth: `calc(${columnCount} * ${fontSize * 25}px)`
                     }}
                 >
                     {/* Quick Input (Inside Columns) - Always uses activeProject context */}

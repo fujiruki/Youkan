@@ -140,8 +140,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         if (onSelectDate) onSelectDate(date);
 
-        // [NEW] In VolumeOnly mode, single click shows the breakdown hint (as selectedSigns modal)
-        if (actionType === 'doubleClick' || (volumeOnly && actionType === 'click')) {
+        // [FIX] Isolated Breakdown View:
+        // Only show breakdown (selectedSigns) on doubleClick (mapped to number-click in Detail Modal)
+        if (actionType === 'doubleClick') {
             setSelectedSigns(signs);
             setPressureConnections([]);
         } else {

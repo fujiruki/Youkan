@@ -71,10 +71,20 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             />
 
             <div className={cn("flex relative z-10", isMini ? "items-center gap-4 w-full" : "flex-col w-full h-full")}>
-                <div className={isMini ? "w-10 flex-shrink-0" : "flex items-start justify-between mb-1"}>
+                <div className={isMini ? "w-12 flex-shrink-0" : "flex items-start justify-between mb-1"}>
                     <div className="flex flex-col">
                         {isFirst && !isMini && <span className="text-[10px] font-bold text-slate-400">{format(date, 'MMM', { locale: ja })}</span>}
-                        <span className={cn("text-xs font-mono", isToday ? "font-bold text-blue-600 underline" : "text-slate-500")}>
+                        <span
+                            className={cn(
+                                "text-xs font-mono px-1 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors",
+                                isToday ? "font-bold text-blue-600 underline" : "text-slate-500"
+                            )}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAction(date, items, 'doubleClick', cellRef.current?.getBoundingClientRect());
+                            }}
+                            title="この日の内訳を表示"
+                        >
                             {isMini ? format(date, 'MM/dd') : date.getDate()}
                         </span>
                     </div>

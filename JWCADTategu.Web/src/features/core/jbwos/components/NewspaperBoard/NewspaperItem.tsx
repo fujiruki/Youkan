@@ -186,23 +186,21 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
         >
             <IndentLines depth={depth} />
 
-            {/* Left: Title */}
-            <div className="flex-1 min-w-0 flex items-center leading-tight">
-                <span className={cn(
-                    "text-[1em] font-medium truncate",
-                    isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
-                )}>
-                    {item.title}
-                </span>
-            </div>
-
-            {/* Right: StatusDot + Date */}
-            <div className="flex items-center gap-[0.3em] shrink-0">
-                <StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />
+            {/* Content: Title (with Dot) + Date */}
+            <div className="flex-1 min-w-0 flex items-center justify-between gap-[0.3em] leading-tight overflow-hidden">
+                <div className="flex-1 min-w-0 flex items-center gap-[0.2em] overflow-hidden">
+                    <span className={cn(
+                        "text-[1em] font-medium truncate",
+                        isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
+                    )}>
+                        {item.title}
+                    </span>
+                    <StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />
+                </div>
 
                 {displayDate && !isDone && (
                     <span className={cn(
-                        "text-[0.8em] font-bold whitespace-nowrap",
+                        "text-[0.8em] font-bold whitespace-nowrap shrink-0",
                         displayDateType === 'due' ? "text-slate-500 dark:text-slate-400" : "text-slate-310 dark:text-slate-600 font-normal grayscale opacity-70"
                     )}>
                         {displayDate}
