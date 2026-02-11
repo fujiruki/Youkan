@@ -17,8 +17,19 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     const items = useNewspaperItems(viewModel, activeProject);
 
     // View State (Persisted)
-    const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('jbwos_newspaper_fontsize') || '11'));
-    const [columnCount, setColumnCount] = useState(() => parseInt(localStorage.getItem('jbwos_newspaper_columns') || '3'));
+    const [fontSize, setFontSize] = useState<number>(() => {
+        const saved = localStorage.getItem('jbwos_newspaper_fontsize');
+        return saved ? parseInt(saved) : 11;
+    });
+    const [columnCount, setColumnCount] = useState<number>(() => {
+        const saved = localStorage.getItem('jbwos_newspaper_columns');
+        return saved ? parseInt(saved) : 3;
+    });
+    // [NEW] Title Character Limit Setting
+    const [titleLimit, setTitleLimit] = useState<number>(() => {
+        const saved = localStorage.getItem('jbwos_newspaper_title_limit');
+        return saved ? parseInt(saved) : 20;
+    });
 
     useEffect(() => {
         localStorage.setItem('jbwos_newspaper_fontsize', fontSize.toString());
@@ -27,6 +38,10 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     useEffect(() => {
         localStorage.setItem('jbwos_newspaper_columns', columnCount.toString());
     }, [columnCount]);
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_newspaper_title_limit', titleLimit.toString());
+    }, [titleLimit]);
 
     // Context Menu State
     const stripId = (id: string) => id.replace('virtual-header-', '');
@@ -52,41 +67,52 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
     return (
         <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
-            {/* Controls Header (Floating or Fixed) */}
-            <div className="flex-none px-4 py-2 flex justify-end relative z-20 pointer-events-none">
-                <div className="pointer-events-auto">
-                    <ViewControls
-                        fontSize={fontSize}
-                        setFontSize={setFontSize}
-                        columnCount={columnCount}
-                        setColumnCount={setColumnCount}
-                    />
-                </div>
+            {/* Controls Header */}
+            <div className="flex-none relative z-20">
+                <ViewControls
+                    fontSize={fontSize}
+                    columnCount={columnCount}
+                    titleLimit={titleLimit}
+                    onChangeFontSize={setFontSize}
+                    onChangeColumnCount={setColumnCount}
+                    onChangeTitleLimit={setTitleLimit}
+                />
             </div>
 
-            {/* Main Content Area (Vertical Scroll is Primary) */}
-            <div className="flex-1 overflow-x-auto overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+            {/* Main Content Area (Horizontal Scroll is Primary - Newspaper Style) */}
+            <div
+                ref={(el) => {
+                    if (el) {
+                        el.onwheel = (e) => {
+                            if (e.deltaY !== 0) {
+                                el.scrollLeft += e.deltaY;
+                                e.preventDefault();
+                            }
+                        };
+                    }
+                }}
+                className="flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 select-none"
+            >
                 <div
-                    className="py-2"
+                    className="h-full py-2"
                     style={{
                         columnCount: columnCount,
-                        columnFill: 'balance',
+                        columnFill: 'auto',
                         columnGap: '2em',
                         columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
                         fontSize: `${fontSize}px`,
-                        // [FIX] Minimum width control: 20 characters + icons/status
-                        // Each char ~ 1em. Adding 5em for dot + date + extra space = 25em.
+                        // [FIX] Layout: Ensure content flows horizontally
                         columnWidth: `${fontSize * 25}px`,
-                        width: '100%',
-                        minWidth: `calc(${columnCount} * ${fontSize * 25}px)`
+                        width: 'max-content',
+                        minWidth: '100%'
                     }}
                 >
-                    {/* Quick Input (Inside Columns) - Always uses activeProject context */}
+                    {/* Quick Input (Inside Columns) */}
                     <div className="break-inside-avoid mb-[0.5em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
                         <QuickInputWidget
                             viewModel={viewModel}
                             projectContext={activeProject ? {
-                                id: activeProject.cloudId || String(activeProject.id), // [FIX] Use cloudId for backend consistency
+                                id: activeProject.cloudId || String(activeProject.id),
                                 name: activeProject.name,
                                 tenantId: activeProject.tenantId
                             } : null}
@@ -102,12 +128,12 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
                         <NewspaperItem
                             key={wrapper.id}
                             wrapper={wrapper}
+                            titleLimit={titleLimit}
                             onClick={(item) => {
                                 onOpenItem(item);
                             }}
                             onContextMenu={handleContextMenu}
                             onAddChild={(projItem, title) => {
-                                // [FIX] Use throwIn (correct method name) to create item
                                 const projectId = projItem.id.startsWith('virtual-header-')
                                     ? projItem.id.replace('virtual-header-', '')
                                     : String(projItem.id);

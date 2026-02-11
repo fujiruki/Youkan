@@ -8,7 +8,8 @@ interface NewspaperItemProps {
     wrapper: NewspaperItemWrapper;
     onClick: (item: Item) => void;
     onContextMenu: (e: React.MouseEvent, itemId: string) => void;
-    onAddChild?: (item: Item, title: string) => void; // [CHANGED] Now receives title directly
+    onAddChild?: (item: Item, title: string) => void;
+    titleLimit?: number; // [NEW]
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -63,7 +64,13 @@ const IndentLines = ({ depth }: { depth: number }) => {
     );
 };
 
-export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, onContextMenu, onAddChild }) => {
+export const NewspaperItem: React.FC<NewspaperItemProps> = ({
+    wrapper,
+    onClick,
+    onContextMenu,
+    onAddChild,
+    titleLimit
+}) => {
     const { item, isHeader, depth, project, displayDate, displayDateType } = wrapper;
     const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
     const [inlineInputValue, setInlineInputValue] = useState('');
@@ -189,10 +196,14 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({ wrapper, onClick, 
             {/* Content: Title (with Dot) + Date */}
             <div className="flex-1 min-w-0 flex items-center justify-between gap-[0.3em] leading-tight overflow-hidden">
                 <div className="flex-1 min-w-0 flex items-center gap-[0.2em] overflow-hidden">
-                    <span className={cn(
-                        "text-[1em] font-medium truncate",
-                        isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
-                    )}>
+                    <span
+                        className={cn(
+                            "text-[1em] font-medium truncate",
+                            isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
+                        )}
+                        style={{ maxWidth: `${titleLimit || 20}em` }}
+                        title={item.title}
+                    >
                         {item.title}
                     </span>
                     <StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />

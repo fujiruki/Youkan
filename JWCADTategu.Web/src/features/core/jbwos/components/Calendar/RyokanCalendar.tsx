@@ -140,12 +140,19 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         if (onSelectDate) onSelectDate(date);
 
-        // [FIX] Isolated Breakdown View:
+        // [FIX] Isolated Breakdown View: 
         // Only show breakdown (selectedSigns) on doubleClick (mapped to number-click in Detail Modal)
         if (actionType === 'doubleClick') {
             setSelectedSigns(signs);
             setPressureConnections([]);
-        } else {
+            return; // Stop here for doubleClick
+        }
+
+        // If single click and volumeOnly, don't do anything else (like pressure lines or breakdown)
+        if (volumeOnly) return;
+
+        // Normal mode (Dashboard) logic for pressure lines below...
+        if (true) {
             if (!rect || !scrollContainerRef.current) return;
             const container = scrollContainerRef.current;
             const svg = container.querySelector('.pressure-lines-svg');
