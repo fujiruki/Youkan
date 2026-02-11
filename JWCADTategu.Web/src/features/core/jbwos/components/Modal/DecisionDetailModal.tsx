@@ -86,7 +86,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     React.useEffect(() => {
         if (item) {
             setNote(item.memo || '');
-            setDueStatus(item.dueStatus || 'waiting_external');
+            setDueStatus(item.dueStatus || (item.due_date ? 'confirmed' : 'waiting_external'));
             setDueDate(item.due_date || '');
             setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
             setWorkDays(item.work_days ?? 1);
@@ -143,7 +143,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         const anchor = new Date(anchorStr);
 
         // 2. Determine minutes (minutes > days)
-        const minutes = estimatedMinutes || (workDays * 480);
+        // [FIX] if workDays changed manually, prioritize its volume calculation
+        const baseDailyMinutes = capacityConfig.defaultDailyMinutes || 480;
+        const minutes = (isWorkDaysDirty || !estimatedMinutes) ? (workDays * baseDailyMinutes) : estimatedMinutes;
 
         // 3. Build QuantityContext
         const tenantProfiles = new Map<string, any>();
@@ -158,7 +160,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             members,
             capacityConfig,
             filterMode,
-            focusedTenantId: item.tenantId,
+            focusedTenantId: (localTenantId !== undefined ? localTenantId : item.tenantId),
             focusedProjectId: item.projectId,
             tenantProfiles,
             currentUser: {
@@ -168,8 +170,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             }
         };
 
-        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, item.tenantId);
-    }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
+        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
+    }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
 
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -586,7 +588,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     }}
                                                     className="text-[10px] text-slate-300 hover:text-indigo-500 underline"
                                                 >
-                                                    {dueStatus === 'waiting_external' ? '設定' : '未定'}
+                                                    {dueStatus === 'waiting_external' ? '設定' : '未定に戻す'}
                                                 </button>
                                             </div>
                                             {dueStatus === 'waiting_external' ? (
