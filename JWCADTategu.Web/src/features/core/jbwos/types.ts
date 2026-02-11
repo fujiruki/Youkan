@@ -222,6 +222,7 @@ export interface CapacityConfig {
     defaultDailyMinutes: number; // e.g. 480 (8h)
     holidays: HolidayRule[];
     exceptions: Record<string, number>; // "2026-01-20": 240 (Half day)
+    standardWeeklyPattern?: WeeklyPattern; // [NEW] 曜日ごとの基本稼働時間
     defaultCompanyWeeklyPattern?: WeeklyCompanyPattern; // [NEW] 曜日ごとの会社別配分
     dailyCompanyExceptions?: Record<string, CompanyAllocation>; // [NEW] 日ごとの会社別例外設定
 }

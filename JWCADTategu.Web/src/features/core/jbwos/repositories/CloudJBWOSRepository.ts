@@ -177,17 +177,19 @@ export const CloudJBWOSRepository = {
             const profile = await ApiClient.getUserProfile();
             const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
 
-            const baseConfig = {
+            const baseConfig: any = {
                 defaultDailyMinutes: profile.daily_capacity_minutes || 480,
                 holidays: [],
                 exceptions: {}
             };
 
             if (prefs.capacity_profile) {
-                return {
-                    ...baseConfig,
-                    ...prefs.capacity_profile
-                };
+                const cp = prefs.capacity_profile;
+                // [FIX] 明示的にマッピング（スプレッドによる名前衝突を防止）
+                if (cp.standardWeeklyPattern) baseConfig.standardWeeklyPattern = cp.standardWeeklyPattern;
+                if (cp.defaultCompanyWeeklyPattern) baseConfig.defaultCompanyWeeklyPattern = cp.defaultCompanyWeeklyPattern;
+                if (cp.dailyCompanyExceptions) baseConfig.dailyCompanyExceptions = cp.dailyCompanyExceptions;
+                if (cp.exceptions && Object.keys(cp.exceptions).length > 0) baseConfig.exceptions = cp.exceptions;
             }
             return baseConfig;
         } catch (e) {

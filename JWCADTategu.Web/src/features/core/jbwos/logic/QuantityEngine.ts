@@ -244,7 +244,10 @@ export class QuantityEngine {
 
         // 3. Calculation per Tenant
         if (targetTenantIds.length === 0) {
-            return isHol ? 0 : (capacityConfig.defaultDailyMinutes || 480);
+            if (isHol) return 0;
+            // [FIX] standardWeeklyPattern を優先、なければ defaultDailyMinutes
+            const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
+            return weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
         }
 
         targetTenantIds.forEach(tid => {
@@ -263,7 +266,15 @@ export class QuantityEngine {
                 return;
             }
 
-            // Fallback to Profiles (Legacy/Complex Logic)
+            // Fallback: standardWeeklyPattern → tenantProfiles → defaultDailyMinutes
+            // [FIX] まず capacityConfig.standardWeeklyPattern を確認
+            const weeklyPatternVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
+            if (weeklyPatternVal !== undefined) {
+                totalCap += weeklyPatternVal;
+                return;
+            }
+
+            // Legacy Fallback: tenantProfiles (per-tenant capacity override)
             const profile = tenantProfiles?.get(tid);
             let tenantMinutes = 0;
 
