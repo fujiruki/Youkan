@@ -4,7 +4,8 @@ import { ApiClient } from '../../../../api/client';
 import { useToast } from '../../../../contexts/ToastContext';
 import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings';
-import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
+// [PRESERVED] スライダーUI版（復旧用）: import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
+import { CapacityTableEditor } from '../components/Settings/CapacityTableEditor';
 import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
 
 interface PersonalSettingsScreenProps {
@@ -297,6 +298,20 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                             </div>
                         ) : (
                             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                {/* [TABLE UI] 表形式エディタ */}
+                                <CapacityTableEditor
+                                    standardWeeklyPattern={capacityProfile.standardWeeklyPattern}
+                                    companyWeeklyPattern={capacityProfile.defaultCompanyWeeklyPattern}
+                                    tenants={(authJoinedTenants || []).map(t => ({ id: t.id, name: t.name }))}
+                                    onChange={(standard: WeeklyPattern, company: WeeklyCompanyPattern) => {
+                                        setCapacityProfile({
+                                            ...capacityProfile,
+                                            standardWeeklyPattern: standard,
+                                            defaultCompanyWeeklyPattern: company
+                                        });
+                                    }}
+                                />
+                                {/* [PRESERVED] スライダーUI版（復旧用）
                                 <WeeklyPatternEditor
                                     initialPattern={capacityProfile.standardWeeklyPattern}
                                     initialCompanyPattern={capacityProfile.defaultCompanyWeeklyPattern}
@@ -307,10 +322,11 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
                                             standardWeeklyPattern: standard,
                                             defaultCompanyWeeklyPattern: company
                                         });
-                                        setShowWeeklyEditor(false); // エディタを閉じる
+                                        setShowWeeklyEditor(false);
                                     }}
                                     onCancel={() => setShowWeeklyEditor(false)}
                                 />
+                                */}
                                 <p className="mt-4 text-xs text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                                     ※ 曜日ごとの配分を設定することで、カレンダー上での「目安期間（キャパシティ）」が動的に計算されます。
                                     未設定の曜日は上記のデフォルト時間（{dailyCapacity}分）が適用されます。
