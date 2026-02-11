@@ -138,11 +138,13 @@ finally {
 # ========================================
 Write-Host "`n[4/4] Uploading & Deploying to Server..." -ForegroundColor Yellow
 
-# SSH/SCPコマンドの引数
-$scpArgs = @(
-    "-o", "StrictHostKeyChecking=no", 
+# SSH/SCPコマンドの引数（デバッグ用 -v 追加、タイムアウト設定）
+$commonSshOptions = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15")
+
+$scpArgs = $commonSshOptions + @(
     "-P", $serverPort, 
     "-i", $sshKeyPath, 
+    "-v", # 詳細ログ出力
     $archiveName, 
     "$serverUser@${serverHost}:$remoteDir/$archiveName"
 )
@@ -150,43 +152,55 @@ $scpArgs = @(
 $sshCommandMkdir = "mkdir -p $remoteDir"
 
 # 展開 & パーミッション設定コマンド
-# （SQLite作成のため一時的に777、その後適切なパーミッションに戻す）
 $sshCommandExtract = "cd $remoteDir && tar -xzf $archiveName && chmod -R 777 . && rm $archiveName && find . -type d -exec chmod 755 {} + && find . -type f -exec chmod 644 {} +"
 
-$sshArgsExtract = @(
-    "-o", "StrictHostKeyChecking=no", 
+$sshArgsExtract = $commonSshOptions + @(
     "-p", $serverPort, 
     "-i", $sshKeyPath, 
+    "-v", # 詳細ログ出力
     "$serverUser@$serverHost", 
     $sshCommandExtract
 )
 
+$logFile = "deploy_debug.log"
+"--- Deployment log started at $(Get-Date) ---" | Out-File $logFile -Encoding utf8
+
 try {
     # リモートディレクトリの作成
-    Write-Host "   → Ensuring remote directory exists..." -ForegroundColor Cyan
-    $sshArgsMkdir = @(
-        "-o", "StrictHostKeyChecking=no", 
+    Write-Host "   → Ensuring remote directory exists (Log: $logFile)..." -ForegroundColor Cyan
+    $sshArgsMkdir = $commonSshOptions + @(
         "-p", $serverPort, 
         "-i", $sshKeyPath, 
         "$serverUser@$serverHost", 
         $sshCommandMkdir
     )
-    & ssh $sshArgsMkdir
-    if ($LASTEXITCODE -ne 0) { throw "SSH mkdir failed" }
+    
+    # 2>&1 | Out-File だと ErrorRecord オブジェクト扱いになり不安定なため、
+    # 伝統的なリダイレクト（*>）に近い Out-File -Append を直接使用
+    & ssh $sshArgsMkdir *>> $logFile
+    $exitCode = $LASTEXITCODE
+    
+    if ($exitCode -ne 0) { 
+        throw "SSH mkdir failed (ExitCode: $exitCode). Check $logFile for SSH handshake details." 
+    }
     Write-Host "   ✓ Remote directory ready" -ForegroundColor Green
     
     # アップロード
     Write-Host "   → Uploading archive..." -ForegroundColor Cyan
     $uploadStart = Get-Date
-    & scp $scpArgs
-    if ($LASTEXITCODE -ne 0) { throw "SCP upload failed" }
+    & scp $scpArgs *>> $logFile
+    $exitCode = $LASTEXITCODE
+    
+    if ($exitCode -ne 0) { throw "SCP upload failed (ExitCode: $exitCode). Try running with -v to see details in $logFile." }
     $uploadTime = ((Get-Date) - $uploadStart).TotalSeconds
     Write-Host "   ✓ Upload completed ($([math]::Round($uploadTime, 1))s)" -ForegroundColor Green
     
     # 展開 & パーミッション設定
     Write-Host "   → Extracting & setting permissions..." -ForegroundColor Cyan
-    & ssh $sshArgsExtract
-    if ($LASTEXITCODE -ne 0) { throw "SSH extract failed" }
+    & ssh $sshArgsExtract *>> $logFile
+    $exitCode = $LASTEXITCODE
+    
+    if ($exitCode -ne 0) { throw "SSH extract failed (ExitCode: $exitCode). Check $logFile." }
     Write-Host "   ✓ Extraction & permissions completed" -ForegroundColor Green
     
     # 成功メッセージ

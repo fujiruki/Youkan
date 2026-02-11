@@ -101,6 +101,9 @@ function App() {
         // Update URL based on scope
         const deployBase = '/contents/TateguDesignStudio/';
         window.history.pushState({ view: 'projects', scope }, '', `${deployBase}projects/${scope}`);
+
+        // [NEW] Dispatch event to notify all components (Header, Screen, etc.)
+        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: scope } }));
     };
 
     // 2. To Specific Project (Schedule View)

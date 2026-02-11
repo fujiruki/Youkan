@@ -108,13 +108,21 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
             const mode = e.detail?.mode;
             if (mode) setProjectViewMode(mode);
         };
+        const handleFilterChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode === 'all' || mode === 'personal' || mode === 'company') {
+                setFilterMode(mode);
+            }
+        };
         window.addEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
         window.addEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
         window.addEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
         return () => {
             window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
             window.removeEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
             window.removeEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+            window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
         };
     }, [capacity]);
 
