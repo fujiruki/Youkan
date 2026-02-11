@@ -805,7 +805,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             return (
                                                 <button
                                                     key={preset.label}
-                                                    onClick={() => setEstimatedMinutes(preset.val)}
+                                                    onClick={() => {
+                                                        const newVal = preset.val;
+                                                        setEstimatedMinutes(newVal);
+                                                        // [FIX] Sync work_days too for immediate highlight response
+                                                        setWorkDays(newVal / 480);
+                                                        setIsWorkDaysDirty(true);
+                                                    }}
                                                     className={cn(
                                                         "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",
                                                         isActive

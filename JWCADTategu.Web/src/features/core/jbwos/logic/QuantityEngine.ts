@@ -250,6 +250,7 @@ export class QuantityEngine {
             return weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
         }
 
+        let standardAdded = false;
         targetTenantIds.forEach(tid => {
             // Check Company Allocations first (New Logic)
             const companyEx = capacityConfig.dailyCompanyExceptions?.[dateKey];
@@ -267,34 +268,37 @@ export class QuantityEngine {
             }
 
             // Fallback: standardWeeklyPattern → tenantProfiles → defaultDailyMinutes
-            // [FIX] まず capacityConfig.standardWeeklyPattern を確認
-            const weeklyPatternVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-            if (weeklyPatternVal !== undefined) {
-                totalCap += weeklyPatternVal;
-                return;
-            }
-
-            // Legacy Fallback: tenantProfiles (per-tenant capacity override)
-            const profile = tenantProfiles?.get(tid);
-            let tenantMinutes = 0;
-
-            if (profile) {
-                const standard = profile.standardWeeklyPattern;
-                const exceptions = profile.exceptions;
-
-                if (exceptions && exceptions[dateKey] !== undefined) {
-                    tenantMinutes = exceptions[dateKey];
+            // [FIX] Avoid double-counting standard capacity for personal accounts.
+            if (!standardAdded) {
+                const weeklyPatternVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
+                if (weeklyPatternVal !== undefined) {
+                    totalCap += weeklyPatternVal;
+                    standardAdded = true;
+                    return;
                 }
-                else if (standard && standard[dayOfWeek] !== undefined) {
-                    tenantMinutes = standard[dayOfWeek];
-                }
-                else {
+
+                const profile = tenantProfiles?.get(tid);
+                let tenantMinutes = 0;
+
+                if (profile) {
+                    const standard = profile.standardWeeklyPattern;
+                    const exceptions = profile.exceptions;
+
+                    if (exceptions && exceptions[dateKey] !== undefined) {
+                        tenantMinutes = exceptions[dateKey];
+                    }
+                    else if (standard && standard[dayOfWeek] !== undefined) {
+                        tenantMinutes = standard[dayOfWeek];
+                    }
+                    else {
+                        tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
+                    }
+                } else {
                     tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
                 }
-            } else {
-                tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
+                totalCap += tenantMinutes;
+                standardAdded = true;
             }
-            totalCap += tenantMinutes;
         });
 
         return totalCap;
