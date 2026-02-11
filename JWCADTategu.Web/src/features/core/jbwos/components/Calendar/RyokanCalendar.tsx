@@ -51,35 +51,96 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    const allDays = useMemo(() => {
-        const start = focusDate ? new Date(focusDate) : new Date(today);
-        start.setDate(start.getDate() - (isMini ? 15 : 90));
-        start.setHours(0, 0, 0, 0);
+    const [allDays, setAllDays] = useState<Date[]>([]);
+    const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
 
-        // [FIX] Align to the start of the week (Sunday)
+    // [FIX] Initialize range with current month +/- 2 months (Total 5 months)
+    React.useEffect(() => {
+        const anchor = focusDate ? new Date(focusDate) : new Date(today);
+
+        // Start: 2 months back, align to start of week
+        const start = new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1);
         const dayOfWeek = start.getDay();
         start.setDate(start.getDate() - dayOfWeek);
+        start.setHours(0, 0, 0, 0);
 
-        const end = focusDate ? new Date(focusDate) : new Date(today);
-        end.setDate(end.getDate() + (isMini ? 15 : 90));
-        end.setHours(23, 59, 59, 999);
-        // Align end to the end of the week (Saturday)
+        // End: 2 months forward, align to end of week
+        const end = new Date(anchor.getFullYear(), anchor.getMonth() + 3, 0); // End of month + 2
         const endDayOfWeek = end.getDay();
         end.setDate(end.getDate() + (6 - endDayOfWeek));
+        end.setHours(23, 59, 59, 999);
 
+        setRange({ start, end });
+    }, [today.getTime(), focusDate?.getTime()]);
+
+    // Update allDays when range changes
+    React.useEffect(() => {
+        if (!range) return;
         const days: Date[] = [];
-        let cur = new Date(start);
-        while (cur <= end) {
+        let cur = new Date(range.start);
+        while (cur <= range.end) {
             days.push(new Date(cur));
-            // Force midnight to avoid timezone issues during loop
             cur.setHours(12, 0, 0, 0);
             cur.setDate(cur.getDate() + 1);
             cur.setHours(0, 0, 0, 0);
-
-            if (days.length > 500) break; // Safety
+            if (days.length > 2000) break; // Hard safety
         }
-        return days;
-    }, [today, focusDate, isMini]);
+        setAllDays(days);
+    }, [range]);
+
+    // [NEW] Infinite Scroll & Scroll into View (Center Today)
+    const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
+
+    // Initial Scroll to Center Today
+    React.useEffect(() => {
+        if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
+            const target = focusDate || today;
+            const targetKey = new Date(target);
+            targetKey.setHours(12, 0, 0, 0);
+            const targetString = targetKey.toDateString();
+
+            // Find element in grid
+            const container = scrollContainerRef.current;
+            const targetEl = container.querySelector(`[data-date="${targetString}"]`);
+            if (targetEl) {
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = targetEl.getBoundingClientRect();
+                // Calculate position to center the target element
+                const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
+                container.scrollTop = scrollOffset;
+                setHasInitialScrolled(true);
+            }
+        }
+    }, [allDays.length, focusDate?.getTime(), hasInitialScrolled]);
+
+    // Handle Infinite Scroll Extension
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const container = e.currentTarget;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+
+        // Upward extension
+        if (scrollTop < 100 && range) {
+            setRange(prev => {
+                if (!prev) return prev;
+                const newStart = new Date(prev.start);
+                newStart.setDate(newStart.getDate() - 28); // Add 4 weeks
+
+                // Adjustment to maintain scroll position
+                // This is tricky without layout measurements, but React will handleDOM updates.
+                // We'll rely on browser scroll anchoring if available or just accept the jump for now.
+                return { ...prev, start: newStart };
+            });
+        }
+        // Downward extension
+        else if (scrollTop + clientHeight > scrollHeight - 300 && range) {
+            setRange(prev => {
+                if (!prev) return prev;
+                const newEnd = new Date(prev.end);
+                newEnd.setDate(newEnd.getDate() + 28); // Add 4 weeks
+                return { ...prev, end: newEnd };
+            });
+        }
+    };
 
     const qCtx = useMemo(() => ({
         items,
@@ -308,6 +369,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         projects={projects}
                         renderItemTitle={renderItemTitle}
                         scrollRef={scrollContainerRef}
+                        onScroll={handleScroll}
                         onBackgroundClick={resetHighlights}
                     />
                 )}
@@ -323,6 +385,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         prepDate={prepDate}
                         commitPeriod={commitPeriodDates}
                         scrollRef={scrollContainerRef}
+                        onScroll={handleScroll}
                         projects={projects}
                         renderItemTitle={renderItemTitle}
                         pressureConnections={pressureConnections}

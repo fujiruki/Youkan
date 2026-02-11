@@ -28,6 +28,7 @@ interface TimelineViewProps {
     projects?: any[];
     renderItemTitle: (item: Item) => string;
     scrollRef?: React.RefObject<HTMLDivElement>;
+    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void; // [NEW] Loop back for infinite scroll
     onBackgroundClick?: () => void;
 }
 
@@ -38,6 +39,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     commitPeriod = [], projects = [],
     renderItemTitle,
     scrollRef,
+    onScroll,
     onBackgroundClick
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
@@ -51,7 +53,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
 
     return (
         <div className="w-full h-full relative" ref={containerRef} onClick={onBackgroundClick}>
-            <div className={cn("flex-1 h-full overflow-auto select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef}>
+            <div className={cn("flex-1 h-full overflow-auto select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef} onScroll={onScroll}>
                 <div className={cn("flex min-w-max min-h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
                     <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full pressure-lines-svg">
                         <AnimatePresence>

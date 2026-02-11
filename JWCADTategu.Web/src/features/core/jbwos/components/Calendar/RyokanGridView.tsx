@@ -27,6 +27,7 @@ interface GridViewProps {
     renderItemTitle: (item: Item) => string;
     pressureConnections?: PressureConnection[];
     onBackgroundClick?: () => void;
+    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void; // [NEW] Loop back for infinite scroll
     flashingIds: Set<string>;
     volumeOnly?: boolean;
     targetItemId?: string;
@@ -38,6 +39,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     selectedDate, prepDate, commitPeriod = [], scrollRef, projects = [], renderItemTitle,
     pressureConnections = [],
     onBackgroundClick,
+    onScroll,
     flashingIds,
     volumeOnly = false,
     targetItemId,
@@ -48,6 +50,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
             ref={scrollRef}
             className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide relative flex flex-col gap-4"
             onClick={onBackgroundClick}
+            onScroll={onScroll}
         >
             <div className="flex-1 relative min-w-max">
                 {/* [NEW] Weekday Headers */}
