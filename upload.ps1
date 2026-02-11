@@ -138,69 +138,48 @@ finally {
 # ========================================
 Write-Host "`n[4/4] Uploading & Deploying to Server..." -ForegroundColor Yellow
 
-# SSH/SCPコマンドの引数（デバッグ用 -v 追加、タイムアウト設定）
-$commonSshOptions = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15")
-
-$scpArgs = $commonSshOptions + @(
-    "-P", $serverPort, 
-    "-i", $sshKeyPath, 
-    "-v", # 詳細ログ出力
-    $archiveName, 
-    "$serverUser@${serverHost}:$remoteDir/$archiveName"
-)
+# SSH/SCPコマンドの共通オプション（タイムアウト設定）
+# 注意: -v (verbose) は stderr に大量出力し、PowerShell の $ErrorActionPreference="Stop" と
+#        衝突するため、通常時は使用しない。デバッグ時のみ手動で追加すること。
+$sshOpts = "-o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=15"
 
 $sshCommandMkdir = "mkdir -p $remoteDir"
 
 # 展開 & パーミッション設定コマンド
 $sshCommandExtract = "cd $remoteDir && tar -xzf $archiveName && chmod -R 777 . && rm $archiveName && find . -type d -exec chmod 755 {} + && find . -type f -exec chmod 644 {} +"
 
-$sshArgsExtract = $commonSshOptions + @(
-    "-p", $serverPort, 
-    "-i", $sshKeyPath, 
-    "-v", # 詳細ログ出力
-    "$serverUser@$serverHost", 
-    $sshCommandExtract
-)
+# [FIX] cmd /c 経由で実行することで、SSH の stderr 出力が PowerShell の
+#       ErrorRecord に変換されて $ErrorActionPreference=Stop で throw される問題を回避
+function Invoke-SshSafe {
+    param([string]$Command, [string]$LogFile)
+    cmd /c "$Command 2>&1" | Out-File -Append $LogFile -Encoding utf8
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed (ExitCode: $LASTEXITCODE). Check $LogFile for details."
+    }
+}
 
 $logFile = "deploy_debug.log"
 "--- Deployment log started at $(Get-Date) ---" | Out-File $logFile -Encoding utf8
 
 try {
+    $sshBase = "ssh $sshOpts -p $serverPort -i $sshKeyPath $serverUser@$serverHost"
+    $scpBase = "scp $sshOpts -P $serverPort -i $sshKeyPath"
+
     # リモートディレクトリの作成
     Write-Host "   → Ensuring remote directory exists (Log: $logFile)..." -ForegroundColor Cyan
-    $sshArgsMkdir = $commonSshOptions + @(
-        "-p", $serverPort, 
-        "-i", $sshKeyPath, 
-        "$serverUser@$serverHost", 
-        $sshCommandMkdir
-    )
-    
-    # 2>&1 | Out-File だと ErrorRecord オブジェクト扱いになり不安定なため、
-    # 伝統的なリダイレクト（*>）に近い Out-File -Append を直接使用
-    & ssh $sshArgsMkdir *>> $logFile
-    $exitCode = $LASTEXITCODE
-    
-    if ($exitCode -ne 0) { 
-        throw "SSH mkdir failed (ExitCode: $exitCode). Check $logFile for SSH handshake details." 
-    }
+    Invoke-SshSafe -Command "$sshBase `"$sshCommandMkdir`"" -LogFile $logFile
     Write-Host "   ✓ Remote directory ready" -ForegroundColor Green
     
     # アップロード
     Write-Host "   → Uploading archive..." -ForegroundColor Cyan
     $uploadStart = Get-Date
-    & scp $scpArgs *>> $logFile
-    $exitCode = $LASTEXITCODE
-    
-    if ($exitCode -ne 0) { throw "SCP upload failed (ExitCode: $exitCode). Try running with -v to see details in $logFile." }
+    Invoke-SshSafe -Command "$scpBase $archiveName $serverUser@${serverHost}:$remoteDir/$archiveName" -LogFile $logFile
     $uploadTime = ((Get-Date) - $uploadStart).TotalSeconds
     Write-Host "   ✓ Upload completed ($([math]::Round($uploadTime, 1))s)" -ForegroundColor Green
     
     # 展開 & パーミッション設定
     Write-Host "   → Extracting & setting permissions..." -ForegroundColor Cyan
-    & ssh $sshArgsExtract *>> $logFile
-    $exitCode = $LASTEXITCODE
-    
-    if ($exitCode -ne 0) { throw "SSH extract failed (ExitCode: $exitCode). Check $logFile." }
+    Invoke-SshSafe -Command "$sshBase `"$sshCommandExtract`"" -LogFile $logFile
     Write-Host "   ✓ Extraction & permissions completed" -ForegroundColor Green
     
     # 成功メッセージ

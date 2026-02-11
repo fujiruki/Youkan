@@ -131,9 +131,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
     }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
-    // [FIX] Stable Date identities for Calendar
-    const memoizedSelectedDate = React.useMemo(() => dueDate ? new Date(dueDate) : null, [dueDate]);
-    const memoizedPrepDate = React.useMemo(() => prepDate ? new Date(prepDate) : null, [prepDate]);
+    // [NOTE] memoized date identities will be added when CalendarPanel is wired up
 
     // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
