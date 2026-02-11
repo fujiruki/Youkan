@@ -13,6 +13,8 @@ interface SideCalendarPanelProps {
     workDays?: number;
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
+    volumeOnly?: boolean;
+    targetItemId?: string;
     className?: string;
 }
 
@@ -25,6 +27,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     workDays = 1,
     targetMode = 'due',
     filterMode = 'all',
+    volumeOnly = false,
+    targetItemId,
     className
 }) => {
     const today = new Date();
@@ -41,7 +45,12 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     }, [targetMode, prepDate?.getTime() || null, selectedDate?.getTime() || null]);
 
     return (
-        <div className={cn("flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4", borderColorClass.replace('border-', 'border-l-'), className)}>
+        <div className={cn(
+            "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4",
+            borderColorClass.replace('border-', 'border-l-'),
+            volumeOnly && "bg-white dark:bg-slate-900 border-l-0", // Remove border-l in volumeOnly
+            className
+        )}>
             {/* Header Removed */}
 
             {/* RyokanCalendar (Mini Mode) */}
@@ -57,6 +66,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     workDays={workDays}
                     onSelectDate={onSelectDate}
                     displayMode="grid"
+                    volumeOnly={volumeOnly}
+                    targetItemId={targetItemId}
                 />
             </div>
 

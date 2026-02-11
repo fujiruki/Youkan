@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 'lucide-react';
-import { Item, Member } from '../../types';
+import { Item, Member, FilterMode } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
@@ -21,6 +21,8 @@ interface DecisionDetailModalProps {
     members?: Member[]; // [NEW]
     allProjects?: Item[]; // [NEW] Project list
     joinedTenants?: { id: string; name: string }[]; // [NEW] Company list
+    quantityItems?: Item[]; // [NEW] For background color calculation
+    filterMode?: FilterMode; // [NEW] Current filter context
     // Custom Labels
     yesButtonLabel?: string;
     initialFocus?: 'date';
@@ -29,6 +31,7 @@ interface DecisionDetailModalProps {
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
     onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
+    quantityItems = [], filterMode = 'all',
     initialFocus, yesButtonLabel
 }) => {
     // [NEW] History Stack for Drill-Down
@@ -308,10 +311,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         onClick={handleClose}
                     />    {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative z-10 w-full max-w-lg md:max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh] md:h-[650px]"
+                        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="relative z-10 w-full max-w-lg md:max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col h-[calc(100vh-30px)]"
                     >
                         {/* Header Area */}
                         <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
@@ -662,29 +666,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
                                     <SideCalendarPanel
-                                        items={subTasks.length > 0 ? subTasks : (item ? [item] : [])}
-                                        selectedDate={memoizedSelectedDate}
-                                        onSelectDate={async (d) => {
-                                            const val = format(d, 'yyyy-MM-dd');
-                                            if (activeDateInput === 'my') {
-                                                setPrepDate(val);
-                                                const dateObj = new Date(val);
-                                                const timestamp = Math.floor(dateObj.getTime() / 1000);
-                                                const updates: Partial<Item> = { prep_date: timestamp };
-                                                if (onUpdate) await onUpdate(item.id, updates);
-                                                else await ApiClient.updateItem(item.id, updates);
-                                            } else {
-                                                setDueDate(val);
-                                                setDueStatus('confirmed');
-                                                const updates: Partial<Item> = { due_date: val, dueStatus: 'confirmed' };
-                                                if (onUpdate) await onUpdate(item.id, updates);
-                                                else await ApiClient.updateItem(item.id, updates);
-                                            }
+                                        items={quantityItems || []}
+                                        selectedDate={dueDate ? new Date(dueDate) : null}
+                                        onSelectDate={(d) => {
+                                            setDueDate(format(d, 'yyyy-MM-dd'));
                                         }}
-                                        onItemClick={(selected) => handleDrillDown(selected)}
-                                        prepDate={memoizedPrepDate}
-                                        targetMode={activeDateInput}
-                                        filterMode={isProject ? 'all' : (item?.projectId ? 'company' : 'personal')}
+                                        prepDate={prepDate ? new Date(prepDate) : null}
+                                        workDays={item.work_days || 1}
+                                        onItemClick={() => { }} // No item interaction in this view
+                                        targetMode="due"
+                                        filterMode={filterMode}
+                                        volumeOnly={true}
+                                        targetItemId={item.id}
+                                        className="h-full border-l-0"
                                     />
                                 </div>
 

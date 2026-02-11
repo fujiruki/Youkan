@@ -20,10 +20,14 @@ interface CalendarCellProps {
     onItemClick?: (item: Item) => void;
     projects?: any[];
     renderItemTitle: (item: Item) => string;
+    volumeOnly?: boolean;
+    isTarget?: boolean;
+    rowHeight?: number;
 }
 
 export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
-    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle
+    date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
+    volumeOnly = false, isTarget = false, rowHeight
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -51,9 +55,12 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
+                volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`, // Applied rowHeight in volumeOnly
                 isHoliday ? "bg-slate-200 dark:bg-slate-800/80" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
                 isSelected ? "z-10 bg-red-50 dark:bg-red-900/20 shadow-[inset_0_0_0_2px_rgba(244,63,94,1)]" : "",
-                (isPrep || isCommitPeriod) && !isSelected ? "z-10 bg-indigo-50 dark:bg-indigo-900/20 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : ""
+                (isPrep || isCommitPeriod) && !isSelected ? "z-10 bg-indigo-50 dark:bg-indigo-900/20 shadow-[inset_0_0_0_2px_rgba(99,102,241,1)]" : "",
+                volumeOnly && isTarget && "shadow-[inset_0_0_0_2px_rgba(239,68,68,1)] border-red-500", // Red solid border for due date
+                volumeOnly && isPrep && !isTarget && "shadow-[inset_0_0_0_2px_rgba(59,130,246,1)] border-blue-400 border-dashed" // Blue dashed for prep
             )}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
@@ -74,7 +81,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 </div>
 
                 <div className={cn("flex-1 flex gap-1", isMini ? "flex-row overflow-x-auto" : "flex-col overflow-hidden")}>
-                    {items
+                    {!volumeOnly && items
                         .filter(i => {
                             // [UI] Rule: Chip appears on due_date (Primary). If absent, appears on prep_date.
                             const uiDateRaw = i.due_date || (i.prep_date ? new Date(i.prep_date * 1000).toISOString() : null);
@@ -115,6 +122,14 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                 <span className="w-1 h-1 rounded-full bg-slate-400" />
                                 <span className="w-1 h-1 rounded-full bg-slate-400" />
                             </div>
+                        </div>
+                    )}
+
+                    {volumeOnly && items.length > 0 && (
+                        <div className="absolute top-1 right-1 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[9px] bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-400">
+                                {items.length}件
+                            </span>
                         </div>
                     )}
                     {isMini && items.length > 10 && <span className="text-[8px] text-slate-400">...</span>}

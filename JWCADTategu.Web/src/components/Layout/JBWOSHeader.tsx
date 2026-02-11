@@ -40,6 +40,7 @@ interface JBWOSHeaderProps {
     tenant?: Tenant | null;
     joinedTenants?: Tenant[];
     onSwitchTenant?: (tenantId: string | null) => void;
+    onClearProject?: () => void; // [NEW] Clear project focus
     // Optional load info
     usedMinutes?: number;
     limitMinutes?: number;
@@ -62,8 +63,9 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
     tenant,
     joinedTenants = [],
     onSwitchTenant,
+    onClearProject,
     usedMinutes: initialUsed = 0,
-    limitMinutes: initialLimit = 480,
+    limitMinutes: initialLimit = 100,
     activeProject // [NEW] Read active project
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -206,7 +208,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 </span>
                             </div>
                             <button
-                                onClick={onNavigateToDashboard}
+                                onClick={onClearProject || onNavigateToDashboard}
                                 className="ml-1 p-0.5 hover:bg-indigo-500/40 rounded transition-colors text-indigo-300 hover:text-white"
                                 title="解除"
                             >

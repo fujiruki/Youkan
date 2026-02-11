@@ -55,16 +55,36 @@ function App() {
     // [NEW] URL Router Effect (Run Once)
     useEffect(() => {
         const path = window.location.pathname.toLowerCase();
+        const params = new URLSearchParams(window.location.search);
+        const projectIdFromUrl = params.get('projectId');
+        const projectTitleFromUrl = params.get('title');
+        const tenantIdFromUrl = params.get('tenantId');
 
         // ヘルパー: パスの末尾が一致するか、またはセグメントとして含まれているかを確認
         const matches = (segment: string) => path.endsWith(segment.toLowerCase()) || path.includes('/' + segment.toLowerCase() + '/');
+
+        // Restore context if project info is in URL
+        if (projectIdFromUrl && !activeProject) {
+            console.log('[Router] Restoring Project Context from URL:', projectIdFromUrl);
+            const numericId = parseInt(projectIdFromUrl.replace(/[^0-9]/g, '').slice(-9) || '1', 10) || Date.now();
+            setActiveProject({
+                id: numericId,
+                title: projectTitleFromUrl || `[CLOUD:${projectIdFromUrl}]`,
+                name: projectTitleFromUrl || `[CLOUD:${projectIdFromUrl}]`,
+                cloudId: projectIdFromUrl,
+                tenantId: tenantIdFromUrl || undefined,
+                client: '',
+                updatedAt: new Date(),
+                createdAt: new Date()
+            });
+        }
 
         if (matches('dashboard') || matches('focus')) {
             console.log('[Router] Detected Dashboard/Focus URL');
             setCurrentView('dashboard');
         } else if (matches('jbwos/panorama') || matches('panorama')) {
             console.log('[Router] Detected Panorama URL');
-            setCurrentView('dashboard'); // 現状はダッシュボードへリダイレクト（後にパノラマビュー実装時に切り替え）
+            setCurrentView('dashboard');
         } else if (matches('projects/personal') || matches('projects/company') || matches('projects')) {
             console.log('[Router] Detected Projects URL');
             setCurrentView('projects');
@@ -96,11 +116,18 @@ function App() {
     // 1. To Project List (External View)
     const handleNavigateToProjects = (scope: 'personal' | 'company' = 'personal') => {
         setCurrentView('projects');
-        setActiveProject(null);
+        // REMOVED: setActiveProject(null); // Keep project focus while browsing list
 
         // Update URL based on scope
         const deployBase = '/contents/TateguDesignStudio/';
-        window.history.pushState({ view: 'projects', scope }, '', `${deployBase}projects/${scope}`);
+        const params = new URLSearchParams();
+        if (activeProject?.cloudId) {
+            params.set('projectId', activeProject.cloudId);
+            if (activeProject.title) params.set('title', activeProject.title);
+            if (activeProject.tenantId) params.set('tenantId', activeProject.tenantId);
+        }
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+        window.history.pushState({ view: 'projects', scope }, '', `${deployBase}projects/${scope}${queryString}`);
 
         // [NEW] Dispatch event to notify all components (Header, Screen, etc.)
         window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: scope } }));
@@ -129,9 +156,6 @@ function App() {
     const handleOpenCloudProject = (projectId: string, projectName?: string, tenantId?: string) => {
         console.log('[App] Opening Cloud Project:', projectId, 'Tenant:', tenantId);
         // Create a minimal Project object for JoineryScheduleScreen
-        // Use the cloud ID as both:
-        // - id: Generate a numeric ID from the string for local compatibility
-        // - name: Store in a way we can retrieve (prefix with cloudId for now)
         const numericId = parseInt(projectId.replace(/[^0-9]/g, '').slice(-9) || '1', 10) || Date.now();
         const cloudProject: Project = {
             id: numericId,
@@ -145,6 +169,15 @@ function App() {
         };
         setActiveProject(cloudProject);
         setCurrentView('dashboard'); // [CHANGE] Go to Dashboard for Projects
+
+        // Update URL to include project context
+        const deployBase = '/contents/TateguDesignStudio/';
+        const params = new URLSearchParams();
+        params.set('projectId', projectId);
+        if (projectName) params.set('title', projectName);
+        if (tenantId) params.set('tenantId', tenantId);
+
+        window.history.pushState({ view: 'dashboard', projectId }, '', `${deployBase}Focus?${params.toString()}`);
     };
 
     // 3. To Editor (Directly from Global Board or Schedule)
@@ -165,21 +198,35 @@ function App() {
     const handleNavigateToDashboard = () => {
         console.log('[App] handleNavigateToDashboard called');
         setCurrentView('dashboard');
-        setActiveProject(null);
+        // REMOVED: setActiveProject(null); // Maintain focus!
 
         // Update localStorage to ensure the next mount of DashboardScreen defaults to stream
         localStorage.setItem('jbwos_view_mode', 'stream');
 
-        // Logic to reset URL to base/Focus
+        // Logic to reset URL to base/Focus (keeping project context if exists)
         const basePath = import.meta.env.BASE_URL || '/';
         const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        const newPath = normalizedBase + 'Focus';
+        const params = new URLSearchParams();
+        if (activeProject?.cloudId) {
+            params.set('projectId', activeProject.cloudId);
+            if (activeProject.title) params.set('title', activeProject.title);
+            if (activeProject.tenantId) params.set('tenantId', activeProject.tenantId);
+        }
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+        const newPath = normalizedBase + 'Focus' + queryString;
 
         // Use window.history.pushState to update URL without full reload
         window.history.pushState({ view: 'dashboard', mode: 'stream' }, '', newPath);
 
         // Dispatch event to reset DashboardScreen internal state (if already mounted)
         window.dispatchEvent(handleNavigateToDashboardEvent());
+    };
+
+    // [NEW] Clear Project Focus Handler
+    const handleClearProjectFocus = () => {
+        console.log('[App] Clearing project focus');
+        setActiveProject(null);
+        handleNavigateToDashboard(); // Reset to clean dashboard
     };
 
     // Helper for custom event
@@ -326,6 +373,7 @@ function App() {
                         handleArchiveProject={handleArchiveProject}
                         setActiveProject={setActiveProject}
                         handleNavigateToDashboard={handleNavigateToDashboard}
+                        handleClearProjectFocus={handleClearProjectFocus} // [NEW] Pass to content
                     />
                 </AuthGuard>
             </AuthProvider>
@@ -382,6 +430,7 @@ const AppContent: React.FC<{
     handleArchiveProject: (id: number) => Promise<void>;
     setActiveProject: (p: Project | null) => void;
     handleNavigateToDashboard: () => void;
+    handleClearProjectFocus: () => void; // [NEW] Added to props
 
 }> = ({
     currentView,
@@ -399,6 +448,7 @@ const AppContent: React.FC<{
     handleArchiveProject,
     setActiveProject,
     handleNavigateToDashboard,
+    handleClearProjectFocus, // [NEW]
 
 }) => {
         const { showToast, toasts, dismissToast } = useToast();
@@ -451,6 +501,7 @@ const AppContent: React.FC<{
                                 joinedTenants={joinedTenants}
                                 onSwitchTenant={switchTenant}
                                 activeProject={activeProject} // [NEW] Pass active project context
+                                onClearProject={handleClearProjectFocus} // [NEW] Explicit clear focus handler
                             />
                         )}
 

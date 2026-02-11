@@ -437,6 +437,8 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                     members={members as any}
                     joinedTenants={joinedTenants}
                     allProjects={projects as any}
+                    quantityItems={projects as any}
+                    filterMode={activeScope as any}
                 />
             )}
 

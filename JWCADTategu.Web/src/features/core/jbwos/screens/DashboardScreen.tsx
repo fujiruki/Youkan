@@ -409,10 +409,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     }}
                     onCreateSubTask={createSubTask}
                     onGetSubTasks={getSubTasks}
+                    onOpenItem={setSelectedItem}
                     members={vm.members}
                     allProjects={vm.allProjects}
                     joinedTenants={joinedTenants}
-                    onOpenItem={setSelectedItem}
+                    quantityItems={allItemsForCalendar}
+                    filterMode={filterMode}
                 />
             )}
 

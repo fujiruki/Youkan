@@ -135,8 +135,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     onDecision={handleDecision}
                     members={members}
                     allProjects={projects}
-                    joinedTenants={[]} // Calendar screen context might not need full tenant list or can fetch
+                    joinedTenants={[]}
                     onOpenItem={setSelectedItem}
+                    quantityItems={items}
+                    filterMode={activeTenantId ? 'company' : 'personal'}
                 />
             )}
         </div>

@@ -34,4 +34,7 @@ export interface RyokanCalendarProps {
     // [NEW] Capacity Editing
     tenantProfiles?: Map<string, any>;
     onUpdateCapacityException?: (date: Date, updates: { tenantId: string, minutes: number }[]) => void;
+    // [NEW] Volume-Only mode for detail modal
+    volumeOnly?: boolean;
+    targetItemId?: string;
 }

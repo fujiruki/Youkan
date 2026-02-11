@@ -389,6 +389,8 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                 onGetSubTasks={vm.getSubTasks}
                 members={vm.members}
                 joinedTenants={joinedTenants}
+                quantityItems={[...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbLog, ...vm.gdbIntent]}
+                filterMode={vm.filterMode}
             />
 
             <div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">

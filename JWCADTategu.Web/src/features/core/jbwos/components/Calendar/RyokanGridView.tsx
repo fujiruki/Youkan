@@ -27,7 +27,10 @@ interface GridViewProps {
     renderItemTitle: (item: Item) => string;
     pressureConnections?: PressureConnection[];
     onBackgroundClick?: () => void;
-    flashingItemIds: Set<string>;
+    flashingIds: Set<string>;
+    volumeOnly?: boolean;
+    targetItemId?: string;
+    rowHeight?: number;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -35,7 +38,10 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     selectedDate, prepDate, commitPeriod = [], scrollRef, projects = [], renderItemTitle,
     pressureConnections = [],
     onBackgroundClick,
-    flashingItemIds
+    flashingIds,
+    volumeOnly = false,
+    targetItemId,
+    rowHeight
 }) => {
     return (
         <div
@@ -98,11 +104,14 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 isSelected={isS}
                                 isPrep={isP}
                                 isCommitPeriod={isCP}
-                                flashingIds={flashingItemIds}
+                                flashingIds={flashingIds}
                                 onAction={(d, _items, type, rect) => onAction(d, type, rect)}
                                 onItemClick={onItemClick}
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}
+                                volumeOnly={volumeOnly}
+                                isTarget={metric?.contributingItems?.some(i => i.id === targetItemId && i.due_date && isSameDate(date, new Date(i.due_date)))}
+                                rowHeight={rowHeight}
                             />
                         );
                     })}

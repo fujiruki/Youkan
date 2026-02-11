@@ -22,13 +22,25 @@ const getStartOfToday = () => {
 export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     items, onItemClick, capacityConfig, members,
     layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
-    onSelectDate, selectedDate, prepDate, focusDate, workDays = 1, projects = [],
+    onSelectDate, selectedDate, prepDate, focusDate,
+    workDays = 1,
+    rowHeight: propRowHeight,
+    projects = [],
     focusedTenantId, focusedProjectId, currentUserId, joinedTenants = [],
-    tenantProfiles, onUpdateCapacityException
+    tenantProfiles, onUpdateCapacityException,
+    volumeOnly = false,
+    targetItemId
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
     const isMini = layoutMode === 'mini';
+
+    // Default Row Height logic
+    const rowHeight = React.useMemo(() => {
+        if (propRowHeight) return propRowHeight;
+        if (volumeOnly && layoutMode === 'mini') return 50; // New requirement for Detail Modal
+        return layoutMode === 'mini' ? 24 : 80;
+    }, [propRowHeight, layoutMode, volumeOnly]);
 
     const [editingDate, setEditingDate] = useState<Date | null>(null); // [NEW]
 
@@ -128,7 +140,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         if (onSelectDate) onSelectDate(date);
 
-        if (actionType === 'doubleClick') {
+        // [NEW] In VolumeOnly mode, single click shows the breakdown hint (as selectedSigns modal)
+        if (actionType === 'doubleClick' || (volumeOnly && actionType === 'click')) {
             setSelectedSigns(signs);
             setPressureConnections([]);
         } else {
@@ -302,7 +315,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         renderItemTitle={renderItemTitle}
                         pressureConnections={pressureConnections}
                         onBackgroundClick={resetHighlights}
-                        flashingItemIds={flashingItemIds}
+                        flashingIds={flashingItemIds}
+                        volumeOnly={volumeOnly}
+                        targetItemId={targetItemId}
+                        rowHeight={rowHeight}
                     />
                 )}
                 {displayMode === 'gantt' && (
