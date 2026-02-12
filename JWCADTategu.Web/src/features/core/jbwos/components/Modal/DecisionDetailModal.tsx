@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare } from 'lucide-react';
+import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Item, Member, FilterMode, CapacityConfig } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
@@ -703,6 +703,22 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
+                                    {(estimatedMinutes > 0 || workDays > 0) && commitPeriodDates.length === 0 && (
+                                        <div className="absolute top-0 left-0 right-0 z-20 p-2 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 flex items-start gap-2 animate-in slide-in-from-top-4 duration-300">
+                                            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-none" />
+                                            <div className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
+                                                稼働時間（キャパシティ）が設定されていないため、目安期間を算出できません。
+                                                <button
+                                                    onClick={() => {
+                                                        // Redirect to PersonalSettings if possible, or just hint
+                                                    }}
+                                                    className="block text-amber-600 dark:text-amber-400 underline hover:text-amber-700 mt-0.5"
+                                                >
+                                                    個人設定を確認してください
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <SideCalendarPanel
                                         items={quantityItems || []}
                                         selectedDate={dueDate ? new Date(dueDate) : null}
