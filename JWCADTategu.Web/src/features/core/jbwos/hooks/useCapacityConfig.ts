@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CapacityConfig } from '../types';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository';
-import { JBWOSRepository } from '../repositories/JBWOSRepository';
+
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
 
 // Repository Factory (Simplified for Hook)

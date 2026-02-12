@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2, Folder, Plus, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Item, Member, FilterMode, CapacityConfig } from '../../types';
@@ -15,37 +15,33 @@ interface DecisionDetailModalProps {
     onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => void;
     onDelete: (id: string) => void;
     onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
-    onCreateSubTask?: (parentId: string, title: string, initialDueDate?: string) => Promise<string | undefined>; // [FIX] Added initialDueDate
-    onGetSubTasks?: (parentId: string) => Promise<Item[]>; // [NEW]
-    onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>; // [NEW]
-    onOpenItem?: (item: Item) => void; // [NEW] Drill-down navigation
-    members?: Member[]; // [NEW]
-    allProjects?: Item[]; // [NEW] Project list
-    joinedTenants?: { id: string; name: string }[]; // [NEW] Company list
-    quantityItems?: Item[]; // [NEW] For background color calculation
-    filterMode?: FilterMode; // [NEW] Current filter context
-    capacityConfig?: CapacityConfig; // [NEW]
-    // Custom Labels
+    onCreateSubTask?: (parentId: string, title: string, initialDueDate?: string) => Promise<string | undefined>;
+    onGetSubTasks?: (parentId: string) => Promise<Item[]>;
+    onDelegate?: (taskId: string, assignedTo: string, dueDate?: string, note?: string) => Promise<void>;
+    onOpenItem?: (item: Item) => void;
+    members?: Member[];
+    allProjects?: Item[];
+    joinedTenants?: { id: string; name: string }[];
+    quantityItems?: Item[];
+    filterMode?: FilterMode;
+    capacityConfig?: CapacityConfig;
     yesButtonLabel?: string;
     initialFocus?: 'date';
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
-    onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
+    onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     quantityItems = [], filterMode = 'all', capacityConfig,
     initialFocus, yesButtonLabel
 }) => {
-    // [NEW] History Stack for Drill-Down
     const [history, setHistory] = React.useState<Item[]>([]);
 
-    // Derived Current Item
     const item = React.useMemo(() => {
         if (history.length > 0) return history[history.length - 1];
         return propItem;
     }, [history, propItem]);
 
-    // Reset history if propItem changes (external navigation)
     React.useEffect(() => {
         setHistory([]);
     }, [propItem?.id]);
@@ -55,13 +51,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     };
 
     const handleBack = async () => {
-        // [FIX] Save changes before navigating back
         await saveChanges();
         setHistory(prev => prev.slice(0, -1));
     };
 
-    // [FIX] Hooks must be called unconditionally.
-    // Initialize with safe defaults.
     const [note, setNote] = React.useState('');
     const [dueStatus, setDueStatus] = React.useState<any>('waiting_external');
     const [dueDate, setDueDate] = React.useState('');
@@ -77,12 +70,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const [isProject, setIsProject] = React.useState(false);
     const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
 
-    // [NEW] Local state for Tenant/Project for immediate UI feedback
     const [localTenantId, setLocalTenantId] = React.useState<string>('');
     const [localProjectId, setLocalProjectId] = React.useState<string>('');
     const [localAssignedTo, setLocalAssignedTo] = React.useState<string>('');
 
-    // Sync state when item changes OR when project/tenant lists load
     React.useEffect(() => {
         if (item) {
             setNote(item.memo || '');
@@ -90,64 +81,43 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setDueDate(item.due_date || '');
             setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
             setWorkDays(item.work_days ?? 1);
-            setIsWorkDaysDirty(false); // Reset dirty flag on new item load
+            setIsWorkDaysDirty(false);
             setEditedTitle(item.title);
             setEstimatedMinutes(item.estimatedMinutes ?? 0);
             setIsProject(item.isProject ?? false);
             setLocalTenantId(item.tenantId || '');
             setLocalProjectId(item.projectId || '');
             setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
-
-            // Default subTasks to empty until fetched
             setSubTasks([]);
         }
-    }, [item?.id, allProjects.length > 0, joinedTenants.length > 0]); // Re-sync when metadata loads
+    }, [item?.id, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
 
-    // Now safe to return null if no item, as hooks are already registered
-    // Early return removed to allow hooks to run.
-    // Null check moved to pre-render.
-
-
-
-    // [NEW] Load Sub-tasks & Optimistic Defaults
-    // [NEW] Load Sub-tasks & Optimistic Defaults
     React.useEffect(() => {
-        if (!item) return; // Guard
+        if (!item) return;
 
         if (isProject && onGetSubTasks) {
-            console.log('[Modal] Fetching subtasks for:', item.id);
             onGetSubTasks(item.id).then(tasks => {
-                console.log('[Modal] Subtasks loaded:', tasks.length);
                 setSubTasks(tasks);
             });
         }
 
-        // Optimistic Due Date Logic (Default to Today if Waiting and Empty)
         if (item.dueStatus === 'waiting_external' && !dueDate) {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
-            setDueDate(todayStr); // In-memory only until save
+            setDueDate(todayStr);
             setDueStatus('confirmed');
-            // Note: We are NOT saving to DB yet to allow "Esc" to cancel without side effects, 
-            // but UI will look like it's confirmed.
-            // If user interacts (e.g. Enter), handleClose/Decision will save `dueDate`.
         }
     }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
-    // [NOTE] Accurate Allocation Period Logic (Integrated with QuantityEngine)
     const commitPeriodDates = React.useMemo(() => {
         if (!item || !capacityConfig) return [];
 
-        // 1. Determine anchor date: マイ期限があればそれ、なければ納期
         const anchorStr = prepDate || dueDate;
         if (!anchorStr) return [];
         const anchor = new Date(anchorStr);
 
-        // 2. Determine minutes (minutes > days)
-        // [FIX] if workDays changed manually, prioritize its volume calculation
         const baseDailyMinutes = capacityConfig.defaultDailyMinutes || 480;
         const minutes = (isWorkDaysDirty || !estimatedMinutes) ? (workDays * baseDailyMinutes) : estimatedMinutes;
 
-        // 3. Build QuantityContext
         const tenantProfiles = new Map<string, any>();
         joinedTenants.forEach((t: any) => {
             if (t.capacityProfile) {
@@ -170,12 +140,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             }
         };
 
-        const result = QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
-        console.log(`[Modal] commitPeriodDates result: anchor=${anchor.toDateString()}, minutes=${minutes}, targetTenant=${(localTenantId !== undefined ? localTenantId : item.tenantId)}, count=${result.length}`);
-        return result;
+        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
     }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
 
-    // Menu Latching State
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [confirmDelete, setConfirmDelete] = React.useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
@@ -183,9 +150,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const dateInputRef = React.useRef<HTMLInputElement>(null);
     const titleInputRef = React.useRef<HTMLInputElement>(null);
 
-    // ... Initial Focus Logic ...
-
-    // Click Outside for Menu Latching
     React.useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -201,17 +165,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         };
     }, [isMenuOpen]);
 
-    // Sync prop changes
-    // Duplicate Sync Effect Removed (Logic is handled by top-level effect)
-
-    // [NEW] Enhanced Keyboard Shortcuts
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!item) return; // Guard
-            // [FIX] Stop propagation to prevent background GDB from reacting
+            if (!item) return;
             e.stopPropagation();
 
-            // Alt + D: Focus Date
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
                 if (dueStatus === 'waiting_external') {
@@ -223,14 +181,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                 setTimeout(() => dateInputRef.current?.focus(), 50);
             }
 
-            // Ctrl + Enter: Immediate decision "Yes" (Today) - Execute and close modal
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
                 handleDecisionWithSave('yes');
-                return; // Exit early to prevent further processing
+                return;
             }
 
-            // Esc: Close (Keep in Inbox)
             if (e.key === 'Escape') {
                 e.preventDefault();
                 handleClose();
@@ -240,24 +196,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [item ? item.id : null, dueStatus, note, workDays, onDecision, onClose, onUpdate, isWorkDaysDirty]);
 
-    // [NEW] Unified Save Helper -> Returns pending updates instead of calling API immediately
     const getPendingChanges = () => {
         if (!item) return {};
         const updates: Partial<Item> = {};
 
-        // Work Days
         if (isWorkDaysDirty || workDays !== item.work_days) {
             updates.work_days = workDays;
         }
-        // Estimated Minutes
         if (estimatedMinutes !== (item.estimatedMinutes || 0)) {
             updates.estimatedMinutes = estimatedMinutes;
         }
-        // Memo (Note)
         if (note !== (item.memo || '')) {
             updates.memo = note;
         }
-        // Prep Date (Safety check)
         const itemPrepStr = item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '';
         if (prepDate !== itemPrepStr) {
             const dateObj = new Date(prepDate);
@@ -266,27 +217,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                 updates.prep_date = timestamp;
             }
         }
-        // Due Date (Safety check)
-        // Due Date (Safety check)
         if (dueDate !== (item.due_date || '')) {
             updates.due_date = dueDate;
-            updates.dueStatus = dueStatus; // If date changed, likely status is confirmed
+            updates.dueStatus = dueStatus;
         }
-        // Title
         if (editedTitle !== item.title) {
             updates.title = editedTitle;
         }
-
-        // tenantId and projectId
         if (localTenantId !== (item.tenantId || '')) {
-            updates.tenantId = localTenantId || null as any; // Map empty to null for private
+            updates.tenantId = localTenantId || null as any;
         }
         if (localProjectId !== (item.projectId || '')) {
             updates.projectId = localProjectId || null as any;
-            // [FIX REMOVED] Do NOT auto-sync parentId here - it breaks hierarchy for sub-tasks
         }
-
-        // assignedTo
         const currentAssignedTo = item.assignedTo || (item as any).assigned_to || '';
         if (localAssignedTo !== currentAssignedTo) {
             updates.assignedTo = localAssignedTo || null as any;
@@ -299,7 +242,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         if (!item) return;
         const updates = getPendingChanges();
         if (Object.keys(updates).length > 0) {
-            console.log('Saving changes before close:', updates);
             if (onUpdate) {
                 await onUpdate(item.id, updates);
             } else {
@@ -308,18 +250,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
     };
 
-    // [NEW] Save work_days AND estimatedMinutes and close
     const handleClose = async () => {
         await saveChanges();
         onClose();
     };
 
-    // [NEW] Helper to save work_days before decision
     const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
         if (!item) return;
         const updates = getPendingChanges();
 
-        // [FIX] Auto-set Today's date if "Yes" (Today) is chosen and no date is set
         if (decision === 'yes') {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
             if (!updates.due_date && !item.due_date) {
@@ -327,20 +266,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                 updates.dueStatus = 'confirmed';
             }
         }
-
-        console.log('Resolving decision with atomic updates:', updates);
-        // Pass updates to onDecision to handle them atomically or strictly sequentially
         onDecision(item.id, decision, note, updates);
     };
 
-    // [FIX] Null check before rendering, AFTER all hooks are declared.
     if (!item) return null;
 
     return (
         <AnimatePresence>
             {item && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    {/* Backdrop */}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
                     <motion.div
                         data-testid="modal-backdrop"
                         initial={{ opacity: 0 }}
@@ -351,7 +285,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         onClick={handleClose}
                     />
 
-                    {/* Modal */}
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -359,11 +292,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         onClick={(e) => e.stopPropagation()}
                         className="relative z-10 w-full max-w-lg md:max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col h-[calc(100vh-30px)]"
                     >
-                        {/* Header Area */}
                         <div className="p-4 pb-3 flex justify-between items-start flex-none">
                             <div className="flex-1 min-w-0">
 
-                                {/* [NEW] Back Button (Drill-Down) */}
                                 {history.length > 0 && (
                                     <button
                                         onClick={handleBack}
@@ -380,14 +311,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     <div className="flex flex-col gap-2 mb-2">
                                         <div className="flex items-center gap-2">
                                             <Folder size={18} className="text-slate-400" />
-                                            {/* Tenant (Company) Selection */}
                                             <select
                                                 value={localTenantId}
                                                 onChange={async (e) => {
                                                     const nextTenantId = e.target.value;
                                                     setLocalTenantId(nextTenantId);
 
-                                                    // Auto-reset project if incompatible
                                                     let nextProjectId = localProjectId;
                                                     if (localProjectId) {
                                                         const p = allProjects.find(x => x.id === localProjectId);
@@ -413,7 +342,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                                             <span className="text-slate-300">/</span>
 
-                                            {/* Project Selection (Filtered by Tenant) */}
                                             <select
                                                 value={localProjectId}
                                                 onChange={async (e) => {
@@ -457,7 +385,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                 ) : (
                                     <>
-                                        {/* Display Breadcrumb-style Header */}
                                         <div className="flex items-center gap-2 mb-1 overflow-hidden h-5">
                                             {(() => {
                                                 const project = allProjects.find(p => p.id === localProjectId);
@@ -560,17 +487,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Main Content Area (2-Column Layout) */}
                         <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
-
-                            {/* LEFT COLUMN: Inputs & Calendar */}
                             <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800 h-full">
-
-                                {/* Top: Inputs Section (Compact) */}
                                 <div className="p-3 pb-1 flex-none border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-                                        {/* Due Date */}
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -605,7 +525,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     }}
                                                     className="bg-slate-50 dark:bg-slate-800/50 rounded px-2 py-1.5 text-xs text-slate-400 font-medium border border-dashed border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-400 hover:text-indigo-500 transition-colors text-center"
                                                 >
-                                                    未記入
+                                                    未定
                                                 </div>
                                             ) : (
                                                 <div className="relative group">
@@ -647,11 +567,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             )}
                                         </div>
 
-                                        {/* My Date */}
                                         <div className="flex flex-col gap-0.5">
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                                 <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
-                                                My期限
+                                                マイ期限
                                             </span>
                                             <div className="relative group/mydate">
                                                 <div className="hidden md:block">
@@ -669,7 +588,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                         onFocus={() => {
                                                             setActiveDateInput('my');
                                                         }}
-                                                        placeholder="目標日..."
+                                                        placeholder="Goal..."
                                                         className={cn(
                                                             "w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors",
                                                             activeDateInput === 'my' ? "ring-1 ring-indigo-400 border-indigo-300" : "focus:ring-1 focus:ring-indigo-400"
@@ -685,7 +604,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                             setPrepDate(val);
                                                             const dateObj = new Date(val);
                                                             const timestamp = !isNaN(dateObj.getTime()) ? Math.floor(dateObj.getTime() / 1000) : null;
-                                                            const updates: Partial<Item> = { prep_date: timestamp || undefined }; // Explicit undefined
+                                                            const updates: Partial<Item> = { prep_date: timestamp || undefined };
                                                             if (onUpdate) await onUpdate(item.id, updates);
                                                             else await ApiClient.updateItem(item.id, updates);
                                                         }}
@@ -703,15 +622,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
-                                    {/* 警告（ガイド）の表示条件：週の合計稼働が0かつ見積もりがある場合 */}
                                     {estimatedMinutes > 0 && commitPeriodDates.length === 0 && (
                                         <div className="mb-2 p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-md flex items-start gap-2">
                                             <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                                             <span className="text-[10px] leading-tight text-amber-700 dark:text-amber-300">
-                                                稼働時間（キャパシティ）が設定されていないため、目安期間を算出できません。
-                                                個人設定を確認してください。
+                                                キャパシティ割り当てが見積もれませんでした。設定を確認してください。
                                             </span>
                                         </div>
                                     )}
@@ -743,56 +659,53 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         className="h-full border-l-0"
                                     />
                                 </div>
-                            </div>
 
-                            {/* Bottom: Boost & Note (Moved here) */}
-                            <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
-                                <div className="flex justify-center">
-                                    <button
-                                        onClick={async () => {
-                                            const newBoostState = !item.is_boosted;
-                                            const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
-                                            if (onUpdate) await onUpdate(item.id, updates);
-                                            else await ApiClient.updateItem(item.id, updates);
-                                        }}
-                                        className={cn(
-                                            "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
-                                            item.is_boosted
-                                                ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
-                                        )}
-                                    >
-                                        <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
-                                        今日だけ前に出す (Boost)
-                                    </button>
-                                </div>
+                                <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
+                                    <div className="flex justify-center">
+                                        <button
+                                            onClick={async () => {
+                                                const newBoostState = !item.is_boosted;
+                                                const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }}
+                                            className={cn(
+                                                "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
+                                                item.is_boosted
+                                                    ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                    : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                                            )}
+                                        >
+                                            <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
+                                            Boost (今日だけ優先)
+                                        </button>
+                                    </div>
 
-                                <div className="relative">
-                                    <textarea
-                                        value={note}
-                                        onChange={(e) => setNote(e.target.value)}
-                                        onBlur={async () => {
-                                            const updates = { memo: note };
-                                            if (onUpdate) await onUpdate(item.id, updates);
-                                            else await ApiClient.updateItem(item.id, updates);
-                                        }}
-                                        placeholder="メモ・条件・懸念点..."
-                                        rows={2}
-                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg p-2 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-400 transition-all resize-none"
-                                    />
+                                    <div className="relative">
+                                        <textarea
+                                            value={note}
+                                            onChange={(e) => setNote(e.target.value)}
+                                            onBlur={async () => {
+                                                const updates = { memo: note };
+                                                if (onUpdate) await onUpdate(item.id, updates);
+                                                else await ApiClient.updateItem(item.id, updates);
+                                            }}
+                                            placeholder="メモ..."
+                                            rows={2}
+                                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg p-2 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-400 transition-all resize-none"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* RIGHT COLUMN: Estimated Time & Subtasks */}
                         <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
 
-                            {/* Estimated Time Preset Grid */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
                                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                         <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
-                                        目安時間 (Estimate)
+                                        見積工数
                                     </span>
                                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                                         {estimatedMinutes > 0 ? (estimatedMinutes >= 60 ? `${(estimatedMinutes / 60).toFixed(1)}h` : `${estimatedMinutes}m`) : '-'}
@@ -859,7 +772,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 </div>
 
                                 <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] text-slate-400">微調整:</span>
+                                    <span className="text-[10px] text-slate-400">手入力:</span>
                                     <input
                                         type="number"
                                         value={estimatedMinutes / 60}
@@ -874,7 +787,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-slate-800">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
-                                    担当者 (Assignee)
+                                    担当者
                                 </span>
                                 <div className="relative group/assignee shadow-sm">
                                     <select
@@ -888,7 +801,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         }}
                                         className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
                                     >
-                                        <option value="">自分 (Unassigned)</option>
+                                        <option value="">(未割り当て)</option>
                                         {members.map(m => (
                                             <option key={m.id} value={m.id}>
                                                 {(m as any).display_name || (m as any).name} {m.role ? `(${m.role})` : ''}
@@ -906,7 +819,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
                                             <Folder size={12} className="text-blue-400" />
-                                            サブタスク (Project Check)
+                                            サブタスク
                                         </div>
                                         {subTasks.length > 0 && (
                                             <button
@@ -921,7 +834,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 }}
                                                 className="text-[10px] text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
                                             >
-                                                合計反映
+                                                合計を反映
                                             </button>
                                         )}
                                     </div>
@@ -949,7 +862,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     ) : (
                                                         sub.work_days !== undefined && sub.work_days > 0 && (
                                                             <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
-                                                                {Number(sub.work_days).toFixed(1)}日
+                                                                {Number(sub.work_days).toFixed(1)}d
                                                             </span>
                                                         )
                                                     )}
@@ -998,9 +911,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 </div>
                             )}
                         </div>
+
                     </motion.div>
 
-                    {/* Actions Footer */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
                         <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-2 w-full md:w-auto">
@@ -1020,7 +933,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         "absolute bottom-full left-0 w-56 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
                                         isMenuOpen ? "block" : "hidden group-hover/notnow:block"
                                     )}>
-                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">Destinations</div>
+                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">場所を移動</div>
                                         {!isProject && (
                                             <button
                                                 onClick={async () => {
@@ -1033,21 +946,21 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 }}
                                                 className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
                                             >
-                                                <Folder size={14} /> プロジェクト化
+                                                <Folder size={14} /> プロジェクトに変換
                                             </button>
                                         )}
                                         <button
                                             onClick={() => onDecision(item.id, 'no', 'someday')}
                                             className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
                                         >
-                                            <span className="w-2 h-2 rounded-full bg-amber-400" /> Someday (いつか)
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" /> いつかやる
                                         </button>
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                                         <button
                                             onClick={() => onDelete(item.id)}
                                             className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2"
                                         >
-                                            <Trash2 size={12} /> 完全削除
+                                            <Trash2 size={12} /> 完全に削除
                                         </button>
                                     </div>
                                 </div>
@@ -1056,7 +969,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     onClick={() => onDecision(item.id, 'hold', note)}
                                     className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-xs"
                                 >
-                                    <PauseCircle size={18} /> 今は隠す (Sleep)
+                                    <PauseCircle size={18} /> 保留にする
                                 </button>
                             </div>
 
@@ -1065,7 +978,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     onClick={handleClose}
                                     className="px-4 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm"
                                 >
-                                    スタンバイに置く
+                                    閉じる
                                 </button>
                                 <button
                                     onClick={() => handleDecisionWithSave('yes')}

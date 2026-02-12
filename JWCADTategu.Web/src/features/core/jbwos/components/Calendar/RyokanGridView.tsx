@@ -52,7 +52,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
             onClick={onBackgroundClick}
             onScroll={onScroll}
         >
-            <div className="flex-1 relative min-w-max">
+            <div className="flex-1 relative">
                 {/* [NEW] Weekday Headers */}
                 <div className="grid grid-cols-7 gap-px mb-px bg-slate-200 dark:bg-slate-800 border-x border-t border-slate-200 dark:border-slate-800 rounded-t-lg overflow-hidden sticky top-0 z-30">
                     {['日', '月', '火', '水', '木', '金', '土'].map(day => (

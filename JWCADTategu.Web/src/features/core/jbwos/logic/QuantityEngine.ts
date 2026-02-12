@@ -184,10 +184,10 @@ export class QuantityEngine {
      * Capacity Logic: Determine Denominator based on Matrix.
      */
     private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null): number {
-        const { members, capacityConfig, tenantProfiles, focusedTenantId, filterMode, currentUser } = context;
+        const { capacityConfig, focusedTenantId, filterMode, currentUser } = context;
 
         if (!currentUser) return 0;
-        const isCompanyAcc = currentUser.isCompanyAccount;
+
         const isHol = this.checkIsHoliday(date, context);
         const dateKey = this.formatDateKey(date);
         const dayOfWeek = date.getDay();

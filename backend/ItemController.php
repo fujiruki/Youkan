@@ -6,6 +6,9 @@ require_once 'ManufacturingSyncService.php';
 class ItemController extends BaseController {
 
     public function handleRequest($method, $id = null) {
+        // [DEBUG] Log Request Arrival
+        error_log("[ItemController] handleRequest: Method=$method, ID=$id, URI=" . $_SERVER['REQUEST_URI']);
+
         $this->authenticate(); // Enforce Auth
 
         if ($method === 'GET') {
