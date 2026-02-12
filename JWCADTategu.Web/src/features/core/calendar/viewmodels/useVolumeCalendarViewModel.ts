@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { startOfMonth, endOfMonth, format, addMonths, subMonths } from 'date-fns';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../../jbwos/types';
+import { useCapacityConfig } from '../../jbwos/hooks/useCapacityConfig';
 
 interface FilterProps {
     projectId?: string | null;
@@ -17,6 +18,9 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
     const [error, setError] = useState<string | null>(null);
 
     const { projectId, tenantId } = filters;
+
+    // [NEW] Use shared capacity hook
+    const { capacityConfig, refreshCapacityConfig, toggleHoliday } = useCapacityConfig();
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -39,6 +43,10 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
             setItems(fetchedItems);
             setMembers(rawMembers);
             setProjects(fetchedProjects);
+
+            // Refresh capacity as well
+            refreshCapacityConfig();
+
             setError(null);
         } catch (e: any) {
             console.error(e);
@@ -46,7 +54,7 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
         } finally {
             setLoading(false);
         }
-    }, [currentDate, projectId, tenantId]);
+    }, [currentDate, projectId, tenantId, refreshCapacityConfig]);
 
     useEffect(() => {
         loadData();
@@ -62,6 +70,9 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
         endOfMonth: endOfMonth(currentDate),
         handleNextMonth: () => setCurrentDate(addMonths(currentDate, 1)),
         handlePrevMonth: () => setCurrentDate(subMonths(currentDate, 1)),
-        refresh: loadData
+        refresh: loadData,
+        // [NEW] Expose capacity config
+        capacityConfig,
+        toggleHoliday
     };
 };

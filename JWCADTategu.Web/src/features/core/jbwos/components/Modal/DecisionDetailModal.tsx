@@ -170,7 +170,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             }
         };
 
-        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
+        const result = QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
+        console.log(`[Modal] commitPeriodDates result: anchor=${anchor.toDateString()}, minutes=${minutes}, targetTenant=${(localTenantId !== undefined ? localTenantId : item.tenantId)}, count=${result.length}`);
+        return result;
     }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
 
     // Menu Latching State
@@ -347,7 +349,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         transition={{ duration: 0.2 }}
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={handleClose}
-                    />    {/* Modal */}
+                    />
+
+                    {/* Modal */}
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -356,7 +360,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         className="relative z-10 w-full max-w-lg md:max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-white/20 overflow-hidden flex flex-col h-[calc(100vh-30px)]"
                     >
                         {/* Header Area */}
-                        <div className="p-4 pb-3 flex justify-between items-start flex-none"> {/* [FIX] flex-none to prevent shrinking */}
+                        <div className="p-4 pb-3 flex justify-between items-start flex-none">
                             <div className="flex-1 min-w-0">
 
                                 {/* [NEW] Back Button (Drill-Down) */}
@@ -417,7 +421,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                     setLocalProjectId(nextVal);
                                                     const updates: Partial<Item> = {
                                                         projectId: nextVal || null as any
-                                                        // [FIX REMOVED] parentId should NOT be auto-synced from UI
                                                     };
                                                     if (onUpdate) await onUpdate(item.id, updates);
                                                     else await ApiClient.updateItem(item.id, updates);
@@ -501,7 +504,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-2 flex-none ml-4"> {/* [FIX] flex-none + margin */}
+                            <div className="flex items-center gap-2 flex-none ml-4">
                                 <div className="relative" ref={menuRef}>
                                     <button
                                         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -560,7 +563,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         {/* Main Content Area (2-Column Layout) */}
                         <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
 
-                            {/* LEFT COLUMN: Inputs & Calendar */}
                             {/* LEFT COLUMN: Inputs & Calendar */}
                             <div className="flex-1 flex flex-col min-w-0 md:border-r border-slate-100 dark:border-slate-800 h-full">
 
@@ -703,20 +705,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                                 {/* Middle: Calendar (Fills remaining space) */}
                                 <div className="flex-1 min-h-0 hidden md:flex bg-slate-50/10 dark:bg-slate-900/10 flex-col overflow-hidden relative">
-                                    {(estimatedMinutes > 0 || workDays > 0) && commitPeriodDates.length === 0 && (
-                                        <div className="absolute top-0 left-0 right-0 z-20 p-2 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 flex items-start gap-2 animate-in slide-in-from-top-4 duration-300">
-                                            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-none" />
-                                            <div className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
+                                    {/* 警告（ガイド）の表示条件：週の合計稼働が0かつ見積もりがある場合 */}
+                                    {estimatedMinutes > 0 && commitPeriodDates.length === 0 && (
+                                        <div className="mb-2 p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-md flex items-start gap-2">
+                                            <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                            <span className="text-[10px] leading-tight text-amber-700 dark:text-amber-300">
                                                 稼働時間（キャパシティ）が設定されていないため、目安期間を算出できません。
-                                                <button
-                                                    onClick={() => {
-                                                        // Redirect to PersonalSettings if possible, or just hint
-                                                    }}
-                                                    className="block text-amber-600 dark:text-amber-400 underline hover:text-amber-700 mt-0.5"
-                                                >
-                                                    個人設定を確認してください
-                                                </button>
-                                            </div>
+                                                個人設定を確認してください。
+                                            </span>
                                         </div>
                                     )}
                                     <SideCalendarPanel
@@ -725,13 +721,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         onSelectDate={(d) => {
                                             const val = format(d, 'yyyy-MM-dd');
                                             if (activeDateInput === 'my') {
-                                                // [FIX] マイ期限モード時はマイ期限を更新
                                                 setPrepDate(val);
                                                 const timestamp = Math.floor(new Date(val).getTime() / 1000);
                                                 if (onUpdate) onUpdate(item.id, { prep_date: timestamp });
                                                 else ApiClient.updateItem(item.id, { prep_date: timestamp });
                                             } else {
-                                                // 納期モード (デフォルト)
                                                 setDueDate(val);
                                                 if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
                                                 else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
@@ -739,300 +733,277 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         }}
                                         prepDate={prepDate ? new Date(prepDate) : null}
                                         workDays={item.work_days || 1}
-                                        onItemClick={() => { }} // No item interaction in this view
+                                        onItemClick={() => { }}
                                         targetMode={activeDateInput || 'due'}
                                         filterMode={filterMode}
                                         volumeOnly={true}
                                         targetItemId={item.id}
-                                        commitPeriod={commitPeriodDates} // [NEW] Accurate Allocation List
-                                        capacityConfig={capacityConfig} // [NEW] Pass config
+                                        commitPeriod={commitPeriodDates}
+                                        capacityConfig={capacityConfig}
                                         className="h-full border-l-0"
                                     />
                                 </div>
-
-                                {/* Bottom: Boost & Note (Moved here) */}
-                                <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
-                                    {/* Boost Button Line */}
-                                    <div className="flex justify-center">
-                                        <button
-                                            onClick={async () => {
-                                                const newBoostState = !item.is_boosted;
-                                                const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
-                                                if (onUpdate) await onUpdate(item.id, updates);
-                                                else await ApiClient.updateItem(item.id, updates);
-                                            }}
-                                            className={cn(
-                                                "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
-                                                item.is_boosted
-                                                    ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                    : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
-                                            )}
-                                        >
-                                            <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
-                                            今日だけ前に出す (Boost)
-                                        </button>
-                                    </div>
-
-                                    {/* Memo Input */}
-                                    <div className="relative">
-                                        <textarea
-                                            value={note}
-                                            onChange={(e) => setNote(e.target.value)}
-                                            onBlur={async () => {
-                                                const updates = { memo: note };
-                                                if (onUpdate) await onUpdate(item.id, updates);
-                                                else await ApiClient.updateItem(item.id, updates);
-                                            }}
-                                            placeholder="メモ・条件・懸念点..."
-                                            className="w-full text-xs bg-slate-50 dark:bg-slate-800/30 rounded p-2 border-none focus:ring-1 focus:ring-indigo-300 resize-none min-h-[50px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 transition-all focus:min-h-[80px]"
-                                        />
-                                    </div>
-                                </div>
                             </div>
 
-                            {/* RIGHT COLUMN: Estimated Time & Subtasks */}
-                            <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
-
-                                {/* Estimated Time Preset Grid */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                            <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
-                                            目安時間 (Estimate)
-                                        </span>
-                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                                            {estimatedMinutes > 0 ? (estimatedMinutes >= 60 ? `${(estimatedMinutes / 60).toFixed(1)}h` : `${estimatedMinutes}m`) : '-'}
-                                        </span>
-                                    </div>
-
-                                    {/* New Graphical Presets (8 items) */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            { label: '0.5h', val: 30, desc: '30分', icon: '⚡' },
-                                            { label: '1h', val: 60, desc: '1時間', icon: '☕' },
-                                            { label: '2h', val: 120, desc: '午前/午後', icon: '🏃' },
-                                            { label: '4h', val: 240, desc: '半日', icon: '🌓' },
-                                            { label: '8h', val: 480, desc: '1日', icon: '🌕' },
-                                            { label: '1.5日', val: 720, desc: '残業含む', icon: '📅' },
-                                            { label: '2日', val: 960, desc: 'じっくり', icon: '🗓️' },
-                                            { label: '3日', val: 1440, desc: '長丁場', icon: '🏗️' },
-                                        ].map(preset => {
-                                            const isActive = estimatedMinutes === preset.val;
-                                            return (
-                                                <button
-                                                    key={preset.label}
-                                                    onClick={() => {
-                                                        const newVal = preset.val;
-                                                        setEstimatedMinutes(newVal);
-                                                        // [FIX] Sync work_days too for immediate highlight response
-                                                        setWorkDays(newVal / 480);
-                                                        setIsWorkDaysDirty(true);
-                                                    }}
-                                                    className={cn(
-                                                        "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",
-                                                        isActive
-                                                            ? "bg-amber-50 border-amber-300 shadow-md shadow-amber-100 dark:bg-amber-900/40 dark:border-amber-700 dark:shadow-none"
-                                                            : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:shadow-sm dark:bg-slate-800/50 dark:border-slate-700 dark:hover:bg-slate-800"
-                                                    )}
-                                                >
-                                                    {/* Icon Box */}
-                                                    <div className={cn(
-                                                        "flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors",
-                                                        isActive
-                                                            ? "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
-                                                            : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-indigo-500 dark:bg-slate-700 dark:text-slate-400"
-                                                    )}>
-                                                        {preset.icon}
-                                                    </div>
-
-                                                    {/* Text Info */}
-                                                    <div className="flex flex-col items-start gap-0.5">
-                                                        <span className={cn(
-                                                            "text-sm font-bold leading-none",
-                                                            isActive ? "text-amber-900 dark:text-amber-100" : "text-slate-700 dark:text-slate-200 group-hover:text-indigo-700"
-                                                        )}>
-                                                            {preset.label}
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-400 font-medium group-hover:text-indigo-400 dark:text-slate-500">
-                                                            {preset.desc}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Checkmark for Active */}
-                                                    {isActive && (
-                                                        <div className="absolute top-2 right-2 text-amber-500 dark:text-amber-400">
-                                                            <div className="w-2 h-2 rounded-full bg-current" />
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-
-                                    {/* Manual Input (Subtle) */}
-                                    <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800">
-                                        <span className="text-[10px] text-slate-400">微調整:</span>
-                                        <input
-                                            type="number"
-                                            value={estimatedMinutes / 60}
-                                            onChange={e => setEstimatedMinutes(Number(e.target.value) * 60)}
-                                            className="w-12 bg-transparent border-b border-slate-200 text-right text-xs font-mono focus:outline-none focus:border-amber-400 transition-colors"
-                                            placeholder="0"
-                                        />
-                                        <span className="text-[10px] text-slate-400">h</span>
-                                    </div>
+                            {/* Bottom: Boost & Note (Moved here) */}
+                            <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-inner">
+                                <div className="flex justify-center">
+                                    <button
+                                        onClick={async () => {
+                                            const newBoostState = !item.is_boosted;
+                                            const updates = { is_boosted: newBoostState, boosted_date: Date.now() };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        }}
+                                        className={cn(
+                                            "w-full flex items-center justify-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-colors border",
+                                            item.is_boosted
+                                                ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
+                                        )}
+                                    >
+                                        <span className={cn("w-1.5 h-1.5 rounded-full", item.is_boosted ? "bg-amber-500" : "bg-slate-300")} />
+                                        今日だけ前に出す (Boost)
+                                    </button>
                                 </div>
 
-                                {/* Assignment Selection (Haruki Plan) */}
-                                <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                        <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
-                                        担当者 (Assignee)
-                                    </span>
-                                    <div className="relative group/assignee shadow-sm">
-                                        <select
-                                            value={localAssignedTo}
-                                            onChange={async (e) => {
-                                                const val = e.target.value;
-                                                setLocalAssignedTo(val);
-                                                const updates: Partial<Item> = { assignedTo: val || null as any };
-                                                if (onUpdate) await onUpdate(item.id, updates);
-                                                else await ApiClient.updateItem(item.id, updates);
-                                            }}
-                                            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
-                                        >
-                                            <option value="">自分 (Unassigned)</option>
-                                            {members.map(m => (
-                                                <option key={m.id} value={m.id}>
-                                                    {(m as any).display_name || (m as any).name} {m.role ? `(${m.role})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
-                                            ▼
-                                        </div>
-                                    </div>
+                                <div className="relative">
+                                    <textarea
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        onBlur={async () => {
+                                            const updates = { memo: note };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        }}
+                                        placeholder="メモ・条件・懸念点..."
+                                        rows={2}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg p-2 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-400 transition-all resize-none"
+                                    />
                                 </div>
-
-
-                                {/* Sub-Tasks Section (Project Mode) - Moved to Right Column */}
-                                {isProject && (
-                                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                                <Folder size={12} className="text-blue-400" />
-                                                サブタスク (Project Check)
-                                            </div>
-                                            {/* Auto-Sum Button */}
-                                            {subTasks.length > 0 && (
-                                                <button
-                                                    onClick={async () => {
-                                                        const totalMinutes = subTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
-                                                        if (totalMinutes > 0 && totalMinutes !== estimatedMinutes) {
-                                                            setEstimatedMinutes(totalMinutes);
-                                                            const updates = { estimatedMinutes: totalMinutes };
-                                                            if (onUpdate) await onUpdate(item.id, updates);
-                                                            else await ApiClient.updateItem(item.id, updates);
-                                                        }
-                                                    }}
-                                                    className="text-[10px] text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
-                                                    title={`合計: ${subTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0) / 60}h を親タスクに反映`}
-                                                >
-                                                    合計反映
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* List */}
-                                        <div className="space-y-1 mb-2">
-                                            {subTasks.map(sub => (
-                                                <div
-                                                    key={sub.id}
-                                                    onClick={() => handleDrillDown(sub)}
-                                                    className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all group"
-                                                >
-                                                    <CheckSquare size={14} className={cn(
-                                                        "transition-colors",
-                                                        sub.status === 'done' ? "text-green-500" : "text-slate-300 group-hover:text-blue-400"
-                                                    )} />
-                                                    <span className={cn(
-                                                        "text-xs font-medium flex-1 truncate",
-                                                        sub.status === 'done' ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"
-                                                    )}>{sub.title}</span>
-
-                                                    {/* Work Days & Time Display */}
-                                                    <div className="flex items-center gap-1">
-                                                        {sub.estimatedMinutes && sub.estimatedMinutes > 0 ? (
-                                                            <span className="text-[10px] font-mono text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
-                                                                {sub.estimatedMinutes >= 60
-                                                                    ? `${(sub.estimatedMinutes / 60).toFixed(1)}h`
-                                                                    : `${sub.estimatedMinutes}m`}
-                                                            </span>
-                                                        ) : (
-                                                            sub.work_days !== undefined && sub.work_days > 0 && (
-                                                                <span className="text-[10px] sm:text-xs font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
-                                                                    {Number(sub.work_days).toFixed(1)}日
-                                                                </span>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Add Input */}
-                                        <div className="flex items-center gap-2">
-
-                                            <input
-                                                type="text"
-                                                value={newSubTaskTitle}
-                                                onChange={e => setNewSubTaskTitle(e.target.value)}
-                                                onKeyDown={async e => {
-                                                    if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
-                                                        e.preventDefault();
-                                                        const titleToAdd = newSubTaskTitle.trim();
-                                                        setNewSubTaskTitle(''); // Clear early for UX
-                                                        const newId = await onCreateSubTask(item.id, titleToAdd, dueDate || item.due_date || undefined);
-                                                        console.log('[Modal] Subtask created:', newId);
-                                                        if (onGetSubTasks) {
-                                                            const tasks = await onGetSubTasks(item.id);
-                                                            setSubTasks(tasks);
-                                                        }
-                                                    }
-                                                }}
-                                                placeholder="サブタスクを追加..."
-                                                className="flex-1 bg-transparent border-b border-slate-200 dark:border-slate-800 text-sm py-1 focus:outline-none focus:border-blue-400 transition-colors"
-                                            />
-                                            <button
-                                                onClick={async () => {
-                                                    if (newSubTaskTitle.trim() && onCreateSubTask) {
-                                                        const titleToAdd = newSubTaskTitle.trim();
-                                                        setNewSubTaskTitle('');
-                                                        const parentDueDate = dueDate || item.due_date;
-                                                        await onCreateSubTask(item.id, titleToAdd, parentDueDate || undefined);
-                                                        if (onGetSubTasks) {
-                                                            const tasks = await onGetSubTasks(item.id);
-                                                            setSubTasks(tasks);
-                                                        }
-                                                    }
-                                                }}
-                                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-blue-500 transition-colors"
-                                            >
-                                                <Plus size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
                             </div>
                         </div>
 
-                        {/* Actions Footer */}
-                        <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+                        {/* RIGHT COLUMN: Estimated Time & Subtasks */}
+                        <div className="w-full md:w-[320px] lg:w-[360px] flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
 
-                            {/* LEFT GROUP: Negative / Defer */}
+                            {/* Estimated Time Preset Grid */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-amber-400 rounded-full"></div>
+                                        目安時間 (Estimate)
+                                    </span>
+                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                        {estimatedMinutes > 0 ? (estimatedMinutes >= 60 ? `${(estimatedMinutes / 60).toFixed(1)}h` : `${estimatedMinutes}m`) : '-'}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { label: '0.5h', val: 30, desc: '30分', icon: '⚡' },
+                                        { label: '1h', val: 60, desc: '1時間', icon: '☕' },
+                                        { label: '2h', val: 120, desc: '午前/午後', icon: '🏃' },
+                                        { label: '4h', val: 240, desc: '半日', icon: '🌓' },
+                                        { label: '8h', val: 480, desc: '1日', icon: '🌕' },
+                                        { label: '1.5日', val: 720, desc: '残業含む', icon: '📅' },
+                                        { label: '2日', val: 960, desc: 'じっくり', icon: '🗓️' },
+                                        { label: '3日', val: 1440, desc: '長丁場', icon: '🏗️' },
+                                    ].map(preset => {
+                                        const isActive = estimatedMinutes === preset.val;
+                                        return (
+                                            <button
+                                                key={preset.label}
+                                                onClick={() => {
+                                                    const newVal = preset.val;
+                                                    setEstimatedMinutes(newVal);
+                                                    setWorkDays(newVal / 480);
+                                                    setIsWorkDaysDirty(true);
+                                                }}
+                                                className={cn(
+                                                    "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",
+                                                    isActive
+                                                        ? "bg-amber-50 border-amber-300 shadow-md shadow-amber-100 dark:bg-amber-900/40 dark:border-amber-700 dark:shadow-none"
+                                                        : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:shadow-sm dark:bg-slate-800/50 dark:border-slate-700 dark:hover:bg-slate-800"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "flex items-center justify-center w-8 h-8 rounded-lg text-sm transition-colors",
+                                                    isActive
+                                                        ? "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
+                                                        : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-indigo-500 dark:bg-slate-700 dark:text-slate-400"
+                                                )}>
+                                                    {preset.icon}
+                                                </div>
+
+                                                <div className="flex flex-col items-start gap-0.5">
+                                                    <span className={cn(
+                                                        "text-sm font-bold leading-none",
+                                                        isActive ? "text-amber-900 dark:text-amber-100" : "text-slate-700 dark:text-slate-200 group-hover:text-indigo-700"
+                                                    )}>
+                                                        {preset.label}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium group-hover:text-indigo-400 dark:text-slate-500">
+                                                        {preset.desc}
+                                                    </span>
+                                                </div>
+
+                                                {isActive && (
+                                                    <div className="absolute top-2 right-2 text-amber-500 dark:text-amber-400">
+                                                        <div className="w-2 h-2 rounded-full bg-current" />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] text-slate-400">微調整:</span>
+                                    <input
+                                        type="number"
+                                        value={estimatedMinutes / 60}
+                                        onChange={e => setEstimatedMinutes(Number(e.target.value) * 60)}
+                                        className="w-12 bg-transparent border-b border-slate-200 text-right text-xs font-mono focus:outline-none focus:border-amber-400 transition-colors"
+                                        placeholder="0"
+                                    />
+                                    <span className="text-[10px] text-slate-400">h</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-slate-800">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <div className="w-1 h-2.5 bg-indigo-400 rounded-full"></div>
+                                    担当者 (Assignee)
+                                </span>
+                                <div className="relative group/assignee shadow-sm">
+                                    <select
+                                        value={localAssignedTo}
+                                        onChange={async (e) => {
+                                            const val = e.target.value;
+                                            setLocalAssignedTo(val);
+                                            const updates: Partial<Item> = { assignedTo: val || null as any };
+                                            if (onUpdate) await onUpdate(item.id, updates);
+                                            else await ApiClient.updateItem(item.id, updates);
+                                        }}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">自分 (Unassigned)</option>
+                                        {members.map(m => (
+                                            <option key={m.id} value={m.id}>
+                                                {(m as any).display_name || (m as any).name} {m.role ? `(${m.role})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
+                                        ▼
+                                    </div>
+                                </div>
+                            </div>
+
+                            {isProject && (
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                            <Folder size={12} className="text-blue-400" />
+                                            サブタスク (Project Check)
+                                        </div>
+                                        {subTasks.length > 0 && (
+                                            <button
+                                                onClick={async () => {
+                                                    const totalMinutes = subTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
+                                                    if (totalMinutes > 0 && totalMinutes !== estimatedMinutes) {
+                                                        setEstimatedMinutes(totalMinutes);
+                                                        const updates = { estimatedMinutes: totalMinutes };
+                                                        if (onUpdate) await onUpdate(item.id, updates);
+                                                        else await ApiClient.updateItem(item.id, updates);
+                                                    }
+                                                }}
+                                                className="text-[10px] text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
+                                            >
+                                                合計反映
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1 mb-2">
+                                        {subTasks.map(sub => (
+                                            <div
+                                                key={sub.id}
+                                                onClick={() => handleDrillDown(sub)}
+                                                className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all group"
+                                            >
+                                                <CheckSquare size={14} className={cn(
+                                                    "transition-colors",
+                                                    sub.status === 'done' ? "text-green-500" : "text-slate-300 group-hover:text-blue-400"
+                                                )} />
+                                                <span className={cn(
+                                                    "text-xs font-medium flex-1 truncate",
+                                                    sub.status === 'done' ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"
+                                                )}>{sub.title}</span>
+                                                <div className="flex items-center gap-1">
+                                                    {sub.estimatedMinutes && sub.estimatedMinutes > 0 ? (
+                                                        <span className="text-[10px] font-mono text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
+                                                            {sub.estimatedMinutes >= 60 ? `${(sub.estimatedMinutes / 60).toFixed(1)}h` : `${sub.estimatedMinutes}m`}
+                                                        </span>
+                                                    ) : (
+                                                        sub.work_days !== undefined && sub.work_days > 0 && (
+                                                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-800">
+                                                                {Number(sub.work_days).toFixed(1)}日
+                                                            </span>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={newSubTaskTitle}
+                                            onChange={e => setNewSubTaskTitle(e.target.value)}
+                                            onKeyDown={async e => {
+                                                if (e.key === 'Enter' && newSubTaskTitle.trim() && onCreateSubTask) {
+                                                    e.preventDefault();
+                                                    const titleToAdd = newSubTaskTitle.trim();
+                                                    setNewSubTaskTitle('');
+                                                    await onCreateSubTask(item.id, titleToAdd, dueDate || item.due_date || undefined);
+                                                    if (onGetSubTasks) {
+                                                        const tasks = await onGetSubTasks(item.id);
+                                                        setSubTasks(tasks);
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="サブタスクを追加..."
+                                            className="flex-1 bg-transparent border-b border-slate-200 dark:border-slate-800 text-sm py-1 focus:outline-none focus:border-blue-400 transition-colors"
+                                        />
+                                        <button
+                                            onClick={async () => {
+                                                if (newSubTaskTitle.trim() && onCreateSubTask) {
+                                                    const titleToAdd = newSubTaskTitle.trim();
+                                                    setNewSubTaskTitle('');
+                                                    await onCreateSubTask(item.id, titleToAdd, dueDate || item.due_date || undefined);
+                                                    if (onGetSubTasks) {
+                                                        const tasks = await onGetSubTasks(item.id);
+                                                        setSubTasks(tasks);
+                                                    }
+                                                }
+                                            }}
+                                            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-blue-500 transition-colors"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+
+                    {/* Actions Footer */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
+                        <div className="p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-2 w-full md:w-auto">
-                                {/* NOT NOW (Menu) */}
                                 <div className="relative group/notnow" ref={menuRef}>
                                     <button
                                         onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -1042,32 +1013,19 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 ? "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
                                                 : "hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                         )}
-                                        title="ゴミ箱・その他"
                                     >
                                         <Trash2 size={18} />
                                     </button>
-
-                                    {/* Popup Menu */}
-                                    <div
-                                        className={cn(
-                                            "absolute bottom-full left-0 w-56 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
-                                            isMenuOpen ? "block" : "hidden group-hover/notnow:block"
-                                        )}
-                                    >
-                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1">行き先を選択</div>
+                                    <div className={cn(
+                                        "absolute bottom-full left-0 w-56 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 mb-2 z-50",
+                                        isMenuOpen ? "block" : "hidden group-hover/notnow:block"
+                                    )}>
+                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">Destinations</div>
                                         {!isProject && (
                                             <button
                                                 onClick={async () => {
                                                     setIsProject(true);
-                                                    const updates: Partial<Item> = { isProject: true };
-
-                                                    if (onUpdate) {
-                                                        await onUpdate(item.id, updates);
-                                                    } else {
-                                                        await ApiClient.updateItem(item.id, updates);
-                                                    }
-
-                                                    // Reload subtasks after projectization to show the breakdown UI immediately
+                                                    if (onUpdate) await onUpdate(item.id, { isProject: true });
                                                     if (onGetSubTasks) {
                                                         const tasks = await onGetSubTasks(item.id);
                                                         setSubTasks(tasks);
@@ -1075,89 +1033,49 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 }}
                                                 className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
                                             >
-                                                <Folder size={14} className="text-blue-500" />
-                                                プロジェクト化 (タスク分解)
-                                            </button>
-                                        )}
-                                        {onDelegate && (
-                                            <button
-                                                onClick={() => {
-                                                    setIsMenuOpen(false);
-                                                    // Open delegation dialog
-                                                    // For now, we'll use a simple prompt
-                                                    const assignee = prompt('外注先を入力してください:');
-                                                    if (assignee) {
-                                                        const dueDate = prompt('期限 (YYYY-MM-DD):');
-                                                        const note = prompt('メモ (任意):');
-                                                        onDelegate(item.id, assignee, dueDate || undefined, note || undefined);
-                                                        onClose();
-                                                    }
-                                                }}
-                                                className="w-full text-left px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded flex items-center gap-2"
-                                            >
-                                                <span className="w-2 h-2 rounded-full bg-purple-400" />
-                                                外注する
+                                                <Folder size={14} /> プロジェクト化
                                             </button>
                                         )}
                                         <button
                                             onClick={() => onDecision(item.id, 'no', 'someday')}
                                             className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
                                         >
-                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
-                                            Someday (いつかやる)
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" /> Someday (いつか)
                                         </button>
                                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                                         <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                onDelete(item.id);
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
+                                            onClick={() => onDelete(item.id)}
+                                            className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2"
                                         >
-                                            <Trash2 size={12} />
-                                            完全削除
+                                            <Trash2 size={12} /> 完全削除
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* HIDE (SLEEP) - OLD HOLD */}
                                 <button
-                                    onClick={async () => {
-                                        if (onUpdate) await onUpdate(item.id, { work_days: workDays });
-                                        else await ApiClient.updateItem(item.id, { work_days: workDays });
-                                        onDecision(item.id, 'hold', note);
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition-all"
-                                    title="今は隠す (Shelfへ移動)"
+                                    onClick={() => onDecision(item.id, 'hold', note)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-xs"
                                 >
-                                    <PauseCircle size={18} />
-                                    <span className="text-xs font-bold">今は隠す (Sleep)</span>
+                                    <PauseCircle size={18} /> 今は隠す (Sleep)
                                 </button>
                             </div>
 
-                            {/* RIGHT GROUP: Positive / Action */}
                             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                                {/* SAVE TO INBOX (New) */}
                                 <button
                                     onClick={handleClose}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm transition-all"
-                                    title="内容を保存してInbox(スタンバイ)に置く"
+                                    className="px-4 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-sm"
                                 >
                                     スタンバイに置く
                                 </button>
-
-                                {/* TODAY (Yes) */}
                                 <button
                                     onClick={() => handleDecisionWithSave('yes')}
-                                    className="flex items-center gap-2 px-6 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-none font-bold text-sm transition-all transform active:scale-95"
+                                    className="flex items-center gap-2 px-6 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white font-bold text-sm transition-all"
                                 >
-                                    <CheckCircle2 size={18} />
-                                    {yesButtonLabel || '今日やる'}
+                                    <CheckCircle2 size={18} /> {yesButtonLabel || '今日やる'}
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 </div>
             )}
         </AnimatePresence>

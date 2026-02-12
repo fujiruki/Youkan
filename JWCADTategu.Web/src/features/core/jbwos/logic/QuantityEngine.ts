@@ -192,117 +192,49 @@ export class QuantityEngine {
         const dateKey = this.formatDateKey(date);
         const dayOfWeek = date.getDay();
 
-        // --- Core Allocation Logic (Company Specific) ---
-        // Priority 1: Specific Target Tenant (A社のみ、B社のみ等)
+        // --- Core Allocation Logic (Company Specific Priority) ---
+        // Priority 1: Specific Context (フィルタで絞り込まれている、または特定の会社枠を表示したい場合)
         const targetId = forTenantId !== undefined ? forTenantId : focusedTenantId;
+
         if (targetId) {
-            // Check Company Specific Allocation first
             const companyException = capacityConfig.dailyCompanyExceptions?.[dateKey];
             if (companyException && companyException[targetId] !== undefined) {
-                return companyException[targetId];
+                const val = companyException[targetId];
+                console.log(`[QuantityEngine] Capacity Match (Company Exception): date=${dateKey}, tenant=${targetId}, val=${val}`);
+                return val;
             }
 
-            if (isHol) return 0;
+            if (isHol) {
+                console.log(`[QuantityEngine] Capacity Skip (Holiday): date=${dateKey}`);
+                return 0;
+            }
 
             const companyPattern = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
             if (companyPattern && companyPattern[targetId] !== undefined) {
-                return companyPattern[targetId];
+                const val = companyPattern[targetId];
+                console.log(`[QuantityEngine] Capacity Match (Company Weekly): date=${dateKey}, tenant=${targetId}, val=${val}`);
+                return val;
             }
 
-            // If no company-specific allocation but it's a company focus, 
-            // maybe it should fallback or be 0? Sum logic is handled below if no specific ID.
-            // For now, if specified but not found, we assume 0 for that specific company context.
-            if (forTenantId !== undefined) return 0;
+            // 【重要】特定の組織 ID が指定された（フィルタ中 or アイテム所属）が、その組織に設定がない場合、
+            // フィルタモードが 'all' なら個人設定（一日の総量）へフォールバックする。
+            if (filterMode !== 'all') {
+                console.log(`[QuantityEngine] Capacity Zero (Filter Restricted): date=${dateKey}, filterMode=${filterMode}, target=${targetId}`);
+                return 0; // 絞り込み中は他社の時間は使えない
+            }
+            console.log(`[QuantityEngine] Capacity Fallback Attempt: date=${dateKey}, target=${targetId} has no specific setting.`);
         }
 
-        // --- Aggregation Logic (General Matrix) ---
+        // --- Fallback Logic: Personal Standard Capacity (Molecule of Reality) ---
+        // 会社枠に設定がない、または Private アイテムの場合。
+        if (isHol) return 0;
 
-        // 1. Identification: Who is the subject?
-        // If Company Account -> Use Member aggregation logic (Legacy/Enterprise)
-        if (isCompanyAcc) {
-            const mainMembers = members.filter(m => m.isCore);
-            if (mainMembers.length > 0 && !isHol) {
-                return mainMembers.reduce((sum, m) => sum + (m.dailyCapacityMinutes || 480), 0);
-            }
-            return 0;
-        }
+        // standardWeeklyPattern -> defaultDailyMinutes
+        const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
+        const result = weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
 
-        // 2. Personal Account: Tenant-based Capacity Aggregation
-        let targetTenantIds: string[] = [];
-
-        if (focusedTenantId) {
-            targetTenantIds = [focusedTenantId];
-        } else if (filterMode === 'company') {
-            targetTenantIds = currentUser.joinedTenants.map(t => t.id);
-        } else {
-            // Sum all (including Personal)
-            targetTenantIds = currentUser.joinedTenants.map(t => t.id);
-            // If No Tenants but 'all' mode, we usually use default base capacity
-        }
-
-        let totalCap = 0;
-
-        // 3. Calculation per Tenant
-        if (targetTenantIds.length === 0) {
-            if (isHol) return 0;
-            // [FIX] standardWeeklyPattern を優先、なければ defaultDailyMinutes
-            const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-            return weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
-        }
-
-        let standardAdded = false;
-        targetTenantIds.forEach(tid => {
-            // Check Company Allocations first (New Logic)
-            const companyEx = capacityConfig.dailyCompanyExceptions?.[dateKey];
-            if (companyEx && companyEx[tid] !== undefined) {
-                totalCap += companyEx[tid];
-                return;
-            }
-
-            if (isHol) return;
-
-            const companyPat = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
-            if (companyPat && companyPat[tid] !== undefined) {
-                totalCap += companyPat[tid];
-                return;
-            }
-
-            // Fallback: standardWeeklyPattern → tenantProfiles → defaultDailyMinutes
-            // [FIX] Avoid double-counting standard capacity for personal accounts.
-            if (!standardAdded) {
-                const weeklyPatternVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-                if (weeklyPatternVal !== undefined) {
-                    totalCap += weeklyPatternVal;
-                    standardAdded = true;
-                    return;
-                }
-
-                const profile = tenantProfiles?.get(tid);
-                let tenantMinutes = 0;
-
-                if (profile) {
-                    const standard = profile.standardWeeklyPattern;
-                    const exceptions = profile.exceptions;
-
-                    if (exceptions && exceptions[dateKey] !== undefined) {
-                        tenantMinutes = exceptions[dateKey];
-                    }
-                    else if (standard && standard[dayOfWeek] !== undefined) {
-                        tenantMinutes = standard[dayOfWeek];
-                    }
-                    else {
-                        tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
-                    }
-                } else {
-                    tenantMinutes = capacityConfig.defaultDailyMinutes || 480;
-                }
-                totalCap += tenantMinutes;
-                standardAdded = true;
-            }
-        });
-
-
-        return totalCap;
+        console.log(`[QuantityEngine] Capacity Personal Result: date=${dateKey}, val=${result}${weeklyVal === undefined ? ' (from defaultDailyMinutes)' : ' (from standardWeeklyPattern)'}`);
+        return result;
     }
 
     static calculateAllocationDays(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): Date[] {
@@ -311,21 +243,33 @@ export class QuantityEngine {
         let current = new Date(endDate);
         let safety = 0;
 
+        console.log(`[QuantityEngine] Allocation Start: endDate=${endDate.toDateString()}, estimated=${estimatedMinutes}, tenantId=${tenantId}`);
+
         while (remainingMinutes > 0 && safety < 90) {
             safety++;
             const isHol = this.checkIsHoliday(current, context);
             const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
 
+            // Normalize for logs
+            const dateStr = current.toDateString();
+
             if (isHol || dailyCapacity <= 0) {
+                console.log(`[QuantityEngine] Allocation Skip: date=${dateStr}, isHol=${isHol}, cap=${dailyCapacity}`);
                 current.setDate(current.getDate() - 1);
                 continue;
             }
 
             const alloc = Math.min(remainingMinutes, dailyCapacity);
+            console.log(`[QuantityEngine] Allocation Day: date=${dateStr}, cap=${dailyCapacity}, alloc=${alloc}, remaining_before=${remainingMinutes}`);
+
             days.push(new Date(current));
             remainingMinutes -= alloc;
+
+            // 重要: 次の日の計算に移る
             current.setDate(current.getDate() - 1);
         }
+
+        console.log(`[QuantityEngine] Allocation Finished: days_count=${days.length}, remaining_final=${remainingMinutes}`);
         return days;
     }
 

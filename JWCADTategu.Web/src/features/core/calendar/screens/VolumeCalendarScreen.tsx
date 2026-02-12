@@ -24,7 +24,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
     const {
         items, members, projects, loading, error,
         startOfMonth,
-        handlePrevMonth, handleNextMonth, refresh
+        handlePrevMonth, handleNextMonth, refresh,
+        capacityConfig // [NEW]
     } = useVolumeCalendarViewModel({
         projectId: activeProjectId,
         tenantId: activeTenantId
@@ -135,10 +136,11 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     onDecision={handleDecision}
                     members={members}
                     allProjects={projects}
-                    joinedTenants={[]}
+                    joinedTenants={auth.joinedTenants || []} // [FIX] Pass joined tenants
                     onOpenItem={setSelectedItem}
                     quantityItems={items}
                     filterMode={activeTenantId ? 'company' : 'personal'}
+                    capacityConfig={capacityConfig} // [FIX] Pass capacity config
                 />
             )}
         </div>
