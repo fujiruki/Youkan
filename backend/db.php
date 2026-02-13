@@ -99,6 +99,9 @@ function getDB() {
         if (!in_array('active_task_id', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN active_task_id TEXT DEFAULT NULL");
         }
+        if (!in_array('updated_at', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN updated_at INTEGER DEFAULT NULL");
+        }
 
         foreach ($requiredColumns as $col => $def) {
             if (!in_array($col, $columns)) {

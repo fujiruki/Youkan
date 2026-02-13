@@ -71,12 +71,8 @@ export class ApiClient {
 
         const startTime = performance.now();
         try {
-            // [Debug/Repair] Append token to URL as query param for environments where headers are stripped
-            let url = `${API_BASE}${path}`;
-            if (token) {
-                const separator = url.includes('?') ? '&' : '?';
-                url += `${separator}token=${encodeURIComponent(token)}`;
-            }
+            // [Modification] Architecture Fix: Stop appending tokens to URL. Use Header only (Standard).
+            const url = `${API_BASE}${path}`;
 
             const response = await fetch(url, config);
             const duration = Math.round(performance.now() - startTime);
@@ -264,10 +260,15 @@ export class ApiClient {
         formData.append('backup_file', file);
 
         const token = localStorage.getItem('jbwos_token');
-        const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
 
-        const response = await fetch(`${API_BASE}/items-restore${tokenQuery}`, {
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE}/items-restore`, { // Query param removed
             method: 'POST',
+            headers, // Header added
             body: formData,
         });
 
