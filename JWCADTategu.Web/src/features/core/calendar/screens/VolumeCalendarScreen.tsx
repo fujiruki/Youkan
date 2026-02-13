@@ -33,7 +33,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
     const handleUpdate = async (id: string, updates: Partial<Item>) => {
         try {
-            await ApiClient.request('PATCH', `/items/${id}`, updates);
+            await ApiClient.updateItem(id, updates);
             await refresh();
         } catch (e) {
             console.error('Update failed', e);
@@ -42,7 +42,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
     const handleDelete = async (id: string) => {
         try {
-            await ApiClient.request('DELETE', `/items/${id}`);
+            await ApiClient.deleteItem(id);
             setSelectedItem(null);
             await refresh();
         } catch (e) {
@@ -52,18 +52,14 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
     const handleDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
         try {
-            // Reusing the same logic pattern as Dashboard
-            let finalUpdates = { ...updates };
-            if (decision === 'yes') {
-                finalUpdates.status = 'focus';
-                finalUpdates.flags = { ...(updates?.flags || {}), is_today_commit: true };
-            } else if (decision === 'hold') {
-                finalUpdates.status = 'pending';
-            } else {
-                finalUpdates.status = 'done';
+            // 1. Apply updates first (if any)
+            if (updates && Object.keys(updates).length > 0) {
+                await ApiClient.updateItem(id, updates);
             }
 
-            await ApiClient.request('PATCH', `/items/${id}`, { ...finalUpdates, memo: note });
+            // 2. Resolve Decision (Server handles status and logs)
+            await ApiClient.resolveDecision(id, decision, note);
+
             setSelectedItem(null);
             await refresh();
         } catch (e) {
