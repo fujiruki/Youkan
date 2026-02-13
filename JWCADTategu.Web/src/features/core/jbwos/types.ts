@@ -93,7 +93,6 @@ export interface Item {
     title: string;           // 表示名
 
     // --- JBWOS Core Properties ---
-    // --- JBWOS Core Properties ---
     status: JudgmentStatus;  // Strict 5 Statuses: inbox|waiting|ready|pending|done
     flags?: ItemFlags;       // [NEW] Attributes (is_today_commit, is_executing, etc)
 

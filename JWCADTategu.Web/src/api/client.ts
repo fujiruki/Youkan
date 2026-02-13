@@ -71,7 +71,7 @@ export class ApiClient {
 
         const startTime = performance.now();
         try {
-            // [Modification] Architecture Fix: Stop appending tokens to URL. Use Header only (Standard).
+            // [Modification] WAF avoidance: Do not append token to URL. Use Header only.
             const url = `${API_BASE}${path}`;
 
             const response = await fetch(url, config);
