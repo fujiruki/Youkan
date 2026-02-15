@@ -6,6 +6,7 @@ import { cn } from '../../../../../lib/utils'; // Keep shared utils path
 
 interface SubtaskListWidgetProps {
     parentId: string;
+    parentItem?: Item;
     defaultProjectId?: string;
     defaultTenantId?: string;
     onNavigate: (item: Item) => void;
@@ -14,6 +15,7 @@ interface SubtaskListWidgetProps {
 
 export const SubtaskListWidget: React.FC<SubtaskListWidgetProps> = ({
     parentId,
+    parentItem,
     defaultProjectId,
     defaultTenantId,
     onNavigate,
@@ -22,13 +24,24 @@ export const SubtaskListWidget: React.FC<SubtaskListWidgetProps> = ({
     const { subtasks, loading, addSubtask } = useSubtasks(parentId, defaultProjectId, defaultTenantId);
     const [inputValue, setInputValue] = useState('');
 
+    const createSubtask = async () => {
+        if (inputValue.trim()) {
+            const initialData: any = {};
+            if (parentItem?.due_date) {
+                initialData.due_date = parentItem.due_date;
+                if (parentItem.dueStatus) {
+                    initialData.dueStatus = parentItem.dueStatus;
+                }
+            }
+            await addSubtask(inputValue.trim(), initialData);
+            setInputValue('');
+        }
+    };
+
     const handleKeyDown = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (inputValue.trim()) {
-                await addSubtask(inputValue.trim());
-                setInputValue('');
-            }
+            await createSubtask();
         }
     };
 
@@ -56,12 +69,7 @@ export const SubtaskListWidget: React.FC<SubtaskListWidgetProps> = ({
                     className="flex-1 bg-transparent text-xs outline-none placeholder:text-slate-400 dark:text-slate-200"
                 />
                 <button
-                    onClick={async () => {
-                        if (inputValue.trim()) {
-                            await addSubtask(inputValue.trim());
-                            setInputValue('');
-                        }
-                    }}
+                    onClick={createSubtask}
                     className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-indigo-500 transition-colors"
                     disabled={!inputValue.trim()}
                 >

@@ -9,6 +9,7 @@ export interface QuantityCellProps {
     isSelected?: boolean;
     isPrep?: boolean;
     onClick?: () => void;
+    displayMode?: 'default' | 'volume_only';
     // Context-specific label (e.g., "Personal") could be passed if needed
 }
 
@@ -20,7 +21,8 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
     isOverflow,
     isSelected,
     isPrep,
-    onClick
+    onClick,
+    displayMode = 'default'
 }) => {
     // Determine Intensity
     const intensity = Math.min(fillRate, 1.0);
@@ -51,9 +53,11 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
             />
 
             {/* Date Label (Top Left) */}
-            <span className="absolute top-0.5 left-1 text-[10px] text-slate-500 font-sans pointer-events-none z-10">
-                {new Date(date).getDate()}
-            </span>
+            {displayMode !== 'volume_only' && (
+                <span className="absolute top-0.5 left-1 text-[10px] text-slate-500 font-sans pointer-events-none z-10">
+                    {new Date(date).getDate()}
+                </span>
+            )}
 
             {/* Overflow Dog-ear (CSS Triangle) */}
             {isOverflow && (
@@ -62,9 +66,11 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
                         className="absolute bottom-0 right-0 w-0 h-0 border-style-solid border-b-[24px] border-l-[24px] border-l-transparent border-b-slate-700/30 z-10"
                         style={{ borderBottomColor: 'rgba(0,0,0,0.3)' }}
                     />
-                    <span className="absolute bottom-0 right-0.5 text-[9px] font-bold text-white z-20 pointer-events-none">
-                        +{overflowHours}h
-                    </span>
+                    {displayMode !== 'volume_only' && (
+                        <span className="absolute bottom-0 right-0.5 text-[9px] font-bold text-white z-20 pointer-events-none">
+                            +{overflowHours}h
+                        </span>
+                    )}
                 </>
             )}
         </div>

@@ -29,7 +29,7 @@ export const useSubtasks = (parentId: string, defaultProjectId?: string, default
         loadSubtasks();
     }, [loadSubtasks]);
 
-    const addSubtask = async (title: string) => {
+    const addSubtask = async (title: string, initialData?: Partial<Item>) => {
         if (!title.trim() || !parentId) return;
 
         // Optimistic Update
@@ -43,6 +43,7 @@ export const useSubtasks = (parentId: string, defaultProjectId?: string, default
             tenantId: defaultTenantId || null,
             createdAt: Math.floor(Date.now() / 1000),
             updatedAt: Math.floor(Date.now() / 1000),
+            ...initialData // Merge initial data (e.g., due_date)
         };
 
         setSubtasks(prev => [...prev, newItem as Item]);
