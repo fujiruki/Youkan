@@ -359,6 +359,14 @@ if (preg_match('#^(/api)?/execution/([^/]+)/(start|pause)$#', $path, $matches) &
     exit;
 }
 
+// Quantity Calendar Routes
+require_once 'QuantityController.php'; // Ensure file exists
+if (preg_match('#^(/api)?/quantity/matrix$#', $path)) {
+    $controller = new QuantityController();
+    $controller->handleRequest($method, '/matrix');
+    exit;
+}
+
 // Side Memo Routes
 if (preg_match('#^(/api)?/memos$#', $path)) {
     $controller = new SideMemoController($db);

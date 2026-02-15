@@ -533,10 +533,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             </div>
                         </div>
 
+
                         {/* Middle: Volume Calendar */}
                         <div className="flex-1 min-h-0">
                             <SideCalendarPanel
-                                items={quantityItems || []}
                                 selectedDate={dueDate ? new Date(dueDate) : null}
                                 onSelectDate={(d) => {
                                     const val = format(d, 'yyyy-MM-dd');
@@ -552,14 +552,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     }
                                 }}
                                 prepDate={prepDate ? new Date(prepDate) : null}
-                                workDays={item.work_days || 1}
-                                onItemClick={() => { }}
                                 targetMode={activeDateInput || 'due'}
                                 filterMode={filterMode} // Pass volume filter mode
-                                volumeOnly={true} // Enforce Volume Calendar
-                                targetItemId={item.id}
-                                commitPeriod={commitPeriodDates}
-                                capacityConfig={capacityConfig}
+                                currentItem={item}
                                 className="h-full border-l-0"
                             />
                         </div>

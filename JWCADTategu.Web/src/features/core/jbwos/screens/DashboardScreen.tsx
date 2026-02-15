@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+// import { format } from 'date-fns'; // [Unused]
 import { Item } from '../types';
 import { Project as LocalProject } from '../../../../db/db';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
@@ -14,7 +14,7 @@ import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
-import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
+import { MainQuantityCalendar } from '../components/Layout/MainQuantityCalendar'; // [NEW]
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
@@ -85,15 +85,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         getSubTasks,
         skipTask,
         setEngaged,
-        currentUserId,
-        joinedTenants: vmJoinedTenants,
-        members,
-        capacityConfig,
-        allProjects
+        // currentUserId, // [Unused]
+        // joinedTenants: vmJoinedTenants, // [Unused in Quantity Mode]
+        // members, // [Unused]
+        // capacityConfig, // [Unused]
+        // allProjects // [Unused]
     } = vm;
 
-    const { user: authUser } = useAuth();
-    const effectiveUserId = currentUserId || authUser?.id;
+    const { /* user: authUser */ } = useAuth(); // [Unused]
+    // const effectiveUserId = currentUserId || authUser?.id; // [Unused]
 
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
     useEffect(() => {
@@ -202,33 +202,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-hidden">
                             {viewMode === 'calendar' ? (
-                                <RyokanCalendar
-                                    items={allItemsForCalendar}
-                                    projects={allProjects || []}
-                                    onItemClick={setSelectedItem}
-                                    filterMode={filterMode}
-                                    displayMode="grid"
-                                    rowHeight={ganttRowHeight}
-                                    currentUserId={effectiveUserId}
-                                    members={members}
-                                    capacityConfig={capacityConfig}
-                                    joinedTenants={vmJoinedTenants}
-                                    onUpdateCapacityException={async (date, totalMinutes, allocation) => {
-                                        const dateKey = format(date, 'yyyy-MM-dd');
-                                        const newConfig = {
-                                            ...capacityConfig,
-                                            exceptions: {
-                                                ...capacityConfig.exceptions,
-                                                [dateKey]: totalMinutes
-                                            },
-                                            dailyCompanyExceptions: {
-                                                ...capacityConfig.dailyCompanyExceptions,
-                                                [dateKey]: allocation
-                                            }
-                                        };
-                                        await vm.updateCapacityConfig(newConfig);
-                                    }}
-                                />
+                                <MainQuantityCalendar />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             ) : (

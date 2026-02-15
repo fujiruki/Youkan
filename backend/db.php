@@ -99,6 +99,9 @@ function getDB() {
         if (!in_array('active_task_id', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN active_task_id TEXT DEFAULT NULL");
         }
+        if (!in_array('daily_overrides', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN daily_overrides TEXT DEFAULT NULL"); // JSON for calendar-specific capacity overrides
+        }
         if (!in_array('updated_at', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN updated_at INTEGER DEFAULT NULL");
         }

@@ -1,82 +1,54 @@
 import React from 'react';
 import { Item, FilterMode } from '../../types';
 import { cn } from '../../../../../lib/utils';
-import { RyokanCalendar } from '../Calendar/RyokanCalendar';
+// import { RyokanCalendar } from '../Calendar/RyokanCalendar'; // Removed
+import { DetailQuantityCalendar } from '../../../../../components/QuantityCalendar/DetailQuantityCalendar';
 import { addDays, nextDay, Day } from 'date-fns';
 
 interface SideCalendarPanelProps {
-    items?: Item[];
+    // items, onItemClick, workDays, targetItemId, commitPeriod, capacityConfig are no longer used by DetailQuantityCalendar
+    currentItem?: Item | null; // [NEW] For Smart Context
     selectedDate: Date | null;       // 納期 (赤枠)
     onSelectDate: (date: Date) => void;
-    onItemClick: (item: Item) => void;
     prepDate?: Date | null;          // マイ期限 (青枠)
-    workDays?: number;
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
-    volumeOnly?: boolean;
-    targetItemId?: string;
-    commitPeriod?: Date[]; // [NEW] Accurate Allocation List
-    capacityConfig?: any; // [NEW]
     className?: string;
 }
 
 export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
-    items = [],
+    currentItem,
     selectedDate,
     onSelectDate,
-    onItemClick,
     prepDate,
-    workDays = 1,
     targetMode = 'due',
     filterMode = 'all',
-    volumeOnly = false,
-    targetItemId,
-    commitPeriod,
-    capacityConfig,
     className
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const borderColorClass = targetMode === 'my'
-        ? "border-indigo-200 dark:border-indigo-800"
-        : "border-slate-100 dark:border-slate-800";
-
-    // [FIX] focusDate: モードに応じてカレンダーのスクロール位置を決定
-    const focusDate = React.useMemo(() => {
-        const d = targetMode === 'my' ? (prepDate || null) : (selectedDate || null);
-        return d ? new Date(d) : null;
-    }, [targetMode, prepDate?.getTime() || null, selectedDate?.getTime() || null]);
-
     return (
         <div className={cn(
-            "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4",
-            borderColorClass.replace('border-', 'border-l-'),
-            volumeOnly && "bg-white dark:bg-slate-900 border-l-0",
+            "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4 border-slate-100 dark:border-slate-800",
+            targetMode === 'my' && "border-indigo-200 dark:border-indigo-800",
             className
         )}>
-            {/* RyokanCalendar (Mini Mode) */}
-            <div className="flex-1 overflow-hidden">
-                <RyokanCalendar
-                    items={items}
-                    onItemClick={onItemClick}
-                    layoutMode="mini"
-                    filterMode={filterMode}
-                    selectedDate={selectedDate}
+            <div className="flex-1 overflow-hidden p-1">
+                <DetailQuantityCalendar
+                    item={currentItem || null}
+                    globalFilter={filterMode}
+                    selectedDate={targetMode === 'my' ? prepDate : selectedDate}
                     prepDate={prepDate}
-                    focusDate={focusDate}
-                    workDays={workDays}
                     onSelectDate={onSelectDate}
-                    displayMode="grid"
-                    volumeOnly={volumeOnly}
-                    targetItemId={targetItemId}
-                    commitPeriod={commitPeriod}
-                    capacityConfig={capacityConfig}
                 />
             </div>
 
             {/* Quick Select Buttons */}
-            <div className={cn("p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20", borderColorClass)}>
+            <div className={cn(
+                "p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20",
+                targetMode === 'my' ? "border-indigo-200 dark:border-indigo-800" : "border-slate-100 dark:border-slate-800"
+            )}>
                 {['today:今日', 'tomorrow:明日', 'next_mon:来週月'].map(opt => {
                     const [key, label] = opt.split(':');
                     return (
