@@ -1,6 +1,6 @@
 import React from 'react';
 import { Item } from '../../types';
-import { format } from 'date-fns';
+import { safeFormat } from '../../logic/dateUtils';
 import { cn } from '../../../../../lib/utils';
 import { Folder } from 'lucide-react';
 
@@ -41,14 +41,6 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
     return (
         <div
             onClick={() => {
-                console.group(`🔍 Debug: Click Item (${item.title})`);
-                console.log('Item ID:', item.id);
-                console.log('Project ID:', item.projectId);
-                console.log('Project Title:', item.projectTitle);
-                console.log('Tenant ID:', item.tenantId);
-                console.log('Tenant Name:', item.tenantName);
-                console.log('Client Name:', item.clientName);
-                console.groupEnd();
 
                 onClick();
             }}
@@ -110,7 +102,7 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
                             "text-[10px] font-bold whitespace-nowrap",
                             new Date(item.due_date).getTime() < Date.now() ? "text-red-500" : "text-slate-400"
                         )}>
-                            {format(new Date(item.due_date), 'M/d')}
+                            {safeFormat(item.due_date, 'M/d')}
                         </span>
                     ) : (
                         <span className="text-[10px] text-slate-200 dark:text-slate-800 text-center">-</span>

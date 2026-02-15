@@ -1,11 +1,13 @@
 import { CapacityConfig, WeekDay } from '../types';
-import { getDay, format } from 'date-fns';
+import { getDay, isValid } from 'date-fns';
+import { safeFormat } from './dateUtils';
 
 /**
  * Check if a given date is a holiday based on the configuration.
  */
 export const isHoliday = (date: Date, config: CapacityConfig): boolean => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+    if (!date || !isValid(date)) return false; // Fail safe
+    const dateStr = safeFormat(date, 'yyyy-MM-dd');
 
     // 1. Specific Exceptions (Manual overrides)
     if (config.exceptions && config.exceptions[dateStr] === 0) {
@@ -37,7 +39,8 @@ export const isHoliday = (date: Date, config: CapacityConfig): boolean => {
  * Get available capacity (in minutes) for a given date.
  */
 export const getDailyCapacity = (date: Date, config: CapacityConfig): number => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+    if (!date || !isValid(date)) return 0; // Fail safe
+    const dateStr = safeFormat(date, 'yyyy-MM-dd');
 
     // 1. Explicit Override
     if (config.exceptions && config.exceptions[dateStr] !== undefined) {

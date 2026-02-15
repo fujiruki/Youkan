@@ -72,51 +72,28 @@ export const useLoginViewModel = () => {
 
     const clearError = () => setError(null);
 
-    // Keep debug login for verification
-    const debugLogin = (type: 'user' | 'tenant' = 'user') => {
+    // [v11] Debug Login (now uses Real Auth with pre-defined credentials)
+    const debugLogin = async (type: 'user' | 'tenant' = 'user') => {
         setIsLoading(true);
-        const isTenant = type === 'tenant';
-
-        const dummyUser = isTenant ? {
-            id: 't_697b2af180467',
-            name: 'デバッグ社',
-            email: 'info@door-fujita.com'
-        } : {
-            id: 'debug-user-fjt',
-            name: '藤田ローカル',
-            email: 'fjt.suntree@gmail.com'
-        };
-
-        const dummyTenant = isTenant ? {
-            id: 't_697b2af180467',
-            name: 'デバッグ社',
-            role: 'owner', // 代表者
-            config: { plugins: { manufacturing: true, tategu: true } }
-        } : null;
-
-        localStorage.setItem('jbwos_user', JSON.stringify(dummyUser));
-
-        if (isTenant && dummyTenant) {
-            localStorage.setItem('jbwos_tenant', JSON.stringify(dummyTenant));
-            localStorage.setItem('jbwos_account_type', 'tenant');
-            localStorage.setItem('jbwos_joined_tenants', JSON.stringify([dummyTenant]));
-        } else {
-            localStorage.removeItem('jbwos_tenant');
-            localStorage.setItem('jbwos_account_type', 'user');
-            localStorage.setItem('jbwos_joined_tenants', JSON.stringify([{
-                id: 't_697b2af180467',
-                name: 'デバッグ社',
-                role: 'owner'
-            }]));
+        try {
+            if (type === 'tenant') {
+                // Debug Company Account
+                await login({
+                    email: 'info@door-fujita.com',
+                    password: 'passc'
+                }, 'tenant');
+            } else {
+                // Debug User Account
+                await login({
+                    email: 'fjt.suntree@gmail.com',
+                    password: 'passa'
+                }, 'user');
+            }
+        } catch (e) {
+            console.error('Debug login failed', e);
+            setError('デバッグログインに失敗しました。アカウントが存在するか確認してください。');
+            setIsLoading(false);
         }
-
-        // [FIX] Inject Token for AuthProvider
-        localStorage.setItem('jbwos_token', 'mock-debug-token');
-        localStorage.setItem('auth_token', 'mock-debug-token');
-
-        // Redirect with environment consideration
-        const basePath = window.location.pathname.replace(/\/login\/?$/, '') || '/';
-        window.location.href = basePath;
     };
 
     return {

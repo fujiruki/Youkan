@@ -5,6 +5,8 @@ import App from './App.tsx'
 import './index.css'
 import './i18n/config' // Initialize i18n
 
+console.log(`%c Build: ${__BUILD_TIMESTAMP__} `, 'background: #222; color: #bada55; padding: 4px; border-radius: 4px;');
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <BrowserRouter>

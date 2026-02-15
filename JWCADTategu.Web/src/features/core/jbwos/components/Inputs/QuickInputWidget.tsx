@@ -66,7 +66,7 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
             const tId = projectContext?.tenantId || null;
             const initialStatus = asFocus ? 'focus' : 'inbox';
 
-            console.log('[QuickInput] Submitting:', { title, tId, pId, initialStatus });
+            // console.log('[QuickInput] Submitting:', { title, tId, pId, initialStatus });
 
             const newId = await viewModel.throwIn(title, tId, pId, initialStatus);
 
@@ -95,7 +95,7 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
         if (e.altKey && e.key.toLowerCase() === 'd') {
             e.preventDefault();
 
-            console.log('[QuickInput] Alt+D Triggered. LastAdded:', lastAddedId);
+            // console.log('[QuickInput] Alt+D Triggered. LastAdded:', lastAddedId);
 
             // Priority 1: Locally created item in this session
             if (lastAddedId) {

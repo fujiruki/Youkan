@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
+import { safeFormat } from '../../logic/dateUtils';
 import { ja } from 'date-fns/locale';
 import { ChevronRight } from 'lucide-react';
 import { isHoliday } from '../../logic/capacity';
@@ -91,7 +92,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             {item.prep_date && (
-                                                <span className="text-[9px] text-slate-400 font-mono tracking-tighter">My: {format(new Date(item.prep_date * 1000), 'MM/dd')}</span>
+                                                <span className="text-[9px] text-slate-400 font-mono tracking-tighter">My: {safeFormat(item.prep_date * 1000, 'MM/dd')}</span>
                                             )}
                                             {item.work_days ? (
                                                 <span className="text-[9px] text-slate-400 font-mono tracking-tighter">工: {item.work_days}d</span>

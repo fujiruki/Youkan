@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ApiClient } from '../../../../api/client';
-import { Item } from '../../types';
+import { Item } from '../types';
 
 export const useSubtasks = (parentId: string, defaultProjectId?: string, defaultTenantId?: string) => {
     const [subtasks, setSubtasks] = useState<Item[]>([]);

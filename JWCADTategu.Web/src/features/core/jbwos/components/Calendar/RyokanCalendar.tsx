@@ -4,6 +4,7 @@ import { QuantityEngine } from '../../logic/QuantityEngine';
 import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
+import { safeParseDate, normalizeDateKey, safeFormat } from '../../logic/dateUtils';
 import { RyokanGridView } from './RyokanGridView';
 import { RyokanTimelineView } from './RyokanTimelineView';
 import { RyokanGanttView } from './RyokanGanttView';
@@ -91,6 +92,13 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (!range) return;
         const days: Date[] = [];
         let cur = new Date(range.start);
+
+        // [Safety] Ensure start/end are valid
+        if (isNaN(cur.getTime()) || isNaN(range.end.getTime())) {
+            console.warn('[RyokanCalendar] Invalid range detected', range);
+            return;
+        }
+
         while (cur <= range.end) {
             days.push(new Date(cur));
             cur.setHours(12, 0, 0, 0);
@@ -109,8 +117,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
             const target = focusDate || today;
             const targetKey = new Date(target);
-            targetKey.setHours(12, 0, 0, 0);
-            const targetString = targetKey.toDateString();
+            const targetString = normalizeDateKey(targetKey);
 
             // Find element in grid
             const container = scrollContainerRef.current;
@@ -214,7 +221,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     };
 
     const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
-        const dateKey = date.toDateString();
+        const dateKey = normalizeDateKey(date);
         const metric = metrics.get(dateKey);
         const signs = metric?.contributingItems || [];
 
@@ -251,7 +258,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             signs.forEach(item => {
                 const chip = document.getElementById(`cal-chip-${item.id}`);
                 // [UI] Find the date where this item's chip SHOULD appear based on UI priority rules
-                const uiDateRaw = item.due_date || (item.prep_date ? new Date(item.prep_date * 1000).toISOString() : null);
+                const uiDate = safeParseDate(item.due_date || item.prep_date);
 
                 if (chip) {
                     const chipRect = chip.getBoundingClientRect();
@@ -265,9 +272,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                         color: '#fbbf24'
                     });
                     newFlashingIds.add(item.id);
-                } else if (uiDateRaw) {
-                    const uiDate = new Date(uiDateRaw);
-                    const cell = container.querySelector(`[data-date="${uiDate.toDateString()}"]`);
+                } else if (uiDate) {
+                    const cell = container.querySelector(`[data-date="${normalizeDateKey(uiDate)}"]`);
 
                     if (cell) {
                         const cellRect = cell.getBoundingClientRect();
@@ -476,7 +482,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                                             <div className="flex items-center gap-3">
                                                 {item.due_date && (
                                                     <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                                        期限: {format(new Date(item.due_date), 'MM/dd')}
+                                                        期限: {safeFormat(item.due_date, 'MM/dd')}
                                                     </span>
                                                 )}
                                                 {item.estimatedMinutes && (

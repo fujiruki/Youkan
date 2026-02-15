@@ -8,6 +8,9 @@ var __dirname = dirname(__filename);
 // @ts-ignore
 // @ts-ignore
 export default defineConfig({
+    define: {
+        __BUILD_TIMESTAMP__: JSON.stringify(new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })),
+    },
     resolve: {
         alias: {
             // @ts-ignore

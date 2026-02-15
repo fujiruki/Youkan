@@ -85,7 +85,7 @@ class ItemController extends BaseController {
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
-                    AND items.deleted_at IS NULL -- [FIX] Skip trashed items
+                    -- AND items.deleted_at IS NULL [REMOVED]
                     AND (
                         -- Ownership Filter (my items)
                         (items.created_by = ? OR items.assigned_to = ?)
@@ -105,7 +105,7 @@ class ItemController extends BaseController {
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
-                    AND items.deleted_at IS NULL -- [FIX] Skip trashed items
+                    -- AND items.deleted_at IS NULL [REMOVED]
                     AND (
                         items.created_by = ?
                         OR items.assigned_to = ?
@@ -162,7 +162,7 @@ class ItemController extends BaseController {
                 LEFT JOIN tenants t ON items.tenant_id = t.id
                 LEFT JOIN assignees a ON items.assigned_to = a.id
                 WHERE (items.project_type IS NULL OR items.project_type = '')
-                AND items.deleted_at IS NULL -- [FIX] Skip trashed items
+                -- AND items.deleted_at IS NULL [REMOVED]
                 AND (
                     -- 1. Personal Items (Private context)
                     ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
@@ -212,7 +212,7 @@ class ItemController extends BaseController {
                 LEFT JOIN items parent ON items.parent_id = parent.id
                 LEFT JOIN items proj ON items.project_id = proj.id
                 WHERE items.tenant_id = ? 
-                AND items.deleted_at IS NULL -- [FIX] Skip trashed items
+                -- AND items.deleted_at IS NULL [REMOVED]
                 AND (
                     (items.project_id IS NULL AND items.created_by = ?) -- Private Inbox
                     OR items.assigned_to = ? -- Explicitly assigned to me
@@ -347,6 +347,18 @@ class ItemController extends BaseController {
         $descendants = $this->getProjectDescendantIds($projectId);
         $pPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
 
+        // --- Filter Logic ---
+        // Default: Active only (not archived, not deleted)
+        // ?show_archived=1: Show ONLY archived (history)
+        // ?show_trash=1: Show ONLY trash
+        $filterClause = " AND items.is_archived = 0 AND items.deleted_at IS NULL ";
+        
+        if (isset($_GET['show_trash']) && $_GET['show_trash'] == 1) {
+            $filterClause = " AND items.deleted_at IS NOT NULL ";
+        } elseif (isset($_GET['show_archived']) && $_GET['show_archived'] == 1) {
+            $filterClause = " AND items.is_archived = 1 AND items.deleted_at IS NULL ";
+        }
+
         $sql = "
             SELECT items.*, parent.title as parent_title, proj.title as real_project_title,
                    a.name as assignee_name, a.color as assignee_color
@@ -356,7 +368,8 @@ class ItemController extends BaseController {
             LEFT JOIN assignees a ON items.assigned_to = a.id
             WHERE (items.tenant_id = ? OR items.tenant_id IS NULL)
             AND (items.project_id IN ($pPlaceholders) OR items.parent_id IN ($pPlaceholders) OR items.id IN ($pPlaceholders))
-            AND items.is_archived = 0 AND items.deleted_at IS NULL
+            -- [FIX] Dynamic Filter Clause Instead of Hardcoded
+            $filterClause
             ORDER BY items.updated_at DESC
         ";
         

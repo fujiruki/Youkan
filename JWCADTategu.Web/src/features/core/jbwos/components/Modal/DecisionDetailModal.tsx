@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, PauseCircle, CheckCircle2, Folder, CheckSquare, AlertTriangle, CalendarDays, CalendarClock } from 'lucide-react';
-import { Item, Member, FilterMode, CapacityConfig } from '../../types';
+import { X, Trash2, PauseCircle, CheckCircle2, Folder, CheckSquare, CalendarDays, CalendarClock } from 'lucide-react';
+import { Item, Member, FilterMode, CapacityConfig } from '../../../jbwos/types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
 import { format } from 'date-fns';
+import { safeFormat } from '../../logic/dateUtils';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
 import { QuantityEngine } from '../../logic/QuantityEngine';
@@ -32,10 +33,10 @@ interface DecisionDetailModalProps {
 }
 
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
-    item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
+    item: propItem, onClose, onDecision, onDelete, onUpdate, onGetSubTasks,
     onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     quantityItems = [], filterMode = 'all', capacityConfig,
-    initialFocus, yesButtonLabel
+    yesButtonLabel
 }) => {
     const [history, setHistory] = React.useState<Item[]>([]);
 
@@ -67,8 +68,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     const [editedTitle, setEditedTitle] = React.useState('');
     const [estimatedMinutes, setEstimatedMinutes] = React.useState(0);
 
-    const [subTasks, setSubTasks] = React.useState<Item[]>([]);
-    const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
+    // const [subTasks, setSubTasks] = React.useState<Item[]>([]);
+    // const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
     const [isProject, setIsProject] = React.useState(false);
     const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
 
@@ -81,7 +82,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setNote(item.memo || '');
             setDueStatus(item.dueStatus || (item.due_date ? 'confirmed' : 'waiting_external'));
             setDueDate(item.due_date || '');
-            setPrepDate(item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '');
+            // [FIX] Use safeFormat instead of direct Date parse + toISOString to prevent RangeError
+            setPrepDate(item.prep_date ? safeFormat(item.prep_date * 1000, 'yyyy-MM-dd', '') : '');
             setWorkDays(item.work_days ?? 1);
             setIsWorkDaysDirty(false);
             setEditedTitle(item.title);
@@ -90,21 +92,21 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setLocalTenantId(item.tenantId || '');
             setLocalProjectId(item.projectId || '');
             setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
-            setSubTasks([]);
+            // setSubTasks([]);
         }
     }, [item?.id, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
 
     React.useEffect(() => {
         if (!item) return;
 
-        if (isProject && onGetSubTasks) {
-            onGetSubTasks(item.id).then(tasks => {
-                setSubTasks(tasks);
-            });
-        }
+        // if (isProject && onGetSubTasks) {
+        //     onGetSubTasks(item.id).then(tasks => {
+        //         setSubTasks(tasks);
+        //     });
+        // }
 
         if (item.dueStatus === 'waiting_external' && !dueDate) {
-            const todayStr = format(new Date(), 'yyyy-MM-dd');
+            const todayStr = safeFormat(new Date(), 'yyyy-MM-dd');
             setDueDate(todayStr);
             setDueStatus('confirmed');
         }
@@ -516,8 +518,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             onChange={(d) => {
                                                 const val = d ? format(d, 'yyyy-MM-dd') : '';
                                                 setPrepDate(val);
-                                                if (onUpdate) onUpdate(item.id, { prep_date: val });
-                                                else ApiClient.updateItem(item.id, { prep_date: val });
+                                                // Convert to timestamp for API
+                                                const timestamp = d ? Math.floor(d.getTime() / 1000) : null;
+                                                // @ts-ignore
+                                                if (onUpdate) onUpdate(item.id, { prep_date: timestamp });
+                                                // @ts-ignore
+                                                else ApiClient.updateItem(item.id, { prep_date: timestamp });
                                             }}
                                             className="w-full border-0 p-0 text-sm font-medium focus:ring-0 focus:outline-none"
                                             onFocus={() => setActiveDateInput('my')}
@@ -756,8 +762,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                 setIsProject(true);
                                                 if (onUpdate) await onUpdate(item.id, { isProject: true });
                                                 if (onGetSubTasks) {
-                                                    const tasks = await onGetSubTasks(item.id);
-                                                    setSubTasks(tasks);
+                                                    // const tasks = await onGetSubTasks(item.id);
+                                                    // setSubTasks(tasks);
                                                 }
                                             }}
                                             className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"

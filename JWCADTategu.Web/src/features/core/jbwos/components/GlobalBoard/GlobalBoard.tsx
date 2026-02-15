@@ -69,7 +69,6 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
     useEffect(() => {
         if (vm.filterMode === 'company' && joinedTenants.length > 0) {
             if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {
-                console.log('[Board] Auto-selecting first tenant:', joinedTenants[0].name);
                 setSelectedTenantId(joinedTenants[0].id);
             }
         } else if (vm.filterMode === 'personal' || vm.filterMode === 'all') {

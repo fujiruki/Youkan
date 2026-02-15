@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Item } from '../../types';
 import { Check, ArrowDown, Zap, Inbox, Clock, Calendar } from 'lucide-react';
-import { addMinutes, format } from 'date-fns';
+import { addMinutes } from 'date-fns';
+import { safeFormat } from '../../logic/dateUtils';
 
 interface FocusCardProps {
     item: Item;
@@ -92,7 +93,7 @@ export const FocusCard: React.FC<FocusCardProps> = ({ item, onSetEngaged, onComp
                     {/* Forecast */}
                     {predictedFinish && (
                         <div className={`text-[10px] font-mono flex items-center gap-1 ${isEngaged ? 'text-indigo-200' : 'text-slate-400'}`}>
-                            <span>予想完了: {format(predictedFinish, 'HH:mm')}</span>
+                            <span>予想完了: {safeFormat(predictedFinish, 'HH:mm')}</span>
                             <span className="opacity-70">(あと{estimatedMins}分)</span>
                         </div>
                     )}

@@ -4,6 +4,7 @@ import { QuantityMetric } from '../../logic/QuantityEngine';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { safeParseDate, normalizeDateKey } from '../../logic/dateUtils';
 
 interface CalendarCellProps {
     date: Date;
@@ -51,7 +52,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     return (
         <div
             ref={cellRef}
-            data-date={date.toDateString()}
+            data-date={normalizeDateKey(date)}
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[120px] h-full border-r flex flex-col p-2 border-b border-slate-100 dark:border-slate-800",
@@ -100,14 +101,10 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                     {!volumeOnly && items
                         .filter(i => {
                             // [UI] Rule: Chip appears on due_date (Primary). If absent, appears on prep_date.
-                            const uiDateRaw = i.due_date || (i.prep_date ? new Date(i.prep_date * 1000).toISOString() : null);
-                            if (!uiDateRaw) return false;
+                            const uiDate = safeParseDate(i.due_date || i.prep_date);
+                            if (!uiDate) return false;
 
-                            const itemDate = new Date(uiDateRaw);
-                            itemDate.setHours(12, 0, 0, 0);
-                            const cellDate = new Date(date);
-                            cellDate.setHours(12, 0, 0, 0);
-                            return itemDate.toDateString() === cellDate.toDateString();
+                            return normalizeDateKey(uiDate) === normalizeDateKey(date);
                         })
                         .slice(0, isMini ? 10 : 3).map(i => {
                             const proj = projects.find(p => p.id === i.projectId);

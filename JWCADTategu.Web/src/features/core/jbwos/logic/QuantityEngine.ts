@@ -1,5 +1,6 @@
 import { Item, Member, CapacityConfig, FilterMode } from '../types';
 import { isHoliday as baseIsHoliday } from './capacity';
+import { safeParseDate, normalizeDateKey } from './dateUtils';
 
 export interface QuantityMetric {
     date: Date;
@@ -44,11 +45,23 @@ export class QuantityEngine {
         const { volumeMap, contributorsMap } = this.calculateVolume(context);
         const { focusedTenantId } = context;
 
-        days.forEach(date => {
-            const dateKey = date.toDateString();
+        days.forEach((date, i) => {
+            // [DEBUG] Pinpoint Log
+            // if (i === 0 || i === days.length - 1) console.log(`[QuantityEngine] Processing day ${i}: type=${typeof date}, val=${date}`);
+
+            // Step 1: Normalize
+            const dateKey = normalizeDateKey(date);
+
+            // Step 2: Get Volume
             const volume = volumeMap.get(dateKey) || 0;
-            // [NEW] Use focusedTenantId if available to show specific capacity for that company
+
+            // Step 3: Get Capacity
+            // [DEBUG] Check date validity before calling capacity logic
+            if (isNaN(date.getTime())) {
+                console.error(`[QuantityEngine] Invalid Date encountered at index ${i}`, date);
+            }
             const capacity = this.calculateCapacityForDate(date, context, focusedTenantId);
+
             const isHol = this.checkIsHoliday(date, context);
             const contributors = contributorsMap.get(dateKey) || [];
             const ratio = capacity > 0 ? volume / capacity : (volume > 0 ? 2 : 0);
@@ -122,17 +135,14 @@ export class QuantityEngine {
 
         relevantItems.forEach(item => {
             // [Engine] Priority: prep_date (My Deadline) > due_date (Official Deadline)
-            const endDateRaw = (item.prep_date ? item.prep_date * 1000 : null) || (item.due_date ? new Date(item.due_date).getTime() : null);
+            const endDate = safeParseDate(item.prep_date || item.due_date);
 
-            if (endDateRaw) {
-                const endDate = new Date(endDateRaw);
+            if (endDate) {
                 let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
 
                 // [NEW] Visual Engagement Point: Always register item on its primary deadline date for UI Chip visibility
                 // even if capacity is 0 on that specific day.
-                const startKeyDate = new Date(endDate);
-                startKeyDate.setHours(12, 0, 0, 0);
-                const startKey = startKeyDate.toDateString();
+                const startKey = normalizeDateKey(endDate);
                 if (!contributorsMap.has(startKey)) contributorsMap.set(startKey, []);
                 if (!contributorsMap.get(startKey)?.some(i => i.id === item.id)) {
                     contributorsMap.get(startKey)?.push(item);
@@ -160,9 +170,7 @@ export class QuantityEngine {
                     const alloc = Math.min(remainingMinutes, dailyCapacity);
 
                     // Normalize date for robust key matching
-                    const keyDate = new Date(current);
-                    keyDate.setHours(12, 0, 0, 0);
-                    const key = keyDate.toDateString();
+                    const key = normalizeDateKey(current);
                     volumeMap.set(key, (volumeMap.get(key) || 0) + alloc);
 
                     // Add to contributors for work days
@@ -233,7 +241,7 @@ export class QuantityEngine {
         const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
         const result = weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
 
-        console.log(`[QuantityEngine] Capacity Personal Result: date=${dateKey}, val=${result}${weeklyVal === undefined ? ' (from defaultDailyMinutes)' : ' (from standardWeeklyPattern)'}`);
+        // console.log(`[QuantityEngine] Capacity Personal Result: ...`); // [REMOVED] Reduce noise
         return result;
     }
 
@@ -243,7 +251,7 @@ export class QuantityEngine {
         let current = new Date(endDate);
         let safety = 0;
 
-        console.log(`[QuantityEngine] Allocation Start: endDate=${endDate.toDateString()}, estimated=${estimatedMinutes}, tenantId=${tenantId}`);
+        // console.log(`[QuantityEngine] Allocation Start: ...`); // [REMOVED] Reduce noise
 
         while (remainingMinutes > 0 && safety < 90) {
             safety++;
@@ -251,16 +259,16 @@ export class QuantityEngine {
             const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
 
             // Normalize for logs
-            const dateStr = current.toDateString();
+            // const dateStr = current.toDateString(); // [REMOVED]
 
             if (isHol || dailyCapacity <= 0) {
-                console.log(`[QuantityEngine] Allocation Skip: date=${dateStr}, isHol=${isHol}, cap=${dailyCapacity}`);
+                // console.log(`[QuantityEngine] Allocation Skip: ...`); // [REMOVED]
                 current.setDate(current.getDate() - 1);
                 continue;
             }
 
             const alloc = Math.min(remainingMinutes, dailyCapacity);
-            console.log(`[QuantityEngine] Allocation Day: date=${dateStr}, cap=${dailyCapacity}, alloc=${alloc}, remaining_before=${remainingMinutes}`);
+            // console.log(`[QuantityEngine] Allocation Day: ...`); // [REMOVED]
 
             days.push(new Date(current));
             remainingMinutes -= alloc;
@@ -269,7 +277,7 @@ export class QuantityEngine {
             current.setDate(current.getDate() - 1);
         }
 
-        console.log(`[QuantityEngine] Allocation Finished: days_count=${days.length}, remaining_final=${remainingMinutes}`);
+        // console.log(`[QuantityEngine] Allocation Finished: ...`); // [REMOVED]
         return days;
     }
 
