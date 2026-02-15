@@ -10,7 +10,7 @@ export interface QuantityCellProps {
     isPrep?: boolean;
     onClick?: () => void;
     displayMode?: 'default' | 'volume_only';
-    // Context-specific label (e.g., "Personal") could be passed if needed
+    currentItem?: { id: string; title?: string; due_date?: string };
 }
 
 export const QuantityCell: React.FC<QuantityCellProps> = ({
@@ -22,7 +22,8 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
     isSelected,
     isPrep,
     onClick,
-    displayMode = 'default'
+    displayMode = 'default',
+    currentItem
 }) => {
     // Determine Intensity
     const intensity = Math.min(fillRate, 1.0);
@@ -34,12 +35,17 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
 
     const overflowHours = isOverflow ? ((usage - capacity) / 60).toFixed(1) : null;
 
+    // Check if this cell is the due date for the current item
+    const isDue = currentItem?.due_date === date || (currentItem?.due_date && date.startsWith(currentItem.due_date.split('T')[0]));
+
     // Selection Styles
     const selectionClass = isSelected
         ? "ring-2 ring-red-500 z-30"
         : isPrep
             ? "ring-2 ring-indigo-500 z-30"
-            : "border-slate-200";
+            : isDue
+                ? "ring-2 ring-amber-500 z-30"
+                : "border-slate-200";
 
     return (
         <div
@@ -52,11 +58,18 @@ export const QuantityCell: React.FC<QuantityCellProps> = ({
                 title={`Capacity: ${capacity / 60}h / Usage: ${usage / 60}h`}
             />
 
-            {/* Date Label (Top Left) */}
-            {displayMode !== 'volume_only' && (
-                <span className="absolute top-0.5 left-1 text-[10px] text-slate-500 font-sans pointer-events-none z-10">
-                    {new Date(date).getDate()}
-                </span>
+            {/* Date Label (Always Visible) */}
+            <span className="absolute top-0.5 left-1 text-[10px] text-slate-500 font-sans pointer-events-none z-10 mix-blend-multiply">
+                {new Date(date).getDate()}
+            </span>
+
+            {/* Current Item Card on Due Date */}
+            {isDue && (
+                <div className="absolute inset-x-0.5 top-4 bg-white/95 border border-amber-500 rounded-[2px] px-0.5 py-0.5 shadow-sm z-20 overflow-hidden">
+                    <div className="text-[8px] font-bold text-amber-700 truncate leading-tight text-center">
+                        {currentItem?.title || 'This Item'}
+                    </div>
+                </div>
             )}
 
             {/* Overflow Dog-ear (CSS Triangle) */}

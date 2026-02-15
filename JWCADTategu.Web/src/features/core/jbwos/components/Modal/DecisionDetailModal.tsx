@@ -281,7 +281,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             onClick={handleClose}
         >
             <div
-                className="relative w-full max-w-6xl h-[90vh] max-h-[800px] flex flex-col overflow-hidden rounded-2xl shadow-2xl bg-white dark:bg-gray-800"
+                className="relative w-[98vw] h-[calc(100vh-20px)] flex flex-col overflow-hidden rounded-xl shadow-2xl bg-white dark:bg-gray-800"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}

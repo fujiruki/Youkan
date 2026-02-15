@@ -52,13 +52,26 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
         ];
         setVisibleMonths(months);
 
-        // Initial scroll to center (optional, difficult to time correctly without layout effect)
-        // setTimeout(() => {
-        //     if (scrollContainerRef.current) {
-        //         // Rough center
-        //         scrollContainerRef.current.scrollTop = 100;
-        //     }
-        // }, 100);
+        // Scroll to center month
+        const timeoutId = setTimeout(() => {
+            if (scrollContainerRef.current) {
+                const startISO = start.toISOString();
+                const monthEl = scrollContainerRef.current.querySelector(`[data-month-label="${startISO}"]`) as HTMLElement;
+
+                if (monthEl) {
+                    // Offset for the sticky Mon-Sun header (approx 28px)
+                    const headerOffset = 28;
+                    // Additional buffer for visual breathing room
+                    const buffer = 4;
+                    scrollContainerRef.current.scrollTop = monthEl.offsetTop - headerOffset - buffer;
+                } else {
+                    // Fallback to rough center if element not found yet
+                    scrollContainerRef.current.scrollTop = 100;
+                }
+            }
+        }, 150); // Slight delay to ensure rendering
+
+        return () => clearTimeout(timeoutId);
     }, [selectedDate]);
 
     // Scroll Handler for Infinite Scroll
@@ -148,8 +161,18 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto relative scroll-smooth"
             >
-                <div className="flex flex-col gap-4 pb-4">
-                    {visibleMonths.map((month) => (
+                {/* Unified Sticky Header for Seamless View */}
+                <div className="grid grid-cols-7 gap-[2px] mb-1 sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 pb-1">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                        <div key={day} className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Seamless Grid */}
+                <div className="grid grid-cols-7 gap-[2px] auto-rows-fr pb-4 relative">
+                    {visibleMonths.map((month, index) => (
                         <MonthlyGridWrapper
                             key={month.toISOString()}
                             monthDate={month}
@@ -160,9 +183,11 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                             displayMode={displayMode}
                             // Pass currentItem if needed for logic context
                             currentItem={item as any}
+                            seamless={true}
+                            isFirstMonth={index === 0}
                         />
                     ))}
-                    {isLoadingMore && <div className="h-4"></div>}
+                    {isLoadingMore && <div className="col-span-7 h-4"></div>}
                 </div>
             </div>
 
