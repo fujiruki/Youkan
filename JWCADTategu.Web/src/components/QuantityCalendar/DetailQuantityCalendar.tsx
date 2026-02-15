@@ -19,7 +19,7 @@ interface DetailQuantityCalendarProps {
 }
 
 export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
-    item,
+    item: _item,
     globalFilter,
     selectedDate,
     prepDate,
@@ -45,8 +45,8 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                 <button
                     onClick={() => setIsVolumeOnly(!isVolumeOnly)}
                     className={`text-[10px] px-2 py-0.5 rounded border transition-colors font-bold ${isVolumeOnly
-                            ? 'bg-indigo-100 text-indigo-600 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800'
-                            : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                        ? 'bg-indigo-100 text-indigo-600 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800'
+                        : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                         }`}
                 >
                     {isVolumeOnly ? 'Volume Only' : 'Detailed'}

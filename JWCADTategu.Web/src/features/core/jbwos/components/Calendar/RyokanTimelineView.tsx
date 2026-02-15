@@ -96,7 +96,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 isCommitPeriod={commitPeriod.some(d => isSameDate(d, date))}
                                 flashingIds={flashingItemIds}
                                 ref={isToday ? todayRef : null}
-                                onAction={(d, _items, type, rect) => onAction(d, type, rect)}
+                                onAction={(d, _items, type, rect) => onAction(d, type as 'click' | 'doubleClick', rect)}
                                 onItemClick={onItemClick}
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}

@@ -33,8 +33,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     targetItemId,
     commitPeriod, // [NEW]
     hideHeader = false,
-    onDateClick,
-    selectionMode
+    onDateClick
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
