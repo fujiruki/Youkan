@@ -393,7 +393,7 @@ class AuthController extends BaseController {
                     'name' => $user['display_name'], // FRESH from DB
                     'email' => $user['email'],
                     'is_representative' => (bool)$user['is_representative'],
-                    'preferences' => $user['preferences']
+                    'preferences' => !empty($user['preferences']) ? json_decode($user['preferences'], true) : null
                 ],
                 'tenant' => $tenantInfo,
                 'joinedTenants' => array_map(function($t) {

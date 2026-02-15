@@ -52,6 +52,14 @@ class UserController extends BaseController {
             $user['display_name'] = $parts[0] ?? 'User';
         }
 
+        // Decode JSON fields
+        if (!empty($user['preferences'])) {
+            $user['preferences'] = json_decode($user['preferences'], true);
+        }
+        if (!empty($user['non_working_hours']) && is_string($user['non_working_hours'])) {
+            $user['non_working_hours'] = json_decode($user['non_working_hours'], true);
+        }
+
         $this->sendJSON($user);
     }
 
