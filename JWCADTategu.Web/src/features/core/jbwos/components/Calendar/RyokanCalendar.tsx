@@ -31,7 +31,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     onUpdateCapacityException,
     volumeOnly = false,
     targetItemId,
-    commitPeriod // [NEW]
+    commitPeriod, // [NEW]
+    hideHeader = false,
+    onDateClick,
+    selectionMode
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
@@ -220,30 +223,41 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         setSelectedSigns([]);
     };
 
-    const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => {
+    const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => {
         const dateKey = normalizeDateKey(date);
         const metric = metrics.get(dateKey);
         const signs = metric?.contributingItems || [];
 
-        if (actionType === 'click' && signs.length === 0) {
-            resetHighlights();
+        // [NEW] Separate handling for specific date number click (List View)
+        if (actionType === 'dateClick') {
+            if (onDateClick) {
+                onDateClick(date);
+            } else {
+                // Fallback for Main Screen: Double click behavior (Breakdown)
+                setSelectedSigns(signs);
+                setPressureConnections([]);
+            }
+            return;
         }
 
-        if (onSelectDate) onSelectDate(date);
+        // Standard Cell Click
+        if (actionType === 'click') {
+            if (signs.length === 0) {
+                resetHighlights();
+            }
+            if (onSelectDate) onSelectDate(date);
+            // Don't show highlights in volumeOnly mode unless forced
+            if (volumeOnly) return;
+        }
 
-        // [FIX] Isolated Breakdown View: 
-        // Only show breakdown (selectedSigns) on doubleClick (mapped to number-click in Detail Modal)
         if (actionType === 'doubleClick') {
             setSelectedSigns(signs);
             setPressureConnections([]);
-            return; // Stop here for doubleClick
+            return;
         }
 
-        // If single click and volumeOnly, don't do anything else (like pressure lines or breakdown)
-        if (volumeOnly) return;
-
         // Normal mode (Dashboard) logic for pressure lines below...
-        if (true) {
+        if (!volumeOnly && actionType === 'click') {
             if (!rect || !scrollContainerRef.current) return;
             const container = scrollContainerRef.current;
             const svg = container.querySelector('.pressure-lines-svg');
@@ -341,7 +355,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
     return (
         <div className={cn("ryokan-calendar w-full h-full flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-900 border-l-4 border-indigo-200 dark:border-indigo-800 font-sans max-w-full")}>
-            {!isMini && (
+            {!isMini && !hideHeader && (
                 <div className="flex-none px-4 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between z-10">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 mr-2">表示モード</span>

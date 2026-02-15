@@ -38,4 +38,8 @@ export interface RyokanCalendarProps {
     volumeOnly?: boolean;
     targetItemId?: string;
     commitPeriod?: Date[]; // [NEW] Accurate Allocation List
+    // [NEW] Unification Props
+    hideHeader?: boolean;
+    onDateClick?: (date: Date) => void; // Popover for list
+    selectionMode?: 'due' | 'prep' | null; // For styling/behavior
 }

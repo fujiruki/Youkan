@@ -14,6 +14,13 @@ interface SideCalendarPanelProps {
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
     className?: string;
+    // [NEW] Data for RyokanCalendar
+    items?: Item[];
+    members?: any[];
+    capacityConfig?: any;
+    projects?: any[];
+    joinedTenants?: any[];
+    commitPeriod?: Date[];
 }
 
 export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
@@ -23,7 +30,8 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     prepDate,
     targetMode = 'due',
     filterMode = 'all',
-    className
+    className,
+    items, members, capacityConfig, projects, joinedTenants, commitPeriod
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -37,10 +45,17 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
             <div className="flex-1 overflow-hidden p-1">
                 <DetailQuantityCalendar
                     item={currentItem || null}
-                    globalFilter={filterMode}
-                    selectedDate={targetMode === 'my' ? prepDate : selectedDate}
+                    globalFilter={filterMode as any}
+                    selectedDate={selectedDate}
                     prepDate={prepDate}
                     onSelectDate={onSelectDate}
+                    items={items}
+                    members={members}
+                    capacityConfig={capacityConfig}
+                    projects={projects}
+                    joinedTenants={joinedTenants}
+                    targetItemId={currentItem?.id}
+                    commitPeriod={commitPeriod}
                 />
             </div>
 

@@ -18,7 +18,7 @@ interface GridViewProps {
     heatMap: Map<string, number>;
     today: Date;
     onItemClick?: (item: Item) => void;
-    onAction: (date: Date, actionType: 'click' | 'doubleClick', rect?: DOMRect) => void;
+    onAction: (date: Date, actionType: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => void;
     selectedDate?: Date | null;
     prepDate?: Date | null;
     commitPeriod?: Date[];
@@ -95,6 +95,12 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                         const isP = prepDate ? isSameDate(date, prepDate) : false;
                         const isCP = commitPeriod.some(d => isSameDate(d, date));
 
+                        // [NEW] Find target item for overlay
+                        const targetItem = targetItemId && metric?.contributingItems
+                            ? metric.contributingItems.find(i => i.id === targetItemId)
+                            : undefined;
+                        const isTarget = !!targetItem;
+
                         return (
                             <CalendarCell
                                 key={dateKey}
@@ -113,7 +119,8 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}
                                 volumeOnly={volumeOnly}
-                                isTarget={metric?.contributingItems?.some(i => i.id === targetItemId && i.due_date && isSameDate(date, new Date(i.due_date)))}
+                                isTarget={isTarget}
+                                targetItem={targetItem}
                                 rowHeight={rowHeight}
                             />
                         );

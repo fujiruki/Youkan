@@ -556,6 +556,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 filterMode={filterMode} // Pass volume filter mode
                                 currentItem={item}
                                 className="h-full border-l-0"
+                                items={quantityItems}
+                                members={members}
+                                capacityConfig={capacityConfig}
+                                projects={allProjects}
+                                joinedTenants={joinedTenants}
+                                commitPeriod={commitPeriodDates}
                             />
                         </div>
 

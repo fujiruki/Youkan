@@ -14,7 +14,8 @@ import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
-import { MainQuantityCalendar } from '../components/Layout/MainQuantityCalendar'; // [NEW]
+// import { MainQuantityCalendar } from '../components/Layout/MainQuantityCalendar'; // [Unused]
+import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
@@ -87,9 +88,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         setEngaged,
         // currentUserId, // [Unused]
         // joinedTenants: vmJoinedTenants, // [Unused in Quantity Mode]
-        // members, // [Unused]
-        // capacityConfig, // [Unused]
-        // allProjects // [Unused]
+        members,
+        capacityConfig,
+        allProjects
     } = vm;
 
     const { /* user: authUser */ } = useAuth(); // [Unused]
@@ -202,7 +203,20 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-hidden">
                             {viewMode === 'calendar' ? (
-                                <MainQuantityCalendar />
+                                <RyokanCalendar
+                                    items={allItemsForCalendar}
+                                    members={members}
+                                    capacityConfig={capacityConfig}
+                                    projects={allProjects}
+                                    joinedTenants={joinedTenants}
+                                    displayMode="grid"
+                                    filterMode={filterMode}
+                                    onDateClick={(d) => {
+                                        // TODO: Open Day Detail
+                                        console.log('Date Clicked', d);
+                                    }}
+                                    onItemClick={(item) => setSelectedItem(item)}
+                                />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             ) : (
