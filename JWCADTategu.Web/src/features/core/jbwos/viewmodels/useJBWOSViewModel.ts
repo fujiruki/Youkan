@@ -8,7 +8,7 @@ import { getDailyCapacity, isHoliday } from '../logic/capacity';
 import { QuantityEngine } from '../logic/QuantityEngine';
 import { ApiClient } from '../../../../api/client';
 import { format } from 'date-fns';
-import { compareFocusItems, compareInboxItems } from '../logic/sorting';
+import { compareFocusItems } from '../logic/sorting';
 
 const getUseCloud = () => {
     // Enforce Cloud Mode by default (User Request)
