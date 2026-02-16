@@ -99,3 +99,80 @@ export const compareInboxItems = (a: Item, b: Item): number => {
     // Sort by Created At (Ascending: Old -> New)
     return (a.createdAt || 0) - (b.createdAt || 0);
 };
+
+// ----------------------------------------------------------------------
+// 3. General List 2 (Newspaper View) Sorting
+// ----------------------------------------------------------------------
+
+/**
+ * Calculates the "Start Limit" (着手限界日) for an item.
+ * Start Limit = Min(Due, Prep) - Estimate
+ * If no estimate, it's just Min(Due, Prep).
+ * Returns timestamp (ms) or null if no deadline.
+ */
+export const calculateStartLimit = (item: Item): number | null => {
+    const deadline = getEffectiveDeadline(item);
+    if (deadline === null) return null;
+
+    // Estimate: types.ts defines work_days (legacy) or estimatedMinutes (new)
+    // Let's use estimatedMinutes if available (convert to ms), else 0.
+    // work_days is legacy, maybe ignore or convert?
+    // Let's assume estimatedMinutes.
+    const estMinutes = item.estimatedMinutes || 0;
+    const estMs = estMinutes * 60 * 1000;
+
+    // Start Limit = Deadline - Estimate
+    // This pushes the date earlier.
+    return deadline - estMs;
+};
+
+// Item Sorting within a Project (or Unassigned group)
+export const compareGeneralList2Items = (a: Item, b: Item): number => {
+    const aStart = calculateStartLimit(a);
+    const bStart = calculateStartLimit(b);
+
+    // Group 1: No Deadline (Top) -> Sort by Created Date (Newest First)
+    if (aStart === null && bStart === null) {
+        return (b.createdAt || 0) - (a.createdAt || 0); // Descending (Newest First)
+    }
+
+    // Group 1 vs Group 2 (Has Deadline)
+    if (aStart === null) return -1; // No Deadline is Top
+    if (bStart === null) return 1;
+
+    // Group 2: Has Deadline -> Sort by Start Limit (Earliest First)
+    if (aStart !== bStart) {
+        return aStart - bStart; // Ascending
+    }
+
+    // Tie-breaker: Created Date (Oldest First for Deadlines)
+    return (a.createdAt || 0) - (b.createdAt || 0);
+};
+
+// Project Sorting Helper
+// Projects are sorted by the Earliest Start Limit of their contained items.
+// This function assumes you have a list of items for each project and can find the min.
+// But sorting.ts usually handles Item vs Item.
+// To sort Projects, we need a `Project` object or similar.
+// Let's assume we pass two "Project Representatives" or we have a helper that takes items.
+// For now, let's export a helper to get "Project Urgency Score" from a list of items.
+export const getProjectUrgencyScore = (items: Item[]): number => {
+    // Find the earliest Start Limit among items.
+    // If no items have deadline, return Infinity (or max date).
+    let minStart = Number.MAX_SAFE_INTEGER;
+    let hasDeadline = false;
+
+    for (const item of items) {
+        // Only consider incomplete items? Logic usually applies to active items.
+        // Assuming 'items' passed here are active.
+        const start = calculateStartLimit(item);
+        if (start !== null) {
+            hasDeadline = true;
+            if (start < minStart) {
+                minStart = start;
+            }
+        }
+    }
+
+    return hasDeadline ? minStart : Number.MAX_SAFE_INTEGER;
+};

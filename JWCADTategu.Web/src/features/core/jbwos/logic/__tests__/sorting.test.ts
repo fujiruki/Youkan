@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareFocusItems, compareInboxItems } from '../sorting';
+import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore } from '../sorting';
 import { Item } from '../../types';
 
 // Helper to create mock items
@@ -112,6 +112,83 @@ describe('Sorting Logic', () => {
             expect(compareInboxItems(itemA, itemB)).toBeGreaterThan(0); // B before A
             expect(compareInboxItems(itemB, itemC)).toBeLessThan(0);    // B before C (Group 1 vs 2)
             expect(compareInboxItems(itemA, itemC)).toBeLessThan(0);    // A before C (Group 1 vs 2)
+        });
+    });
+
+    describe('General List 2 (Newspaper View)', () => {
+        // Rules:
+        // Item Sorting:
+        // 1. No Deadline (Top) -> Newest Created First
+        // 2. Deadline -> Earliest Start Limit (Start = Deadline - Est)
+        // 3. Deadline Tie -> Oldest Created First
+
+        it('calculates Start Limit correctly', () => {
+            // Deadline: 2026-01-01 00:00 (TS: X)
+            // Est: 60 mins (3600000 ms)
+            // Start: X - 3600000
+            const deadlineIso = '2026-01-01';
+            const deadlineTime = new Date(deadlineIso).getTime(); // Local start of day due to parsing fallback?
+            // Wait, in sorting.ts normalization handles startOfDay(parseISO(...))
+            // Let's trust sorting.ts logic.
+
+            const item = mockItem({ due_date: deadlineIso, estimatedMinutes: 60 });
+            const limit = calculateStartLimit(item);
+
+            expect(limit).not.toBeNull();
+            // We can't predict exact timestamp easily without timezone knowledge in test env,
+            // but we can check relative values.
+
+            const itemNoEst = mockItem({ due_date: deadlineIso, estimatedMinutes: 0 });
+            const limitNoEst = calculateStartLimit(itemNoEst);
+
+            expect(limit).toBeLessThan(limitNoEst!); // With estimate should be earlier
+        });
+
+        it('sorts No Deadline Items by Newest Created First', () => {
+            const oldItem = mockItem({ title: 'Old', createdAt: 1000 });
+            const newItem = mockItem({ title: 'New', createdAt: 2000 });
+
+            expect(compareGeneralList2Items(oldItem, newItem)).toBeGreaterThan(0); // New(2000) before Old(1000) => New - Old > 0?
+            // Wait: (b.createdAt) - (a.createdAt) for Descending
+            // (2000) - (1000) = 1000 > 0. Positive result means b comes first?
+            // sort(a, b): result > 0 => b comes first.
+            // sort(a, b): result < 0 => a comes first.
+            // If result is positive, it sorts [b, a]. Yes.
+            // So expected result is positive (swap) if passed (old, new).
+            // Actually, expect(compare(old, new)).toBeGreaterThan(0) means old comes after new. Check.
+        });
+
+        it('sorts Deadline Items by Start Limit', () => {
+            // A: Due 10th, Est 5 days. Start = 5th.
+            // B: Due 8th, Est 0 days. Start = 8th.
+            // A should be earlier (Top).
+
+            // Note: estimatedMinutes is minutes. 5 days = 5*24*60 = 7200 min? Or 8h/day?
+            // Logic uses estimatedMinutes directly.
+            // Let's use minutes.
+            const minPerDay = 24 * 60; // Simple day
+
+            const itemA = mockItem({ due_date: '2026-01-10', estimatedMinutes: 5 * minPerDay }); // Start ~ 5th
+            const itemB = mockItem({ due_date: '2026-01-08', estimatedMinutes: 0 }); // Start ~ 8th
+
+            expect(compareGeneralList2Items(itemA, itemB)).toBeLessThan(0); // A before B
+        });
+
+        it('sorts Project Urgency Score correctly', () => {
+            // Project A: Has item starting 1st.
+            // Project B: Has item starting 5th.
+            // Project C: No deadlines.
+
+            const item1st = mockItem({ due_date: '2026-01-01' });
+            const item5th = mockItem({ due_date: '2026-01-05' });
+            const itemNoDead = mockItem({});
+
+            const scoreA = getProjectUrgencyScore([itemNoDead, item1st]); // Should be 1st
+            const scoreB = getProjectUrgencyScore([item5th]);           // Should be 5th
+            const scoreC = getProjectUrgencyScore([itemNoDead]);        // Infinity
+
+            expect(scoreA).toBeLessThan(scoreB);
+            expect(scoreB).toBeLessThan(scoreC);
         });
     });
 });
