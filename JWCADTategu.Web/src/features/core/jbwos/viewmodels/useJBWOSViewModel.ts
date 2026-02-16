@@ -8,6 +8,7 @@ import { getDailyCapacity, isHoliday } from '../logic/capacity';
 import { QuantityEngine } from '../logic/QuantityEngine';
 import { ApiClient } from '../../../../api/client';
 import { format } from 'date-fns';
+import { compareFocusItems, compareInboxItems } from '../logic/sorting';
 
 const getUseCloud = () => {
     // Enforce Cloud Mode by default (User Request)
@@ -70,9 +71,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
                 (Array.isArray(shelf.active) ? shelf.active : [])
                     .filter(Boolean)
                     .filter(i => i.status !== 'focus') // [FIX] Strict View Separation: Exclude 'focus' from Inbox (already in Center)
+                    .sort(compareFocusItems) // [Correct] GlobalBoard Active uses Focus Logic (General List)
             );
-            setGdbPreparation((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean)); // Migrated from hold
-            setGdbIntent((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean)); // [NEW]
+            setGdbPreparation((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean).sort(compareFocusItems)); // Migrated from hold
+            setGdbIntent((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean).sort(compareFocusItems)); // [NEW]
             setGdbLog((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
         } catch (e) {
             console.error('Failed to fetch GDB:', e);
@@ -93,7 +95,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             const today = await getRepository().getTodayView(projectId);
             setTodayCommits(today.commits || []);
             setExecutionItem(today.execution || null);
-            setTodayCandidates(today.candidates || []);
+            setTodayCandidates((today.candidates || []).sort(compareFocusItems)); // [NEW] Apply Focus Sorting
         } catch (e) {
             console.error('Failed to fetch Today:', e);
         }
