@@ -379,7 +379,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         {/* Mobile Side-by-Side Optimization: Fixed width for yyyy/mm/dd */}
                         <div className="flex flex-wrap gap-2">
                             {/* Due Date Input */}
-                            <div className="w-[var(--modal-date-width)] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                            <div className="flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-1 text-slate-400">
                                     <CalendarDays size={14} className="md:w-[16px] md:h-[16px]" />
                                     <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
@@ -395,14 +395,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
                                             else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
                                         }}
-                                        className="w-full border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
+                                        className="w-[71px] border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
                                         onFocus={() => setActiveDateInput('due')}
                                     />
                                 </div>
                             </div>
 
                             {/* Preparation Date Input */}
-                            <div className="w-[var(--modal-date-width)] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                            <div className="flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-1 text-slate-400">
                                     <CalendarClock size={14} className="md:w-[16px] md:h-[16px]" />
                                     <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
@@ -421,7 +421,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             // @ts-ignore
                                             else ApiClient.updateItem(item.id, { prep_date: timestamp });
                                         }}
-                                        className="w-full border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
+                                        className="w-[71px] border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
                                         onFocus={() => setActiveDateInput('my')}
                                     />
                                 </div>
