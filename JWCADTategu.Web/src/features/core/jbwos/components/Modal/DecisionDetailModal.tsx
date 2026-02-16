@@ -379,7 +379,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         {/* Mobile Side-by-Side Optimization: Fixed width for yyyy/mm/dd */}
                         <div className="flex flex-wrap gap-2">
                             {/* Due Date Input */}
-                            <div className="w-[170px] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                            <div className="w-[var(--modal-date-width)] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-1 text-slate-400">
                                     <CalendarDays size={14} className="md:w-[16px] md:h-[16px]" />
                                     <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
@@ -402,7 +402,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             </div>
 
                             {/* Preparation Date Input */}
-                            <div className="w-[170px] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                            <div className="w-[var(--modal-date-width)] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                                 <div className="flex items-center gap-1 text-slate-400">
                                     <CalendarClock size={14} className="md:w-[16px] md:h-[16px]" />
                                     <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">

@@ -23,6 +23,8 @@
         /* 土曜日の背景色 */
         --cal-sun-bg: #f1f5f9;
         /* 日曜日の背景色 */
+        /* Detail Modal */
+        --modal-date-width: 170px;
     }
 }
 
