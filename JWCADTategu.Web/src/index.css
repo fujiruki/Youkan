@@ -2,15 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    :root {
+        /* Quantity Calendar Metrics */
+        --cal-cell-height: 24px;
+        /* セルの基本高さ */
+        --cal-font-size: 10px;
+        /* カレンダーのフォントサイズ */
+
+        /* Background Intensity */
+        /* Indigo-500: #6366f1 -> User Preference: #330aff */
+        --cal-bg-color: #330aff;
+        /* Max Opacity (0.0 - 1.0) */
+        --cal-bg-max-opacity: 0.3;
+
+        /* Grid & Decoration */
+        --cal-grid-border-opacity: 0.1;
+        /* グリッド線の濃さ */
+        --cal-sat-bg: #f8fafc;
+        /* 土曜日の背景色 */
+        --cal-sun-bg: #f1f5f9;
+        /* 日曜日の背景色 */
+    }
+}
+
+
 body {
     @apply bg-slate-950 text-slate-200;
 }
 
 /* Form elements base styles */
-input, textarea, select {
+input,
+textarea,
+select {
     @apply text-slate-800 dark:text-slate-100;
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
     @apply text-slate-400 dark:text-slate-500;
 }

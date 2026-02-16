@@ -92,8 +92,11 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
         >
             {/* Heatmap Background */}
             <div
-                className="absolute inset-0 bg-indigo-500/30 dark:bg-indigo-400/20 pointer-events-none transition-opacity duration-500"
-                style={{ opacity: (displayIntensity || 0) / 100 }}
+                className="absolute inset-0 pointer-events-none transition-opacity duration-500"
+                style={{
+                    backgroundColor: 'var(--cal-bg-color)',
+                    opacity: `calc(var(--cal-bg-max-opacity) * ${(displayIntensity || 0) / 100})`
+                }}
             />
 
             <div className={cn("flex relative z-10 pointer-events-none", isMini ? "items-center gap-4 w-full" : "flex-col w-full h-full")}>

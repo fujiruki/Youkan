@@ -14,3 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
     </React.StrictMode>,
 )
+
+// [UI Tuning] Initialize slideVars in development mode
+import { initSlideVars } from './utils/slideVars';
+initSlideVars();
