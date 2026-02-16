@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Item } from '../../types';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { format } from 'date-fns';
+import { compareGeneralList2Items, getProjectUrgencyScore } from '../../logic/sorting'; // [NEW]
 
 export type JBWOSViewModel = ReturnType<typeof useJBWOSViewModel>;
 
@@ -114,8 +115,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             if (seenIds.has(item.id)) return false;
             seenIds.add(item.id);
             if (item.isProject) return false;
-            if (item.isArchived) return false;
-            if (item.deletedAt) return false;
+            // if (item.isArchived) return false; // Maybe show archived? No.
+            // if (item.deletedAt) return false;
 
             // [FIX] Project Focused Filtering (including descendants + dual ID format support)
             if (relevantProjectIds) {
@@ -127,25 +128,9 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             return true;
         });
 
-        // Sorting Helper
+        // Sorting Helper - Replaced with General List 2 Logic
         const sortItems = (items: Item[]) => {
-            return [...items].sort((a, b) => {
-                const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-                const aPrep = a.prep_date ? a.prep_date * 1000 : Infinity;
-                const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-                const bPrep = b.prep_date ? b.prep_date * 1000 : Infinity;
-
-                const aLimit = Math.min(aDue, aPrep);
-                const bLimit = Math.min(bDue, bPrep);
-
-                if (aLimit === Infinity && bLimit === Infinity) {
-                    return (b.createdAt || 0) - (a.createdAt || 0);
-                }
-                if (aLimit === Infinity) return 1; // [FIX] Push Infinity to end
-                if (bLimit === Infinity) return -1;
-                if (aLimit !== bLimit) return aLimit - bLimit;
-                return (a.createdAt || 0) - (b.createdAt || 0);
-            });
+            return [...items].sort(compareGeneralList2Items);
         };
 
         const result: NewspaperItemWrapper[] = [];
@@ -175,7 +160,8 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             });
             return {
                 project: proj,
-                items: items
+                items: items,
+                urgencyScore: getProjectUrgencyScore(items) // [NEW] Calculate Score
             };
         }); // [FIX] Show all projects including empty ones (filter removed)
 
@@ -190,6 +176,7 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             return !hasProjectInView;
         });
 
+        // Sort Unassigned Items
         sortItems(noProjectItems).forEach(item => {
             const dateInfo = getEnhancedDate(item);
             result.push({
@@ -202,14 +189,21 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             });
         });
 
-        // 4. Sort project groups (Company -> Personal, then by parent-child relationship)
+        // 4. Sort project groups (Company -> Personal, then by Urgency)
         const sortedProjectGroups = [...projectGroups].sort((a, b) => {
             // First: Company -> Personal
             const aIsCompany = !!a.project.tenantId;
             const bIsCompany = !!b.project.tenantId;
             if (aIsCompany && !bIsCompany) return -1;
             if (!aIsCompany && bIsCompany) return 1;
-            return 0;
+
+            // Second: Urgency Score (Start Limit Earliest First)
+            if (a.urgencyScore !== b.urgencyScore) {
+                return a.urgencyScore - b.urgencyScore;
+            }
+
+            // Third: Created Date (Oldest First as fallback)
+            return (a.project.createdAt || 0) - (b.project.createdAt || 0);
         });
 
         // [NEW] Recursive function to add projects with their children
@@ -253,8 +247,18 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
                 return pParentId === projId || pProjectId === projId;
             });
 
-            // Sort child projects
-            const sortedChildren = [...childProjects].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            // Sort child projects by Urgency as well
+            // We need to find their groups to check scores.
+            const sortedChildren = [...childProjects].sort((a, b) => {
+                const groupA = projectGroups.find(g => normalizeId(String(g.project.id)) === normalizeId(String(a.id)));
+                const groupB = projectGroups.find(g => normalizeId(String(g.project.id)) === normalizeId(String(b.id)));
+
+                const scoreA = groupA ? groupA.urgencyScore : Number.MAX_SAFE_INTEGER;
+                const scoreB = groupB ? groupB.urgencyScore : Number.MAX_SAFE_INTEGER;
+
+                if (scoreA !== scoreB) return scoreA - scoreB;
+                return (a.createdAt || 0) - (b.createdAt || 0);
+            });
 
             sortedChildren.forEach(child => {
                 addProjectWithChildren(child, depth + 1, processedProjectIds);
