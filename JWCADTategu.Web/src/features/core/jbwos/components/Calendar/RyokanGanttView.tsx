@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
@@ -27,16 +27,87 @@ interface GanttViewProps {
 }
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate
+    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate, renderItemTitle
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const headerContainerRef = useRef<HTMLDivElement>(null);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const isSyncing = useRef(false);
+
+    // Sync Scroll Logic: Use native event listeners for better control
+    useEffect(() => {
+        const header = headerContainerRef.current;
+        const body = scrollContainerRef.current;
+
+        if (!header || !body) return;
+
+        const handleHeaderScroll = () => {
+            if (isSyncing.current) return;
+            isSyncing.current = true;
+            body.scrollLeft = header.scrollLeft;
+            requestAnimationFrame(() => {
+                isSyncing.current = false;
+            });
+        };
+
+        const handleBodyScroll = () => {
+            if (isSyncing.current) return;
+            isSyncing.current = true;
+            header.scrollLeft = body.scrollLeft;
+            requestAnimationFrame(() => {
+                isSyncing.current = false;
+            });
+        };
+
+        header.addEventListener('scroll', handleHeaderScroll, { passive: true });
+        body.addEventListener('scroll', handleBodyScroll, { passive: true });
+
+        return () => {
+            header.removeEventListener('scroll', handleHeaderScroll);
+            body.removeEventListener('scroll', handleBodyScroll);
+        };
+    }, []);
+
+    const scrollToDate = (date: Date) => {
+        if (!scrollContainerRef.current) return;
+
+        // Find index of date in allDays
+        const index = allDays.findIndex(d => isSameDate(d, date));
+
+        if (index === -1) {
+            // If date is out of range, try to jump via parent handler
+            onJumpToDate?.(date);
+            return;
+        }
+
+        const colWidth = 24; // w-6 = 1.5rem = 24px
+        const headerWidth = 256; // w-64 = 256px
+
+        // Calculate position to center the date
+        const containerWidth = scrollContainerRef.current.clientWidth;
+
+        // Center in the visible area (right of sticky col)
+        const visibleTimelineWidth = containerWidth - headerWidth;
+        const dateOffsetInTimeline = index * colWidth;
+
+        // Target scrollLeft
+        // We want dateOffsetInTimeline to be centered in visibleTimelineWidth
+        // scrollLeft moves the timeline window.
+        // center of visible timeline relative to timeline start = scrollLeft + (visibleTimelineWidth / 2)
+        // we want that center to be dateOffsetInTimeline + (colWidth / 2)
+        // scrollLeft = dateOffsetInTimeline + (colWidth / 2) - (visibleTimelineWidth / 2)
+
+        let targetScrollLeft = dateOffsetInTimeline + (colWidth / 2) - (visibleTimelineWidth / 2);
+
+        scrollContainerRef.current.scrollTo({
+            left: Math.max(0, targetScrollLeft),
+            behavior: 'smooth'
+        });
+    };
 
     // Grouping & Sorting Logic
     const groupedItems = useMemo(() => {
-        // 1. Sort items globally first needed? No, sort within groups.
-        // Group by Project
         const groups: Record<string, Item[]> = {};
         const noProjectKey = 'unassigned';
 
@@ -46,10 +117,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             groups[key].push(item);
         });
 
-        // Sort items within each group
         Object.keys(groups).forEach(key => {
             groups[key].sort((a, b) => {
-                // Priority 1: No Due/Prep Date (Unscheduled) first
                 const aDate = a.due_date || a.prep_date;
                 const bDate = b.due_date || b.prep_date;
 
@@ -57,7 +126,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                 if (!aDate) return -1;
                 if (!bDate) return 1;
 
-                // Priority 2: Chronological
                 return (typeof aDate === 'number' ? aDate : new Date(aDate).getTime()) -
                     (typeof bDate === 'number' ? bDate : new Date(bDate).getTime());
             });
@@ -66,16 +134,13 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         return groups;
     }, [items]);
 
-    // Project Order (Pinned/Sorted?) -> For now, just alphabet or defined order
     const sortedProjectKeys = useMemo(() => {
         const keys = Object.keys(groupedItems).filter(k => k !== 'unassigned');
-        // Sort projects by name? or defined order
         keys.sort((a, b) => {
             const pA = projects.find(p => p.id === a);
             const pB = projects.find(p => p.id === b);
             return (pA?.title || '').localeCompare(pB?.title || '');
         });
-        // Unassigned at the bottom? or top? Let's put Unassigned on top (Inbox style)
         if (groupedItems['unassigned']) return ['unassigned', ...keys];
         return keys;
     }, [groupedItems, projects]);
@@ -90,37 +155,45 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
     return (
         <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 font-sans">
             {/* Header: Dates */}
-            <div className="flex-none flex bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-20">
-                <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center bg-slate-50 dark:bg-slate-900 font-bold text-slate-500 text-xs">
-                    Project / Task
-                </div>
-                <div className="flex flex-1 overflow-x-auto scrollbar-hide">
-                    {allDays.map(date => {
-                        const isSun = date.getDay() === 0;
-                        const isSat = date.getDay() === 6;
-                        return (
-                            <div key={date.toDateString()} className={cn(
-                                "w-6 flex-shrink-0 text-center py-1 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col items-center justify-center h-10",
-                                isSameDate(date, today) ? "bg-blue-600/10" :
-                                    isSun ? "bg-red-50 dark:bg-red-900/20" :
-                                        isSat ? "bg-blue-50 dark:bg-blue-900/10" : ""
-                            )}>
-                                <span className={cn(
-                                    "text-[8px] font-bold uppercase",
-                                    isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-400"
-                                )}>{format(date, 'eee', { locale: ja })}</span>
-                                <span className={cn(
-                                    "text-[10px] font-mono leading-none",
-                                    isSameDate(date, today) ? "text-blue-600 font-bold" : "text-slate-600 dark:text-slate-400"
-                                )}>{date.getDate()}</span>
-                            </div>
-                        );
-                    })}
+            <div
+                className="flex-none overflow-x-auto scrollbar-hide bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-20"
+                ref={headerContainerRef}
+            >
+                <div className="min-w-max flex">
+                    <div className="sticky left-0 z-30 w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center bg-slate-50 dark:bg-slate-900 font-bold text-slate-500 text-xs shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+                        Project / Task
+                    </div>
+                    <div className="flex">
+                        {allDays.map(date => {
+                            const isSun = date.getDay() === 0;
+                            const isSat = date.getDay() === 6;
+                            return (
+                                <div key={date.toDateString()} className={cn(
+                                    "w-6 flex-shrink-0 text-center py-1 border-r border-slate-200/50 dark:border-slate-800/50 flex flex-col items-center justify-center h-10",
+                                    isSameDate(date, today) ? "bg-blue-600/10" :
+                                        isSun ? "bg-red-50 dark:bg-red-900/20" :
+                                            isSat ? "bg-blue-50 dark:bg-blue-900/10" : ""
+                                )}>
+                                    <span className={cn(
+                                        "text-[8px] font-bold uppercase",
+                                        isSun ? "text-red-400" : isSat ? "text-blue-400" : "text-slate-400"
+                                    )}>{format(date, 'eee', { locale: ja })}</span>
+                                    <span className={cn(
+                                        "text-[10px] font-mono leading-none",
+                                        isSameDate(date, today) ? "text-blue-600 font-bold" : "text-slate-600 dark:text-slate-400"
+                                    )}>{date.getDate()}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide relative" ref={scrollContainerRef}>
+            <div
+                className="flex-1 overflow-y-auto overflow-x-auto scrollbar-hide relative"
+                ref={scrollContainerRef}
+            >
                 <div className="min-w-max pb-32"> {/* Padding Bottom for visibility */}
                     {sortedProjectKeys.map(groupKey => {
                         const groupItems = groupedItems[groupKey];
@@ -155,27 +228,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
                                 {/* Items */}
                                 {!isCollapsed && groupItems.map(item => {
-                                    // Calculation Logic (Same as before)
+                                    // Calculation Logic
                                     const myDeadline = item.prep_date ? new Date(item.prep_date * 1000) : (item.due_date ? new Date(item.due_date) : null);
-                                    // [FIX] workDays fallback logic: if 0, use estimatedMinutes / 480. 
                                     const estimatedWorkDays = item.work_days || Math.max(1, Math.ceil((item.estimatedMinutes || 0) / 480));
 
                                     let commitStart = myDeadline ? new Date(myDeadline) : null;
-                                    let actualCommitDays = 0;
 
                                     if (commitStart) {
                                         let c = 0; // counted work days
                                         let s = 0; // safety breaker
                                         while (c < estimatedWorkDays && s < 60) {
                                             s++;
-                                            // Ensure we check holiday on the current commitStart cursor
                                             if (!isHoliday(commitStart, safeConfig)) {
                                                 c++;
-                                                actualCommitDays++;
                                             }
-                                            // Move back 1 day if we still need to allocate more work days
-                                            // IMPORTANT: The last day (deadline) counts as 1.
-                                            // So if c < estimated, we move back.
                                             if (c < estimatedWorkDays) {
                                                 commitStart.setDate(commitStart.getDate() - 1);
                                             }
@@ -190,17 +256,17 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                             {/* Left Column: Item Name */}
                                             <div
                                                 className={cn(
-                                                    "sticky left-0 z-[5] w-64 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 px-2 flex items-center justify-between transition-colors border-l-4",
+                                                    "sticky left-0 z-[5] w-64 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 px-2 flex items-center justify-between transition-colors border-l-4 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]",
                                                     hoveredItemId === item.id ? "bg-indigo-50/10" : "",
                                                     item.due_date ? "border-l-indigo-400" : "border-l-slate-200"
                                                 )}
                                                 onMouseEnter={() => setHoveredItemId(item.id)}
                                                 onMouseLeave={() => setHoveredItemId(null)}
                                             >
-                                                <div className="flex-1 min-w-0 pr-2 cursor-pointer pl-6" onClick={() => (dueDateObj || prepDateObj) && onJumpToDate?.(dueDateObj || prepDateObj || new Date())}>
+                                                <div className="flex-1 min-w-0 pr-2 cursor-pointer pl-6" onClick={() => (dueDateObj || prepDateObj) && scrollToDate(dueDateObj || prepDateObj || new Date())}>
                                                     <div className="flex items-center gap-2">
                                                         <span className={cn("truncate text-xs text-slate-600 dark:text-slate-300", hoveredItemId === item.id ? "text-indigo-600 font-medium" : "")}>
-                                                            {item.title}
+                                                            {renderItemTitle(item)}
                                                         </span>
                                                         {item.estimatedMinutes > 0 && (
                                                             <span className="text-[9px] text-slate-400 font-mono flex-shrink-0">
@@ -227,13 +293,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 {allDays.map(date => {
                                                     const isDue = dueDateObj && isSameDate(date, dueDateObj);
                                                     const isBetween = commitStart && prepDateObj && date >= commitStart && date <= prepDateObj;
-                                                    // Determine if this day is a holiday (for visual gap in bar)
                                                     const isHol = isHoliday(date, safeConfig);
                                                     const isSun = date.getDay() === 0;
-
-                                                    // Determine Bar Style
-                                                    // 1. Due Date: Red Vertical Line
-                                                    // 2. Commit Period: Blue Horizontal Bar
 
                                                     return (
                                                         <div key={date.toDateString()} className={cn(
@@ -244,8 +305,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                             {isBetween && (
                                                                 <div className={cn(
                                                                     "absolute h-3 w-full top-1/2 -translate-y-1/2",
-                                                                    isHol ? "bg-indigo-200 dark:bg-indigo-900/50" : "bg-indigo-400 dark:bg-indigo-500", // Lighter capacity on holidays? Or transparent?
-                                                                    // Connectors
+                                                                    isHol ? "bg-indigo-200 dark:bg-indigo-900/50" : "bg-indigo-400 dark:bg-indigo-500",
                                                                     isSameDate(date, commitStart!) ? "rounded-l-sm" : "",
                                                                     isSameDate(date, prepDateObj!) ? "rounded-r-sm" : ""
                                                                 )} />
