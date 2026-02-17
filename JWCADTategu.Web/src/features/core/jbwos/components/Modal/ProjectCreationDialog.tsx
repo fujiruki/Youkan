@@ -4,9 +4,9 @@ import { X, FolderPlus, GitFork, ArrowUpCircle } from 'lucide-react';
 import { TaskTemplate, Project } from '../../types';
 import { useProjectCategories } from '../../hooks/useProjectCategories';
 import { useAuth } from '../../../auth/providers/AuthProvider';
-import { JbwosTenant } from '../../../auth/types';
+// import { JbwosTenant } from '../../../auth/types';
 import { useProjectCreationViewModel } from './useProjectCreationViewModel';
-import { ManufacturingProjectFields } from './ManufacturingProjectFields';
+import { ExtensionSlot } from '../../../plugin-system/ExtensionSlot';
 import { TenantSelector } from './TenantSelector';
 
 interface ProjectCreationDialogProps {
@@ -34,10 +34,10 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
 }) => {
     // Auth context for manufacturing config
     const { tenant, user } = useAuth();
-    const jbwosTenant = tenant as JbwosTenant;
+    // const jbwosTenant = tenant as JbwosTenant; // Logic moved to registry
     // Show additional inputs if in company mode and manufacturing plugin is enabled
     // OR if we are inheriting from a manufacturing parent? For now check global config
-    const isManufacturing = activeScope === 'company' && (jbwosTenant?.config?.plugins?.manufacturing ?? false);
+    // const isManufacturing = activeScope === 'company' && (jbwosTenant?.config?.plugins?.manufacturing ?? false);
 
     // [New] Account Type Logic (Approximation)
     // If user is representative -> Personal Account (Can select Personal or Company)
@@ -239,15 +239,19 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                                 />
                             </div>
 
-                            {/* Plugin Hook Slot (Manufacturing) */}
-                            {isManufacturing && (
-                                <ManufacturingProjectFields
-                                    clientName={vm.clientName}
-                                    setClientName={vm.setClientName}
-                                    grossProfitTarget={vm.grossProfitTarget}
-                                    setGrossProfitTarget={vm.setGrossProfitTarget}
-                                />
-                            )}
+                            {/* Plugin Hook Slot (Project Creation Fields) */}
+                            <ExtensionSlot
+                                point="project-creation-fields"
+                                context={{
+                                    activeScope,
+                                    tenant,
+                                    // VM state props for binding
+                                    clientName: vm.clientName,
+                                    setClientName: vm.setClientName,
+                                    grossProfitTarget: vm.grossProfitTarget,
+                                    setGrossProfitTarget: vm.setGrossProfitTarget
+                                }}
+                            />
 
                             {/* Company Selection (Tenant Selector) */}
                             {/* Shown if: Root mode AND (Company Scope implied OR Personal Account allowed to switch) */}

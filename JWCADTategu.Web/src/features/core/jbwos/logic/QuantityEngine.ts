@@ -12,6 +12,12 @@ export interface QuantityMetric {
     contributingItems: Item[]; // [NEW] Items that add load to this specific day
 }
 
+export interface AllocationStep {
+    date: Date;
+    allocatedMinutes: number;
+    capacityMinutes: number;
+}
+
 export interface QuantityContext {
     items: Item[];
     members: Member[];
@@ -32,6 +38,54 @@ export interface QuantityContext {
  * Handles volume allocation and capacity calculation based on JBWOS philosophy.
  */
 export class QuantityEngine {
+
+    /**
+     * Structure for detailed allocation breakdown
+     */
+    static calculateAllocationDetails(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): AllocationStep[] {
+        const steps: AllocationStep[] = [];
+        let remainingMinutes = estimatedMinutes || 60;
+        let current = new Date(endDate);
+        let safety = 0;
+
+        console.log(`[QuantityEngine] Allocation Details Start: total=${estimatedMinutes}, anchor=${endDate.toDateString()}`); // [DEBUG]
+
+        while (remainingMinutes > 0 && safety < 90) {
+            safety++;
+            const isHol = this.checkIsHoliday(current, context);
+            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
+
+            // Normalize for logs
+            const dateStr = current.toDateString();
+
+            if (isHol || dailyCapacity <= 0) {
+                console.log(`[QuantityEngine] Allocation Skip: ${dateStr} (Hol=${isHol}, Cap=${dailyCapacity})`); // [DEBUG]
+                current.setDate(current.getDate() - 1);
+                continue;
+            }
+
+            const alloc = Math.min(remainingMinutes, dailyCapacity);
+            console.log(`[QuantityEngine] Allocation Step: ${dateStr} (Alloc=${alloc}, Rem=${remainingMinutes - alloc}, Cap=${dailyCapacity})`); // [DEBUG]
+
+            // [FIX] Normalize date to 00:00:00 to match CalendarCell logic
+            const stepDate = new Date(current);
+            stepDate.setHours(0, 0, 0, 0);
+
+            steps.push({
+                date: stepDate,
+                allocatedMinutes: alloc,
+                capacityMinutes: dailyCapacity
+            });
+            remainingMinutes -= alloc;
+
+            // 重要: 次の日の計算に移る
+            current.setDate(current.getDate() - 1);
+        }
+
+        console.log(`[QuantityEngine] Allocation Finished: steps=${steps.length}`); // [DEBUG]
+        // Sort by date ascending (oldest first)
+        return steps.sort((a, b) => a.date.getTime() - b.date.getTime());
+    }
 
     /**
      * Calculates the daily metrics for a range of days.
@@ -246,39 +300,18 @@ export class QuantityEngine {
     }
 
     static calculateAllocationDays(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): Date[] {
-        const days: Date[] = [];
-        let remainingMinutes = estimatedMinutes || 60;
-        let current = new Date(endDate);
-        let safety = 0;
-
-        // console.log(`[QuantityEngine] Allocation Start: ...`); // [REMOVED] Reduce noise
-
-        while (remainingMinutes > 0 && safety < 90) {
-            safety++;
-            const isHol = this.checkIsHoliday(current, context);
-            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
-
-            // Normalize for logs
-            // const dateStr = current.toDateString(); // [REMOVED]
-
-            if (isHol || dailyCapacity <= 0) {
-                // console.log(`[QuantityEngine] Allocation Skip: ...`); // [REMOVED]
-                current.setDate(current.getDate() - 1);
-                continue;
-            }
-
-            const alloc = Math.min(remainingMinutes, dailyCapacity);
-            // console.log(`[QuantityEngine] Allocation Day: ...`); // [REMOVED]
-
-            days.push(new Date(current));
-            remainingMinutes -= alloc;
-
-            // 重要: 次の日の計算に移る
-            current.setDate(current.getDate() - 1);
-        }
-
-        // console.log(`[QuantityEngine] Allocation Finished: ...`); // [REMOVED]
-        return days;
+        // [Refactor] Use detail logic and just map to dates
+        const details = this.calculateAllocationDetails(endDate, estimatedMinutes, context, tenantId);
+        // Returns dates in reverse chronological order (as original logic pushed backwards)
+        // Original logic pushed backwards: [EndDate, EndDate-1, ...]
+        // calculateAllocationDetails sorts ascending: [Oldest, ..., EndDate]
+        // We should return them in ascending order for calendar highlight usually?
+        // Wait, original logic was: days.push(current) (Backwards). So [EndDate, EndDate-1, ...]
+        // BUT, usually callers just need the Set of dates.
+        // Let's reverse it to match original "days" array order if strictly needed,
+        // but typically Date[] is used for "contains" check.
+        // Let's return ascending for sanity.
+        return details.map(s => s.date);
     }
 
     private static checkIsHoliday(date: Date, context: QuantityContext): boolean {

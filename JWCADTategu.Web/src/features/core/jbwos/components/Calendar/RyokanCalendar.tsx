@@ -33,7 +33,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     targetItemId,
     commitPeriod, // [NEW]
     hideHeader = false,
-    onDateClick
+    onDateClick,
+    disablePressureLines = false
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
     const today = useMemo(() => getStartOfToday(), []);
@@ -256,7 +257,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         }
 
         // Normal mode (Dashboard) logic for pressure lines below...
-        if (!volumeOnly && actionType === 'click') {
+        if (!volumeOnly && !disablePressureLines && actionType === 'click') {
             if (!rect || !scrollContainerRef.current) return;
             const container = scrollContainerRef.current;
             const svg = container.querySelector('.pressure-lines-svg');

@@ -96,13 +96,16 @@
     - [ ] **ストーリーに基づくUI改善** <!-- id: 1402 -->
     - [ ] UI: 詳細な見積入力 (スクロール可能な日時 + 数値入力) <!-- id: 1403 -->
     - [ ] UI: モバイル用横メモ (スライドボタン) <!-- id: 1404 -->
-    - [ ] **UI改善 & 拡張**: ドロップダウン共通化・プラグインフック導入 <!-- id: 1405 -->
-        - [ ] 共通コンポーネント `YoukanDropdown.tsx` 作成 (Compact/Z-Index/Scroll対応)
-        - [ ] プラグイン拡張機構 (`ExtensionSlot.tsx`, `registry.tsx`) 実装
-        - [ ] `TenantSelector.tsx` 改修 (YoukanDropdown適用)
-        - [ ] `ProjectCreationDialog.tsx` 改修 (ExtensionSlot導入, 会社選択ロジック改善)
-        - [ ] `DecisionDetailModal.tsx` 改修 (YoukanDropdown適用)
-
+    - [x] **UI改善 & 拡張**: ドロップダウン共通化・プラグインフック導入 <!-- id: 1405 -->
+        - [x] 共通コンポーネント `YoukanDropdown.tsx` 作成 (Compact/Z-Index/Scroll対応)
+        - [x] プラグイン拡張機構 (`ExtensionSlot.tsx`, `registry.tsx`) 実装
+        - [x] `TenantSelector.tsx` を修正し、`YoukanDropdown` を使用するように変更
+    - [x] ボタン/ドロップダウンの切り替えロジックは維持
+- [x] `ProjectCreationDialog.tsx` を更新
+    - [x] `ExtensionSlot` を配置
+    - [x] `ManufacturingProjectFields` を削除し、プラグイン経由で読み込むように変更
+- [x] `DecisionDetailModal.tsx` のヘッダーにあるテナント/プロジェクト選択ドロップダウンを `YoukanDropdown` に置き換え
+    - [x] `activeMenu` 等のステート管理を `YoukanDropdown` 内部へ委譲して削除
 - [ ] **メンテナンス: ロジック修正とテスト** <!-- id: 150 -->
     - [x] **Today画面ロジック** <!-- id: 151 --> ※ 2026-01-18 検証済み
         - [x] Fix: "Commit to Today" -> 閉じる/保存の挙動 <!-- id: 1511 -->
@@ -115,12 +118,14 @@
         - [x] Fix: 複数日背景色の描画 <!-- id: 1531 -->
     - [x] **API Resilience** <!-- id: 154 -->
         - [x] Fix: Backend接続 (Port 8000 & Proxy Config) <!-- id: 1541 -->
-
         - [x] Test: JBWOSRepository 単体テスト (Vitest) <!-- id: 1542 -->
     - [x] **Bug Fix**: プロジェクトフォーカス時のアイテム所属不具合
         - [x] Frontend: `App.tsx` / `DashboardScreen.tsx` での `tenantId` 伝搬
         - [x] Backend: `ProjectController` / `ItemController` の camelCase 対応と自動継承ロジック
         - [x] Fix: プロジェクトフォーカス作成時のタスク所属表示 (Backend JOIN不足対応)
+    - [ ] **詳細画面カレンダー改修 (Minaoshi)** <!-- id: 155 -->
+        - [ ] Feat: 指示線（Pressure Lines）の非表示オプション追加 <!-- id: 1551 -->
+        - [ ] Fix: 目安期間の計算バグ調査・修正 <!-- id: 1552 -->
 
 - [ ] **フェーズ 5: Haruki Status Model Refactoring (思想の統一)** <!-- id: 170 -->
     - [x] **定義**: `STATUS_MODEL_HARUKI.md` の策定 <!-- id: 171 -->

@@ -8,8 +8,9 @@ import { format } from 'date-fns';
 import { safeFormat } from '../../logic/dateUtils';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
-import { QuantityEngine } from '../../logic/QuantityEngine';
+import { QuantityEngine, AllocationStep } from '../../logic/QuantityEngine';
 import { SubtaskListWidget } from '../Widgets/SubtaskListWidget';
+import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
 
 
 interface DecisionDetailModalProps {
@@ -112,11 +113,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
         }
     }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
 
-    const commitPeriodDates = React.useMemo(() => {
-        if (!item || !capacityConfig) return [];
+    // [NEW] Use separate memo for Details to display the breakdown, and derive Period from it
+    const allocationDetails = React.useMemo(() => {
+        if (!item || !capacityConfig) {
+            console.log('[DecisionDetailModal] No item or capacityConfig, skipping allocation');
+            return [];
+        }
 
         const anchorStr = prepDate || dueDate;
-        if (!anchorStr) return [];
+        // console.log(`[DecisionDetailModal] Recalc Trigger: anchor=${anchorStr}, min=${estimatedMinutes}, wDays=${workDays}`);
+
+        if (!anchorStr) {
+            console.log('[DecisionDetailModal] No anchor date, skipping allocation');
+            return [];
+        }
         const anchor = new Date(anchorStr);
 
         const baseDailyMinutes = capacityConfig.defaultDailyMinutes || 480;
@@ -144,29 +154,35 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             }
         };
 
-        return QuantityEngine.calculateAllocationDays(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
+        const details = QuantityEngine.calculateAllocationDetails(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
+        // console.log(`[DecisionDetailModal] Allocation Result: ${details.length} steps`);
+        return details;
     }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
+
+    const commitPeriodDates = React.useMemo(() => {
+        return allocationDetails.map(step => step.date);
+    }, [allocationDetails]);
 
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
-    // [NEW] Active Menu for Header Dropdowns
-    const [activeMenu, setActiveMenu] = React.useState<'tenant' | 'project' | null>(null);
-    const headerMenuRef = React.useRef<HTMLDivElement>(null);
+    // [NEW] Active Menu for Header Dropdowns -> Removed in favor of YoukanDropdown internal state
+    // const [activeMenu, setActiveMenu] = React.useState<'tenant' | 'project' | null>(null);
+    // const headerMenuRef = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-        const handleClickOutsideHeader = (event: MouseEvent) => {
-            if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
-                setActiveMenu(null);
-            }
-        };
+    // React.useEffect(() => {
+    //     const handleClickOutsideHeader = (event: MouseEvent) => {
+    //         if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+    //             setActiveMenu(null);
+    //         }
+    //     };
 
-        if (activeMenu) {
-            document.addEventListener('mousedown', handleClickOutsideHeader);
-        }
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutsideHeader);
-        };
-    }, [activeMenu]);
+    //     if (activeMenu) {
+    //         document.addEventListener('mousedown', handleClickOutsideHeader);
+    //     }
+    //     return () => {
+    //         document.removeEventListener('mousedown', handleClickOutsideHeader);
+    //     };
+    // }, [activeMenu]);
 
     // Footer Menu Logic
     const menuRef = React.useRef<HTMLDivElement>(null);
@@ -308,150 +324,133 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                 <div className="flex-none flex flex-col border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
                     {/* Top Row: Breadcrumbs & Close */}
                     <div className="flex justify-between items-start p-4 pb-2">
-                        <div className="flex-1 min-w-0" ref={headerMenuRef}>
+                        <div className="flex-1 min-w-0">
                             {/* Breadcrumbs (Tenant/Project) */}
                             <div className="flex items-center gap-1 mb-1 overflow-visible h-6 relative z-50">
                                 {/* Tenant Selector */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setActiveMenu(activeMenu === 'tenant' ? null : 'tenant')}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent",
-                                            activeMenu === 'tenant' ? "bg-slate-100 border-slate-200" : "hover:bg-slate-50 dark:hover:bg-slate-800",
-                                            localTenantId ? "text-indigo-700 dark:text-indigo-300" : "text-slate-500 dark:text-slate-400"
-                                        )}
+                                <YoukanDropdown
+                                    trigger={
+                                        <button
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800",
+                                                localTenantId ? "text-indigo-700 dark:text-indigo-300" : "text-slate-500 dark:text-slate-400"
+                                            )}
+                                        >
+                                            {localTenantId ? <Building2 size={10} /> : <User size={10} />}
+                                            <span className={cn(
+                                                "text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]",
+                                                localTenantId && "bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded"
+                                            )}>
+                                                {joinedTenants.find(t => t.id === localTenantId)?.name || 'Private'}
+                                            </span>
+                                            <ChevronDown size={10} className="opacity-50" />
+                                        </button>
+                                    }
+                                >
+                                    <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 mb-1">
+                                        アカウント (Tenant)
+                                    </div>
+                                    <YoukanDropdownItem
+                                        onClick={() => {
+                                            setLocalTenantId('');
+                                            setLocalProjectId('');
+                                            if (onUpdate) onUpdate(item.id, { tenantId: null as any, projectId: null as any });
+                                        }}
+                                        active={!localTenantId}
+                                        className="text-xs"
                                     >
-                                        {localTenantId ? <Building2 size={10} /> : <User size={10} />}
-                                        <span className={cn(
-                                            "text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]",
-                                            localTenantId && "bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded"
-                                        )}>
-                                            {joinedTenants.find(t => t.id === localTenantId)?.name || 'Private'}
-                                        </span>
-                                        <ChevronDown size={10} className="opacity-50" />
-                                    </button>
-
-                                    {activeMenu === 'tenant' && (
-                                        <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
-                                            <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 mb-1">
-                                                アカウント (Tenant)
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    setLocalTenantId('');
-                                                    setLocalProjectId('');
-                                                    setActiveMenu(null);
-                                                    if (onUpdate) onUpdate(item.id, { tenantId: null as any, projectId: null as any });
-                                                }}
-                                                className={cn(
-                                                    "w-full text-left px-3 py-2 text-xs flex items-center gap-2",
-                                                    !localTenantId ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
-                                                )}
-                                            >
-                                                <User size={12} className={!localTenantId ? "text-indigo-500" : "text-slate-400"} />
-                                                <span className="font-bold">Private (個人)</span>
-                                                {!localTenantId && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
-                                            </button>
-                                            {joinedTenants.map(t => (
-                                                <button
-                                                    key={t.id}
-                                                    onClick={() => {
-                                                        setLocalTenantId(t.id);
-                                                        setLocalProjectId('');
-                                                        setActiveMenu(null);
-                                                        if (onUpdate) onUpdate(item.id, { tenantId: t.id, projectId: null as any });
-                                                    }}
-                                                    className={cn(
-                                                        "w-full text-left px-3 py-2 text-xs flex items-center gap-2",
-                                                        localTenantId === t.id ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
-                                                    )}
-                                                >
-                                                    <Building2 size={12} className={localTenantId === t.id ? "text-indigo-500" : "text-slate-400"} />
-                                                    <span className="font-bold truncate">{t.name}</span>
-                                                    {localTenantId === t.id && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                        <User size={12} className={!localTenantId ? "text-indigo-500" : "text-slate-400"} />
+                                        <span className="font-bold ml-2">Private (個人)</span>
+                                        {!localTenantId && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
+                                    </YoukanDropdownItem>
+                                    {joinedTenants.map(t => (
+                                        <YoukanDropdownItem
+                                            key={t.id}
+                                            onClick={() => {
+                                                setLocalTenantId(t.id);
+                                                setLocalProjectId('');
+                                                if (onUpdate) onUpdate(item.id, { tenantId: t.id, projectId: null as any });
+                                            }}
+                                            active={localTenantId === t.id}
+                                            className="text-xs"
+                                        >
+                                            <Building2 size={12} className={localTenantId === t.id ? "text-indigo-500" : "text-slate-400"} />
+                                            <span className="font-bold truncate ml-2">{t.name}</span>
+                                            {localTenantId === t.id && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
+                                        </YoukanDropdownItem>
+                                    ))}
+                                </YoukanDropdown>
 
                                 <span className="text-slate-300 text-[10px] font-bold">/</span>
 
                                 {/* Project Selector */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setActiveMenu(activeMenu === 'project' ? null : 'project')}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent group",
-                                            activeMenu === 'project' ? "bg-slate-100 border-slate-200" : "hover:bg-slate-50 dark:hover:bg-slate-800",
-                                            localProjectId ? "text-amber-700 dark:text-amber-300" : "text-slate-400 dark:text-slate-500"
-                                        )}
-                                    >
-                                        <span className={cn(
-                                            "text-[10px] font-bold truncate max-w-[200px]",
-                                            localProjectId && "bg-amber-100 dark:bg-amber-900/30 px-1 rounded"
-                                        )}>
-                                            {allProjects.find(p => p.id === localProjectId)?.title
-                                                || 'Inbox (未分類)'}
-                                        </span>
-                                        <ChevronDown size={10} className="opacity-50 group-hover:opacity-100" />
-                                    </button>
+                                <YoukanDropdown
+                                    trigger={
+                                        <button
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent group hover:bg-slate-50 dark:hover:bg-slate-800",
+                                                localProjectId ? "text-amber-700 dark:text-amber-300" : "text-slate-400 dark:text-slate-500"
+                                            )}
+                                        >
+                                            <span className={cn(
+                                                "text-[10px] font-bold truncate max-w-[200px]",
+                                                localProjectId && "bg-amber-100 dark:bg-amber-900/30 px-1 rounded"
+                                            )}>
+                                                {allProjects.find(p => p.id === localProjectId)?.title
+                                                    || 'Inbox (未分類)'}
+                                            </span>
+                                            <ChevronDown size={10} className="opacity-50 group-hover:opacity-100" />
+                                        </button>
+                                    }
+                                    width="w-64"
+                                >
+                                    <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                                        プロジェクト選択
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto">
+                                        <YoukanDropdownItem
+                                            onClick={() => {
+                                                setLocalProjectId('');
+                                                if (onUpdate) onUpdate(item.id, { projectId: null as any });
+                                            }}
+                                            active={!localProjectId}
+                                            className={cn(
+                                                "text-xs mb-1",
+                                                !localProjectId ? "text-amber-800 font-bold" : "text-slate-500 font-medium"
+                                            )}
+                                        >
+                                            Inbox (未分類)
+                                        </YoukanDropdownItem>
 
-                                    {activeMenu === 'project' && (
-                                        <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col max-h-[400px] animate-in fade-in zoom-in-95 duration-100">
-                                            <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                                                プロジェクト選択
-                                            </div>
-
-                                            <div className="overflow-y-auto flex-1 p-1">
-                                                <button
+                                        {allProjects
+                                            .filter(p => !p.isArchived)
+                                            .filter(p => {
+                                                if (!localTenantId) return !p.tenantId; // Private
+                                                return p.tenantId === localTenantId; // Company
+                                            })
+                                            .map(p => (
+                                                <YoukanDropdownItem
+                                                    key={p.id}
                                                     onClick={() => {
-                                                        setLocalProjectId('');
-                                                        setActiveMenu(null);
-                                                        if (onUpdate) onUpdate(item.id, { projectId: null as any });
+                                                        setLocalProjectId(p.id);
+                                                        if (onUpdate) onUpdate(item.id, { projectId: p.id });
                                                     }}
-                                                    className={cn(
-                                                        "w-full text-left px-3 py-2 text-xs rounded mb-1",
-                                                        !localProjectId ? "bg-amber-50 text-amber-800 font-bold" : "hover:bg-slate-50 text-slate-500 font-medium"
-                                                    )}
+                                                    active={localProjectId === p.id}
+                                                    className="text-xs mb-0.5"
                                                 >
-                                                    Inbox (未分類)
-                                                </button>
+                                                    <span className="w-2 h-2 rounded-full flex-none mr-2" style={{ backgroundColor: (p as any).color || '#cbd5e1' }} />
+                                                    <span className="font-bold truncate">{p.title}</span>
+                                                    {localProjectId === p.id && <CheckCircle2 size={10} className="ml-auto text-amber-500" />}
+                                                </YoukanDropdownItem>
+                                            ))}
 
-                                                {allProjects
-                                                    .filter(p => !p.isArchived)
-                                                    .filter(p => {
-                                                        if (!localTenantId) return !p.tenantId; // Private
-                                                        return p.tenantId === localTenantId; // Company
-                                                    })
-                                                    .map(p => (
-                                                        <button
-                                                            key={p.id}
-                                                            onClick={() => {
-                                                                setLocalProjectId(p.id);
-                                                                setActiveMenu(null);
-                                                                if (onUpdate) onUpdate(item.id, { projectId: p.id });
-                                                            }}
-                                                            className={cn(
-                                                                "w-full text-left px-3 py-2 text-xs flex items-center gap-2 rounded mb-0.5",
-                                                                localProjectId === p.id ? "bg-amber-50 text-amber-800" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
-                                                            )}
-                                                        >
-                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ backgroundColor: (p as any).color || '#cbd5e1' }} />
-                                                            <span className="font-bold truncate">{p.title}</span>
-                                                            {localProjectId === p.id && <CheckCircle2 size={10} className="ml-auto text-amber-500" />}
-                                                        </button>
-                                                    ))}
-
-                                                {allProjects.filter(p => !p.isArchived && ((!localTenantId && !p.tenantId) || (p.tenantId === localTenantId))).length === 0 && (
-                                                    <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
-                                                        プロジェクトはありません
-                                                    </div>
-                                                )}
+                                        {allProjects.filter(p => !p.isArchived && ((!localTenantId && !p.tenantId) || (p.tenantId === localTenantId))).length === 0 && (
+                                            <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                                                プロジェクトはありません
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
+                                </YoukanDropdown>
                             </div>
 
                             {/* Title (Editable) */}
@@ -603,8 +602,34 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             />
                         </div>
 
-                        {/* Fixed Bottom: Memo & Boost */}
+                        {/* Fixed Bottom: Memo & Boost & [NEW] Allocation Details */}
                         <div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
+                            {/* [NEW] Allocation Details */}
+                            {allocationDetails.length > 0 && (
+                                <div className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                    <div className="font-bold mb-1 text-slate-400 uppercase tracking-wider flex justify-between">
+                                        <span>目安期間の対象</span>
+                                        <span>計 {allocationDetails.reduce((sum, s) => sum + s.allocatedMinutes, 0)}分 / {estimatedMinutes}分</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        {allocationDetails.map((step, idx) => (
+                                            <span key={idx} className="inline-flex items-center">
+                                                <span className="font-mono text-slate-700 dark:text-slate-300">
+                                                    {format(step.date, 'M/d')}
+                                                </span>
+                                                <span className="text-slate-400 mx-0.5 text-[9px]">
+                                                    ({step.allocatedMinutes}m/{step.capacityMinutes}m)
+                                                </span>
+                                                {idx < allocationDetails.length - 1 && <span className="text-slate-300 mr-1">,</span>}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <div className="mt-1 text-[8px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 leading-tight">
+                                        ※(消費/枠)。稼働枠を使い切っている日は目安期間（青枠）となります。
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex justify-center">
                                 <button
                                     onClick={async () => {

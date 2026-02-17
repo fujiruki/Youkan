@@ -84,7 +84,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
 
                 // 3. Commit Period (Blue Range)
                 !isSelected && !isPrep && isCommitPeriod
-                    ? "bg-blue-50/50 dark:bg-blue-900/20 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.3)]"
+                    ? "bg-blue-50/50 dark:bg-blue-900/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,1)]" // [FIX] Make border solid and visible
                     : ""
             )}
             onClick={handleClick}

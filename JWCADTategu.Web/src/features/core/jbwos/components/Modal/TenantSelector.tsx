@@ -1,5 +1,6 @@
 import React from 'react';
-import { Building2, User } from 'lucide-react';
+import { Building2, User, ChevronDown, Check } from 'lucide-react';
+import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
 
 interface TenantSelectorProps {
     tenants: { id: string; name: string }[];
@@ -15,14 +16,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
     disabled = false
 }) => {
     // Determine UI Mode based on number of options (Personal + Tenants)
-    // Only use buttons if total options <= 4 (Personal + 3 companies)
-    // Actually spec says "tenants <= 4" which implies Personal + 4 = 5 options?
-    // Let's stick to "Personal + Tenants <= 4" for button mode to keep it clean, 
-    // or maybe "Tenants <= 3" (Total 4). 
-    // Spec said: "tenantsが4つ以下の場合: ボタン形式" (Tenants array length <= 4) -> Total options <= 5.
-    // 5 buttons in a row might be tight on mobile. Let's try flexible wrapping or stick to max 4 total for buttons.
-    // Let's interpret "tenants <= 4" literally.
-
+    // tenants <= 4 implies Total options <= 5.
     const shouldUseButtons = tenants.length <= 4;
 
     if (shouldUseButtons) {
@@ -33,8 +27,8 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
                     type="button"
                     onClick={() => onChange('')}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-bold transition-all ${selectedTenantId === ''
-                            ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                         }`}
                 >
                     <User size={16} />
@@ -48,8 +42,8 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
                         type="button"
                         onClick={() => onChange(t.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-bold transition-all ${selectedTenantId === t.id
-                                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                             }`}
                     >
                         <Building2 size={16} />
@@ -60,18 +54,52 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
         );
     }
 
-    // Dropdown Mode (Fallback for many tenants)
+    // Dropdown Mode (Using YoukanDropdown)
+    const selectedName = selectedTenantId
+        ? tenants.find(t => t.id === selectedTenantId)?.name
+        : '個人 (プライベート)';
+
     return (
-        <select
-            value={selectedTenantId}
-            onChange={(e) => onChange(e.target.value)}
-            disabled={disabled}
-            className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-slate-100 dark:disabled:bg-slate-800/50"
+        <YoukanDropdown
+            width="w-full"
+            trigger={
+                <div className={`w-full flex items-center justify-between px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 transition-all ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-indigo-400 cursor-pointer'}`}>
+                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium">
+                        {selectedTenantId ? <Building2 size={16} className="text-blue-500" /> : <User size={16} className="text-indigo-500" />}
+                        {selectedName}
+                    </div>
+                    <ChevronDown size={16} className="text-slate-400" />
+                </div>
+            }
         >
-            <option value="">👤 個人 (プライベート)</option>
+            <YoukanDropdownItem
+                onClick={() => onChange('')}
+                active={selectedTenantId === ''}
+                className="gap-2"
+            >
+                <div className="flex-1 flex items-center gap-2">
+                    <User size={16} className="text-indigo-500" />
+                    <span>個人 (プライベート)</span>
+                </div>
+                {selectedTenantId === '' && <Check size={16} className="text-indigo-600" />}
+            </YoukanDropdownItem>
+
+            <div className="my-1 border-t border-slate-100 dark:border-slate-700/50" />
+
             {tenants.map(t => (
-                <option key={t.id} value={t.id}>🏢 {t.name}</option>
+                <YoukanDropdownItem
+                    key={t.id}
+                    onClick={() => onChange(t.id)}
+                    active={selectedTenantId === t.id}
+                    className="gap-2"
+                >
+                    <div className="flex-1 flex items-center gap-2">
+                        <Building2 size={16} className="text-blue-500" />
+                        <span>{t.name}</span>
+                    </div>
+                    {selectedTenantId === t.id && <Check size={16} className="text-blue-600" />}
+                </YoukanDropdownItem>
             ))}
-        </select>
+        </YoukanDropdown>
     );
 };

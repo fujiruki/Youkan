@@ -42,4 +42,5 @@ export interface RyokanCalendarProps {
     hideHeader?: boolean;
     onDateClick?: (date: Date) => void; // Popover for list
     selectionMode?: 'due' | 'prep' | null; // For styling/behavior
+    disablePressureLines?: boolean; // [NEW] Disable yellow pressure lines
 }

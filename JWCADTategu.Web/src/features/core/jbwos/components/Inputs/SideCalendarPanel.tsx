@@ -36,6 +36,14 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // [NEW] Manual focus control for "Show This Month" without changing data
+    const [manualFocusDate, setManualFocusDate] = React.useState<Date | null>(null);
+
+    // Reset manual focus when real dates change (so we jump to the new selection)
+    React.useEffect(() => {
+        setManualFocusDate(null);
+    }, [selectedDate, prepDate]);
+
     return (
         <div className={cn(
             "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4 border-slate-100 dark:border-slate-800",
@@ -56,6 +64,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     joinedTenants={joinedTenants}
                     targetItemId={currentItem?.id}
                     commitPeriod={commitPeriod}
+                    focusDate={manualFocusDate} // [NEW] Pass manual focus
                 />
             </div>
 
@@ -64,25 +73,24 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                 "p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20",
                 targetMode === 'my' ? "border-indigo-200 dark:border-indigo-800" : "border-slate-100 dark:border-slate-800"
             )}>
-                {['today:今日', 'tomorrow:明日', 'next_mon:来週月', 'this_month:今月'].map(opt => {
+                {['today:今日', 'tomorrow:明日', 'next_mon:来週月', 'this_month:今月を表示'].map(opt => {
                     const [key, label] = opt.split(':');
                     return (
                         <button
                             key={key}
                             onClick={() => {
                                 let d = today;
-                                if (key === 'tomorrow') d = addDays(today, 1);
-                                else if (key === 'next_mon') d = nextDay(today, 1 as Day);
-                                else if (key === 'this_month') {
-                                    // For "This Month", we probably want to jump to the 1st of the month
-                                    // But DetailQuantityCalendar might handle scrolling.
-                                    // If we set selectedDate to today, it centers today.
-                                    // If we really want "Show This Month", maybe we just set to today?
-                                    // Or maybe the user means "Reset View to Month Start".
-                                    // Let's set to today for now as it centers the view.
-                                    d = today;
+                                if (key === 'tomorrow') {
+                                    onSelectDate(addDays(today, 1));
+                                } else if (key === 'next_mon') {
+                                    onSelectDate(nextDay(today, 1 as Day));
+                                } else if (key === 'this_month') {
+                                    // [FIX] Just jump view to today/this month, DO NOT SELECT
+                                    setManualFocusDate(new Date());
+                                } else {
+                                    // Today
+                                    onSelectDate(today);
                                 }
-                                onSelectDate(d);
                             }}
                             className="px-2 py-1 text-[10px] border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:border-indigo-300 transition-all font-bold"
                         >

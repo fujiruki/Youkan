@@ -15,7 +15,9 @@ interface DetailQuantityCalendarProps {
     projects?: Item[];
     joinedTenants?: JoinedTenant[];
     targetItemId?: string;
+    targetItemId?: string;
     commitPeriod?: Date[];
+    focusDate?: Date | null; // [NEW] Allow external control of focus
 }
 
 export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
@@ -30,7 +32,8 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
     projects = [],
     joinedTenants = [],
     targetItemId,
-    commitPeriod
+    commitPeriod,
+    focusDate
 }) => {
     // [NEW] Local Volume Only Toggle
     const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
@@ -67,7 +70,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 
                     selectedDate={selectedDate} // Due Date (Red)
                     prepDate={prepDate}         // My Deadline (Blue)
-                    focusDate={selectedDate || prepDate || new Date()}
+                    focusDate={focusDate || selectedDate || prepDate || new Date()}
                     onSelectDate={onSelectDate} // Handle click to set date
 
                     volumeOnly={isVolumeOnly}
@@ -76,7 +79,8 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                     targetItemId={targetItemId}
                     commitPeriod={commitPeriod}
 
-                // Allow default RyokanCalendar behavior for dateClick (Show Breakdown)
+                    // Allow default RyokanCalendar behavior for dateClick (Show Breakdown)
+                    disablePressureLines={true} // [NEW] Disable pressure lines in detail modal
                 />
             </div>
         </div>
