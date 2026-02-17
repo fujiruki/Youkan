@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, PauseCircle, CheckCircle2, Folder, CalendarDays, CalendarClock } from 'lucide-react';
+import { X, Trash2, PauseCircle, CheckCircle2, Folder, CalendarDays, CalendarClock, ChevronDown, Building2, User } from 'lucide-react';
 import { Item, Member, FilterMode, CapacityConfig } from '../../../jbwos/types';
 import { cn } from '../../../../../lib/utils';
 import { ApiClient } from '../../../../../api/client';
@@ -148,7 +148,27 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     }, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
 
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-    // const [confirmDelete, setConfirmDelete] = React.useState(false); // Unused
+
+    // [NEW] Active Menu for Header Dropdowns
+    const [activeMenu, setActiveMenu] = React.useState<'tenant' | 'project' | null>(null);
+    const headerMenuRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClickOutsideHeader = (event: MouseEvent) => {
+            if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+                setActiveMenu(null);
+            }
+        };
+
+        if (activeMenu) {
+            document.addEventListener('mousedown', handleClickOutsideHeader);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutsideHeader);
+        };
+    }, [activeMenu]);
+
+    // Footer Menu Logic
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const dateInputRef = React.useRef<HTMLInputElement>(null);
@@ -288,36 +308,151 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                 <div className="flex-none flex flex-col border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
                     {/* Top Row: Breadcrumbs & Close */}
                     <div className="flex justify-between items-start p-4 pb-2">
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0" ref={headerMenuRef}>
                             {/* Breadcrumbs (Tenant/Project) */}
-                            <div className="flex items-center gap-2 mb-1 overflow-hidden h-5">
-                                {(() => {
-                                    const project = allProjects.find(p => p.id === localProjectId);
-                                    const tenant = joinedTenants.find(t => t.id === localTenantId);
+                            <div className="flex items-center gap-1 mb-1 overflow-visible h-6 relative z-50">
+                                {/* Tenant Selector */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setActiveMenu(activeMenu === 'tenant' ? null : 'tenant')}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent",
+                                            activeMenu === 'tenant' ? "bg-slate-100 border-slate-200" : "hover:bg-slate-50 dark:hover:bg-slate-800",
+                                            localTenantId ? "text-indigo-700 dark:text-indigo-300" : "text-slate-500 dark:text-slate-400"
+                                        )}
+                                    >
+                                        {localTenantId ? <Building2 size={10} /> : <User size={10} />}
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]",
+                                            localTenantId && "bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded"
+                                        )}>
+                                            {joinedTenants.find(t => t.id === localTenantId)?.name || 'Private'}
+                                        </span>
+                                        <ChevronDown size={10} className="opacity-50" />
+                                    </button>
 
-                                    return (
-                                        <div className="flex items-center gap-1.5 min-w-0" onClick={() => setIsEditingTitle(true)}>
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest cursor-pointer",
-                                                tenant ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-800"
-                                            )}>
-                                                {tenant ? tenant.name : 'Private'}
-                                            </span>
-
-                                            <span className="text-slate-300 font-bold">/</span>
-
-                                            {project ? (
-                                                <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold truncate cursor-pointer hover:bg-amber-200 transition-colors">
-                                                    {project.title || (project as any).name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] font-bold text-slate-400 tracking-tight cursor-pointer hover:text-slate-600">
-                                                    Inbox
-                                                </span>
-                                            )}
+                                    {activeMenu === 'tenant' && (
+                                        <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 mb-1">
+                                                アカウント (Tenant)
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setLocalTenantId('');
+                                                    setLocalProjectId('');
+                                                    setActiveMenu(null);
+                                                    if (onUpdate) onUpdate(item.id, { tenantId: null as any, projectId: null as any });
+                                                }}
+                                                className={cn(
+                                                    "w-full text-left px-3 py-2 text-xs flex items-center gap-2",
+                                                    !localTenantId ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
+                                                )}
+                                            >
+                                                <User size={12} className={!localTenantId ? "text-indigo-500" : "text-slate-400"} />
+                                                <span className="font-bold">Private (個人)</span>
+                                                {!localTenantId && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
+                                            </button>
+                                            {joinedTenants.map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => {
+                                                        setLocalTenantId(t.id);
+                                                        setLocalProjectId('');
+                                                        setActiveMenu(null);
+                                                        if (onUpdate) onUpdate(item.id, { tenantId: t.id, projectId: null as any });
+                                                    }}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-2 text-xs flex items-center gap-2",
+                                                        localTenantId === t.id ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
+                                                    )}
+                                                >
+                                                    <Building2 size={12} className={localTenantId === t.id ? "text-indigo-500" : "text-slate-400"} />
+                                                    <span className="font-bold truncate">{t.name}</span>
+                                                    {localTenantId === t.id && <CheckCircle2 size={10} className="ml-auto text-indigo-500" />}
+                                                </button>
+                                            ))}
                                         </div>
-                                    );
-                                })()}
+                                    )}
+                                </div>
+
+                                <span className="text-slate-300 text-[10px] font-bold">/</span>
+
+                                {/* Project Selector */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setActiveMenu(activeMenu === 'project' ? null : 'project')}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-2 py-1 rounded transition-colors border border-transparent group",
+                                            activeMenu === 'project' ? "bg-slate-100 border-slate-200" : "hover:bg-slate-50 dark:hover:bg-slate-800",
+                                            localProjectId ? "text-amber-700 dark:text-amber-300" : "text-slate-400 dark:text-slate-500"
+                                        )}
+                                    >
+                                        <span className={cn(
+                                            "text-[10px] font-bold truncate max-w-[200px]",
+                                            localProjectId && "bg-amber-100 dark:bg-amber-900/30 px-1 rounded"
+                                        )}>
+                                            {allProjects.find(p => p.id === localProjectId)?.title
+                                                || allProjects.find(p => p.id === localProjectId)?.name
+                                                || 'Inbox (未分類)'}
+                                        </span>
+                                        <ChevronDown size={10} className="opacity-50 group-hover:opacity-100" />
+                                    </button>
+
+                                    {activeMenu === 'project' && (
+                                        <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col max-h-[400px] animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                                                プロジェクト選択
+                                            </div>
+
+                                            <div className="overflow-y-auto flex-1 p-1">
+                                                <button
+                                                    onClick={() => {
+                                                        setLocalProjectId('');
+                                                        setActiveMenu(null);
+                                                        if (onUpdate) onUpdate(item.id, { projectId: null as any });
+                                                    }}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-2 text-xs rounded mb-1",
+                                                        !localProjectId ? "bg-amber-50 text-amber-800 font-bold" : "hover:bg-slate-50 text-slate-500 font-medium"
+                                                    )}
+                                                >
+                                                    Inbox (未分類)
+                                                </button>
+
+                                                {allProjects
+                                                    .filter(p => !p.isArchived)
+                                                    .filter(p => {
+                                                        if (!localTenantId) return !p.tenantId; // Private
+                                                        return p.tenantId === localTenantId; // Company
+                                                    })
+                                                    .map(p => (
+                                                        <button
+                                                            key={p.id}
+                                                            onClick={() => {
+                                                                setLocalProjectId(p.id);
+                                                                setActiveMenu(null);
+                                                                if (onUpdate) onUpdate(item.id, { projectId: p.id });
+                                                            }}
+                                                            className={cn(
+                                                                "w-full text-left px-3 py-2 text-xs flex items-center gap-2 rounded mb-0.5",
+                                                                localProjectId === p.id ? "bg-amber-50 text-amber-800" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
+                                                            )}
+                                                        >
+                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ backgroundColor: p.color || '#cbd5e1' }} />
+                                                            <span className="font-bold truncate">{p.title || p.name}</span>
+                                                            {localProjectId === p.id && <CheckCircle2 size={10} className="ml-auto text-amber-500" />}
+                                                        </button>
+                                                    ))}
+
+                                                {allProjects.filter(p => !p.isArchived && ((!localTenantId && !p.tenantId) || (p.tenantId === localTenantId))).length === 0 && (
+                                                    <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                                                        プロジェクトはありません
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Title (Editable) */}
