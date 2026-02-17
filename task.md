@@ -96,9 +96,12 @@
     - [ ] **ストーリーに基づくUI改善** <!-- id: 1402 -->
     - [ ] UI: 詳細な見積入力 (スクロール可能な日時 + 数値入力) <!-- id: 1403 -->
     - [ ] UI: モバイル用横メモ (スライドボタン) <!-- id: 1404 -->
-    - [ ] **UI改善**: 詳細画面ヘッダーのドロップダウン共通化・スタイル調整 <!-- id: 1405 -->
-        - [ ] `HeaderDropdown.tsx` 作成 (Compact/Z-Index/Scroll対応)
-        - [ ] `DecisionDetailModal.tsx` への適用
+    - [ ] **UI改善 & 拡張**: ドロップダウン共通化・プラグインフック導入 <!-- id: 1405 -->
+        - [ ] 共通コンポーネント `YoukanDropdown.tsx` 作成 (Compact/Z-Index/Scroll対応)
+        - [ ] プラグイン拡張機構 (`ExtensionSlot.tsx`, `registry.tsx`) 実装
+        - [ ] `TenantSelector.tsx` 改修 (YoukanDropdown適用)
+        - [ ] `ProjectCreationDialog.tsx` 改修 (ExtensionSlot導入, 会社選択ロジック改善)
+        - [ ] `DecisionDetailModal.tsx` 改修 (YoukanDropdown適用)
 
 - [ ] **メンテナンス: ロジック修正とテスト** <!-- id: 150 -->
     - [x] **Today画面ロジック** <!-- id: 151 --> ※ 2026-01-18 検証済み
