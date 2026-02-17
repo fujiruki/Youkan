@@ -34,7 +34,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     commitPeriod, // [NEW]
     hideHeader = false,
     onDateClick,
-    disablePressureLines = false
+    disablePressureLines = false,
+    onUpdateItem // [NEW]
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -439,6 +440,13 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
                             if (onSelectDate) onSelectDate(date);
                         }}
                         renderItemTitle={renderItemTitle}
+                        onUpdateItem={onUpdateItem}
+                        // Context Props
+                        capacityConfig={capacityConfig}
+                        currentUserId={currentUserId}
+                        joinedTenants={joinedTenants}
+                        focusedTenantId={focusedTenantId}
+                        focusedProjectId={focusedProjectId}
                     />
                 )}
             </div>

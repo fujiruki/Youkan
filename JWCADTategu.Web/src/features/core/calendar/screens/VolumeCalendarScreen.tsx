@@ -132,6 +132,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     currentUserId={auth.user?.id}
                     onItemClick={setSelectedItem}
                     displayMode={viewMode}
+                    onUpdateItem={handleUpdate}
+                    capacityConfig={capacityConfig} // [NEW]
+                    joinedTenants={auth.joinedTenants} // [NEW]
                 />
             </div>
 

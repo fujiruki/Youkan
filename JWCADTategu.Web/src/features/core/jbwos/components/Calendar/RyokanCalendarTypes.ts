@@ -43,4 +43,5 @@ export interface RyokanCalendarProps {
     onDateClick?: (date: Date) => void; // Popover for list
     selectionMode?: 'due' | 'prep' | null; // For styling/behavior
     disablePressureLines?: boolean; // [NEW] Disable yellow pressure lines
+    onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void; // [NEW] For drag updates
 }
