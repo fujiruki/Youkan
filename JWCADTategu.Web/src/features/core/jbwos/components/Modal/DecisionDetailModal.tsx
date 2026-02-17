@@ -395,8 +395,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
                                             else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
                                         }}
-                                        inputClassName="w-[71px] border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
-                                        className=""
+                                        inputClassName="w-[71px] border-0 px-0 text-sm font-bold bg-transparent focus:ring-0 focus:outline-none"
+                                        className="[&_svg]:hidden"
                                         onFocus={() => setActiveDateInput('due')}
                                     />
                                 </div>
@@ -422,8 +422,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             // @ts-ignore
                                             else ApiClient.updateItem(item.id, { prep_date: timestamp });
                                         }}
-                                        inputClassName="w-[71px] border-0 p-0 text-xs md:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
-                                        className=""
+                                        inputClassName="w-[71px] border-0 px-0 text-sm font-bold bg-transparent focus:ring-0 focus:outline-none"
+                                        className="[&_svg]:hidden"
                                         onFocus={() => setActiveDateInput('my')}
                                     />
                                 </div>
