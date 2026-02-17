@@ -288,6 +288,9 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
             <ProjectCreationDialog
                 isOpen={showProjectDialog}
                 onClose={() => setShowProjectDialog(false)}
+                activeScope={(focusedProject?.tenantId || selectedTenantId) ? 'company' : 'personal'}
+                tenants={joinedTenants}
+                defaultTenantId={focusedProject?.tenantId || selectedTenantId || undefined}
                 onCreate={async (project: any, defaultTasks: any[]) => {
                     // Ensure required fields are present
                     if (!project.title) return;
