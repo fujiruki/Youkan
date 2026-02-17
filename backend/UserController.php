@@ -40,7 +40,8 @@ class UserController extends BaseController {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            $this->sendError(404, 'User not found');
+            // [Fix] Return 401 to trigger logout on client if user is missing (Stale Token)
+            $this->sendError(401, 'User not found (Invalid Session)');
         }
         
         // [JBWOS] Explicit CamelCase for frontend

@@ -466,6 +466,16 @@ const AppContent: React.FC<{
         // Setup API error handler
         useEffect(() => {
             ApiClient.setErrorHandler((error, method, path) => {
+                // [Fix] Auto-logout on 401 (Unauthorized)
+                // client.ts throws "API Error: 401" or similar if status is 401
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    console.warn('[App] 401 Detected. Redirecting to logout.');
+                    const baseUrl = import.meta.env.BASE_URL;
+                    const logoutPath = baseUrl.endsWith('/') ? `${baseUrl}logout` : `${baseUrl}/logout`;
+                    window.location.href = logoutPath;
+                    return;
+                }
+
                 showToast({
                     type: 'error',
                     title: 'API通信エラー',

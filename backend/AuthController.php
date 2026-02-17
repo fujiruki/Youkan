@@ -300,6 +300,7 @@ class AuthController extends BaseController {
                         'name' => $tenant['name'],
                         'email' => $tenant['email'],
                         'is_representative' => true, // Company account is always representative
+                        'account_type' => 'tenant', // [NEW] Explicit type
                         'preferences' => null
                     ],
                     // Context is the tenant itself
@@ -308,7 +309,8 @@ class AuthController extends BaseController {
                         'name' => $tenant['name'],
                         'role' => 'owner',
                         'representativeName' => $tenant['name'],
-                        'representativeEmail' => $tenant['email']
+                        'representativeEmail' => $tenant['email'],
+                        'config' => ['plugins' => ['manufacturing' => true]] // [NEW] Mock Config
                     ],
                     // Self-membership
                     'joinedTenants' => [[
@@ -354,7 +356,8 @@ class AuthController extends BaseController {
                         'name' => $tenant['name'],
                         'role' => $this->currentUser['role'] ?? 'member',
                         'representativeName' => $tenant['representative_name'],
-                        'representativeEmail' => $tenant['representative_email']
+                        'representativeEmail' => $tenant['representative_email'],
+                        'config' => ['plugins' => ['manufacturing' => true]] // [NEW] Mock Config
                     ];
                 }
             }
@@ -393,6 +396,7 @@ class AuthController extends BaseController {
                     'name' => $user['display_name'], // FRESH from DB
                     'email' => $user['email'],
                     'is_representative' => (bool)$user['is_representative'],
+                    'account_type' => 'user', // [NEW] Explicit type
                     'preferences' => !empty($user['preferences']) ? json_decode($user['preferences'], true) : null
                 ],
                 'tenant' => $tenantInfo,
