@@ -209,7 +209,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     capacityConfig={capacityConfig}
                                     projects={allProjects}
                                     joinedTenants={joinedTenants}
-                                    displayMode="grid"
+                                    displayMode="gantt"
                                     filterMode={filterMode}
                                     onDateClick={(d) => {
                                         // TODO: Open Day Detail

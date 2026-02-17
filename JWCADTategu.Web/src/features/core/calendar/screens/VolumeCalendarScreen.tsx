@@ -120,6 +120,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     focusedTenantId={activeTenantId}
                     currentUserId={auth.user?.id}
                     onItemClick={setSelectedItem}
+                    displayMode="gantt"
                 />
             </div>
 
