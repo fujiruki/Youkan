@@ -66,9 +66,14 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
 
     const getEffectiveTenantId = () => {
         if (creationMode === 'child' && context.parentProject) {
-            return context.parentProject.tenantId || null;
+            return context.parentProject.tenantId || null; // Child inherits strictly
         }
-        return context.activeScope === 'company' ? selectedTenantId : null;
+        // [FIX] Independent (Root) mode: Trust the selectedTenantId if present.
+        // This covers:
+        // 1. Company Account (Default selected)
+        // 2. Personal Account -> Selected Company manually
+        // 3. Personal Account -> Selected "Private" (='' -> returns null)
+        return selectedTenantId || null;
     };
 
     const getEffectiveParentId = () => {

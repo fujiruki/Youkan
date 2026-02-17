@@ -1,12 +1,9 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Item, CapacityConfig, JoinedTenant } from '../../types'; // [Modified]
+import { Item, CapacityConfig, JoinedTenant } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
-import { safeFormat } from '../../logic/dateUtils';
-import { ja } from 'date-fns/locale';
-import { ChevronRight, ChevronDown, Folder } from 'lucide-react';
-import { isHoliday } from '../../logic/capacity';
-import { QuantityEngine, QuantityContext, AllocationStep } from '../../logic/QuantityEngine'; // [NEW]
+import { ChevronRight } from 'lucide-react';
+import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
@@ -24,7 +21,7 @@ interface GanttViewProps {
     rowHeight: number;
     projects: any[];
     onJumpToDate?: (date: Date) => void;
-    onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void; // [NEW] For drag updates
+    onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void;
     renderItemTitle: (item: Item) => string;
     // Context Props for QuantityEngine
     capacityConfig?: CapacityConfig;
@@ -35,19 +32,16 @@ interface GanttViewProps {
 }
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
-    allDays, items, heatMap: _heatMap, today, onItemClick, safeConfig, rowHeight, projects, onJumpToDate, renderItemTitle,
+    allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
     onUpdateItem,
     capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const headerContainerRef = useRef<HTMLDivElement>(null);
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const isSyncing = useRef(false);
 
     const colWidth = 24; // w-6 = 1.5rem = 24px
-    const headerWidth = 256; // w-64 = 256px
-    const startDate = allDays[0]; // First day in the timeline
 
     // Drag & Drop State
     const [dragState, setDragState] = useState<{
@@ -92,7 +86,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [dragState, items, colWidth, onUpdateItem]); // dependencies
+    }, [dragState, items, colWidth, onUpdateItem]);
 
     // Sync Scroll Logic: Use native event listeners for better control
     useEffect(() => {
@@ -128,36 +122,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         };
     }, []);
 
+    // Scroll to date logic
     const scrollToDate = (date: Date) => {
         if (!scrollContainerRef.current) return;
 
         // Find index of date in allDays
         const index = allDays.findIndex(d => isSameDate(d, date));
+        if (index === -1) return;
 
-        if (index === -1) {
-            // If date is out of range, try to jump via parent handler
-            onJumpToDate?.(date);
-            return;
-        }
-
-        // Calculate position to center the date
+        const scrollPos = index * colWidth;
         const containerWidth = scrollContainerRef.current.clientWidth;
-
-        // Center in the visible area (right of sticky col)
-        const visibleTimelineWidth = containerWidth - headerWidth;
-        const dateOffsetInTimeline = index * colWidth;
-
-        // Target scrollLeft
-        // We want dateOffsetInTimeline to be centered in visibleTimelineWidth
-        // scrollLeft moves the timeline window.
-        // center of visible timeline relative to timeline start = scrollLeft + (visibleTimelineWidth / 2)
-        // we want that center to be dateOffsetInTimeline + (colWidth / 2)
-        // scrollLeft = dateOffsetInTimeline + (colWidth / 2) - (visibleTimelineWidth / 2)
-
-        let targetScrollLeft = dateOffsetInTimeline + (colWidth / 2) - (visibleTimelineWidth / 2);
+        const centerOffset = containerWidth / 2 - colWidth / 2;
 
         scrollContainerRef.current.scrollTo({
-            left: Math.max(0, targetScrollLeft),
+            left: Math.max(0, scrollPos - centerOffset),
             behavior: 'smooth'
         });
     };
@@ -213,28 +191,28 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         });
     }, [groupedItems, sortedProjectKeys, projects]);
 
-    // [NEW] Calculate detailed allocations using QuantityEngine
+    // Calculate detailed allocations using QuantityEngine
     const allocationMap = useMemo(() => {
-        if (!capacityConfig || !currentUserId) return new Map<string, AllocationStep[]>();
+        if (!capacityConfig || !currentUserId) return new Map();
 
         const context: QuantityContext = {
             items,
-            members: [], // Gantt view doesn't use members logic deeply yet
+            members: [],
             capacityConfig,
-            filterMode: 'all', // Default to showing everything for now
+            filterMode: 'all',
             focusedTenantId,
             focusedProjectId,
             currentUser: {
                 id: currentUserId,
-                isCompanyAccount: false, // Assuming person view mostly
+                isCompanyAccount: false,
                 joinedTenants: joinedTenants?.map(t => ({ id: t.id, name: t.name })) || []
             }
         };
 
-        const map = new Map<string, AllocationStep[]>();
+        const map = new Map();
 
         items.forEach(item => {
-            const endDate = item.prep_date ? new Date(item.prep_date * 1000) : null;
+            const endDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
             if (endDate) {
                 const estMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
                 const steps = QuantityEngine.calculateAllocationDetails(endDate, estMinutes, context, item.tenantId);
@@ -244,14 +222,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
         return map;
     }, [items, capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId]);
-
-
-    const toggleGroup = (key: string) => {
-        const newSet = new Set(collapsedGroups);
-        if (newSet.has(key)) newSet.delete(key);
-        else newSet.add(key);
-        setCollapsedGroups(newSet);
-    };
 
     // Helper to calculate bar style with drag offset
     const getBarStyle = (item: Item, type: 'prep', baseStyle: React.CSSProperties) => {
@@ -267,7 +237,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         }
         return baseStyle;
     };
-
 
     return (
         <div className="flex flex-col h-full overflow-hidden select-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
@@ -324,11 +293,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                             )}
 
                             {group.items.map(item => {
-                                const prepDateObj = item.prep_date ? new Date(item.prep_date * 1000) : null;
-                                const dueDateObj = item.due_date ? new Date(item.due_date * 1000) : null;
-                                const commitStart = prepDateObj && item.work_days ?
-                                    (d => { const n = new Date(d); n.setDate(n.getDate() - item.work_days); return n; })(prepDateObj)
-                                    : null;
+                                const prepDateObj = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
+                                const dueDateObj = item.due_date ? new Date(item.due_date) : null;
 
                                 return (
                                     <div
@@ -339,7 +305,17 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                     >
                                         {/* Sticky Title Column */}
                                         <div className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                                            <div className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200">
+                                            <div
+                                                className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const targetDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : (item.due_date ? new Date(item.due_date) : null);
+                                                    if (targetDate) {
+                                                        scrollToDate(targetDate);
+                                                    }
+                                                }}
+                                                title="クリックで納期へスクロール"
+                                            >
                                                 {renderItemTitle(item)}
                                             </div>
                                             {hoveredItemId === item.id && (
@@ -357,10 +333,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 const isPrep = prepDateObj && isSameDate(date, prepDateObj);
                                                 const isDue = dueDateObj && isSameDate(date, dueDateObj);
 
-                                                // [MODIFIED] Real Allocation Logic
+                                                // Real Allocation Logic
                                                 const allocationSteps = allocationMap.get(item.id);
-                                                const step = allocationSteps?.find(s => isSameDate(s.date, date));
-                                                const isHol = isHoliday(date, safeConfig);
+                                                const step = allocationSteps?.find((s: any) => isSameDate(s.date, date));
 
                                                 return (
                                                     <div key={date.toDateString()} className={cn(
@@ -374,7 +349,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                                     "absolute w-5 h-5 rounded-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
                                                                     "bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
                                                                 )}
-                                                                title={`割当: ${step.allocatedMinutes}分 / Cap: ${step.capacityMinutes}分\n残: ${step.capacityMinutes - step.allocatedMinutes}分`}
+                                                                title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
                                                             >
                                                                 {/* Only show minutes if enough space, otherwise dot or nothing */}
                                                                 {step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''}
@@ -409,7 +384,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
                                                         {/* Due Date Marker (Fixed) */}
                                                         {isDue && (
-                                                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500/80 z-10" title={`顧客納期: ${format(dueDateObj!, 'M/d')}`} />
+                                                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500/80 z-10" title={`顧客納期: ${format(dueDateObj!, 'M/d')} `} />
                                                         )}
                                                     </div>
                                                 );

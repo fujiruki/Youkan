@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { safeFormat } from '../../logic/dateUtils';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
 import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
-import { QuantityEngine, AllocationStep } from '../../logic/QuantityEngine';
+import { QuantityEngine } from '../../logic/QuantityEngine';
 import { SubtaskListWidget } from '../Widgets/SubtaskListWidget';
 import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
 
@@ -789,8 +789,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             <SubtaskListWidget
                                 parentId={item.id}
                                 parentItem={item}
-                                defaultProjectId={item.projectId || undefined}
-                                defaultTenantId={item.tenantId || undefined}
+                                // [FIX] Use local state to reflect changes immediately
+                                defaultProjectId={localProjectId || item.projectId || undefined}
+                                defaultTenantId={localTenantId || item.tenantId || undefined}
                                 onNavigate={(subItem) => {
                                     if (_onOpenItem) _onOpenItem(subItem);
                                     else handleDrillDown(subItem);

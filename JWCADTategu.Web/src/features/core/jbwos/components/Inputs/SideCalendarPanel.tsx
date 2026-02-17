@@ -79,7 +79,6 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                         <button
                             key={key}
                             onClick={() => {
-                                let d = today;
                                 if (key === 'tomorrow') {
                                     onSelectDate(addDays(today, 1));
                                 } else if (key === 'next_mon') {
