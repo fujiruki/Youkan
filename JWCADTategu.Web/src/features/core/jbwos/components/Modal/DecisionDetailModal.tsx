@@ -392,7 +392,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             localProjectId && "bg-amber-100 dark:bg-amber-900/30 px-1 rounded"
                                         )}>
                                             {allProjects.find(p => p.id === localProjectId)?.title
-                                                || allProjects.find(p => p.id === localProjectId)?.name
                                                 || 'Inbox (未分類)'}
                                         </span>
                                         <ChevronDown size={10} className="opacity-50 group-hover:opacity-100" />
@@ -438,8 +437,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                                                 localProjectId === p.id ? "bg-amber-50 text-amber-800" : "hover:bg-slate-50 text-slate-700 dark:text-slate-300"
                                                             )}
                                                         >
-                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ backgroundColor: p.color || '#cbd5e1' }} />
-                                                            <span className="font-bold truncate">{p.title || p.name}</span>
+                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ backgroundColor: (p as any).color || '#cbd5e1' }} />
+                                                            <span className="font-bold truncate">{p.title}</span>
                                                             {localProjectId === p.id && <CheckCircle2 size={10} className="ml-auto text-amber-500" />}
                                                         </button>
                                                     ))}
