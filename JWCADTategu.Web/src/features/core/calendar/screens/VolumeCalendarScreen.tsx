@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVolumeCalendarViewModel } from '../viewmodels/useVolumeCalendarViewModel';
 import { RyokanCalendar } from '../../jbwos/components/Calendar/RyokanCalendar';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -20,6 +20,17 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 }) => {
     const auth = useAuth();
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
+        return (localStorage.getItem('jbwos_calendar_view_mode') as any) || 'gantt';
+    });
+
+    useEffect(() => {
+        const handleModeChange = (e: CustomEvent<{ mode: 'grid' | 'timeline' | 'gantt' }>) => {
+            if (e.detail?.mode) setViewMode(e.detail.mode);
+        };
+        window.addEventListener('jbwos-calendar-view-mode-change', handleModeChange as EventListener);
+        return () => window.removeEventListener('jbwos-calendar-view-mode-change', handleModeChange as EventListener);
+    }, []);
 
     const {
         items, members, projects, loading, error,
@@ -120,7 +131,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     focusedTenantId={activeTenantId}
                     currentUserId={auth.user?.id}
                     onItemClick={setSelectedItem}
-                    displayMode="gantt"
+                    displayMode={viewMode}
                 />
             </div>
 

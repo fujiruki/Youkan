@@ -37,6 +37,12 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     disablePressureLines = false
 }) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
+
+    // [FIX] Sync displayMode with prop
+    React.useEffect(() => {
+        if (propDisplayMode) setDisplayMode(propDisplayMode);
+    }, [propDisplayMode]);
+
     const today = useMemo(() => getStartOfToday(), []);
     const isMini = layoutMode === 'mini';
 
@@ -358,26 +364,7 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             {!isMini && !hideHeader && (
                 <div className="flex-none px-4 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between z-10">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 mr-2">表示モード</span>
-                        {[
-                            { id: 'grid', label: 'グリッド', icon: '📅' },
-                            { id: 'timeline', label: 'タイムライン', icon: '➡️' },
-                            { id: 'gantt', label: 'ガント', icon: '📊' }
-                        ].map(mode => (
-                            <button
-                                key={mode.id}
-                                onClick={() => setDisplayMode(mode.id as any)}
-                                className={cn(
-                                    "px-3 py-1 text-xs font-bold rounded-full transition-all flex items-center gap-1",
-                                    displayMode === mode.id
-                                        ? "bg-indigo-500 text-white shadow-md scale-105"
-                                        : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-300"
-                                )}
-                            >
-                                <span>{mode.icon}</span>
-                                <span>{mode.label}</span>
-                            </button>
-                        ))}
+                        {/* [User Request] Removed mode switching UI to unify with Global Header */}
                     </div>
 
                     <div className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-600">

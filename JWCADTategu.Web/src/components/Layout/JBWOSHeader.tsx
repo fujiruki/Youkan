@@ -86,6 +86,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         localStorage.getItem('jbwos_project_view_mode') || 'grid'
     );
 
+    // カレンダー画面用のビューモード状態
+    const [calendarViewMode, setCalendarViewMode] = useState(() =>
+        localStorage.getItem('jbwos_calendar_view_mode') || 'gantt'
+    );
+
     // Persist filter mode
     useEffect(() => {
         localStorage.setItem('jbwos_global_filter', filterMode);
@@ -110,6 +115,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
             const mode = e.detail?.mode;
             if (mode) setProjectViewMode(mode);
         };
+        const handleCalendarViewModeChange = (e: any) => {
+            const mode = e.detail?.mode;
+            if (mode) setCalendarViewMode(mode);
+        };
         const handleFilterChange = (e: any) => {
             const mode = e.detail?.mode;
             if (mode === 'all' || mode === 'personal' || mode === 'company') {
@@ -119,11 +128,13 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         window.addEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
         window.addEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
         window.addEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+        window.addEventListener('jbwos-calendar-view-mode-change', handleCalendarViewModeChange as EventListener);
         window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
         return () => {
             window.removeEventListener('jbwos-view-mode-change', handleViewModeChange as EventListener);
             window.removeEventListener('jbwos-capacity-update', handleCapacityUpdate as EventListener);
             window.removeEventListener('jbwos-project-view-mode-change', handleProjectViewModeChange as EventListener);
+            window.removeEventListener('jbwos-calendar-view-mode-change', handleCalendarViewModeChange as EventListener);
             window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
         };
     }, [capacity]);
@@ -145,6 +156,12 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         setProjectViewMode(mode);
         localStorage.setItem('jbwos_project_view_mode', mode);
         window.dispatchEvent(new CustomEvent('jbwos-project-view-mode-change', { detail: { mode } }));
+    };
+
+    const handleCalendarViewChange = (mode: string) => {
+        setCalendarViewMode(mode);
+        localStorage.setItem('jbwos_calendar_view_mode', mode);
+        window.dispatchEvent(new CustomEvent('jbwos-calendar-view-mode-change', { detail: { mode } }));
     };
 
     // Check active states
@@ -331,12 +348,11 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
                     <Separator />
 
-                    {/* カレンダー Section */}
                     <NavSection title="カレンダー" isActive={isCalendar} icon={<CalendarDays size={14} />}>
                         <div className="flex gap-1">
-                            <SubNavTab label="グリッド" isActive={isCalendar} onClick={() => onNavigateToCalendar?.()} />
-                            <SubNavTab label="タイムライン" isActive={false} onClick={() => { }} disabled />
-                            <SubNavTab label="ガント" isActive={false} onClick={() => { }} disabled />
+                            <SubNavTab label="グリッド" isActive={isCalendar && calendarViewMode === 'grid'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('grid'); }} />
+                            <SubNavTab label="タイムライン" isActive={isCalendar && calendarViewMode === 'timeline'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('timeline'); }} />
+                            <SubNavTab label="ガント" isActive={isCalendar && calendarViewMode === 'gantt'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('gantt'); }} />
                         </div>
                     </NavSection>
 
