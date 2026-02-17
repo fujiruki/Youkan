@@ -15,7 +15,6 @@ interface DetailQuantityCalendarProps {
     projects?: Item[];
     joinedTenants?: JoinedTenant[];
     targetItemId?: string;
-    targetItemId?: string;
     commitPeriod?: Date[];
     focusDate?: Date | null; // [NEW] Allow external control of focus
 }
