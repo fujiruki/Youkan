@@ -380,7 +380,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
                                 onClick={() => setHideCompleted(!hideCompleted)}
                             >
-                                <span className="text-[10px] font-bold text-slate-400 select-none hidden md:inline">完了非表示</span>
+                                <span className="text-[10px] font-bold text-slate-400 select-none">完了非表示</span>
                                 <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${hideCompleted ? 'bg-indigo-500' : 'bg-slate-600'}`}>
                                     <span className={`${hideCompleted ? 'translate-x-4' : 'translate-x-1'} inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform`} />
                                 </div>
