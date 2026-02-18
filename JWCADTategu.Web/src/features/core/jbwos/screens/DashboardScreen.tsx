@@ -73,6 +73,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         gdbPreparation: _waitingItems,
         todayCandidates: _todayCandidates,
         todayCommits: _todayCommits,
+        gdbLog: _gdbLog, // [FIX] Get raw log for filtering
         capacityUsed,
         capacityLimit,
         filterMode,
@@ -114,6 +115,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const waitingItems = filterItems(_waitingItems);
     const todayCandidates = filterItems(_todayCandidates);
     const todayCommits = filterItems(_todayCommits);
+    const gdbLog = filterItems(_gdbLog || []); // [FIX] Filter Log items too
 
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
     useEffect(() => {
@@ -134,6 +136,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         gdbPreparation: waitingItems,
         todayCandidates: todayCandidates,
         todayCommits: todayCommits,
+        gdbLog: gdbLog, // [FIX] Override with filtered log
         // Ensure all filtered lists are passed correctly
     };
 
