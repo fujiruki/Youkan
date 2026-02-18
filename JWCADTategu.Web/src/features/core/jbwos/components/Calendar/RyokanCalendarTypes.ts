@@ -44,4 +44,7 @@ export interface RyokanCalendarProps {
     selectionMode?: 'due' | 'prep' | null; // For styling/behavior
     disablePressureLines?: boolean; // [NEW] Disable yellow pressure lines
     onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void; // [NEW] For drag updates
+    // [NEW] Phase 24: Gantt Header integration
+    onVisibleMonthChange?: (date: Date) => void; // Reports which month is currently in view
+    onOpenDailySettings?: (date: Date) => void; // Opens DailyCapacityEditor for the given date
 }

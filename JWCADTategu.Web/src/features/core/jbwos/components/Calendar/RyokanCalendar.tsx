@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { Item } from '../../types';
 import { QuantityEngine } from '../../logic/QuantityEngine';
 import { X, Settings } from 'lucide-react';
@@ -13,6 +13,12 @@ import { ChevronRight } from 'lucide-react';
 import { SimpleModal } from '../Modal/SimpleModal';
 import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
 
+export interface RyokanCalendarHandle {
+    scrollToMonth: (year: number, month: number) => void;
+    scrollToToday: () => void;
+    openDailySettings: (date?: Date) => void;
+}
+
 const getStartOfToday = () => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -20,7 +26,7 @@ const getStartOfToday = () => {
 };
 
 
-export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
+export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
     items, onItemClick, capacityConfig, members,
     layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
     onSelectDate, selectedDate, prepDate, focusDate,
@@ -35,8 +41,10 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
     hideHeader = false,
     onDateClick,
     disablePressureLines = false,
-    onUpdateItem // [NEW]
-}) => {
+    onUpdateItem, // [NEW]
+    onVisibleMonthChange, // [NEW Phase 24]
+    onOpenDailySettings // [NEW Phase 24]
+}, calendarRef) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
     // [FIX] Sync displayMode with prop
@@ -64,6 +72,47 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
     const [allDays, setAllDays] = useState<Date[]>([]);
     const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+
+    // [NEW Phase 24] Expose imperative scroll control
+    const scrollToDateElement = useCallback((targetDate: Date) => {
+        if (!scrollContainerRef.current) return;
+        const container = scrollContainerRef.current;
+        const targetKey = normalizeDateKey(targetDate);
+        const targetEl = container.querySelector(`[data-date="${targetKey}"]`);
+        if (targetEl) {
+            const containerRect = container.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
+            container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+        }
+    }, []);
+
+    useImperativeHandle(calendarRef, () => ({
+        scrollToMonth: (year: number, month: number) => {
+            const targetDate = new Date(year, month, 15); // Middle of target month
+            // Ensure range covers the target date
+            if (range && (targetDate < range.start || targetDate > range.end)) {
+                // Expand range first, then scroll
+                const newStart = new Date(year, month - 2, 1);
+                const dayOfWeek = newStart.getDay();
+                newStart.setDate(newStart.getDate() - dayOfWeek);
+                const newEnd = new Date(year, month + 3, 0);
+                const endDayOfWeek = newEnd.getDay();
+                newEnd.setDate(newEnd.getDate() + (6 - endDayOfWeek));
+                setRange({ start: newStart, end: newEnd });
+                setHasInitialScrolled(false);
+                // Scroll will happen via effect after allDays update
+            } else {
+                scrollToDateElement(targetDate);
+            }
+        },
+        scrollToToday: () => {
+            scrollToDateElement(new Date());
+        },
+        openDailySettings: (date?: Date) => {
+            setEditingDate(date || new Date());
+        }
+    }), [range, scrollToDateElement]);
 
     // [FIX] Initialize range with current month +/- 2 months (Total 5 months)
     React.useEffect(() => {
@@ -143,10 +192,44 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         }
     }, [allDays.length, hasInitialScrolled]); // Remove focusDate from deps here to prevent re-triggering
 
+    // [NEW Phase 24] Track visible month from scroll position
+    const lastReportedMonthRef = useRef<string>('');
+
+    const detectVisibleMonth = useCallback((container: HTMLElement) => {
+        if (!onVisibleMonthChange) return;
+        // Find the date cell closest to the vertical center of the container
+        const centerY = container.scrollTop + container.clientHeight / 2;
+        const cells = container.querySelectorAll('[data-date]');
+        let closestCell: Element | null = null;
+        let closestDistance = Infinity;
+        cells.forEach(cell => {
+            const top = (cell as HTMLElement).offsetTop;
+            const dist = Math.abs(top - centerY);
+            if (dist < closestDistance) {
+                closestDistance = dist;
+                closestCell = cell;
+            }
+        });
+        if (closestCell) {
+            const dateStr = (closestCell as HTMLElement).getAttribute('data-date');
+            if (dateStr) {
+                const monthKey = dateStr.substring(0, 7); // 'YYYY-MM'
+                if (monthKey !== lastReportedMonthRef.current) {
+                    lastReportedMonthRef.current = monthKey;
+                    const [y, m] = monthKey.split('-').map(Number);
+                    onVisibleMonthChange(new Date(y, m - 1, 1));
+                }
+            }
+        }
+    }, [onVisibleMonthChange]);
+
     // Handle Infinite Scroll Extension
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const container = e.currentTarget;
         const { scrollTop, scrollHeight, clientHeight } = container;
+
+        // [NEW Phase 24] Detect visible month
+        detectVisibleMonth(container);
 
         // Upward extension
         if (scrollTop < 200 && range) {
@@ -375,7 +458,14 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
                     <div className="ml-2 pl-2 border-l border-slate-300 dark:border-slate-600">
                         <button
-                            onClick={() => setEditingDate(focusDate ? new Date(focusDate) : today)}
+                            onClick={() => {
+                                const targetDate = focusDate ? new Date(focusDate) : today;
+                                if (onOpenDailySettings) {
+                                    onOpenDailySettings(targetDate);
+                                } else {
+                                    setEditingDate(targetDate);
+                                }
+                            }}
                             className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors border border-slate-200 dark:border-slate-600"
                             title="表示中の日付の稼働設定"
                         >
@@ -546,4 +636,4 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             </SimpleModal>
         </div>
     );
-};
+});

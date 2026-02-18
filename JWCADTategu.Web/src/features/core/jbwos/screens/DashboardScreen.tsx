@@ -15,11 +15,12 @@ import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 // import { MainQuantityCalendar } from '../components/Layout/MainQuantityCalendar'; // [Unused]
-import { RyokanCalendar } from '../components/Calendar/RyokanCalendar';
+import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
+import { GanttHeader } from '../components/Calendar/GanttHeader';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -150,6 +151,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_gantt_row_height', ganttRowHeight.toString());
     }, [ganttRowHeight]);
 
+    // [NEW Phase 24] Calendar ref and visible month state
+    const calendarRef = React.useRef<RyokanCalendarHandle>(null);
+    const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
+
     const queueItems = [
         ...(executionItem ? [executionItem] : []),
         ...todayCommits.filter(i => i.id !== executionItem?.id),
@@ -213,8 +218,35 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-            {/* 密度調整等のコントロール (必要な場合のみ表示) */}
-            {(viewMode === 'calendar' || viewMode === 'panorama') && (
+            {/* Gantt Header (calendar mode) or Density Bar (panorama mode) */}
+            {viewMode === 'calendar' && (
+                <GanttHeader
+                    visibleDate={visibleMonth}
+                    onPrevMonth={() => {
+                        const prev = new Date(visibleMonth);
+                        prev.setMonth(prev.getMonth() - 1);
+                        setVisibleMonth(prev);
+                        calendarRef.current?.scrollToMonth(prev.getFullYear(), prev.getMonth());
+                    }}
+                    onNextMonth={() => {
+                        const next = new Date(visibleMonth);
+                        next.setMonth(next.getMonth() + 1);
+                        setVisibleMonth(next);
+                        calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
+                    }}
+                    onGoToCurrentMonth={() => {
+                        const now = new Date();
+                        setVisibleMonth(now);
+                        calendarRef.current?.scrollToToday();
+                    }}
+                    onOpenDailySettings={() => {
+                        calendarRef.current?.openDailySettings();
+                    }}
+                    rowHeight={ganttRowHeight}
+                    onRowHeightChange={setGanttRowHeight}
+                />
+            )}
+            {viewMode === 'panorama' && (
                 <div className="shrink-0 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 px-6 py-1 flex items-center justify-end gap-2 z-10">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
                     <input
@@ -236,6 +268,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         <div className="flex-1 overflow-hidden">
                             {viewMode === 'calendar' ? (
                                 <RyokanCalendar
+                                    ref={calendarRef}
                                     items={allItemsForCalendar}
                                     members={members}
                                     capacityConfig={capacityConfig}
@@ -244,11 +277,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     currentUserId={currentUserId}
                                     displayMode="gantt"
                                     filterMode={filterMode}
+                                    hideHeader={true}
                                     onDateClick={(d) => {
-                                        // TODO: Open Day Detail
                                         console.log('Date Clicked', d);
                                     }}
                                     onItemClick={(item) => setSelectedItem(item)}
+                                    onVisibleMonthChange={(date) => setVisibleMonth(date)}
                                 />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={filteredVM} activeProject={activeProject} onOpenItem={setSelectedItem} />
