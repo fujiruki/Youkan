@@ -583,6 +583,7 @@ export const JBWOSRepository = {
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
                 if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
+                if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes; // [FIX] Added mapping
 
                 updates.updatedAt = new Date(); // Legacy might expect Date object.
                 await db.doors.update(doorId, updates);

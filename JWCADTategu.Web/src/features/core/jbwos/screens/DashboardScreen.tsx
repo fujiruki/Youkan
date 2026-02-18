@@ -68,11 +68,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const vm = useJBWOSViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
     const {
-        gdbActive: inboxItems,
-        gdbIntent: pendingItems,
-        gdbPreparation: waitingItems,
-        todayCandidates,
-        todayCommits,
+        gdbActive: _inboxItems,
+        gdbIntent: _pendingItems,
+        gdbPreparation: _waitingItems,
+        todayCandidates: _todayCandidates,
+        todayCommits: _todayCommits,
         capacityUsed,
         capacityLimit,
         filterMode,
@@ -96,6 +96,25 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const { /* user: authUser */ } = useAuth(); // [Unused]
     // const effectiveUserId = currentUserId || authUser?.id; // [Unused]
 
+    // [NEW] Hide Completed Filter Logic
+    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+
+    useEffect(() => {
+        const handleFilterChange = (e: CustomEvent) => {
+            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
+        };
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+    }, []);
+
+    const filterItems = (items: Item[]) => !hideCompleted ? items : items.filter(i => i.status !== 'done');
+
+    const inboxItems = filterItems(_inboxItems);
+    const pendingItems = filterItems(_pendingItems);
+    const waitingItems = filterItems(_waitingItems);
+    const todayCandidates = filterItems(_todayCandidates);
+    const todayCommits = filterItems(_todayCommits);
+
     // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('jbwos-capacity-update', {
@@ -106,6 +125,17 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
 
 
+
+    // Create a filtered ViewModel wrapper for child components
+    const filteredVM = {
+        ...vm,
+        gdbActive: inboxItems,
+        gdbIntent: pendingItems,
+        gdbPreparation: waitingItems,
+        todayCandidates: todayCandidates,
+        todayCommits: todayCommits,
+        // Ensure all filtered lists are passed correctly
+    };
 
     const { joinedTenants } = useAuth();
 
@@ -218,7 +248,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     onItemClick={(item) => setSelectedItem(item)}
                                 />
                             ) : viewMode === 'newspaper' ? (
-                                <NewspaperBoard viewModel={vm} activeProject={activeProject} onOpenItem={setSelectedItem} />
+                                <NewspaperBoard viewModel={filteredVM} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             ) : (
                                 <JbwosBoard
                                     initialLayoutMode="panorama"
@@ -288,7 +318,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     icon={<BarChart2 size={14} />}
                                 />
                                 <QuickInputWidget
-                                    viewModel={vm}
+                                    viewModel={filteredVM}
                                     projectContext={activeProject ? {
                                         id: activeProject.cloudId || String(activeProject.id),
                                         title: activeProject.title,

@@ -10,6 +10,7 @@ export type ScheduleItem = {
     id: number;
     projectId: number;
     projectTitle: string;
+    tenantId?: string; // [NEW]
     title: string;
     status: 'design' | 'production' | 'completed'; // mapped from todo/doing/done for tasks
     startDate?: Date;
@@ -27,22 +28,38 @@ export const ScheduleBoard: React.FC = () => {
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
+    // Filter Logic
+    const [filterMode, setFilterMode] = useState<string>(() => localStorage.getItem('jbwos_global_filter') || 'all');
+    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+
+    useEffect(() => {
+        const handleFilterChange = (e: CustomEvent) => {
+            if (e.detail?.mode) setFilterMode(e.detail.mode);
+            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
+        };
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+    }, []);
+
     const loadData = async () => {
         const projects = await db.projects.toArray();
         const doors = await db.doors.toArray();
         const tasks = await db.tasks.toArray();
 
-        const projectMap = new Map(projects.map(p => [p.id!, p.title || p.name]));
+        // Map projectId -> { title, tenantId }
+        const projectMap = new Map(projects.map(p => [p.id!, { title: p.title || p.name, tenantId: p.tenantId }]));
 
         const mappedItems: ScheduleItem[] = [];
 
         // Map Doors
         doors.forEach(d => {
+            const proj = projectMap.get(d.projectId);
             mappedItems.push({
                 type: 'door',
                 id: d.id!,
                 projectId: d.projectId,
-                projectTitle: projectMap.get(d.projectId) || 'Unknown',
+                projectTitle: proj?.title || 'Unknown',
+                tenantId: proj?.tenantId,
                 title: d.name,
                 status: d.status || 'design',
                 startDate: d.startDate,
@@ -57,11 +74,13 @@ export const ScheduleBoard: React.FC = () => {
             if (t.status === 'doing') status = 'production';
             if (t.status === 'done') status = 'completed';
 
+            const proj = projectMap.get(t.projectId);
             mappedItems.push({
                 type: 'task',
                 id: t.id!,
                 projectId: t.projectId,
-                projectTitle: projectMap.get(t.projectId) || 'Unknown',
+                projectTitle: proj?.title || 'Unknown',
+                tenantId: proj?.tenantId,
                 title: t.title,
                 status: status,
                 dueDate: t.dueDate,
@@ -87,6 +106,17 @@ export const ScheduleBoard: React.FC = () => {
             await db.tasks.update(item.id, { status: taskStatus });
         }
     };
+
+    const filteredItems = items.filter(item => {
+        // Hide Completed
+        if (hideCompleted && item.status === 'completed') return false;
+
+        // Filter Mode
+        if (filterMode === 'personal' && item.tenantId) return false;
+        if (filterMode === 'company' && !item.tenantId) return false;
+
+        return true;
+    });
 
     return (
         <div className="h-full flex flex-col">
@@ -130,13 +160,13 @@ export const ScheduleBoard: React.FC = () => {
                                     {col.label}
                                 </div>
                                 <span className="bg-slate-900 px-2 py-0.5 rounded text-xs opacity-70">
-                                    {items.filter(i => i.status === col.id).length}
+                                    {filteredItems.filter(i => i.status === col.id).length}
                                 </span>
                             </div>
 
                             {/* Column Content */}
                             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                                {items.filter(i => i.status === col.id).map(item => (
+                                {filteredItems.filter(i => i.status === col.id).map(item => (
                                     <div key={`${item.type}-${item.id}`} className="bg-slate-800 border border-slate-700 p-3 rounded shadow hover:border-slate-500 transition-colors group relative">
                                         <div className="text-[10px] text-slate-500 uppercase flex justify-between">
                                             <span>{item.projectTitle}</span>
@@ -195,7 +225,7 @@ export const ScheduleBoard: React.FC = () => {
 
                                     </div>
                                 ))}
-                                {items.filter(i => i.status === col.id).length === 0 && (
+                                {filteredItems.filter(i => i.status === col.id).length === 0 && (
                                     <div className="text-center text-slate-600 text-sm mt-10">No Items</div>
                                 )}
                             </div>
@@ -204,7 +234,7 @@ export const ScheduleBoard: React.FC = () => {
                 </div>
             ) : (
                 <div className="flex-1 overflow-hidden">
-                    <GanttChart items={items} />
+                    <GanttChart items={filteredItems} />
                 </div>
             )}
         </div>

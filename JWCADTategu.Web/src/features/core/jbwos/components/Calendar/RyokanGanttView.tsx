@@ -284,10 +284,27 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             >
                 <div className="min-w-max pb-32">
                     {transformedGroupedItems.map(group => (
-                        <div key={group.projectId}>
+                        <div
+                            key={group.projectId}
+                            onWheel={(e) => {
+                                // Wheel Customization:
+                                // Left Column (Title) -> Vertical Scroll (Default)
+                                // Right Column (Chart) -> Horizontal Scroll
+                                const TITLE_WIDTH = 256; // w-64 = 16rem = 256px
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const x = e.clientX - rect.left;
+
+                                if (x > TITLE_WIDTH) {
+                                    if (scrollContainerRef.current) {
+                                        scrollContainerRef.current.scrollLeft += e.deltaY;
+                                        e.preventDefault();
+                                    }
+                                }
+                            }}
+                        >
                             {/* Project Header */}
                             {group.projectName !== "Inbox (未分類)" && (
-                                <div className="sticky left-0 z-10 bg-slate-100 dark:bg-slate-800 px-4 py-1.5 text-xs font-bold text-slate-500 border-y border-white dark:border-slate-700 shadow-sm">
+                                <div className="sticky left-0 z-20 w-64 min-w-[16rem] bg-slate-100 dark:bg-slate-800 px-4 py-1.5 text-xs font-bold text-slate-500 border-y border-white dark:border-slate-700 shadow-sm">
                                     {group.projectName}
                                 </div>
                             )}

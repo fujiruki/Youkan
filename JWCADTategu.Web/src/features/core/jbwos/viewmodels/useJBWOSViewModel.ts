@@ -298,25 +298,38 @@ export const useJBWOSViewModel = (projectId?: string) => {
         });
 
         try {
+            // [FIX] Sanitize payload before sending to API
+            // Remove UI-only fields that might cause 500 errors on strict backend
+            let apiUpdates: any = {};
+            if (updates) {
+                const { projectTitle, tenantName, ...rest } = updates as any;
+                apiUpdates = rest;
+
+                // Ensure IDs are null if falsy but present (clearing)
+                if ('projectId' in apiUpdates && !apiUpdates.projectId) apiUpdates.projectId = null;
+                if ('tenantId' in apiUpdates && !apiUpdates.tenantId) apiUpdates.tenantId = null;
+                if ('assignedTo' in apiUpdates && !apiUpdates.assignedTo) apiUpdates.assignedTo = null;
+            }
+
             // [FIX] Apply updates FIRST
-            if (updates && Object.keys(updates).length > 0) {
-                await getRepository().updateItem(targetId, updates);
+            if (Object.keys(apiUpdates).length > 0) {
+                await getRepository().updateItem(targetId, apiUpdates);
             }
 
             // [FIX] Status logic
             if (decision === 'hold') {
-                await getRepository().updateItem(targetId, { ...updates, status: 'pending' });
+                await getRepository().updateItem(targetId, { ...apiUpdates, status: 'pending' });
             } else if (decision === 'yes') {
                 await getRepository().updateItem(targetId, {
-                    ...updates,
+                    ...apiUpdates,
                     status: 'focus',
                     flags: { ...(updates?.flags || {}), is_today_commit: true }
                 });
             } else if (decision === 'no' && (note === 'someday' || note === 'intent')) {
                 // [NEW] Someday -> Pending (Shelf)
-                await getRepository().updateItem(targetId, { ...updates, status: 'pending' });
+                await getRepository().updateItem(targetId, { ...apiUpdates, status: 'pending' });
             } else {
-                await getRepository().updateItem(targetId, { ...updates, status: 'done' });
+                await getRepository().updateItem(targetId, { ...apiUpdates, status: 'done' });
             }
 
             refreshAll();
@@ -961,8 +974,17 @@ export const useJBWOSViewModel = (projectId?: string) => {
         // This ensures projects can be updated just like any other item.
         const targetId = id.replace('virtual-header-', '');
 
+        // [FIX] Sanitize payload before sending to API
+        // Remove UI-only fields that might cause 500 errors on strict backend
+        const { projectTitle, tenantName, ...apiUpdates } = updates as any;
+
+        // Ensure IDs are null if falsy but present (clearing)
+        if ('projectId' in apiUpdates && !apiUpdates.projectId) apiUpdates.projectId = null;
+        if ('tenantId' in apiUpdates && !apiUpdates.tenantId) apiUpdates.tenantId = null;
+        if ('assignedTo' in apiUpdates && !apiUpdates.assignedTo) apiUpdates.assignedTo = null;
+
         try {
-            await getRepository().updateItem(targetId, updates);
+            await getRepository().updateItem(targetId, apiUpdates);
             // [NEW] If project status changed, refresh the projects list so headers update
             if ('isProject' in updates) {
                 await refreshContextMetadata();

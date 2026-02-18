@@ -49,13 +49,40 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 }) => {
     const vm = useJBWOSViewModel(projectId);
     const {
-        gdbActive,
-        gdbPreparation,
-        gdbIntent,
+        gdbActive: rawGdbActive,
+        gdbPreparation: rawGdbPreparation,
+        gdbIntent: rawGdbIntent,
+        gdbLog: rawGdbLog,
         ghostGdbCount,
         ghostTodayCount,
         allProjects // [NEW] Needed for logic
     } = vm;
+
+    // Filter Logic
+    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+
+    useEffect(() => {
+        const handleFilterChange = (e: CustomEvent) => {
+            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
+        };
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+    }, []);
+
+    const filterItem = (item: Item) => {
+        if (hideCompleted && item.status === 'done') return false;
+        if (!projectId) {
+            if (vm.filterMode === 'personal' && item.tenantId) return false;
+            if (vm.filterMode === 'company' && !item.tenantId) return false;
+        }
+        return true;
+    };
+
+    const gdbActive = rawGdbActive.filter(filterItem);
+    const gdbPreparation = rawGdbPreparation.filter(filterItem);
+    const gdbIntent = rawGdbIntent.filter(filterItem);
+    const gdbLog = rawGdbLog.filter(filterItem);
+
     const [activeId, setActiveId] = useState<string | null>(null);
     const { joinedTenants } = useAuth(); // [RESTORED]
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
@@ -139,10 +166,10 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
     // --- Find Container Helper ---
     const findContainer = (id: string) => {
         if (['active', 'waiting', 'pending', 'log', 'life', 'history'].includes(id)) return id;
-        if (vm.gdbActive.find(i => i.id === id)) return 'active';
-        if (vm.gdbPreparation.find(i => i.id === id)) return 'waiting';
-        if (vm.gdbIntent.find(i => i.id === id)) return 'pending';
-        if (vm.gdbLog.find(i => i.id === id)) return 'log';
+        if (gdbActive.find(i => i.id === id)) return 'active';
+        if (gdbPreparation.find(i => i.id === id)) return 'waiting';
+        if (gdbIntent.find(i => i.id === id)) return 'pending';
+        if (gdbLog.find(i => i.id === id)) return 'log';
         return null;
     };
 
@@ -201,7 +228,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 
     // --- Find Active Item Helper ---
     const findItem = (id: string) => {
-        return [...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbLog].find(i => i.id === id);
+        return [...gdbActive, ...gdbPreparation, ...gdbLog].find(i => i.id === id);
     };
     const activeItem = activeId ? findItem(activeId) : null;
 
@@ -583,7 +610,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
                                 <BucketColumn
                                     id="log"
                                     title="【履歴】"
-                                    items={vm.gdbLog}
+                                    items={gdbLog}
                                     description="完了・断った記録。"
                                     className={layoutMode === 'panorama' ? "p-2" : "w-full border-t border-slate-200 dark:border-slate-800 pt-4"}
                                     emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}

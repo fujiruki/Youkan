@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2 } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, CheckSquare, Square, Filter } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 import { MenuDrawer } from './MenuDrawer';
@@ -74,6 +74,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         return (saved as FilterMode) || 'all';
     });
 
+    const [hideCompleted, setHideCompleted] = useState(() => {
+        return localStorage.getItem('jbwos_hide_completed') === 'true';
+    });
+
     const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
 
     // Dashboard用のビューモード状態
@@ -91,11 +95,14 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         localStorage.getItem('jbwos_calendar_view_mode') || 'gantt'
     );
 
-    // Persist filter mode
+    // Persist filter mode & hideCompleted
     useEffect(() => {
         localStorage.setItem('jbwos_global_filter', filterMode);
-        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
-    }, [filterMode]);
+        localStorage.setItem('jbwos_hide_completed', String(hideCompleted));
+        window.dispatchEvent(new CustomEvent('jbwos-filter-change', {
+            detail: { mode: filterMode, hideCompleted }
+        }));
+    }, [filterMode, hideCompleted]);
 
     // Listen for updates from screens
     useEffect(() => {
@@ -269,15 +276,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Filter */}
-                    <div className="flex items-center gap-1.5 pl-2 border-l border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">フィルタ</span>
-                        <div className="flex items-center bg-slate-800 p-0.5 rounded-md border border-slate-700">
-                            <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全て" />
-                            <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個人" />
-                            <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会社" />
-                        </div>
-                    </div>
+                    {/* Filter (Moved to 2nd row) */}
                 </div>
 
 
@@ -306,65 +305,99 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 </div>
             </div>
 
-            {/* 層2: ナビゲーションバー (Navigation Bar) - 構造化ナビゲーションバー (垂直区切り) */}
-            <div className="bg-slate-800 text-slate-300 px-6 py-2 border-b border-slate-700/50 w-full shadow-xl z-40 overflow-x-auto no-scrollbar">
-                <div className="flex items-stretch gap-0 min-w-max">
+            {/* 層2: ナビゲーションバー (Navigation Bar) */}
+            <div className="bg-slate-800 text-slate-300 px-6 py-2 border-b border-slate-700/50 w-full shadow-xl z-40 relative">
+                <div className="flex flex-wrap items-center justify-between gap-y-2">
 
-                    {/* ダッシュボード Section */}
-                    <NavSection title="ダッシュボード" isActive={isDashboard} icon={<LayoutDashboard size={14} />}>
-                        <div className="flex gap-1">
-                            <SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
-                            <SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
-                            <SubNavTab label="全体一覧2" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
-                        </div>
-                    </NavSection>
+                    {/* Left: Navigations */}
+                    <div className="flex items-stretch gap-0 overflow-x-auto no-scrollbar">
 
-                    <Separator />
+                        {/* ダッシュボード Section */}
+                        <NavSection title="ダッシュボード" isActive={isDashboard} icon={<LayoutDashboard size={14} />}>
+                            <div className="flex gap-1">
+                                <SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
+                                <SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
+                                <SubNavTab label="全体一覧2" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
+                            </div>
+                        </NavSection>
 
-                    {/* プロジェクト Section */}
-                    <NavSection title="プロジェクト" isActive={isProjects} icon={<FolderKanban size={14} />}>
-                        <div className="flex gap-1 items-center">
-                            <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => onNavigateToProjects('personal')} />
-                            <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => onNavigateToProjects('company')} />
+                        <Separator />
 
-                            {isProjects && (
-                                <div className="flex items-center bg-slate-900/50 p-0.5 rounded ml-2 border border-slate-700/50">
-                                    <button
-                                        onClick={() => handleProjectViewChange('grid')}
-                                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                                    >
-                                        グリッド
-                                    </button>
-                                    <button
-                                        onClick={() => handleProjectViewChange('list')}
-                                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                                    >
-                                        リスト
-                                    </button>
+                        {/* プロジェクト Section */}
+                        <NavSection title="プロジェクト" isActive={isProjects} icon={<FolderKanban size={14} />}>
+                            <div className="flex gap-1 items-center">
+                                <SubNavTab label="個人" isActive={isProjects && filterMode === 'personal'} onClick={() => onNavigateToProjects('personal')} />
+                                <SubNavTab label="会社" isActive={isProjects && filterMode === 'company'} onClick={() => onNavigateToProjects('company')} />
+
+                                {isProjects && (
+                                    <div className="flex items-center bg-slate-900/50 p-0.5 rounded ml-2 border border-slate-700/50 hidden md:flex">
+                                        <button
+                                            onClick={() => handleProjectViewChange('grid')}
+                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                        >
+                                            グリッド
+                                        </button>
+                                        <button
+                                            onClick={() => handleProjectViewChange('list')}
+                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${projectViewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                        >
+                                            リスト
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </NavSection>
+
+                        <Separator />
+
+                        <NavSection title="カレンダー" isActive={isCalendar} icon={<CalendarDays size={14} />}>
+                            <div className="flex gap-1">
+                                <SubNavTab label="グリッド" isActive={isCalendar && calendarViewMode === 'grid'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('grid'); }} />
+                                <SubNavTab label="タイムライン" isActive={isCalendar && calendarViewMode === 'timeline'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('timeline'); }} />
+                                <SubNavTab label="ガント" isActive={isCalendar && calendarViewMode === 'gantt'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('gantt'); }} />
+                            </div>
+                        </NavSection>
+                    </div>
+
+                    {/* Center & Right Combined Group */}
+                    <div className="flex items-center gap-4 ml-auto pl-2">
+                        {/* Filters & Controls (Previously Center) */}
+                        <div className="flex items-center gap-4">
+                            {/* Filter */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 opacity-50 hidden md:flex">
+                                    <Filter size={12} />
                                 </div>
-                            )}
+                                <div className="flex items-center bg-slate-900/80 p-0.5 rounded-lg border border-slate-700/50 shadow-inner">
+                                    <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全て" />
+                                    <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個人" />
+                                    <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会社" />
+                                </div>
+                            </div>
+
+                            {/* Hide Completed Toggle */}
+                            <button
+                                onClick={() => setHideCompleted(!hideCompleted)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${hideCompleted
+                                    ? 'bg-indigo-900/30 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
+                                    : 'bg-slate-900/50 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                {hideCompleted ? <CheckSquare size={14} className="text-indigo-400" /> : <Square size={14} />}
+                                <span className="text-[11px] font-bold hidden md:inline">完了非表示</span>
+                            </button>
                         </div>
-                    </NavSection>
 
-                    <Separator />
-
-                    <NavSection title="カレンダー" isActive={isCalendar} icon={<CalendarDays size={14} />}>
-                        <div className="flex gap-1">
-                            <SubNavTab label="グリッド" isActive={isCalendar && calendarViewMode === 'grid'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('grid'); }} />
-                            <SubNavTab label="タイムライン" isActive={isCalendar && calendarViewMode === 'timeline'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('timeline'); }} />
-                            <SubNavTab label="ガント" isActive={isCalendar && calendarViewMode === 'gantt'} onClick={() => { onNavigateToCalendar?.(); handleCalendarViewChange('gantt'); }} />
+                        {/* Right Action: 新プロジェクト */}
+                        <div className="flex items-center">
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('jbwos-open-project-modal'))}
+                                className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all font-bold text-xs ring-1 ring-white/10"
+                            >
+                                <Plus size={16} strokeWidth={3} />
+                                <span className="hidden md:inline">新プロジェクト</span>
+                            </button>
                         </div>
-                    </NavSection>
-
-                    {/* Right Action: 新プロジェクト */}
-                    <div className="ml-auto pl-8 flex items-center">
-                        <button
-                            onClick={() => window.dispatchEvent(new CustomEvent('jbwos-open-project-modal'))}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all font-bold text-xs ring-1 ring-white/10"
-                        >
-                            <Plus size={16} strokeWidth={3} />
-                            <span>新プロジェクト</span>
-                        </button>
                     </div>
 
                 </div>
@@ -380,8 +413,8 @@ const NavSection: React.FC<{
     icon: React.ReactNode;
     children: React.ReactNode;
 }> = ({ title, isActive, icon, children }) => (
-    <div className={`px-6 flex flex-col gap-1.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}>
-        <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-indigo-400' : 'text-slate-400'}`}>
+    <div className={`px-2 md:px-6 flex flex-col gap-1.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}>
+        <div className={`hidden md:flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-indigo-400' : 'text-slate-400'}`}>
             {icon}
             <span>{title}</span>
         </div>

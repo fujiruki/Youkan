@@ -5,12 +5,33 @@ import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
 import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate, LayoutList, KanbanSquare } from 'lucide-react'; // [NEW] Icons
 import { ScheduleBoard } from '../../features/plugins/tategu/screens/ScheduleBoard';
+import { FilterMode } from '../../features/core/jbwos/types';
 // import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
 export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'projects' | 'schedule'>('projects');
+
+    // Filter Logic
+    const [filterMode, setFilterMode] = useState<FilterMode>(() => (localStorage.getItem('jbwos_global_filter') as FilterMode) || 'all');
+    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+
+    useEffect(() => {
+        const handleFilterChange = (e: CustomEvent) => {
+            if (e.detail?.mode) setFilterMode(e.detail.mode);
+            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
+        };
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+    }, []);
+
+    const filteredProjects = projects.filter(p => {
+        if (hideCompleted && p.isArchived) return false;
+        if (filterMode === 'personal') return !p.tenantId;
+        if (filterMode === 'company') return !!p.tenantId;
+        return true;
+    });
 
     // Project Detail View State
     // const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -140,7 +161,7 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; on
                     </div>
 
                     {/* Project Cards */}
-                    {projects.map(p => (
+                    {filteredProjects.map(p => (
                         <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative group hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-900/10 transition-all">
                             <div className="cursor-pointer h-full flex flex-col" onClick={() => onOpenProject(p)}>
                                 <div className="flex items-start justify-between mb-4">
