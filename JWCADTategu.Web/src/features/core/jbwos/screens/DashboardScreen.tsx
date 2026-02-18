@@ -87,8 +87,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         getSubTasks,
         skipTask,
         setEngaged,
-        // currentUserId, // [Unused]
-        // joinedTenants: vmJoinedTenants, // [Unused in Quantity Mode]
+        currentUserId,
+        joinedTenants,
         members,
         capacityConfig,
         allProjects
@@ -140,7 +140,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         // Ensure all filtered lists are passed correctly
     };
 
-    const { joinedTenants } = useAuth();
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
         const saved = localStorage.getItem('jbwos_gantt_row_height');
@@ -242,6 +241,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     capacityConfig={capacityConfig}
                                     projects={allProjects}
                                     joinedTenants={joinedTenants}
+                                    currentUserId={currentUserId}
                                     displayMode="gantt"
                                     filterMode={filterMode}
                                     onDateClick={(d) => {
@@ -453,6 +453,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     quantityItems={allItemsForCalendar}
                     filterMode={filterMode}
                     capacityConfig={capacityConfig} // [FIX] Pass capacity config for allocation calculation
+                    currentUserId={vm.currentUserId}
                 />
             )}
 

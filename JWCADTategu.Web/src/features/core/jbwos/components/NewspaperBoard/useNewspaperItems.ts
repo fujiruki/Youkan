@@ -115,7 +115,7 @@ export const useNewspaperItems = (viewModel: JBWOSViewModel, activeProject?: any
             if (seenIds.has(item.id)) return false;
             seenIds.add(item.id);
             if (item.isProject) return false;
-            // if (item.isArchived) return false; // Maybe show archived? No.
+            if (item.isArchived) return false; // [FIX] Filter out archived
             // if (item.deletedAt) return false;
 
             // [FIX] Project Focused Filtering (including descendants + dual ID format support)

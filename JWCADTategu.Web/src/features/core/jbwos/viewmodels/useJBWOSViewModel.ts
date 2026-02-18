@@ -439,6 +439,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
         setGdbActive(prev => filter(prev));
         setGdbPreparation(prev => filter(prev));
         setGdbIntent(prev => filter(prev));
+        setGdbLog(prev => filter(prev)); // [FIX] NewspaperView反映漏れ
+        setAllProjects(prev => filter(prev)); // [FIX] プロジェクト一覧反映
         setTodayCandidates(prev => filter(prev));
         setTodayCommits(prev => filter(prev));
         if (executionItem?.id === id || executionItem?.id === targetId) setExecutionItem(null);

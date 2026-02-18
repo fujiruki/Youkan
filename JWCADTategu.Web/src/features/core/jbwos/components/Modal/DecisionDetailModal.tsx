@@ -29,6 +29,7 @@ interface DecisionDetailModalProps {
     quantityItems?: Item[];
     filterMode?: FilterMode;
     capacityConfig?: CapacityConfig;
+    currentUserId?: string | null;
     // yesButtonLabel?: string; // Unused
     initialFocus?: 'date';
 }
@@ -36,7 +37,7 @@ interface DecisionDetailModalProps {
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onGetSubTasks,
     onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
-    quantityItems = [], filterMode = 'all', capacityConfig,
+    quantityItems = [], filterMode = 'all', capacityConfig, currentUserId
     // yesButtonLabel // Unused
 }) => {
     const [history, setHistory] = React.useState<Item[]>([]);
@@ -301,11 +302,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
         if (decision === 'yes') {
             const todayStr = format(new Date(), 'yyyy-MM-dd');
+            // Ensure confirmed status and date if it's the primary "Do Today" action
             if (!updates.due_date && !item.due_date) {
                 updates.due_date = todayStr;
                 updates.dueStatus = 'confirmed';
+            } else {
+                updates.dueStatus = 'confirmed';
             }
         }
+
         onDecision(item.id, decision, note, updates);
     };
 
@@ -601,6 +606,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 capacityConfig={capacityConfig}
                                 projects={allProjects}
                                 joinedTenants={joinedTenants}
+                                currentUserId={currentUserId}
                                 commitPeriod={commitPeriodDates}
                             />
                         </div>
@@ -749,8 +755,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 <span className="text-[10px] text-slate-400">手入力:</span>
                                 <input
                                     type="number"
-                                    value={estimatedMinutes / 60}
-                                    onChange={e => setEstimatedMinutes(Number(e.target.value) * 60)}
+                                    value={estimatedMinutes === 0 ? '' : estimatedMinutes / 60}
+                                    onChange={e => {
+                                        const hrs = Number(e.target.value);
+                                        const mins = hrs * 60;
+                                        setEstimatedMinutes(mins);
+                                        // Sync workDays for GDB/Gantt consistency
+                                        const baseMinutes = capacityConfig?.defaultDailyMinutes || 480;
+                                        setWorkDays(mins / baseMinutes);
+                                        setIsWorkDaysDirty(true);
+                                    }}
+                                    onFocus={e => e.target.select()}
                                     className="w-12 bg-transparent border-b border-slate-200 text-right text-xs font-mono focus:outline-none focus:border-amber-400 transition-colors"
                                     placeholder="0"
                                 />
@@ -908,7 +923,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                     {/* Hold Button */}
                     <button
-                        onClick={() => onDecision(item.id, 'hold', note)}
+                        onClick={() => handleDecisionWithSave('hold')}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-xs"
                     >
                         <PauseCircle size={16} />
@@ -917,19 +932,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                     {/* Primary: Do Today */}
                     <button
-                        onClick={() => {
-                            // Set Due Date to Today and Status to Confirmed
-                            const todayStr = format(new Date(), 'yyyy-MM-dd');
-                            setDueDate(todayStr);
-                            setDueStatus('confirmed');
-                            const updates: Partial<Item> = { due_date: todayStr, dueStatus: 'confirmed' };
-                            if (onUpdate) onUpdate(item.id, updates);
-                            else ApiClient.updateItem(item.id, updates);
-
-                            // Close or notify? For now, maybe just set it. Or close?
-                            // Typically "Do Today" implies a decision is made.
-                            onDecision(item.id, 'yes', note, updates);
-                        }}
+                        onClick={() => handleDecisionWithSave('yes')}
                         className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all font-bold text-xs"
                     >
                         <CheckCircle2 size={16} />

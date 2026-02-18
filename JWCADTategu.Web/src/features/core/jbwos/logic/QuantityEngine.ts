@@ -181,9 +181,7 @@ export class QuantityEngine {
                 }
             } else {
                 // I am logged in as a Company (Corporate Identity)
-                // Vision: Total load of this business entity
-                // If company account, it's always bound to a tenantId (me)
-                return item.tenantId === me;
+                return item.tenantId === me || !item.tenantId; // [FIX] Show Private tasks load even in Company mode
             }
         });
 
@@ -266,16 +264,29 @@ export class QuantityEngine {
                 return val;
             }
 
-            if (isHol) {
-                console.log(`[QuantityEngine] Capacity Skip (Holiday): date=${dateKey}`);
-                return 0;
-            }
-
             const companyPattern = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
             if (companyPattern && companyPattern[targetId] !== undefined) {
                 const val = companyPattern[targetId];
+
+                // [NEW] If company pattern is set (>0), allow it even if it's a weekly holiday.
+                // However, specific holiday exceptions (like National Holidays) still take precedence.
+                if (val > 0 && isHol) {
+                    const isSpecificException = capacityConfig.exceptions?.[dateKey] === 0;
+                    if (isSpecificException) {
+                        console.log(`[QuantityEngine] Capacity Blocked (Specific Holiday Exception): date=${dateKey}`);
+                        return 0;
+                    }
+                    console.log(`[QuantityEngine] Capacity Match (Company Weekly Override of Weekly Holiday): date=${dateKey}, tenant=${targetId}, val=${val}`);
+                    return val;
+                }
+
                 console.log(`[QuantityEngine] Capacity Match (Company Weekly): date=${dateKey}, tenant=${targetId}, val=${val}`);
                 return val;
+            }
+
+            if (isHol) {
+                console.log(`[QuantityEngine] Capacity Skip (Holiday): date=${dateKey}`);
+                return 0;
             }
 
             // 【重要】特定の組織 ID が指定された（フィルタ中 or アイテム所属）が、その組織に設定がない場合、

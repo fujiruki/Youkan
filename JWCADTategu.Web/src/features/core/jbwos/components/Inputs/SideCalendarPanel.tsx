@@ -20,6 +20,7 @@ interface SideCalendarPanelProps {
     capacityConfig?: any;
     projects?: any[];
     joinedTenants?: any[];
+    currentUserId?: string | null;
     commitPeriod?: Date[];
 }
 
@@ -31,7 +32,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
     targetMode = 'due',
     filterMode = 'all',
     className,
-    items, members, capacityConfig, projects, joinedTenants, commitPeriod
+    items, members, capacityConfig, projects, joinedTenants, currentUserId, commitPeriod
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -62,6 +63,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     capacityConfig={capacityConfig}
                     projects={projects}
                     joinedTenants={joinedTenants}
+                    currentUserId={currentUserId}
                     targetItemId={currentItem?.id}
                     commitPeriod={commitPeriod}
                     focusDate={manualFocusDate} // [NEW] Pass manual focus

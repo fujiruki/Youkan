@@ -584,7 +584,8 @@ export const JBWOSRepository = {
                 if (data.status) updates.judgmentStatus = data.status;
                 if (data.title) updates.name = data.title;
                 if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
-                if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes; // [FIX] Added mapping
+                if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes;
+                if (data.work_days !== undefined) updates.man_hours = data.work_days; // [FIX] Added mapping
 
                 updates.updatedAt = new Date(); // Legacy might expect Date object.
                 await db.doors.update(doorId, updates);
@@ -689,6 +690,8 @@ async function convertDoorToItem(door: Door): Promise<Item> {
         thumbnail: door.thumbnail,
         createdAt: new Date(door.createdAt).getTime(), // Robust conversion
         updatedAt: new Date(door.updatedAt).getTime(), // Robust conversion
+        estimatedMinutes: door.estimatedWorkMinutes || 0, // [FIX] Added mapping
+        work_days: door.man_hours || 1, // [FIX] Added mapping
         memo: door.tag + (project ? ` @${project.name}` : ''),
         focusOrder: 0,
         isEngaged: false

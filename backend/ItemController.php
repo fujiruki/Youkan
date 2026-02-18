@@ -659,7 +659,8 @@ class ItemController extends BaseController {
             'prep_date', 'parent_id', 'is_project', 'project_category', 
             'estimated_minutes', 'assigned_to', 'project_id', 'project_type', 
             'client_name', 'gross_profit_target', 'tenant_id', 'is_archived', 
-            'deleted_at', 'focus_order', 'is_intent', 'due_status', 'delegation'
+            'deleted_at', 'focus_order', 'is_intent', 'due_status', 'delegation',
+            'work_days'
         ];
 
         $result = $this->updateEntity('items', $id, $allowedFields);

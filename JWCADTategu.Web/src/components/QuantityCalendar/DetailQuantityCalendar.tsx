@@ -1,6 +1,7 @@
 import React from 'react';
 import { Item, Member, CapacityConfig, FilterMode, JoinedTenant } from '../../features/core/jbwos/types';
 import { RyokanCalendar } from '../../features/core/jbwos/components/Calendar/RyokanCalendar';
+import { cn } from '../../lib/utils';
 
 interface DetailQuantityCalendarProps {
     item: { id: string; isPrivate?: boolean; title?: string } | null;
@@ -14,6 +15,7 @@ interface DetailQuantityCalendarProps {
     capacityConfig?: CapacityConfig;
     projects?: Item[];
     joinedTenants?: JoinedTenant[];
+    currentUserId?: string | null;
     targetItemId?: string;
     commitPeriod?: Date[];
     focusDate?: Date | null; // [NEW] Allow external control of focus
@@ -30,6 +32,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
     capacityConfig,
     projects = [],
     joinedTenants = [],
+    currentUserId,
     targetItemId,
     commitPeriod,
     focusDate
@@ -37,21 +40,62 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
     // [NEW] Local Volume Only Toggle
     const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
 
+    // [NEW] Local Filter Mode with auto-selection logic
+    const [filterMode, setFilterMode] = React.useState<FilterMode>(() => {
+        // Default based on item ownership: No tenantId means personal
+        if (_item) {
+            const isPersonal = _item.isPrivate === true || !_item.tenantId;
+            return isPersonal ? 'personal' : 'company';
+        }
+        return globalFilter;
+    });
+
+    // Handle item changes to re-sync filter if needed
+    React.useEffect(() => {
+        if (_item) {
+            const isPersonal = _item.isPrivate === true || !_item.tenantId;
+            setFilterMode(isPersonal ? 'personal' : 'company');
+        }
+    }, [_item?.id, _item?.isPrivate, _item?.tenantId]);
+
     return (
         <div className="flex flex-col w-full h-full border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
             {/* Minimal Header with Toggle */}
             <div className="flex items-center justify-between px-2 py-1 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Calendar Mode
-                </span>
+                <div className="flex items-center gap-1">
+                    {/* [NEW] Filter Buttons (All / Personal / Company) */}
+                    <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-0.5 shadow-sm scale-90 origin-left">
+                        {[
+                            { id: 'all', label: '全て' },
+                            { id: 'personal', label: '個人' },
+                            { id: 'company', label: '会社' }
+                        ].map((m) => (
+                            <button
+                                key={m.id}
+                                onClick={() => setFilterMode(m.id as FilterMode)}
+                                className={cn(
+                                    "px-2 py-0.5 text-[10px] font-black rounded transition-all",
+                                    filterMode === m.id
+                                        ? "bg-indigo-600 text-white shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                {m.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <button
                     onClick={() => setIsVolumeOnly(!isVolumeOnly)}
-                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors font-bold ${isVolumeOnly
-                        ? 'bg-indigo-100 text-indigo-600 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800'
-                        : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                        }`}
+                    className={cn(
+                        "text-[9px] px-1.5 py-0.5 rounded border transition-colors font-bold tracking-tighter",
+                        isVolumeOnly
+                            ? 'bg-indigo-100 text-indigo-600 border-indigo-200'
+                            : 'bg-white text-slate-400 border-slate-200 shadow-sm'
+                    )}
                 >
-                    {isVolumeOnly ? 'Volume Only' : 'Detailed'}
+                    {isVolumeOnly ? 'VOL ONLY' : 'DETAIL'}
                 </button>
             </div>
 
@@ -62,10 +106,11 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                     capacityConfig={capacityConfig}
                     projects={projects}
                     joinedTenants={joinedTenants}
+                    currentUserId={currentUserId || localStorage.getItem('jbwos_account_id')}
 
                     layoutMode="mini"
                     displayMode="grid"
-                    filterMode={globalFilter}
+                    filterMode={filterMode} // Use localized filterMode
 
                     selectedDate={selectedDate} // Due Date (Red)
                     prepDate={prepDate}         // My Deadline (Blue)

@@ -206,6 +206,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
         return hMap;
     }, [metrics]);
 
+    const effectiveUserId = useMemo(() => currentUserId || localStorage.getItem('jbwos_account_id'), [currentUserId]);
+
     const renderItemTitle = (item: Item) => {
         const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
 
@@ -218,8 +220,9 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
 
         // [Relaxed Privacy Logic]
         // Check if item belongs to a tenant the user is a member of
-        if (String(item.createdBy) === String(currentUserId) ||
-            String(item.assignedTo) === String(currentUserId) ||
+        if (!effectiveUserId ||
+            String(item.createdBy) === String(effectiveUserId) ||
+            String(item.assignedTo) === String(effectiveUserId) ||
             isProjectContext) {
             return title;
         }
