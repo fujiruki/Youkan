@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Project } from '../../types';
+import { Project, Member } from '../../types';
+import { ApiClient } from '../../../../../api/client';
 
 export interface ProjectCreationContext {
     parentProject?: Project | null;
@@ -19,7 +20,40 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
     const [grossProfitTarget, setGrossProfitTarget] = useState('0');
     const [color, setColor] = useState('#6366f1');
     const [selectedTenantId, setSelectedTenantId] = useState('');
+    const [assignedTo, setAssignedTo] = useState<string | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // [NEW] Fetch default assignee when tenant changes
+    useEffect(() => {
+        if (!selectedTenantId) {
+            setAssignedTo(undefined);
+            return;
+        }
+
+        const fetchDefaults = async () => {
+            try {
+                // We need to fetch members for the selected tenant
+                // ApiClient.getMembers usually returns members for current tenant.
+                // If the user is selecting a DIFFERENT tenant, we might need an API for that, 
+                // OR assume they only create in tenants they are ALREADY in.
+                // JoinedTenants info doesn't contain all members.
+                // For now, if it's the current tenant, we can use ApiClient.getMembers().
+                // If it's a different one, we might need a more specific API like /tenant/:id/members.
+
+                // Assuming for now we use ApiClient.getMembers() which works for the active session context.
+                // If this VM is used in a context where they switch tenants, it might need adjustment.
+                const members = await ApiClient.getMembers();
+                const defaultMember = members.find((m: Member) => m.isDefaultAssignee);
+                if (defaultMember) {
+                    setAssignedTo(defaultMember.id);
+                }
+            } catch (e) {
+                console.error('Failed to fetch default assignee', e);
+            }
+        };
+
+        fetchDefaults();
+    }, [selectedTenantId]);
 
     // Initialize state based on context
     useEffect(() => {
@@ -30,12 +64,14 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
             setGrossProfitTarget(context.initialData.grossProfitTarget?.toString() || '0');
             setColor(context.initialData.color || '#6366f1');
             setSelectedTenantId(context.initialData.tenantId || '');
+            setAssignedTo(context.initialData.assigned_to);
             // Mode is irrelevant for editing, usually we don't change hierarchy in simple edit
             setCreationMode(context.initialData.parentId ? 'child' : 'root');
         } else if (context.parentProject) {
             setCreationMode('child');
             // If child, tenant is strictly parent's tenant
             setSelectedTenantId(context.parentProject.tenantId || '');
+            setAssignedTo(context.parentProject.assigned_to);
 
             // Should also inherit some defaults
             if (context.parentProject.clientName) {
@@ -88,6 +124,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         grossProfitTarget,
         color,
         selectedTenantId,
+        assignedTo,
         isSubmitting,
 
         // Setters
@@ -97,6 +134,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         setGrossProfitTarget,
         setColor,
         setSelectedTenantId,
+        setAssignedTo,
         setIsSubmitting,
 
         // Computed

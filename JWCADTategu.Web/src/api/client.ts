@@ -335,6 +335,7 @@ export class ApiClient {
         // Snake case conversion happens in backend or payload construction?
         const payload: any = {};
         if (updates.isCore !== undefined) payload.is_core = updates.isCore;
+        if (updates.isDefaultAssignee !== undefined) payload.is_default_assignee = updates.isDefaultAssignee;
         if (updates.dailyCapacityMinutes !== undefined) payload.daily_capacity_minutes = updates.dailyCapacityMinutes;
         if (updates.role !== undefined) payload.role = updates.role;
 

@@ -346,6 +346,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             <ChevronDown size={10} className="opacity-50" />
                                         </button>
                                     }
+                                    usePortal={true}
                                 >
                                     <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 mb-1">
                                         アカウント (Tenant)
@@ -403,6 +404,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                         </button>
                                     }
                                     width="w-64"
+                                    usePortal={true}
                                 >
                                     <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                                         プロジェクト選択
@@ -452,6 +454,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                 </YoukanDropdown>
                             </div>
+
 
                             {/* Title (Editable) */}
                             {isEditingTitle ? (
@@ -935,6 +938,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

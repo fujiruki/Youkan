@@ -102,6 +102,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 // Manufacturing Fields
                 clientName: vm.clientName || undefined,
                 color: vm.color,
+                assigned_to: vm.assignedTo,
             };
 
             const defaultTasks = selectedCategory?.defaultTasks || [];
@@ -254,9 +255,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             />
 
                             {/* Company Selection (Tenant Selector) */}
-                            {/* Shown if: Root mode AND (Company Scope implied OR Personal Account allowed to switch) */}
-                            {/* The requirement is: If Personal Account, SHOW selector. If Company Account, HIDE. */}
-                            {(vm.creationMode === 'root' && isPersonalAccount) && (
+                            {/* Relaxed condition: Show if root project and we have tenants to choose from */}
+                            {(vm.creationMode === 'root' && tenants.length > 0) && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         所属 (Owner)

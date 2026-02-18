@@ -731,9 +731,19 @@ export const useJBWOSViewModel = (projectId?: string) => {
             }
         }
 
+        // [NEW] Find Default Assignee for the tenant
+        let resolvedAssignedTo: string | undefined = undefined;
+        if (resolvedTenantId) {
+            // Check if we have members loaded for this tenant (current session members)
+            const defaultMember = members.find(m => m.isDefaultAssignee);
+            if (defaultMember) {
+                resolvedAssignedTo = defaultMember.id;
+            }
+        }
+
         // 1. Optimistic Update (Immediate Feedback)
         // [NEW] Pass initialStatus to API
-        const id = await getRepository().addItemToInbox(title, resolvedTenantId, activeProjectId || null, initialStatus);
+        const id = await getRepository().addItemToInbox(title, resolvedTenantId, activeProjectId || null, initialStatus, resolvedAssignedTo);
 
         // 2. Update Local State Manually (Optimistic-ish, Post-Creation)
         const newItem: Item = {
@@ -754,6 +764,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             tenantName, // [NEW] Optimistic Tenant Name
             projectId: activeProjectId || null, // [FIX] Use explicit null
             projectTitle, // [NEW] Optimistic Project Title
+            assignedTo: resolvedAssignedTo, // [NEW]
             focusOrder: 0,
             isEngaged: false
         };

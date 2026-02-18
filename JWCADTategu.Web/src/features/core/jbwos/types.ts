@@ -50,6 +50,7 @@ export interface Member {
     email?: string; // [Modified] Optional to prevent build break on legacy usages
     role: string;
     isCore: boolean;
+    isDefaultAssignee?: boolean; // [NEW] Default assignee for new projects/items
     dailyCapacityMinutes: number;
     capacityProfile?: CapacityProfile; // [NEW] Weekly pattern & exceptions
 }

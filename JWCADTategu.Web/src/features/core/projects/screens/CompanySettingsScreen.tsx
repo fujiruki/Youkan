@@ -9,6 +9,7 @@ interface Member {
     role: string;
     joined_at: string;
     is_core?: number | boolean;
+    is_default_assignee?: number | boolean; // [NEW]
     daily_capacity_minutes?: number;
 }
 
@@ -210,6 +211,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                     <th className="px-6 py-3 font-medium">氏名 / メール</th>
                                     <th className="px-6 py-3 font-medium">役割</th>
                                     <th className="px-6 py-3 font-medium text-center">コア</th>
+                                    <th className="px-6 py-3 font-medium text-center">デフォルト担当者</th>
                                     <th className="px-6 py-3 font-medium text-center">キャパシティ (分)</th>
                                     <th className="px-6 py-3 font-medium">参加日</th>
                                     {isAdmin && <th className="px-6 py-3 font-medium text-right">アクション</th>}
@@ -222,6 +224,7 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                             <div className="flex items-center gap-2">
                                                 <div className="font-bold text-slate-800">{member.display_name}</div>
                                                 {!!member.is_core && <Zap size={14} className="text-amber-500 fill-amber-500" />}
+                                                {!!member.is_default_assignee && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">デフォルト</span>}
                                             </div>
                                             <div className="text-xs text-slate-500">{member.email}</div>
                                         </td>
@@ -250,7 +253,6 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
                                                 <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded">
                                                     {member.daily_capacity_minutes || 480} min
                                                 </span>
-                                                <span className="text-[10px] text-slate-400 mt-1">Personal Setting</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-500">

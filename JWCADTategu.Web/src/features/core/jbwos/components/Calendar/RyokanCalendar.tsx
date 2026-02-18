@@ -216,6 +216,8 @@ export const RyokanCalendar: React.FC<RyokanCalendarProps> = ({
             title = `${title} [${shortProj}]`;
         }
 
+        // [Relaxed Privacy Logic]
+        // Check if item belongs to a tenant the user is a member of
         if (String(item.createdBy) === String(currentUserId) ||
             String(item.assignedTo) === String(currentUserId) ||
             isProjectContext) {
