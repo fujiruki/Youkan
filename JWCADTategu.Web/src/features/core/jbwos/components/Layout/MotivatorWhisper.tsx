@@ -166,9 +166,14 @@ export const MotivatorWhisper: React.FC = () => {
                             />
                         )}
 
-                        <span className={`text-[11px] font-bold font-serif italic transition-colors duration-500
-                            ${isGlowing ? 'text-emerald-600 dark:text-emerald-300' : 'text-[rgb(130,141,159)]'}
-                        `}>
+                        <span
+                            className={`text-[11px] font-bold font-serif italic transition-colors duration-500
+                                ${isGlowing ? 'text-emerald-600 dark:text-emerald-300' : ''}
+                            `}
+                            style={{
+                                color: isGlowing ? undefined : 'var(--motivator-color, rgb(210, 220, 235))'
+                            }}
+                        >
                             「{currentQuote}」
                         </span>
                     </motion.div>

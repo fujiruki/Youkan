@@ -111,6 +111,8 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
                     layoutMode="mini"
                     displayMode="grid"
                     filterMode={filterMode} // Use localized filterMode
+                    focusedTenantId={_item?.tenantId} // [FIX] Ensure company load is visible in detail modal
+                    focusedProjectId={_item?.projectId} // [FIX] Ensure project load is visible if applicable
 
                     selectedDate={selectedDate} // Due Date (Red)
                     prepDate={prepDate}         // My Deadline (Blue)

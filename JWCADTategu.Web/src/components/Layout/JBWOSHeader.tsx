@@ -256,7 +256,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         className="flex items-center gap-1 hover:opacity-80 transition-opacity shrink-0"
                     >
                         <span className="text-lg">⚡</span>
-                        <span className="text-sm font-black text-slate-100 italic tracking-tighter">JBWOS</span>
+                        <span className="text-sm font-black text-slate-400 italic tracking-tighter">Youkan</span>
                     </button>
 
                     {/* Time Progress */}
