@@ -4,7 +4,7 @@ import { RyokanCalendar } from '../../features/core/jbwos/components/Calendar/Ry
 import { cn } from '../../lib/utils';
 
 interface DetailQuantityCalendarProps {
-    item: { id: string; isPrivate?: boolean; title?: string } | null;
+    item: Item | null;
     globalFilter: FilterMode;
     selectedDate?: Date | null;
     prepDate?: Date | null;
@@ -44,7 +44,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
     const [filterMode, setFilterMode] = React.useState<FilterMode>(() => {
         // Default based on item ownership: No tenantId means personal
         if (_item) {
-            const isPersonal = _item.isPrivate === true || !_item.tenantId;
+            const isPersonal = !_item.tenantId || _item.domain === 'private';
             return isPersonal ? 'personal' : 'company';
         }
         return globalFilter;
@@ -53,10 +53,10 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
     // Handle item changes to re-sync filter if needed
     React.useEffect(() => {
         if (_item) {
-            const isPersonal = _item.isPrivate === true || !_item.tenantId;
+            const isPersonal = !_item.tenantId || _item.domain === 'private';
             setFilterMode(isPersonal ? 'personal' : 'company');
         }
-    }, [_item?.id, _item?.isPrivate, _item?.tenantId]);
+    }, [_item?.id, _item?.tenantId, _item?.domain]);
 
     return (
         <div className="flex flex-col w-full h-full border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
