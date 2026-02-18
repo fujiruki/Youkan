@@ -204,10 +204,10 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                 onSwitchTenant={onSwitchTenant}
             />
 
-            {/* 層1: グローバルバー (Global Bar) - センタリングレイアウト */}
-            <div className="bg-slate-900 px-4 py-1.5 flex items-center border-b border-slate-700/50 w-full z-40 relative h-10">
+            {/* 層1: グローバルバー (Global Bar) - Flexboxレイアウト */}
+            <div className="bg-slate-900 px-4 py-1.5 flex items-center justify-between border-b border-slate-700/50 w-full z-40 relative h-10 gap-4">
 
-                {/* Left: Menu */}
+                {/* Left: Menu & Mobile Logo */}
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={() => setMenuOpen(true)}
@@ -216,18 +216,27 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                     >
                         <Menu size={18} className="text-slate-300" />
                     </button>
+
+                    {/* Mobile Logo (Icon Only) */}
+                    <button
+                        onClick={onNavigateToDashboard}
+                        className="md:hidden flex items-center text-slate-100 hover:opacity-80 transition-opacity"
+                    >
+                        <span className="text-lg">⚡</span>
+                    </button>
+
                     <HealthCheck />
                 </div>
 
-                {/* Center: 集約コントロール */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 w-full max-w-[1000px] justify-center">
+                {/* Center: 集約コントロール (Desktop Only) - 脱Absolute */}
+                <div className="hidden md:flex items-center gap-6 justify-center flex-1 min-w-0">
 
                     {/* [NEW] Project Focused Label */}
                     {activeProject && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/20 rounded-lg border border-indigo-500/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/20 rounded-lg border border-indigo-500/30 animate-in fade-in slide-in-from-top-2 duration-300 shrink-0">
                             <div className="flex flex-col">
                                 <span className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter leading-none">Project Focused</span>
-                                <span className="text-[11px] font-black text-white leading-tight truncate max-w-[180px]">
+                                <span className="text-[11px] font-black text-white leading-tight truncate max-w-[150px] lg:max-w-[200px]">
                                     {activeProject.title || activeProject.name}
                                 </span>
                             </div>
@@ -241,25 +250,27 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         </div>
                     )}
 
-                    {/* Logo */}
+                    {/* Logo (Desktop) */}
                     <button
                         onClick={onNavigateToDashboard}
-                        className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                        className="flex items-center gap-1 hover:opacity-80 transition-opacity shrink-0"
                     >
                         <span className="text-lg">⚡</span>
                         <span className="text-sm font-black text-slate-100 italic tracking-tighter">JBWOS</span>
                     </button>
 
                     {/* Time Progress */}
-                    <div className="w-40">
+                    <div className="w-32 lg:w-40 shrink-0">
                         <TimeProgressBar />
                     </div>
 
                     {/* Motivator Whisper */}
-                    <MotivatorWhisper />
+                    <div className="hidden lg:block shrink-0">
+                        <MotivatorWhisper />
+                    </div>
 
                     {/* Reality Load (TOTAL LOAD) */}
-                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50 shrink-0">
                         <div className="flex flex-col">
                             <span className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter leading-none">Reality (Total Load)</span>
                             <div className="flex items-baseline gap-1">
@@ -268,20 +279,18 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 <span className="text-[8px] text-indigo-500 font-bold leading-none">({Math.round((capacity.used / capacity.limit) * 100)}%)</span>
                             </div>
                         </div>
-                        <div className="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="w-16 lg:w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                             <div
                                 className={`h-full transition-all duration-500 ${capacity.used > capacity.limit ? 'bg-red-500' : 'bg-indigo-500'}`}
                                 style={{ width: `${Math.min(100, (capacity.used / capacity.limit) * 100)}%` }}
                             />
                         </div>
                     </div>
-
-                    {/* Filter (Moved to 2nd row) */}
                 </div>
 
 
                 {/* Right: User & Setting */}
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={onNavigateToSettings}
                         className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
