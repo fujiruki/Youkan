@@ -30,6 +30,7 @@ interface DecisionDetailModalProps {
     filterMode?: FilterMode;
     capacityConfig?: CapacityConfig;
     currentUserId?: string | null;
+    updateItemMetrics?: (id: string, metrics: { work_days?: number, estimatedMinutes?: number }) => Promise<void>;
     // yesButtonLabel?: string; // Unused
     initialFocus?: 'date';
 }
@@ -37,7 +38,7 @@ interface DecisionDetailModalProps {
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
     item: propItem, onClose, onDecision, onDelete, onUpdate, onGetSubTasks,
     onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
-    quantityItems = [], filterMode = 'all', capacityConfig, currentUserId
+    quantityItems = [], filterMode = 'all', capacityConfig, currentUserId, updateItemMetrics
     // yesButtonLabel // Unused
 }) => {
     const [history, setHistory] = React.useState<Item[]>([]);
@@ -707,11 +708,16 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     return (
                                         <button
                                             key={preset.label}
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 const newVal = preset.val;
                                                 setEstimatedMinutes(newVal);
                                                 setWorkDays(newVal / 480);
                                                 setIsWorkDaysDirty(true);
+
+                                                // [Robustness] Atomic update directly via ViewModel
+                                                if (updateItemMetrics && item) {
+                                                    await updateItemMetrics(item.id, { estimatedMinutes: newVal });
+                                                }
                                             }}
                                             className={cn(
                                                 "relative group flex items-center gap-3 p-2 rounded-xl border transition-all duration-200",

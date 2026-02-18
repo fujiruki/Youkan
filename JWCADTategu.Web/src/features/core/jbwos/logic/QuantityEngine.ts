@@ -43,48 +43,8 @@ export class QuantityEngine {
      * Structure for detailed allocation breakdown
      */
     static calculateAllocationDetails(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): AllocationStep[] {
-        const steps: AllocationStep[] = [];
-        let remainingMinutes = estimatedMinutes || 60;
-        let current = new Date(endDate);
-        let safety = 0;
-
-        console.log(`[QuantityEngine] Allocation Details Start: total=${estimatedMinutes}, anchor=${endDate.toDateString()}`); // [DEBUG]
-
-        while (remainingMinutes > 0 && safety < 90) {
-            safety++;
-            const isHol = this.checkIsHoliday(current, context);
-            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
-
-            // Normalize for logs
-            const dateStr = current.toDateString();
-
-            if (isHol || dailyCapacity <= 0) {
-                console.log(`[QuantityEngine] Allocation Skip: ${dateStr} (Hol=${isHol}, Cap=${dailyCapacity})`); // [DEBUG]
-                current.setDate(current.getDate() - 1);
-                continue;
-            }
-
-            const alloc = Math.min(remainingMinutes, dailyCapacity);
-            console.log(`[QuantityEngine] Allocation Step: ${dateStr} (Alloc=${alloc}, Rem=${remainingMinutes - alloc}, Cap=${dailyCapacity})`); // [DEBUG]
-
-            // [FIX] Normalize date to 00:00:00 to match CalendarCell logic
-            const stepDate = new Date(current);
-            stepDate.setHours(0, 0, 0, 0);
-
-            steps.push({
-                date: stepDate,
-                allocatedMinutes: alloc,
-                capacityMinutes: dailyCapacity
-            });
-            remainingMinutes -= alloc;
-
-            // 重要: 次の日の計算に移る
-            current.setDate(current.getDate() - 1);
-        }
-
-        console.log(`[QuantityEngine] Allocation Finished: steps=${steps.length}`); // [DEBUG]
-        // Sort by date ascending (oldest first)
-        return steps.sort((a, b) => a.date.getTime() - b.date.getTime());
+        const { steps } = this.allocateBackwardsCore(endDate, estimatedMinutes, context, tenantId);
+        return steps;
     }
 
     /**
@@ -186,54 +146,27 @@ export class QuantityEngine {
         });
 
         relevantItems.forEach(item => {
-            // [Engine] Priority: prep_date (My Deadline) > due_date (Official Deadline)
             const endDate = safeParseDate(item.prep_date || item.due_date);
-
             if (endDate) {
-                let remainingMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
+                const totalMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
+                const { steps } = this.allocateBackwardsCore(endDate, totalMinutes, context, item.tenantId);
 
                 // [NEW] Visual Engagement Point: Always register item on its primary deadline date for UI Chip visibility
-                // even if capacity is 0 on that specific day.
                 const startKey = normalizeDateKey(endDate);
                 if (!contributorsMap.has(startKey)) contributorsMap.set(startKey, []);
                 if (!contributorsMap.get(startKey)?.some(i => i.id === item.id)) {
                     contributorsMap.get(startKey)?.push(item);
                 }
 
-                let current = new Date(endDate);
-                let safety = 0;
+                steps.forEach(step => {
+                    const key = normalizeDateKey(step.date);
+                    volumeMap.set(key, (volumeMap.get(key) || 0) + step.allocatedMinutes);
 
-                while (remainingMinutes > 0 && safety < 90) { // Max 90 days lookback
-                    safety++;
-
-                    // Skip holidays for work allocation
-                    if (this.checkIsHoliday(current, context)) {
-                        current.setDate(current.getDate() - 1);
-                        continue;
-                    }
-
-                    // [NEW] Use item's specific company capacity if available
-                    const dailyCapacity = this.calculateCapacityForDate(current, context, item.tenantId);
-                    if (dailyCapacity <= 0) {
-                        current.setDate(current.getDate() - 1);
-                        continue;
-                    }
-
-                    const alloc = Math.min(remainingMinutes, dailyCapacity);
-
-                    // Normalize date for robust key matching
-                    const key = normalizeDateKey(current);
-                    volumeMap.set(key, (volumeMap.get(key) || 0) + alloc);
-
-                    // Add to contributors for work days
                     if (!contributorsMap.has(key)) contributorsMap.set(key, []);
                     if (!contributorsMap.get(key)?.some(i => i.id === item.id)) {
                         contributorsMap.get(key)?.push(item);
                     }
-
-                    remainingMinutes -= alloc;
-                    current.setDate(current.getDate() - 1);
-                }
+                });
             }
         });
 
@@ -268,20 +201,14 @@ export class QuantityEngine {
             if (companyPattern && companyPattern[targetId] !== undefined) {
                 const val = companyPattern[targetId];
 
-                // [NEW] If company pattern is set (>0), allow it even if it's a weekly holiday.
-                // However, specific holiday exceptions (like National Holidays) still take precedence.
-                if (val > 0 && isHol) {
-                    const isSpecificException = capacityConfig.exceptions?.[dateKey] === 0;
-                    if (isSpecificException) {
-                        console.log(`[QuantityEngine] Capacity Blocked (Specific Holiday Exception): date=${dateKey}`);
-                        return 0;
-                    }
-                    console.log(`[QuantityEngine] Capacity Match (Company Weekly Override of Weekly Holiday): date=${dateKey}, tenant=${targetId}, val=${val}`);
+                // [Refined] If specific company capacity is defined (>0), it overrides global holiday status
+                // BUT if there is a specific EXCEPTION (capacity=0) on this date, that exception wins.
+                if (val > 0) {
+                    const specificException = capacityConfig.dailyCompanyExceptions?.[dateKey]?.[targetId];
+                    if (specificException === 0) return 0; // Explicitly set to 0 (Holiday Override)
+
                     return val;
                 }
-
-                console.log(`[QuantityEngine] Capacity Match (Company Weekly): date=${dateKey}, tenant=${targetId}, val=${val}`);
-                return val;
             }
 
             if (isHol) {
@@ -338,6 +265,43 @@ export class QuantityEngine {
         // 100% -> 70
         // 150%+ -> 100
         return Math.min(ratio * 70, 100);
+    }
+
+    /**
+     * CORE ALLOCATION ENGINE: Single source of truth for backward distribution.
+     */
+    private static allocateBackwardsCore(endDate: Date, totalMinutes: number, context: QuantityContext, tenantId?: string | null): { steps: AllocationStep[] } {
+        const steps: AllocationStep[] = [];
+        let remainingMinutes = totalMinutes || 0;
+        let current = new Date(endDate);
+        let safety = 0;
+
+        while (remainingMinutes > 0 && safety < 120) { // Safety increased to 120 days
+            safety++;
+
+            // [LOGIC] Capacity calculation itself handles holiday logic priority
+            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
+
+            if (dailyCapacity <= 0) {
+                current.setDate(current.getDate() - 1);
+                continue;
+            }
+
+            const alloc = Math.min(remainingMinutes, dailyCapacity);
+            const stepDate = new Date(current);
+            stepDate.setHours(0, 0, 0, 0);
+
+            steps.push({
+                date: stepDate,
+                allocatedMinutes: alloc,
+                capacityMinutes: dailyCapacity
+            });
+            remainingMinutes -= alloc;
+            current.setDate(current.getDate() - 1);
+        }
+
+        // Sort ascending (Oldest -> Newest)
+        return { steps: steps.sort((a, b) => a.date.getTime() - b.date.getTime()) };
     }
 
     private static formatDateKey(date: Date): string {

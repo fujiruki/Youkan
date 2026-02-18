@@ -452,8 +452,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     joinedTenants={joinedTenants}
                     quantityItems={allItemsForCalendar}
                     filterMode={filterMode}
-                    capacityConfig={capacityConfig} // [FIX] Pass capacity config for allocation calculation
+                    capacityConfig={capacityConfig}
                     currentUserId={vm.currentUserId}
+                    updateItemMetrics={vm.updateItemMetrics}
                 />
             )}
 

@@ -957,18 +957,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
                 // Add to NEW
                 if (newStatus === 'inbox') setGdbActive(prev => [updatedItem, ...prev]);
-                else if (newStatus === 'pending') setGdbActive(prev => [updatedItem, ...prev]); // Pending stays in GDB Active shelf usually? Or separate? 
-                // Wait, useJBWOSViewModel separates Active (Inbox) and Pending?
-                // Looking at init: gdbActive is Inbox+Decision. 
-                // Let's stick to: Inbox->Active, Pending->Active (or Intent/Prep if designated).
-                // Actually GDB Active usually holds Inbox & Pending.
+                else if (newStatus === 'pending') setGdbActive(prev => [updatedItem, ...prev]);
                 else if (newStatus === 'focus') {
-                    // Focus means Candidate OR Commit (if today flag)
-                    // We assume Candidate by default for simple 'focus' update
                     setTodayCandidates(prev => [updatedItem, ...prev]);
                 }
             } else {
-                // Just property update, no move (except maybe sort order?)
+                // Just property update
                 const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
                 setTodayCandidates(prev => updateList(prev));
                 setTodayCommits(prev => updateList(prev));
@@ -983,29 +977,48 @@ export const useJBWOSViewModel = (projectId?: string) => {
             }
         }
 
-        // [Haruki Model] Translate virtual header IDs back to real item (project) IDs
-        // This ensures projects can be updated just like any other item.
         const targetId = id.replace('virtual-header-', '');
 
-        // [FIX] Sanitize payload before sending to API
-        // Remove UI-only fields that might cause 500 errors on strict backend
+        // [FIX] Sanitize payload
         const { projectTitle, tenantName, ...apiUpdates } = updates as any;
 
-        // Ensure IDs are null if falsy but present (clearing)
         if ('projectId' in apiUpdates && !apiUpdates.projectId) apiUpdates.projectId = null;
         if ('tenantId' in apiUpdates && !apiUpdates.tenantId) apiUpdates.tenantId = null;
         if ('assignedTo' in apiUpdates && !apiUpdates.assignedTo) apiUpdates.assignedTo = null;
 
         try {
             await getRepository().updateItem(targetId, apiUpdates);
-            // [NEW] If project status changed, refresh the projects list so headers update
             if ('isProject' in updates) {
                 await refreshContextMetadata();
             }
         } catch (e) {
             console.error('Failed to update item:', e);
-            // Optionally revert here, but for MVP keep simple
         }
+    };
+
+    /**
+     * [NEW Robustness] Atomic update for Work Days and Minutes.
+     * Ensures bidirectional sync and multi-DB consistency.
+     */
+    const updateItemMetrics = async (id: string, metrics: { work_days?: number, estimatedMinutes?: number }) => {
+        let { work_days, estimatedMinutes } = metrics;
+
+        // Auto-Calculating missing part (Bidirectional Sync)
+        if (work_days !== undefined && estimatedMinutes === undefined) {
+            estimatedMinutes = work_days * 480;
+        } else if (estimatedMinutes !== undefined && work_days === undefined) {
+            // Round to 1 decimal place for days
+            work_days = Math.round((estimatedMinutes / 480) * 10) / 10;
+        }
+
+        const updates: Partial<Item> = {
+            work_days,
+            estimatedMinutes,
+            updatedAt: Date.now()
+        };
+
+        // Leverage unified updateItem for UI broadcast and consistency
+        await updateItem(id, updates);
     };
 
 
@@ -1338,6 +1351,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
         startImmediately,
         updateItemTitle,
         updateItem,
+        updateItemMetrics, // [NEW] Robustness
         updateCapacityException, // [NEW]
         projectizeItem, // [NEW]
         createSubTask,
