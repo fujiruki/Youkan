@@ -521,8 +521,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                         {/* Mobile Side-by-Side Optimization: Fixed width for yyyy/mm/dd */}
                         <div className="flex flex-wrap gap-2">
                             {/* Due Date Input */}
-                            <div className="flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-1 text-slate-400">
+                            <div className={cn(
+                                "flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
+                                activeDateInput === 'due'
+                                    ? "bg-red-50/60 dark:bg-red-900/20 border-red-300 dark:border-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)] ring-1 ring-red-200 dark:ring-red-700"
+                                    : "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
+                            )}>
+                                <div className={cn("flex items-center gap-1", activeDateInput === 'due' ? "text-red-500" : "text-slate-400")}>
                                     <CalendarDays size={14} className="md:w-[16px] md:h-[16px]" />
                                     <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                                         納期
@@ -545,11 +550,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                             </div>
 
                             {/* Preparation Date Input */}
-                            <div className="flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-1 text-slate-400">
+                            <div className={cn(
+                                "flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
+                                activeDateInput === 'my'
+                                    ? "bg-blue-50/60 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-blue-200 dark:ring-blue-700"
+                                    : "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
+                            )}>
+                                <div className={cn(
+                                    "flex items-center gap-1",
+                                    // [WARNING] 納期よりマイ期限が遅い場合は赤字で警告
+                                    (dueDate && prepDate && new Date(prepDate) > new Date(dueDate))
+                                        ? "text-red-500"
+                                        : activeDateInput === 'my' ? "text-blue-500" : "text-slate-400"
+                                )}>
                                     <CalendarClock size={14} className="md:w-[16px] md:h-[16px]" />
-                                    <label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-                                        マイ期限
+                                    <label className={cn(
+                                        "block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
+                                        (dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && "text-red-500"
+                                    )}>
+                                        マイ期限{(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && ' ⚠ 納期超過'}
                                     </label>
                                 </div>
                                 <div className="flex-1 min-w-0 w-full">
@@ -564,7 +583,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                             // @ts-ignore
                                             else ApiClient.updateItem(item.id, { prep_date: timestamp });
                                         }}
-                                        inputClassName="w-[71px] border-0 px-0 text-sm font-bold bg-transparent focus:ring-0 focus:outline-none"
+                                        inputClassName={cn(
+                                            "w-[71px] border-0 px-0 text-sm font-bold bg-transparent focus:ring-0 focus:outline-none",
+                                            (dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && "text-red-500"
+                                        )}
                                         className="[&_svg]:hidden"
                                         onFocus={() => setActiveDateInput('my')}
                                     />
@@ -636,6 +658,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     </div>
                                     <div className="mt-1 text-[8px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 leading-tight">
                                         ※(消費/枠)。稼働枠を使い切っている日は目安期間（青枠）となります。
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* [NEW] Capacity Insufficiency Warning */}
+                            {estimatedMinutes > 0 && allocationDetails.length === 0 && (prepDate || dueDate) && (
+                                <div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-200 dark:border-amber-700 flex items-center gap-1.5">
+                                    <span className="text-base">⚠</span>
+                                    <div>
+                                        <span className="font-bold">稼働設定が未完了のため、目安期間（青枠）を計算できません。</span>
+                                        <span className="text-amber-500 dark:text-amber-400 ml-1">ガントチャートの「日次設定」で1日あたりの稼働時間を設定してください。</span>
                                     </div>
                                 </div>
                             )}
