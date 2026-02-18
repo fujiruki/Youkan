@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, CheckSquare, Square, Filter } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, Filter } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 import { MenuDrawer } from './MenuDrawer';
@@ -375,17 +375,16 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                                 </div>
                             </div>
 
-                            {/* Hide Completed Toggle */}
-                            <button
+                            {/* Hide Completed Toggle (Switch Style) */}
+                            <div
+                                className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
                                 onClick={() => setHideCompleted(!hideCompleted)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${hideCompleted
-                                    ? 'bg-indigo-900/30 border-indigo-500/50 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
-                                    : 'bg-slate-900/50 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
                             >
-                                {hideCompleted ? <CheckSquare size={14} className="text-indigo-400" /> : <Square size={14} />}
-                                <span className="text-[11px] font-bold hidden md:inline">完了非表示</span>
-                            </button>
+                                <span className="text-[10px] font-bold text-slate-400 select-none hidden md:inline">完了非表示</span>
+                                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${hideCompleted ? 'bg-indigo-500' : 'bg-slate-600'}`}>
+                                    <span className={`${hideCompleted ? 'translate-x-4' : 'translate-x-1'} inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform`} />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Right Action: 新プロジェクト */}
