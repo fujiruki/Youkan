@@ -34,12 +34,8 @@ interface DecisionDetailModalProps {
     // yesButtonLabel?: string; // Unused
     initialFocus?: 'date';
 }
-
-export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
-    item: propItem, onClose, onDecision, onDelete, onUpdate, onGetSubTasks,
-    onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
+onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     quantityItems = [], filterMode = 'all', capacityConfig, currentUserId, updateItemMetrics
-    // yesButtonLabel // Unused
 }) => {
     const [history, setHistory] = React.useState<Item[]>([]);
 
@@ -491,6 +487,24 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                     {item.title}
                                 </h2>
                             )}
+                            {/* [NEW] Perspective Label Badge in Detail View (Computed Dynamically) */}
+                            {(() => {
+                                const isCompanyAccount = (currentUserId?.length || 0) > 20;
+                                let label = '';
+                                if (isCompanyAccount) {
+                                    label = localTenantId ? '事業の管理' : '社内背景での管理';
+                                } else {
+                                    const tenant = joinedTenants.find(t => t.id === localTenantId);
+                                    label = tenant ? `${tenant.name}マネージャーとして` : '自分の時間管理';
+                                }
+                                return (
+                                    <div className="flex items-center mt-1">
+                                        <span className="text-[9px] font-black text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2.5 py-0.5 rounded-full border border-slate-100 dark:border-slate-800 uppercase tracking-tighter">
+                                            {label}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Top Right Controls */}

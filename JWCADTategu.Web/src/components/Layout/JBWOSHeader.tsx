@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, Filter } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2 } from 'lucide-react';
 import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthCheck';
 
 import { MenuDrawer } from './MenuDrawer';
@@ -74,7 +74,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
         return (saved as FilterMode) || 'all';
     });
 
-    const [hideCompleted, setHideCompleted] = useState(() => {
+    const [hideCompleted] = useState(() => {
         return localStorage.getItem('jbwos_hide_completed') === 'true';
     });
 
@@ -368,34 +368,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
                         </NavSection>
                     </div>
 
-                    {/* Center & Right Combined Group */}
+                    {/* Right Combined Group: Actions Only (Filter moved to ViewContextBar) */}
                     <div className="flex items-center gap-4 ml-auto pl-2">
-                        {/* Filters & Controls (Previously Center) */}
-                        <div className="flex items-center gap-4">
-                            {/* Filter */}
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 opacity-50 hidden md:flex">
-                                    <Filter size={12} />
-                                </div>
-                                <div className="flex items-center bg-slate-900/80 p-0.5 rounded-lg border border-slate-700/50 shadow-inner">
-                                    <FilterButton active={filterMode === 'all'} onClick={() => setFilterMode('all')} label="全て" />
-                                    <FilterButton active={filterMode === 'personal'} onClick={() => setFilterMode('personal')} label="個人" />
-                                    <FilterButton active={filterMode === 'company'} onClick={() => setFilterMode('company')} label="会社" />
-                                </div>
-                            </div>
-
-                            {/* Hide Completed Toggle (Switch Style) */}
-                            <div
-                                className="flex items-center gap-2 bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
-                                onClick={() => setHideCompleted(!hideCompleted)}
-                            >
-                                <span className="text-[10px] font-bold text-slate-400 select-none">完了非表示</span>
-                                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${hideCompleted ? 'bg-indigo-500' : 'bg-slate-600'}`}>
-                                    <span className={`${hideCompleted ? 'translate-x-4' : 'translate-x-1'} inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform`} />
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Right Action: 新プロジェクト */}
                         <div className="flex items-center">
                             <button
@@ -481,23 +455,6 @@ const TimeProgressBar: React.FC = () => {
         </div>
     );
 };
-
-// フィルタボタン (コンパクト)
-const FilterButton: React.FC<{
-    active: boolean;
-    onClick: () => void;
-    label: string;
-}> = ({ active, onClick, label }) => (
-    <button
-        onClick={onClick}
-        className={`px-2 h-5 flex items-center justify-center text-[10px] font-black rounded transition-all ${active
-            ? 'bg-indigo-600 text-white shadow-sm'
-            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'
-            }`}
-    >
-        {label}
-    </button>
-);
 
 // サブナビタブ (1クリックで遷移可能)
 const SubNavTab: React.FC<{

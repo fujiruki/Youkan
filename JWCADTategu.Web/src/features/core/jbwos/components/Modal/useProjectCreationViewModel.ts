@@ -55,8 +55,14 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         fetchDefaults();
     }, [selectedTenantId]);
 
+    // [NEW] Use a flag to prevent re-initialization on parent render if user already started editing
+    const [isInitialized, setIsInitialized] = useState(false);
+
     // Initialize state based on context
     useEffect(() => {
+        // Only run initialization if not yet initialized OR if initialData changed (editing different item)
+        // [FIX] REMOVED activeScope from dependency. Parent re-renders (triggering dashboard changes) 
+        // should NOT reset the dialog state while it's open.
         if (context.initialData) {
             // Edit Mode
             setName(context.initialData.title || context.initialData.name || '');
@@ -65,21 +71,18 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
             setColor(context.initialData.color || '#6366f1');
             setSelectedTenantId(context.initialData.tenantId || '');
             setAssignedTo(context.initialData.assigned_to);
-            // Mode is irrelevant for editing, usually we don't change hierarchy in simple edit
             setCreationMode(context.initialData.parentId ? 'child' : 'root');
-        } else if (context.parentProject) {
+            setIsInitialized(true);
+        } else if (context.parentProject && !isInitialized) {
             setCreationMode('child');
-            // If child, tenant is strictly parent's tenant
             setSelectedTenantId(context.parentProject.tenantId || '');
             setAssignedTo(context.parentProject.assigned_to);
-
-            // Should also inherit some defaults
             if (context.parentProject.clientName) {
                 setClientName(context.parentProject.clientName);
             }
-        } else {
+            setIsInitialized(true);
+        } else if (!isInitialized) {
             setCreationMode('root');
-            // [FIX] Default tenant: use defaultTenantId if provided, regardless of activeScope
             if (context.defaultTenantId) {
                 setSelectedTenantId(context.defaultTenantId);
             } else if (context.joinedTenants.length > 0 && context.activeScope === 'company') {
@@ -87,23 +90,23 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
             } else {
                 setSelectedTenantId(''); // Personal
             }
+            setIsInitialized(true);
         }
-    }, [context.parentProject, context.activeScope, context.defaultTenantId, context.initialData]);
+    }, [context.parentProject, context.defaultTenantId, context.initialData, isInitialized]);
 
     // When toggling mode from child -> root, enable tenant selection
     useEffect(() => {
+        // Only run logic if user MANUALLY toggles, but avoid resetting if already set
         if (creationMode === 'root') {
-            // [FIX] If no tenantId selected and defaultTenantId exists, use it
             if (!selectedTenantId && context.defaultTenantId) {
                 setSelectedTenantId(context.defaultTenantId);
             } else if (!selectedTenantId && context.activeScope === 'company' && context.joinedTenants.length > 0) {
                 setSelectedTenantId(context.joinedTenants[0].id);
             }
         } else if (creationMode === 'child' && context.parentProject) {
-            // Revert to parent's tenant
             setSelectedTenantId(context.parentProject.tenantId || '');
         }
-    }, [creationMode, context.activeScope]);
+    }, [creationMode]); // [FIX] Removed activeScope dependency
 
     const getEffectiveTenantId = () => {
         if (creationMode === 'child' && context.parentProject) {

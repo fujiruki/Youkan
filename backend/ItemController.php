@@ -547,7 +547,9 @@ class ItemController extends BaseController {
                         $data['siteName'] = $proj['site_name'];
                     }
                 }
-            } else if (isset($data['tenantId'])) {
+            } else if (array_key_exists('tenantId', $data)) {
+                // [FIX] Use array_key_exists instead of isset, because isset(null) returns false
+                // Frontend may send tenantId: null explicitly for personal items
                 $effectiveTenantId = $data['tenantId'];
             }
 

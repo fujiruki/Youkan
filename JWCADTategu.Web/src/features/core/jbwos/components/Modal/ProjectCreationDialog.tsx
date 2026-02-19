@@ -33,7 +33,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     defaultTenantId: propDefaultTenantId
 }) => {
     // Auth context for manufacturing config
-    const { tenant, user } = useAuth();
+    const { tenant } = useAuth();
     // const jbwosTenant = tenant as JbwosTenant; // Logic moved to registry
     // Show additional inputs if in company mode and manufacturing plugin is enabled
     // OR if we are inheriting from a manufacturing parent? For now check global config
@@ -46,12 +46,9 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     // If user is representative -> Personal Account (Can select Personal or Company)
     // If user is NOT representative -> Company Account (Employee, locked to company)
     // [Updated] Chack account_type from backend if available
-    const accountType = (user as any)?.account_type; // 'user' | 'tenant'
-    const isTenantAccount = accountType === 'tenant';
 
     // Show Selector if: It's a User Account AND they are a Representative (Owner)
     // If they are an Employee (isRepresentative=false) or a Tenant Account, hide it.
-    const isPersonalAccount = !isTenantAccount && (user?.isRepresentative ?? true);
 
     // Important: 
     // If Personal Account, we WANT to show the selector even if activeScope is personal?
@@ -96,7 +93,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 grossProfitTarget: parseInt(vm.grossProfitTarget) || 0,
 
                 // Unified Logic
-                tenantId: vm.getEffectiveTenantId() || undefined,
+                tenantId: vm.getEffectiveTenantId() ?? null, // [FIX] null (not undefined) so JSON includes the field for backend isset()
                 parentId: vm.getEffectiveParentId(),
 
                 // Manufacturing Fields
@@ -158,17 +155,22 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             {/* Context Information Message (Only keep if useful or replace with selector) */}
                             {/* The spec implies the Selector IS the indicator. So we might hide this if selector is shown. */}
                             {/* But for Company Account (hidden selector), this is useful. */}
-                            {(!isPersonalAccount) && (
-                                <div className={`px-4 py-2 rounded-lg text-xs font-bold border ${activeScope === 'company'
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400'
-                                    : 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400'
-                                    }`}>
-                                    {activeScope === 'company'
-                                        ? `🏢 現在は【会社・組織 (${vm.selectedTenantId ? tenants.find(t => t.id === vm.selectedTenantId)?.name : '指定なし'})】として登録されます`
-                                        : '👤 現在は【個人・プライベート】として登録されます'
-                                    }
-                                </div>
-                            )}
+                            {/* Context Information Message (Only keep if useful or replace with selector) */}
+                            {/* [FIX] Use internal selectedTenantId state for the message to provide feedback during selection */}
+                            {(() => {
+                                const isTargetingCompany = !!vm.selectedTenantId;
+                                return (
+                                    <div className={`px-4 py-2 rounded-lg text-xs font-bold border ${isTargetingCompany
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400'
+                                        : 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400'
+                                        }`}>
+                                        {isTargetingCompany
+                                            ? `🏢 現在は【会社・組織 (${tenants.find(t => t.id === vm.selectedTenantId)?.name || '指定なし'})】として登録されます`
+                                            : '👤 現在は【個人・プライベート】として登録されます'
+                                        }
+                                    </div>
+                                );
+                            })()}
 
                             {/* Location Selector (Only if parent exists OR editing and allowed to move) */}
                             {/* Hide if editing for simplicity unless logic is robust. For now hide. */}

@@ -208,6 +208,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         handleRefresh();
     };
 
+    const { switchTenant } = useAuth();
+
     // --- ViewContext computation ---
     const isCompanyAccount = (currentUserId?.length || 0) > 20;
     const perspective: Perspective = isCompanyAccount
@@ -218,26 +220,30 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         if (isCompanyAccount) {
             return filterMode === 'personal' ? '社内業務の管理' : '事業の管理';
         }
+        // Personal Mode
         if (filterMode === 'personal' || filterMode === 'all') return '自分の時間管理';
-        if (filterMode === 'company') return '会社業務';
-        // tenantId → find name
+
+        // Specific Tenant Filtering in Personal Mode
         const tenant = joinedTenants.find(t => t.id === filterMode);
-        return tenant ? `${tenant.name}マネージャーとして` : '会社業務';
+        if (tenant) return `${tenant.name}マネージャーとして`;
+
+        if (filterMode === 'company') return '会社業務の俯瞰';
+
+        return '自分の時間管理';
     };
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-            {/* ViewContextBar: Filter + Perspective */}
-            {joinedTenants.length > 0 && (
-                <ViewContextBar
-                    filterMode={filterMode}
-                    onFilterChange={vm.setFilterMode}
-                    joinedTenants={joinedTenants}
-                    isCompanyAccount={isCompanyAccount}
-                    perspective={perspective}
-                    perspectiveLabel={getPerspectiveLabel()}
-                />
-            )}
+            {/* ViewContextBar: Switcher + Filter + Perspective */}
+            <ViewContextBar
+                filterMode={filterMode}
+                onFilterChange={vm.setFilterMode}
+                joinedTenants={joinedTenants}
+                isCompanyAccount={isCompanyAccount}
+                perspective={perspective}
+                perspectiveLabel={getPerspectiveLabel()}
+                onModeSwitch={switchTenant}
+            />
             {/* Gantt Header (calendar mode) or Density Bar (panorama mode) */}
             {viewMode === 'calendar' && (
                 <GanttHeader
@@ -509,6 +515,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     capacityConfig={capacityConfig}
                     currentUserId={vm.currentUserId}
                     updateItemMetrics={vm.updateItemMetrics}
+                    perspectiveLabel={getPerspectiveLabel()}
                 />
             )}
 
