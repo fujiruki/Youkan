@@ -21,6 +21,8 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
 import { GanttHeader } from '../components/Calendar/GanttHeader';
+import { ViewContextBar } from '../components/Dashboard/ViewContextBar';
+import { Perspective } from '../types';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -98,16 +100,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const { /* user: authUser */ } = useAuth(); // [Unused]
     // const effectiveUserId = currentUserId || authUser?.id; // [Unused]
 
-    // [NEW] Hide Completed Filter Logic
-    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
-
-    useEffect(() => {
-        const handleFilterChange = (e: CustomEvent) => {
-            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
-        };
-        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-    }, []);
+    // hideCompleted: read from localStorage, no CustomEvent sync needed
+    const [hideCompleted, _setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
 
     const filterItems = (items: Item[]) => !hideCompleted ? items : items.filter(i => i.status !== 'done');
 
@@ -214,10 +208,36 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         handleRefresh();
     };
 
+    // --- ViewContext computation ---
+    const isCompanyAccount = (currentUserId?.length || 0) > 20;
+    const perspective: Perspective = isCompanyAccount
+        ? (filterMode === 'personal' ? 'company_internal' : 'company_business')
+        : (filterMode === 'personal' || filterMode === 'all' ? 'personal_private' : 'personal_company');
 
+    const getPerspectiveLabel = (): string => {
+        if (isCompanyAccount) {
+            return filterMode === 'personal' ? '社内業務の管理' : '事業の管理';
+        }
+        if (filterMode === 'personal' || filterMode === 'all') return '自分の時間管理';
+        if (filterMode === 'company') return '会社業務';
+        // tenantId → find name
+        const tenant = joinedTenants.find(t => t.id === filterMode);
+        return tenant ? `${tenant.name}マネージャーとして` : '会社業務';
+    };
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
+            {/* ViewContextBar: Filter + Perspective */}
+            {joinedTenants.length > 0 && (
+                <ViewContextBar
+                    filterMode={filterMode}
+                    onFilterChange={vm.setFilterMode}
+                    joinedTenants={joinedTenants}
+                    isCompanyAccount={isCompanyAccount}
+                    perspective={perspective}
+                    perspectiveLabel={getPerspectiveLabel()}
+                />
+            )}
             {/* Gantt Header (calendar mode) or Density Bar (panorama mode) */}
             {viewMode === 'calendar' && (
                 <GanttHeader

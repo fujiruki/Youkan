@@ -49,50 +49,31 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 }) => {
     const vm = useJBWOSViewModel(projectId);
     const {
-        gdbActive: rawGdbActive,
-        gdbPreparation: rawGdbPreparation,
-        gdbIntent: rawGdbIntent,
-        gdbLog: rawGdbLog,
+        gdbActive: vmGdbActive,
+        gdbPreparation: vmGdbPreparation,
+        gdbIntent: vmGdbIntent,
+        gdbLog: vmGdbLog,
         ghostGdbCount,
         ghostTodayCount,
         allProjects // [NEW] Needed for logic
     } = vm;
 
-    // Filter Logic
-    const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+    // Only hideCompleted filter remains here; filterMode filtering is done upstream by ViewModel
+    const [hideCompleted, _setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
 
-    useEffect(() => {
-        const handleFilterChange = (e: CustomEvent) => {
-            if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
-        };
-        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-        return () => window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
-    }, []);
-
-    const filterItem = (item: Item) => {
-        if (hideCompleted && item.status === 'done') return false;
-        if (!projectId) {
-            if (vm.filterMode === 'personal' && item.tenantId) return false;
-            if (vm.filterMode === 'company' && !item.tenantId) return false;
-        }
-        return true;
-    };
-
-    const gdbActive = rawGdbActive.filter(filterItem);
-    const gdbPreparation = rawGdbPreparation.filter(filterItem);
-    const gdbIntent = rawGdbIntent.filter(filterItem);
-    const gdbLog = rawGdbLog.filter(filterItem);
+    const gdbActive = hideCompleted ? vmGdbActive.filter(i => i.status !== 'done') : vmGdbActive;
+    const gdbPreparation = hideCompleted ? vmGdbPreparation.filter(i => i.status !== 'done') : vmGdbPreparation;
+    const gdbIntent = hideCompleted ? vmGdbIntent.filter(i => i.status !== 'done') : vmGdbIntent;
+    const gdbLog = vmGdbLog;
 
     const [activeId, setActiveId] = useState<string | null>(null);
     const { joinedTenants } = useAuth(); // [RESTORED]
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
 
-    // Default Selection Logic based on filterMode
-    // Default Selection Logic based on filterMode
     // [FIX] Determine Focused Project
     const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
 
-    // Default Selection Logic based on filterMode
+    // Default tenant selection based on filterMode
     useEffect(() => {
         if (vm.filterMode === 'company' && joinedTenants.length > 0) {
             if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {

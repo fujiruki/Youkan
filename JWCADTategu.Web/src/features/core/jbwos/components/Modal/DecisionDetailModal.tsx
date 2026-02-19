@@ -847,7 +847,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
                                 parentId={item.id}
                                 parentItem={item}
                                 // [FIX] Use local state to reflect changes immediately
-                                defaultProjectId={localProjectId || item.projectId || undefined}
+                                defaultProjectId={localProjectId || (item.isProject ? item.id : item.projectId) || undefined}
                                 defaultTenantId={localTenantId || item.tenantId || undefined}
                                 onNavigate={(subItem) => {
                                     if (_onOpenItem) _onOpenItem(subItem);

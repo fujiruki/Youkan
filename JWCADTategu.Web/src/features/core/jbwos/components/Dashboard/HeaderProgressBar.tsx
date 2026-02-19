@@ -30,21 +30,6 @@ export const HeaderProgressBar: React.FC<HeaderProgressBarProps> = ({
     const progress = Math.min((usedMinutes / limitMinutes) * 100, 100);
     const isOver = usedMinutes > limitMinutes;
 
-    // Listen for global filter changes
-    React.useEffect(() => {
-        const handleGlobalFilterChange = (e: any) => {
-            const newMode = e.detail?.mode;
-            if (newMode && newMode !== filterMode && onFilterChange) {
-                // We don't call onFilterChange here to avoid loops if both are syncing,
-                // but HeaderProgressBar usually is the one triggering it.
-                // Actually, HeaderProgressBar prop 'filterMode' should come from the parent (ViewModel).
-                // So we just need to make sure the trigger dispatches the event.
-            }
-        };
-        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
-        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
-    }, [filterMode, onFilterChange]);
-
     const handleFilterClick = (mode: FilterMode) => {
         if (onFilterChange) {
             onFilterChange(mode);

@@ -1,7 +1,20 @@
 export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
-export type FilterMode = 'all' | 'company' | 'personal';
+export type FilterMode = 'all' | 'company' | 'personal' | (string & {}); // string = tenantId
+
+// --- View Context ---
+export type Perspective = 'personal_private' | 'personal_company' | 'company_internal' | 'company_business';
+
+export interface ViewContext {
+    filterMode: FilterMode;
+    /** 場面①〜④を表す */
+    perspective: Perspective;
+    /** 表示中の立場ラベル（例：「自分の時間管理」「○○社マネージャーとして」） */
+    perspectiveLabel: string;
+    /** フィルタで選択された特定の tenantId（A社選択時等） */
+    focusedTenantId?: string | null;
+}
 
 // --- JBWOS Enterprise Types ---
 export type StockStatus = 'open' | 'assigned' | 'archived';

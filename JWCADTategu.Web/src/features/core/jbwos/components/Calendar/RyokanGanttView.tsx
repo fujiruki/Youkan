@@ -199,7 +199,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             items,
             members: [],
             capacityConfig,
-            filterMode: 'all',
+            // filterMode removed: QuantityEngine no longer needs it
             focusedTenantId,
             focusedProjectId,
             currentUser: {

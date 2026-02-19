@@ -1,4 +1,4 @@
-import { Item, Member, CapacityConfig, FilterMode } from '../types';
+import { Item, Member, CapacityConfig } from '../types';
 import { isHoliday as baseIsHoliday } from './capacity';
 import { safeParseDate, normalizeDateKey } from './dateUtils';
 
@@ -22,7 +22,7 @@ export interface QuantityContext {
     items: Item[];
     members: Member[];
     capacityConfig: CapacityConfig;
-    filterMode: FilterMode;
+    // filterMode removed: filtering is done upstream by ViewModel
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
     tenantProfiles?: Map<string, any>; // [NEW] Capacity Profiles (Map<tenantId, Profile>)
@@ -101,49 +101,17 @@ export class QuantityEngine {
         volumeMap: Map<string, number>,
         contributorsMap: Map<string, Item[]>
     } {
-        const { items, filterMode, focusedTenantId, focusedProjectId, currentUser } = context;
+        const { items, focusedTenantId, focusedProjectId } = context;
         const volumeMap = new Map<string, number>();
         const contributorsMap = new Map<string, Item[]>();
 
-        if (!currentUser) return { volumeMap, contributorsMap };
-
-        const me = currentUser.id;
-        const isCompanyAcc = currentUser.isCompanyAccount;
-
-        // --- View Matrix Logic: Determine Molecule (Relevant Items) ---
-        const relevantItems = items.filter(item => {
-            // Priority 1: Focus context (Explicitly looking at a project or company)
-            if (focusedProjectId) return item.projectId === focusedProjectId;
-            if (focusedTenantId) {
-                // In Company Focus Mode, show everything for that company (Managerial view)
-                // but keep individual owned items visible as truth
-                return item.tenantId === focusedTenantId;
-            }
-
-            // Priority 2: Global Matrix
-            if (!isCompanyAcc) {
-                // I am logged in as a Person
-                if (filterMode === 'personal') {
-                    // Vision: Show only my OWN reality (Personal + Company duties)
-                    // Rule: Created by me OR Assigned to me
-                    return item.assignedTo === me || item.createdBy === me;
-                } else if (filterMode === 'company') {
-                    // Vision: Focus on a specific company (from user side)
-                    // Rule: Must be this company AND owned by me
-                    // If focusedTenantId is not set, we assume 'all my companies' duties?
-                    // User Request says: "user selection -> that company duty"
-                    // If no focusedTenantId, fall back to owner check across all companies
-                    return (item.assignedTo === me || item.createdBy === me) && !!item.tenantId;
-                } else {
-                    // filterMode === 'all'
-                    // Vision: Sum of my life (Personal + All Company duties)
-                    return item.assignedTo === me || item.createdBy === me || !item.tenantId;
-                }
-            } else {
-                // I am logged in as a Company (Corporate Identity)
-                return item.tenantId === me || !item.tenantId; // [FIX] Show Private tasks load even in Company mode
-            }
-        });
+        // Filtering is done upstream by ViewModel.
+        // QuantityEngine receives pre-filtered items and processes all of them.
+        const relevantItems = focusedProjectId
+            ? items.filter(item => item.projectId === focusedProjectId)
+            : focusedTenantId
+                ? items.filter(item => item.tenantId === focusedTenantId)
+                : items;
 
         relevantItems.forEach(item => {
             const endDate = safeParseDate(item.prep_date || item.due_date);
@@ -177,7 +145,7 @@ export class QuantityEngine {
      * Capacity Logic: Determine Denominator based on Matrix.
      */
     private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null): number {
-        const { capacityConfig, focusedTenantId, filterMode, currentUser } = context;
+        const { capacityConfig, focusedTenantId, currentUser } = context;
 
         if (!currentUser) return 0;
 
@@ -216,12 +184,8 @@ export class QuantityEngine {
                 return 0;
             }
 
-            // 【重要】特定の組織 ID が指定された（フィルタ中 or アイテム所属）が、その組織に設定がない場合、
-            // フィルタモードが 'all' なら個人設定（一日の総量）へフォールバックする。
-            if (filterMode !== 'all') {
-                console.log(`[QuantityEngine] Capacity Zero (Filter Restricted): date=${dateKey}, filterMode=${filterMode}, target=${targetId}`);
-                return 0; // 絞り込み中は他社の時間は使えない
-            }
+            // No specific capacity setting for this tenant.
+            // Fall back to personal standard capacity.
             console.log(`[QuantityEngine] Capacity Fallback Attempt: date=${dateKey}, target=${targetId} has no specific setting.`);
         }
 

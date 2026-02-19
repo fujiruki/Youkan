@@ -142,7 +142,8 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         getEffectiveParentId,
 
         // Helper
-        canSelectTenant: creationMode === 'root' && context.activeScope === 'company',
+        // [FIX] Bug A: Allow tenant selection when joinedTenants exist, regardless of activeScope
+        canSelectTenant: creationMode === 'root' && context.joinedTenants.length > 0,
         showLocationSelector: !!context.parentProject,
         parentProjectName: context.parentProject?.title || context.parentProject?.name
     };

@@ -28,7 +28,7 @@ const getStartOfToday = () => {
 
 export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
     items, onItemClick, capacityConfig, members,
-    layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
+    layoutMode = 'panorama', displayMode: propDisplayMode, filterMode: _filterMode = 'all',
     onSelectDate, selectedDate, prepDate, focusDate,
     workDays = 1,
     rowHeight: propRowHeight,
@@ -268,7 +268,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
         items,
         members: members || [],
         capacityConfig: capacityConfig || { defaultDailyMinutes: 480, holidays: [], exceptions: {} },
-        filterMode: filterMode || 'all',
+        // filterMode removed: QuantityEngine no longer needs it
         focusedTenantId,
         focusedProjectId,
         currentUser: {
@@ -277,7 +277,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
             // [Modified] joinedTenants is already JoinedTenant[], pass directly
             joinedTenants: joinedTenants
         }
-    }), [items, capacityConfig, filterMode, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
+    }), [items, capacityConfig, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
 
     const metrics = useMemo(() => QuantityEngine.calculateMetrics(allDays, qCtx), [allDays, qCtx]);
 

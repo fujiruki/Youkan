@@ -117,23 +117,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
     useEffect(() => {
         localStorage.setItem('jbwos_filter_mode', filterMode);
-        // Dispatch global event
-        window.dispatchEvent(new CustomEvent('jbwos-filter-change', { detail: { mode: filterMode } }));
         // [FIX] Trigger refresh when filter changes to avoid stale view
         refreshGdb(projectId);
     }, [filterMode, projectId, refreshGdb]);
-
-    // Listen for global changes from other components
-    useEffect(() => {
-        const handleGlobalFilterChange = (e: any) => {
-            const newMode = e.detail?.mode;
-            if (newMode && newMode !== filterMode) {
-                setFilterMode(newMode);
-            }
-        };
-        window.addEventListener('jbwos-filter-change', handleGlobalFilterChange);
-        return () => window.removeEventListener('jbwos-filter-change', handleGlobalFilterChange);
-    }, [filterMode]);
 
 
     const refreshMembers = useCallback(async () => {
@@ -1043,7 +1029,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
             items: [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits],
             members,
             capacityConfig,
-            filterMode,
+            // filterMode removed: QuantityEngine no longer needs it
             focusedTenantId: projectId ? (allProjects.find(p => p.id === projectId)?.tenantId || null) : null,
             focusedProjectId: projectId,
             tenantProfiles, // [NEW] Inject Profiles
@@ -1053,7 +1039,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
                 joinedTenants: joinedTenants // [Modified] Pass rich objects
             }
         };
-    }, [gdbActive, gdbPreparation, gdbIntent, todayCandidates, todayCommits, members, capacityConfig, filterMode, projectId, joinedTenants, allProjects]);
+    }, [gdbActive, gdbPreparation, gdbIntent, todayCandidates, todayCommits, members, capacityConfig, projectId, joinedTenants, allProjects]);
 
     // [NEW] Import from Plugin (Future Board Drag & Drop)
     const importFromPlugin = async (sourceId: string, itemId: string, date: number) => {
@@ -1102,7 +1088,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
             // Personal items: No tenantId, and domain is not 'business' (usually 'private' or 'general')
             return items.filter(i => !i.tenantId && i.domain !== 'business');
         }
-        return items;
+        // filterMode is a tenantId string: filter to that specific tenant
+        return items.filter(i => i.tenantId === filterMode);
     }, [filterMode]);
 
     const filteredGdbActive = filterItems(gdbActive);
