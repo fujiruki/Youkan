@@ -145,6 +145,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_gantt_row_height', ganttRowHeight.toString());
     }, [ganttRowHeight]);
 
+    const [showGanttGroups, setShowGanttGroups] = useState<boolean>(() => {
+        const saved = localStorage.getItem('jbwos_gantt_show_groups');
+        return saved !== 'false'; // Default to true
+    });
+
+    useEffect(() => {
+        localStorage.setItem('jbwos_gantt_show_groups', showGanttGroups.toString());
+    }, [showGanttGroups]);
+
     // [NEW Phase 24] Calendar ref and visible month state
     const calendarRef = React.useRef<RyokanCalendarHandle>(null);
     const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
@@ -270,6 +279,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     }}
                     rowHeight={ganttRowHeight}
                     onRowHeightChange={setGanttRowHeight}
+                    showGroups={showGanttGroups}
+                    onShowGroupsChange={setShowGanttGroups}
                 />
             )}
             {viewMode === 'panorama' && (
@@ -309,6 +320,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     }}
                                     onItemClick={(item) => setSelectedItem(item)}
                                     onVisibleMonthChange={(date) => setVisibleMonth(date)}
+                                    showGroups={showGanttGroups}
                                 />
                             ) : viewMode === 'newspaper' ? (
                                 <NewspaperBoard viewModel={filteredVM} activeProject={activeProject} onOpenItem={setSelectedItem} />
@@ -515,6 +527,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     capacityConfig={capacityConfig}
                     currentUserId={vm.currentUserId}
                     updateItemMetrics={vm.updateItemMetrics}
+                    // @ts-ignore - perspectiveLabel exists but might not be in the type definition yet
                     perspectiveLabel={getPerspectiveLabel()}
                 />
             )}

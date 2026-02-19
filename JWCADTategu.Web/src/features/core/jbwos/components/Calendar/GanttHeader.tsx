@@ -1,5 +1,4 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
@@ -18,6 +17,9 @@ interface GanttHeaderProps {
     /** 密度スライダー */
     rowHeight: number;
     onRowHeightChange: (value: number) => void;
+    /** グループ表示の切替 */
+    showGroups: boolean;
+    onShowGroupsChange: (value: boolean) => void;
 }
 
 export const GanttHeader: React.FC<GanttHeaderProps> = ({
@@ -27,7 +29,9 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
     onGoToCurrentMonth,
     onOpenDailySettings,
     rowHeight,
-    onRowHeightChange
+    onRowHeightChange,
+    showGroups,
+    onShowGroupsChange
 }) => {
     const today = new Date();
     const isCurrentMonth =
@@ -78,6 +82,36 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
 
             {/* Right: Controls */}
             <div className="flex items-center gap-3">
+                {/* Project Grouping Toggle */}
+                <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <button
+                        onClick={() => onShowGroupsChange(true)}
+                        className={cn(
+                            "p-1.5 rounded-md transition-all flex items-center gap-1.5",
+                            showGroups
+                                ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                        title="プロジェクトごとに表示"
+                    >
+                        <LayoutGrid size={14} />
+                        <span className="text-[10px] font-bold">プロジェクト別</span>
+                    </button>
+                    <button
+                        onClick={() => onShowGroupsChange(false)}
+                        className={cn(
+                            "p-1.5 rounded-md transition-all flex items-center gap-1.5",
+                            !showGroups
+                                ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                        title="フラット表示"
+                    >
+                        <List size={14} />
+                        <span className="text-[10px] font-bold">一覧</span>
+                    </button>
+                </div>
+
                 {/* Density Slider */}
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>

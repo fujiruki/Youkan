@@ -47,4 +47,5 @@ export interface RyokanCalendarProps {
     // [NEW] Phase 24: Gantt Header integration
     onVisibleMonthChange?: (date: Date) => void; // Reports which month is currently in view
     onOpenDailySettings?: (date: Date) => void; // Opens DailyCapacityEditor for the given date
+    showGroups?: boolean; // [NEW] Toggle project grouping in Gantt
 }

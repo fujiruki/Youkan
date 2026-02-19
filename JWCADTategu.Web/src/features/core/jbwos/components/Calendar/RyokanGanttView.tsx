@@ -29,12 +29,14 @@ interface GanttViewProps {
     joinedTenants?: JoinedTenant[];
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
+    showGroups: boolean;
 }
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
     allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
     onUpdateItem,
-    capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId
+    capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
+    showGroups
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -140,8 +142,57 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         });
     };
 
-    // Grouping & Sorting Logic
-    const groupedItems = useMemo(() => {
+    // --- Hierarchy & Sorting Logic ---
+    const buildTree = (taskList: Item[], parentId: string | null = null, depth = 0, skipParents = false): any[] => {
+        const result: any[] = [];
+        const children = taskList.filter(t => t.parentId === (parentId || undefined) || (!parentId && !t.parentId));
+
+        // Sort children based on requirement:
+        // 1. No due_date first
+        // 2. Earlier of (due_date or prep_date) first
+        children.sort((a, b) => {
+            const aDate = a.due_date || a.prep_date;
+            const bDate = b.due_date || b.prep_date;
+
+            if (!aDate && !bDate) return 0;
+            if (!aDate) return -1;
+            if (!bDate) return 1;
+
+            const timeA = typeof aDate === 'number' ? aDate : new Date(aDate).getTime() / 1000;
+            const timeB = typeof bDate === 'number' ? bDate : new Date(bDate).getTime() / 1000;
+            return timeA - timeB;
+        });
+
+        children.forEach(child => {
+            const subTree = buildTree(taskList, child.id, depth + 1, skipParents);
+            const hasChildren = subTree.length > 0;
+
+            if (!skipParents || !hasChildren) {
+                result.push({
+                    ...child,
+                    depth: skipParents ? 0 : depth,
+                    children: subTree
+                });
+            } else {
+                result.push(...subTree);
+            }
+        });
+        return result;
+    };
+
+    const flattenTree = (tree: any[]): any[] => {
+        const result: any[] = [];
+        tree.forEach(node => {
+            const { children, ...itemData } = node;
+            result.push(itemData);
+            if (children && children.length > 0) {
+                result.push(...flattenTree(children));
+            }
+        });
+        return result;
+    };
+
+    const transformedGroupedItems = useMemo(() => {
         const groups: Record<string, Item[]> = {};
         const noProjectKey = 'unassigned';
 
@@ -151,45 +202,29 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             groups[key].push(item);
         });
 
-        Object.keys(groups).forEach(key => {
-            groups[key].sort((a, b) => {
-                const aDate = a.due_date || a.prep_date;
-                const bDate = b.due_date || b.prep_date;
-
-                if (!aDate && !bDate) return 0;
-                if (!aDate) return -1;
-                if (!bDate) return 1;
-
-                return (typeof aDate === 'number' ? aDate : new Date(aDate).getTime()) -
-                    (typeof bDate === 'number' ? bDate : new Date(bDate).getTime());
-            });
-        });
-
-        return groups;
-    }, [items]);
-
-    const sortedProjectKeys = useMemo(() => {
-        const keys = Object.keys(groupedItems).filter(k => k !== 'unassigned');
-        keys.sort((a, b) => {
+        const sortedKeys = Object.keys(groups).filter(k => k !== 'unassigned');
+        sortedKeys.sort((a, b) => {
             const pA = projects.find(p => p.id === a);
             const pB = projects.find(p => p.id === b);
             return (pA?.title || '').localeCompare(pB?.title || '');
         });
-        if (groupedItems['unassigned']) return ['unassigned', ...keys];
-        return keys;
-    }, [groupedItems, projects]);
+        const finalKeys = groups['unassigned'] ? ['unassigned', ...sortedKeys] : sortedKeys;
 
-    // Transform groupedItems for the new JSX structure
-    const transformedGroupedItems = useMemo(() => {
-        return sortedProjectKeys.map(groupKey => {
+        return finalKeys.map(groupKey => {
             const project = projects.find(p => p.id === groupKey);
+            const groupTitle = groupKey === 'unassigned' ? "Inbox (未分類)" : project?.title || "Unknown Project";
+
+            // Build tree for this group
+            const tree = buildTree(groups[groupKey] || [], null, 0, !showGroups);
+            const flatItems = flattenTree(tree);
+
             return {
                 projectId: groupKey,
-                projectName: groupKey === 'unassigned' ? "Inbox (未分類)" : project?.title || "Unknown Project",
-                items: groupedItems[groupKey] || []
+                projectName: groupTitle,
+                items: flatItems as (Item & { depth: number })[]
             };
         });
-    }, [groupedItems, sortedProjectKeys, projects]);
+    }, [items, projects, showGroups]);
 
     // Calculate detailed allocations using QuantityEngine
     const allocationMap = useMemo(() => {
@@ -284,24 +319,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             >
                 <div className="min-w-max pb-32">
                     {transformedGroupedItems.map(group => (
-                        <div
-                            key={group.projectId}
-                            onWheel={(e) => {
-                                // Wheel Customization:
-                                // Left Column (Title) -> Vertical Scroll (Default)
-                                // Right Column (Chart) -> Horizontal Scroll
-                                const TITLE_WIDTH = 256; // w-64 = 16rem = 256px
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const x = e.clientX - rect.left;
-
-                                if (x > TITLE_WIDTH) {
-                                    if (scrollContainerRef.current) {
-                                        scrollContainerRef.current.scrollLeft += e.deltaY;
-                                        e.preventDefault();
-                                    }
-                                }
-                            }}
-                        >
+                        <div key={group.projectId}>
                             {/* Project Header */}
                             {group.projectName !== "Inbox (未分類)" && (
                                 <div className="sticky left-0 z-20 w-64 min-w-[16rem] bg-slate-100 dark:bg-slate-800 px-4 py-1.5 text-xs font-bold text-slate-500 border-y border-white dark:border-slate-700 shadow-sm">
@@ -312,6 +330,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                             {group.items.map(item => {
                                 const prepDateObj = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
                                 const dueDateObj = item.due_date ? new Date(item.due_date) : null;
+                                const depth = (item as any).depth || 0;
 
                                 return (
                                     <div
@@ -323,7 +342,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                         {/* Sticky Title Column */}
                                         <div className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                             <div
-                                                className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline"
+                                                className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center"
+                                                style={{ paddingLeft: `${depth * 16}px` }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     const targetDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : (item.due_date ? new Date(item.due_date) : null);
@@ -333,7 +353,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 }}
                                                 title="クリックで納期へスクロール"
                                             >
-                                                {renderItemTitle(item)}
+                                                {depth > 0 && <span className="text-slate-400 mr-1">└</span>}
+                                                <span className="truncate">{renderItemTitle(item)}</span>
                                             </div>
                                             {hoveredItemId === item.id && (
                                                 <button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors">
@@ -357,7 +378,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 return (
                                                     <div key={date.toDateString()} className={cn(
                                                         "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
-                                                        isSun && !step ? "bg-red-50/50 dark:bg-red-900/10" : isSat && !step ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+                                                        isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
                                                     )}>
                                                         {/* Real Allocation Chip (Blue) */}
                                                         {step && (
@@ -368,7 +389,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                                 )}
                                                                 title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
                                                             >
-                                                                {/* Only show minutes if enough space, otherwise dot or nothing */}
                                                                 {step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''}
                                                             </div>
                                                         )}
@@ -392,7 +412,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                                     "absolute top-0.5 bottom-0.5 right-0 w-1.5 rounded-full z-20 cursor-grab active:cursor-grabbing",
                                                                     "bg-indigo-400 border border-white dark:border-slate-900 shadow-md",
                                                                     "hover:w-3 hover:bg-indigo-500 transition-all",
-                                                                    // If we are dragging, verify visualization
                                                                     onUpdateItem ? "" : "hidden"
                                                                 )}
                                                                 title={`目安納期: ${format(prepDateObj!, 'M/d')} (ドラッグして移動)`}

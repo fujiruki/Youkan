@@ -43,7 +43,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
     disablePressureLines = false,
     onUpdateItem, // [NEW]
     onVisibleMonthChange, // [NEW Phase 24]
-    onOpenDailySettings // [NEW Phase 24]
+    onOpenDailySettings, // [NEW Phase 24]
+    showGroups = true // [NEW]
 }, calendarRef) => {
     const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -542,6 +543,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
                         joinedTenants={joinedTenants}
                         focusedTenantId={focusedTenantId}
                         focusedProjectId={focusedProjectId}
+                        showGroups={showGroups}
                     />
                 )}
             </div>
