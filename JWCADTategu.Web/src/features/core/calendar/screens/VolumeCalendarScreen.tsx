@@ -7,6 +7,7 @@ import { DecisionDetailModal } from '../../jbwos/components/Modal/DecisionDetail
 import { Item } from '../../jbwos/types';
 import { ApiClient } from '../../../../api/client';
 import { GanttHeader } from '../../jbwos/components/Calendar/GanttHeader';
+import { isValid } from 'date-fns';
 
 interface Props {
     onNavigateHome: () => void;
@@ -131,7 +132,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     capacityConfig={capacityConfig} // [NEW]
                     joinedTenants={auth.joinedTenants} // [NEW]
                     onVisibleMonthChange={(date) => {
-                        if (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear()) {
+                        if (isValid(date) && (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear())) {
                             setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
                         }
                     }}

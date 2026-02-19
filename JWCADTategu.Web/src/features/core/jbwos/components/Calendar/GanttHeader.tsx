@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
 
@@ -23,7 +23,7 @@ interface GanttHeaderProps {
 }
 
 export const GanttHeader: React.FC<GanttHeaderProps> = ({
-    visibleDate,
+    visibleDate: _visibleDate,
     onPrevMonth,
     onNextMonth,
     onGoToCurrentMonth,
@@ -34,6 +34,9 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
     onShowGroupsChange
 }) => {
     const today = new Date();
+    // Safety check for invalid dates to prevent "Invalid time value" crash
+    const visibleDate = isValid(_visibleDate) ? _visibleDate : today;
+
     const isCurrentMonth =
         visibleDate.getFullYear() === today.getFullYear() &&
         visibleDate.getMonth() === today.getMonth();

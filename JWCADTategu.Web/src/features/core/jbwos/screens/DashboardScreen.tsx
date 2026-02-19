@@ -1,32 +1,41 @@
-import React, { useState, useEffect } from 'react';
-// import { format } from 'date-fns'; // [Unused]
-import { Item } from '../types';
-import { Project as LocalProject } from '../../../../db/db';
-import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
-
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-    ChevronRight, ChevronDown, Clock,
-    BarChart2
+    Plus,
+    BarChart2,
+    Calendar,
+    ChevronDown,
+    ChevronRight,
+    Search,
+    Filter,
+    MoreVertical,
+    CheckCircle2,
+    Clock,
+    AlertCircle,
+    Layout
 } from 'lucide-react';
-import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
-import { FocusCard } from '../components/Dashboard/FocusCard';
+import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
+import { Item, Perspective } from '../types';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
+import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
+import { useAuth } from '../../auth/providers/AuthProvider';
+import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
+import { useItemContextMenu } from '../hooks/useItemContextMenu';
+import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { JbwosBoard } from '../components/GlobalBoard/GlobalBoard';
-import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
-// import { MainQuantityCalendar } from '../components/Layout/MainQuantityCalendar'; // [Unused]
+import { FocusCard } from '../components/Dashboard/FocusCard';
 import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
-import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
-import { useAuth } from '../../auth/providers/AuthProvider';
-import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
-import { useItemContextMenu } from '../hooks/useItemContextMenu';
 import { GanttHeader } from '../components/Calendar/GanttHeader';
+import { Project as LocalProject } from '../../../../db/db';
+import { cn } from '../../../../../lib/utils';
+import { format, isValid } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { ViewContextBar } from '../components/Dashboard/ViewContextBar';
-import { Perspective } from '../types';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
-        className={`flex items-center gap-2 mb-2 mt-4 ${onToggle ? 'cursor-pointer select-none group' : ''}`}
+        className={`flex items - center gap - 2 mb - 2 mt - 4 ${onToggle ? 'cursor-pointer select-none group' : ''} `}
         onClick={onToggle}
     >
         {onToggle && (
@@ -234,7 +243,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
         // Specific Tenant Filtering in Personal Mode
         const tenant = joinedTenants.find(t => t.id === filterMode);
-        if (tenant) return `${tenant.name}マネージャーとして`;
+        if (tenant) return `${tenant.name} マネージャーとして`;
 
         if (filterMode === 'company') return '会社業務の俯瞰';
 
@@ -317,8 +326,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     hideHeader={true}
                                     onItemClick={(item) => setSelectedItem(item)}
                                     onVisibleMonthChange={(date: Date) => {
-                                        // Update state ONLY if month/year changed to avoid infinite loop
-                                        if (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear()) {
+                                        // Update state ONLY if valid and month/year changed to avoid infinite loop
+                                        if (isValid(date) && (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear())) {
                                             setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
                                         }
                                     }}
