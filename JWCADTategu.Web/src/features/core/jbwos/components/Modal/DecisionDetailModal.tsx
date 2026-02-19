@@ -35,7 +35,7 @@ interface DecisionDetailModalProps {
     initialFocus?: 'date';
 }
 export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
-    item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
+    item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask: _onCreateSubTask, onGetSubTasks: _onGetSubTasks,
     onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     quantityItems = [], filterMode = 'all', capacityConfig, currentUserId, updateItemMetrics
 }) => {
@@ -111,7 +111,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
             setDueDate(todayStr);
             setDueStatus('confirmed');
         }
-    }, [item?.id, isProject, onGetSubTasks, item?.dueStatus]);
+    }, [item?.id, isProject, _onGetSubTasks, item?.dueStatus]);
 
     // [NEW] Use separate memo for Details to display the breakdown, and derive Period from it
     const allocationDetails = React.useMemo(() => {
