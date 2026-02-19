@@ -34,7 +34,9 @@ interface DecisionDetailModalProps {
     // yesButtonLabel?: string; // Unused
     initialFocus?: 'date';
 }
-onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
+export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
+    item: propItem, onClose, onDecision, onDelete, onUpdate, onCreateSubTask, onGetSubTasks,
+    onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = [], joinedTenants = [],
     quantityItems = [], filterMode = 'all', capacityConfig, currentUserId, updateItemMetrics
 }) => {
     const [history, setHistory] = React.useState<Item[]>([]);
@@ -93,7 +95,7 @@ onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = []
             setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
             // setSubTasks([]);
         }
-    }, [item?.id, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
+    }, [item?.id, item?.title, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
 
     React.useEffect(() => {
         if (!item) return;
@@ -468,8 +470,11 @@ onDelegate: _onDelegate, onOpenItem: _onOpenItem, members = [], allProjects = []
                                     onChange={(e) => setEditedTitle(e.target.value)}
                                     onBlur={async () => {
                                         setIsEditingTitle(false);
-                                        if (editedTitle !== item.title) {
-                                            await onUpdate?.(item.id, { title: editedTitle });
+                                        if (editedTitle.trim() && editedTitle !== item.title) {
+                                            await onUpdate?.(item.id, { title: editedTitle.trim() });
+                                        } else if (!editedTitle.trim()) {
+                                            // Restore old title if input is empty
+                                            setEditedTitle(item.title);
                                         }
                                     }}
                                     onKeyDown={async (e) => {

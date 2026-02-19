@@ -384,18 +384,33 @@ class ItemController extends BaseController {
     // GET /api/items?parent_id=XXX
     // Returns direct sub-tasks of an item
     private function getSubTasks($parentId) {
-        // [Security Rule] Basic Tenant Isolation
+        // [Security Rule] Context Aware Isolation
+        // Use joinedTenants + NULL (Personal) to gather all accessible sub-tasks
+        $tenantIds = $this->joinedTenants ?: [];
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
+        }
+
+        $placeholders = '';
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+
         $sql = "
             SELECT items.*
             FROM items
-            WHERE items.tenant_id = ? 
+            WHERE (
+                " . ($placeholders ? "items.tenant_id IN ($placeholders)" : "1=0") . "
+                OR items.tenant_id IS NULL OR items.tenant_id = ''
+            )
             AND items.parent_id = ?
             AND items.is_archived = 0 AND items.deleted_at IS NULL -- Only active subtasks
             ORDER BY items.created_at ASC
         ";
         
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$this->currentTenantId, $parentId]);
+        $params = array_merge($tenantIds, [$parentId]);
+        $stmt->execute($params);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
@@ -627,6 +642,14 @@ class ItemController extends BaseController {
         }
 
         $data = $this->getInput();
+        
+        // Safety: Do not allow clearing title via update
+        if (array_key_exists('title', $data)) {
+            $newTitle = $data['title'];
+            if ($newTitle === null || (is_string($newTitle) && trim($newTitle) === '')) {
+                unset($data['title']);
+            }
+        }
 
         // 1. [Hook] Automated Assignment Logic on Project Move
         // We do this BEFORE the main update because it might change values in $data

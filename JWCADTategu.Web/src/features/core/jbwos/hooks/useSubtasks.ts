@@ -49,7 +49,9 @@ export const useSubtasks = (parentId: string, defaultProjectId?: string, default
         setSubtasks(prev => [...prev, newItem as Item]);
 
         try {
-            await ApiClient.createItem(newItem);
+            // Remove temp id before sending to backend to let it generate real UUID
+            const { id: _unusedId, ...dataToSend } = newItem;
+            await ApiClient.createItem(dataToSend);
             await loadSubtasks(); // Refresh to get real ID
         } catch (e) {
             console.error('Failed to create subtask', e);
