@@ -296,9 +296,18 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
             <ProjectCreationDialog
                 isOpen={showProjectDialog}
                 onClose={() => setShowProjectDialog(false)}
-                activeScope={(focusedProject?.tenantId || selectedTenantId) ? 'company' : 'personal'}
+                activeScope={
+                    // [FIX] Derive activeScope from filterMode: tenantId string or 'company' -> company scope
+                    (focusedProject?.tenantId || selectedTenantId || vm.filterMode === 'company' || (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal'))
+                        ? 'company' : 'personal'
+                }
                 tenants={joinedTenants}
-                defaultTenantId={focusedProject?.tenantId || selectedTenantId || undefined}
+                defaultTenantId={
+                    focusedProject?.tenantId
+                    || selectedTenantId
+                    || (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal' && vm.filterMode !== 'company' ? vm.filterMode : undefined)
+                    || undefined
+                }
                 onCreate={async (project: any, defaultTasks: any[]) => {
                     // Ensure required fields are present
                     if (!project.title) return;

@@ -79,9 +79,11 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
             }
         } else {
             setCreationMode('root');
-            // Default tenant logic
-            if (context.activeScope === 'company') {
-                setSelectedTenantId(context.defaultTenantId || (context.joinedTenants.length > 0 ? context.joinedTenants[0].id : ''));
+            // [FIX] Default tenant: use defaultTenantId if provided, regardless of activeScope
+            if (context.defaultTenantId) {
+                setSelectedTenantId(context.defaultTenantId);
+            } else if (context.joinedTenants.length > 0 && context.activeScope === 'company') {
+                setSelectedTenantId(context.joinedTenants[0].id);
             } else {
                 setSelectedTenantId(''); // Personal
             }
@@ -91,8 +93,11 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
     // When toggling mode from child -> root, enable tenant selection
     useEffect(() => {
         if (creationMode === 'root') {
-            if (context.activeScope === 'company' && !selectedTenantId) {
-                setSelectedTenantId(context.defaultTenantId || (context.joinedTenants.length > 0 ? context.joinedTenants[0].id : ''));
+            // [FIX] If no tenantId selected and defaultTenantId exists, use it
+            if (!selectedTenantId && context.defaultTenantId) {
+                setSelectedTenantId(context.defaultTenantId);
+            } else if (!selectedTenantId && context.activeScope === 'company' && context.joinedTenants.length > 0) {
+                setSelectedTenantId(context.joinedTenants[0].id);
             }
         } else if (creationMode === 'child' && context.parentProject) {
             // Revert to parent's tenant
