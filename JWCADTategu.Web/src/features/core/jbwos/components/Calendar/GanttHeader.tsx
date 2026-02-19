@@ -39,102 +39,111 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
         visibleDate.getMonth() === today.getMonth();
 
     return (
-        <div className="shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-between z-10">
-            {/* Left: Month Navigation */}
-            <div className="flex items-center gap-1">
-                <button
-                    onClick={onPrevMonth}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    title="前月"
-                >
-                    <ChevronLeft size={16} />
-                </button>
+        <div className="shrink-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between z-30 shadow-sm relative">
+            {/* Left Section: Context & Navigation */}
+            <div className="flex items-center gap-4">
+                {/* View Title & Navigation */}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <button
+                        onClick={onPrevMonth}
+                        className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all active:scale-95 shadow-none hover:shadow-sm"
+                        title="前月"
+                    >
+                        <ChevronLeft size={18} strokeWidth={2.5} />
+                    </button>
 
-                <div className="min-w-[100px] text-center">
-                    <span className="text-sm font-black tracking-tight text-slate-700 dark:text-slate-200">
-                        {format(visibleDate, 'yyyy年 M月', { locale: ja })}
-                    </span>
+                    <div className="px-3 min-w-[120px] text-center">
+                        <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none mb-0.5">
+                            {format(visibleDate, 'yyyy')}
+                        </div>
+                        <div className="text-sm font-black text-slate-800 dark:text-white tracking-tight">
+                            {format(visibleDate, 'M月', { locale: ja })}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onNextMonth}
+                        className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all active:scale-95 shadow-none hover:shadow-sm"
+                        title="次月"
+                    >
+                        <ChevronRight size={18} strokeWidth={2.5} />
+                    </button>
                 </div>
 
-                <button
-                    onClick={onNextMonth}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    title="次月"
-                >
-                    <ChevronRight size={16} />
-                </button>
-
-                <button
-                    onClick={onGoToCurrentMonth}
-                    className={cn(
-                        "ml-1 px-2.5 py-1 text-[10px] font-bold rounded-full border transition-all",
-                        isCurrentMonth
-                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-400 border-blue-200 dark:border-blue-700 cursor-default opacity-50"
-                            : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 hover:border-blue-300"
-                    )}
-                    disabled={isCurrentMonth}
-                    title="今月を表示"
-                >
-                    <CalendarDays size={10} className="inline mr-1" />
-                    今月
-                </button>
+                {/* Quick Shortcuts */}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={onGoToCurrentMonth}
+                        className={cn(
+                            "group flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black rounded-xl border transition-all duration-300",
+                            isCurrentMonth
+                                ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 border-indigo-100 dark:border-indigo-800/50 cursor-default"
+                                : "bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm"
+                        )}
+                        disabled={isCurrentMonth}
+                    >
+                        <CalendarDays size={12} className={cn("transition-transform group-hover:scale-110", isCurrentMonth ? "text-indigo-400" : "text-slate-400 group-hover:text-indigo-500")} />
+                        今月を表示
+                    </button>
+                </div>
             </div>
 
-            {/* Right: Controls */}
-            <div className="flex items-center gap-3">
-                {/* Project Grouping Toggle */}
-                <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            {/* Middle: Optional Branding or Center Content could go here */}
+
+            {/* Right Section: Display Controls */}
+            <div className="flex items-center gap-6">
+                {/* View Mode Switcher */}
+                <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                     <button
                         onClick={() => onShowGroupsChange(true)}
                         className={cn(
-                            "p-1.5 rounded-md transition-all flex items-center gap-1.5",
+                            "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
                             showGroups
-                                ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
                                 : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                         )}
-                        title="プロジェクトごとに表示"
                     >
-                        <LayoutGrid size={14} />
-                        <span className="text-[10px] font-bold">プロジェクト別</span>
+                        <LayoutGrid size={14} strokeWidth={2.5} />
+                        プロジェクト別
                     </button>
                     <button
                         onClick={() => onShowGroupsChange(false)}
                         className={cn(
-                            "p-1.5 rounded-md transition-all flex items-center gap-1.5",
+                            "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
                             !showGroups
-                                ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
                                 : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                         )}
-                        title="フラット表示"
                     >
-                        <List size={14} />
-                        <span className="text-[10px] font-bold">一覧</span>
+                        <List size={14} strokeWidth={2.5} />
+                        一覧
                     </button>
                 </div>
 
-                {/* Density Slider */}
-                <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
-                    <input
-                        type="range"
-                        min="12"
-                        max="32"
-                        value={rowHeight}
-                        onChange={(e) => onRowHeightChange(parseInt(e.target.value))}
-                        className="w-16 accent-indigo-600 h-1.5 cursor-pointer"
-                    />
-                    <span className="text-[10px] font-mono text-slate-500 w-4">{rowHeight}</span>
-                </div>
+                <div className="flex items-center gap-4">
+                    {/* Density Slider */}
+                    <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">密度</span>
+                        <input
+                            type="range"
+                            min="12"
+                            max="32"
+                            value={rowHeight}
+                            onChange={(e) => onRowHeightChange(parseInt(e.target.value))}
+                            className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                        />
+                        <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{rowHeight}</span>
+                    </div>
 
-                {/* Daily Settings Button */}
-                <button
-                    onClick={onOpenDailySettings}
-                    className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors border border-slate-200 dark:border-slate-600"
-                    title="日次稼働設定"
-                >
-                    <Settings className="w-3 h-3" />
-                    <span>日次設定</span>
-                </button>
+                    {/* Daily Settings Button */}
+                    <button
+                        onClick={onOpenDailySettings}
+                        className="group flex items-center gap-2 px-4 py-1.5 text-[11px] font-black rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 transition-all active:scale-95 shadow-lg shadow-slate-200 dark:shadow-none"
+                    >
+                        <Settings className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-500" />
+                        <span>日次設定</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 import { DecisionDetailModal } from '../../jbwos/components/Modal/DecisionDetailModal';
 import { Item } from '../../jbwos/types';
 import { ApiClient } from '../../../../api/client';
+import { GanttHeader } from '../../jbwos/components/Calendar/GanttHeader';
 
 interface Props {
     onNavigateHome: () => void;
@@ -14,7 +15,6 @@ interface Props {
 }
 
 export const VolumeCalendarScreen: React.FC<Props> = ({
-    onNavigateHome,
     activeProjectId,
     activeTenantId
 }) => {
@@ -23,6 +23,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
     const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
         return (localStorage.getItem('jbwos_calendar_view_mode') as any) || 'gantt';
     });
+    const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
+    const calendarRef = React.useRef<any>(null);
 
     useEffect(() => {
         const handleModeChange = (e: CustomEvent<{ mode: 'grid' | 'timeline' | 'gantt' }>) => {
@@ -34,7 +36,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
     const {
         items, members, projects, loading, error,
-        startOfMonth,
         handlePrevMonth, handleNextMonth, refresh,
         capacityConfig // [NEW]
     } = useVolumeCalendarViewModel({
@@ -99,31 +100,25 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-            {/* Header Section (Simplified) */}
-            <div className="flex-none p-4 flex items-center justify-between bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-20">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full font-bold">
-                            ←
-                        </button>
-                        <span className="font-bold text-lg min-w-[120px] text-center">
-                            {startOfMonth.getFullYear()}年 {startOfMonth.getMonth() + 1}月
-                        </span>
-                        <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full font-bold">
-                            →
-                        </button>
-                    </div>
-                    <button onClick={onNavigateHome} className="text-sm text-slate-500 hover:text-slate-700 font-bold ml-4">
-                        戻る
-                    </button>
-                </div>
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                    {activeProjectId ? "Project Focused" : activeTenantId ? "Company Focused" : "Personal Focus"}
-                </div>
-            </div>
+            {/* Header Section (Unified GanttHeader) */}
+            <GanttHeader
+                visibleDate={visibleMonth}
+                onPrevMonth={handlePrevMonth}
+                onNextMonth={handleNextMonth}
+                onGoToCurrentMonth={() => {
+                    setVisibleMonth(new Date());
+                    calendarRef.current?.scrollToToday();
+                }}
+                onOpenDailySettings={() => calendarRef.current?.openDailySettings()}
+                rowHeight={24}
+                onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
+                showGroups={true}
+                onShowGroupsChange={() => { }}
+            />
 
             <div className="flex-1 overflow-hidden relative">
                 <RyokanCalendar
+                    ref={calendarRef}
                     items={items || []}
                     members={members || []}
                     projects={projects || []}
@@ -135,6 +130,12 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     onUpdateItem={handleUpdate}
                     capacityConfig={capacityConfig} // [NEW]
                     joinedTenants={auth.joinedTenants} // [NEW]
+                    onVisibleMonthChange={(date) => {
+                        if (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear()) {
+                            setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                        }
+                    }}
+                    hideHeader={true}
                 />
             </div>
 

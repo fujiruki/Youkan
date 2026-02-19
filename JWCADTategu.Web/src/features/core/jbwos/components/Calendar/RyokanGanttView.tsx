@@ -4,6 +4,7 @@ import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
+import { normalizeDateKey } from '../../logic/dateUtils';
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
@@ -30,13 +31,15 @@ interface GanttViewProps {
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
     showGroups: boolean;
+    onVisibleMonthChange?: (date: Date) => void;
+    focusDate?: Date | null;
 }
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
     allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
     onUpdateItem,
     capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
-    showGroups
+    showGroups, onVisibleMonthChange, focusDate
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -124,6 +127,24 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
         };
     }, []);
 
+    // [PHASE 24] Handle external focusDate change
+    useEffect(() => {
+        if (focusDate) {
+            scrollToDate(focusDate);
+        }
+    }, [focusDate]);
+
+    // Initial Scroll to Today (if no focusDate)
+    useEffect(() => {
+        if (!focusDate && _today) {
+            // Wait for mounting to finish
+            const timer = setTimeout(() => {
+                scrollToDate(_today);
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [_today, focusDate]);
+
     // Scroll to date logic
     const scrollToDate = (date: Date) => {
         if (!scrollContainerRef.current) return;
@@ -134,6 +155,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
         const scrollPos = index * colWidth;
         const containerWidth = scrollContainerRef.current.clientWidth;
+        // Center the date: (scrollPos) - (containerWidth / 2) + (colWidth / 2)
         const centerOffset = containerWidth / 2 - colWidth / 2;
 
         scrollContainerRef.current.scrollTo({
@@ -141,6 +163,29 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
             behavior: 'smooth'
         });
     };
+
+    // [PHASE 24] Handle scroll to update visible month in header
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container || !onVisibleMonthChange) return;
+
+        const handleScroll = () => {
+            // Calculate date at the center of the viewport
+            const centerOffset = container.scrollLeft + (container.clientWidth / 2);
+            const dayIndex = Math.floor(centerOffset / colWidth);
+            const centerDate = allDays[Math.max(0, Math.min(dayIndex, allDays.length - 1))];
+
+            if (centerDate) {
+                onVisibleMonthChange(centerDate);
+            }
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        // Trigger once to sync header initially
+        handleScroll();
+
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [allDays, onVisibleMonthChange, colWidth]);
 
     // --- Hierarchy & Sorting Logic ---
     const buildTree = (taskList: Item[], parentId: string | null = null, depth = 0, skipParents = false): any[] => {
@@ -212,7 +257,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
         return finalKeys.map(groupKey => {
             const project = projects.find(p => p.id === groupKey);
-            const groupTitle = groupKey === 'unassigned' ? "Inbox (未分類)" : project?.title || "Unknown Project";
+            const firstItem = groups[groupKey]?.[0];
+            const groupTitle = groupKey === 'unassigned'
+                ? "Inbox (未分類)"
+                : (project?.title || project?.name || firstItem?.projectTitle || firstItem?.title || `Unknown Project (${groupKey})`);
 
             // Build tree for this group
             const tree = buildTree(groups[groupKey] || [], null, 0, !showGroups);
@@ -274,7 +322,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden select-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+        <div className="ryokan-gantt-view-container flex flex-col h-full overflow-hidden select-none bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
             {/* Header */}
             <div
                 ref={headerContainerRef}
@@ -376,10 +424,14 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                                                 const step = allocationSteps?.find((s: any) => isSameDate(s.date, date));
 
                                                 return (
-                                                    <div key={date.toDateString()} className={cn(
-                                                        "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
-                                                        isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
-                                                    )}>
+                                                    <div
+                                                        key={date.toDateString()}
+                                                        data-gantt-date={normalizeDateKey(date)}
+                                                        className={cn(
+                                                            "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
+                                                            isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+                                                        )}
+                                                    >
                                                         {/* Real Allocation Chip (Blue) */}
                                                         {step && (
                                                             <div

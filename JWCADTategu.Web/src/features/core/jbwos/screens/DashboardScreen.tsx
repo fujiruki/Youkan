@@ -303,7 +303,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-hidden">
-                            {viewMode === 'calendar' ? (
+                            {viewMode === 'calendar' && (
                                 <RyokanCalendar
                                     ref={calendarRef}
                                     items={allItemsForCalendar}
@@ -315,16 +315,20 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     displayMode="gantt"
                                     filterMode={filterMode}
                                     hideHeader={true}
-                                    onDateClick={(d) => {
-                                        console.log('Date Clicked', d);
-                                    }}
                                     onItemClick={(item) => setSelectedItem(item)}
-                                    onVisibleMonthChange={(date) => setVisibleMonth(date)}
+                                    onVisibleMonthChange={(date: Date) => {
+                                        // Update state ONLY if month/year changed to avoid infinite loop
+                                        if (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear()) {
+                                            setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                                        }
+                                    }}
                                     showGroups={showGanttGroups}
                                 />
-                            ) : viewMode === 'newspaper' ? (
+                            )}
+                            {viewMode === 'newspaper' && (
                                 <NewspaperBoard viewModel={filteredVM} activeProject={activeProject} onOpenItem={setSelectedItem} />
-                            ) : (
+                            )}
+                            {viewMode === 'panorama' && (
                                 <JbwosBoard
                                     initialLayoutMode="panorama"
                                     onClose={() => handleViewModeChange('stream')}

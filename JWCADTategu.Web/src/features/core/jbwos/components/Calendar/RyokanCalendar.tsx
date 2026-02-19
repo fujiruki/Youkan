@@ -78,15 +78,34 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
     const scrollToDateElement = useCallback((targetDate: Date) => {
         if (!scrollContainerRef.current) return;
         const container = scrollContainerRef.current;
-        const targetKey = normalizeDateKey(targetDate);
-        const targetEl = container.querySelector(`[data-date="${targetKey}"]`);
-        if (targetEl) {
-            const containerRect = container.getBoundingClientRect();
-            const targetRect = targetEl.getBoundingClientRect();
-            const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
-            container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+
+        if (displayMode === 'gantt') {
+            // Horizontal scrolling logic for Gantt
+            // Note: RyokanGanttView has its own scrollToDate, but here we coordinate from parent
+            // The simplest way to trigger Gantt scroll is via focusDate prop updating in DashboardScreen,
+            // but for imperative calls from ref, we need a way to reach into RyokanGanttView.
+            // Since we can't easily reach it without a ref, we'll try to find the date header element.
+            // Better: Dispatch a custom event or use the focusDate pattern more strictly.
+            // For now, let's look for the date cell in Gantt body.
+            const targetEl = container.querySelector(`[data-gantt-date="${normalizeDateKey(targetDate)}"]`);
+            if (targetEl) {
+                const rect = targetEl.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const scrollOffset = container.scrollLeft + rect.left - containerRect.left - (containerRect.width / 2) + (rect.width / 2);
+                container.scrollTo({ left: scrollOffset, behavior: 'smooth' });
+            }
+        } else {
+            // Vertical scrolling logic for Grid/Timeline
+            const targetKey = normalizeDateKey(targetDate);
+            const targetEl = container.querySelector(`[data-date="${targetKey}"]`);
+            if (targetEl) {
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = targetEl.getBoundingClientRect();
+                const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
+                container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+            }
         }
-    }, []);
+    }, [displayMode]);
 
     useImperativeHandle(calendarRef, () => ({
         scrollToMonth: (year: number, month: number) => {
@@ -108,7 +127,17 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
             }
         },
         scrollToToday: () => {
-            scrollToDateElement(new Date());
+            if (displayMode === 'gantt') {
+                // For Gantt, focusDate trigger or initial center today logic is used.
+                // We can also trigger a focusDate update by resetting it to null then back to today.
+                // But the most direct way in RyokanCalendar is to use the focusDate prop pattern.
+                // Actually, RyokanCalendar doesn't manage focusDate itself, it receives it.
+                // Let's use the local scroll logic if possible or rely on the parent updating focusDate.
+                // Since this is imperative, we manually scroll to today.
+                scrollToDateElement(new Date());
+            } else {
+                scrollToDateElement(new Date());
+            }
         },
         openDailySettings: (date?: Date) => {
             setEditingDate(date || new Date());
@@ -544,6 +573,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
                         focusedTenantId={focusedTenantId}
                         focusedProjectId={focusedProjectId}
                         showGroups={showGroups}
+                        onVisibleMonthChange={onVisibleMonthChange}
+                        focusDate={focusDate}
                     />
                 )}
             </div>
