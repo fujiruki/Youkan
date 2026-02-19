@@ -58,6 +58,15 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
         }
     }, [_item?.id, _item?.tenantId, _item?.domain]);
 
+    // [FIX] Apply filterMode to items locally (QuantityEngine no longer filters)
+    const filteredItems = React.useMemo(() => {
+        if (filterMode === 'all') return items;
+        if (filterMode === 'company') return items.filter(i => !!i.tenantId || i.domain === 'business');
+        if (filterMode === 'personal') return items.filter(i => !i.tenantId && i.domain !== 'business');
+        // tenantId string
+        return items.filter(i => i.tenantId === filterMode);
+    }, [items, filterMode]);
+
     return (
         <div className="flex flex-col w-full h-full border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
             {/* Minimal Header with Toggle */}
@@ -101,7 +110,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 
             <div className="flex-1 overflow-hidden relative">
                 <RyokanCalendar
-                    items={items}
+                    items={filteredItems}
                     members={members}
                     capacityConfig={capacityConfig}
                     projects={projects}
@@ -110,9 +119,9 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 
                     layoutMode="mini"
                     displayMode="grid"
-                    filterMode={filterMode} // Use localized filterMode
-                    focusedTenantId={_item?.tenantId} // [FIX] Ensure company load is visible in detail modal
-                    focusedProjectId={_item?.projectId} // [FIX] Ensure project load is visible if applicable
+                    filterMode={filterMode}
+                    focusedTenantId={_item?.tenantId}
+                    focusedProjectId={_item?.projectId}
 
                     selectedDate={selectedDate} // Due Date (Red)
                     prepDate={prepDate}         // My Deadline (Blue)
