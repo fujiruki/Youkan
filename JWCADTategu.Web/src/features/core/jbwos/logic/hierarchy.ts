@@ -33,13 +33,26 @@ const areIdsMatching = (id1: any, id2: any): boolean => {
     return n1 === n2;
 };
 
-/**
- * Builds a flattened list of items and project headers representing the hierarchy.
- */
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
     const { allItems, allProjects, showGroups = true } = options;
 
     // 1. Prepare Data
+    // We treat everything that is a project (isProject=true or in allProjects) as a potential container.
+    const projectMap = new Map<string, Item>();
+    allProjects.forEach(p => {
+        if (!p || !p.id) return;
+        const nid = normalizeId(String(p.id))!;
+        projectMap.set(nid, p);
+    });
+    allItems.forEach(item => {
+        if (item && item.id && (item.isProject || item.type === 'project')) {
+            const nid = normalizeId(item.id)!;
+            if (!projectMap.has(nid)) {
+                projectMap.set(nid, item);
+            }
+        }
+    });
+
     const seenItemIds = new Set<string>();
     const allFilteredItems = allItems.filter(item => {
         if (!item || !item.id) return false;
@@ -47,116 +60,94 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
         if (seenItemIds.has(nid)) return false;
         seenItemIds.add(nid);
         if (item.isArchived) return false;
+        // If it's a project container, we don't treat it as a "task" item in the main list
         if (item.isProject || item.type === 'project') return false;
         return true;
     });
 
-    const projectsInView = allProjects.filter(p => !!p && !!p.id);
     const result: HierarchicalWrapper[] = [];
     const processedIds = new Set<string>();
 
-    const addProjectHierarchy = (proj: Item, depth: number) => {
-        const pId = normalizeId(String(proj.id));
-        const pcId = (proj as any).cloudId ? normalizeId((proj as any).cloudId) : null;
-        const primaryId = pcId || pId;
-        if (!primaryId || processedIds.has(primaryId)) return;
+    const addRecursiveHierarchy = (containerId: string | null, depth: number, projectContext: Item | null) => {
+        const nContainerId = normalizeId(containerId);
 
-        processedIds.add(primaryId);
-        if (pId) processedIds.add(pId);
-        if (pcId) processedIds.add(pcId);
-
-        if (showGroups) {
-            result.push({
-                id: `header-${proj.id}`,
-                type: 'header',
-                item: { ...proj, id: `virtual-header-${proj.id}` },
-                project: proj,
-                depth
-            });
-        }
-
-        // --- Improved Task Discovery ---
-        // Find ALL items that belong to this project ID
-        const taskCollection = allFilteredItems.filter(item => {
+        // A. Add Sub-Tasks (Direct children of this container)
+        const subTasks = allFilteredItems.filter(item => {
             const ipid = normalizeId(item.projectId ? String(item.projectId) : null);
             const iparentId = normalizeId(item.parentId ? String(item.parentId) : null);
-            return ipid === pId || ipid === pcId || iparentId === pId || iparentId === pcId;
+
+            if (nContainerId === null) {
+                // Root tasks: 
+                // 1. No parentId AND (No projectId OR projectId not in our identified projects)
+                // 2. OR parentId is not in our identified items/projects (Orphan)
+                const parentExists = iparentId && (processedIds.has(iparentId) || projectMap.has(iparentId));
+                const projectExists = ipid && projectMap.has(ipid);
+                return !parentExists && !projectExists;
+            }
+
+            // Child tasks: parentId matches this container OR (no parentId AND projectId matches this container)
+            return areIdsMatching(iparentId, nContainerId) || (!iparentId && areIdsMatching(ipid, nContainerId));
         });
 
-        if (taskCollection.length > 0) {
-            const addTaskSubTree = (parentId: string | null, currentDepth: number) => {
-                const nParentId = normalizeId(parentId);
-                const children = taskCollection.filter(item => {
-                    const tiparentId = normalizeId(item.parentId ? String(item.parentId) : null);
-                    if (nParentId === null) {
-                        // Roots of project: parent matches project OR parent not in THIS project's collection
-                        return areIdsMatching(tiparentId, pId) || areIdsMatching(tiparentId, pcId) || !tiparentId ||
-                            !taskCollection.some(other => areIdsMatching(other.id, tiparentId));
-                    }
-                    return areIdsMatching(tiparentId, nParentId);
-                });
+        [...subTasks].sort(compareGeneralList2Items).forEach(task => {
+            const tid = normalizeId(task.id)!;
+            if (processedIds.has(tid)) return;
+            processedIds.add(tid);
 
-                [...children].sort(compareGeneralList2Items).forEach(child => {
-                    const cid = normalizeId(child.id)!;
-                    if (processedIds.has(cid)) return;
-                    processedIds.add(cid);
+            result.push({
+                id: task.id,
+                type: 'item',
+                item: task,
+                project: projectContext,
+                depth
+            });
+            // Task can have children too!
+            addRecursiveHierarchy(task.id, depth + 1, projectContext);
+        });
 
-                    result.push({
-                        id: child.id,
-                        type: 'item',
-                        item: child,
-                        project: proj,
-                        depth: showGroups ? currentDepth + 1 : 0
-                    });
-                    addTaskSubTree(child.id, currentDepth + 1);
-                });
-            };
-            addTaskSubTree(null, depth);
-        }
+        // B. Add Sub-Projects (Projects whose parent is this container)
+        const subProjects = Array.from(projectMap.values()).filter(p => {
+            const ipid = normalizeId(p.projectId ? String(p.projectId) : null);
+            const iparentId = normalizeId(p.parentId ? String(p.parentId) : null);
 
-        // --- Sub-Projects ---
-        const subProjects = projectsInView.filter(p => {
-            if (p === proj) return false;
-            const pid = normalizeId(itemLabel(p).parentId);
-            const ppid = normalizeId(itemLabel(p).projectId);
-            return areIdsMatching(pid, pId) || areIdsMatching(pid, pcId) ||
-                areIdsMatching(ppid, pId) || areIdsMatching(ppid, pcId);
+            if (nContainerId === null) {
+                // Root projects:
+                // 1. parentId is null AND (projectId is null OR projectId is itself)
+                // 2. OR parentId/projectId not in identified projects (Orphan)
+                const parentExists = iparentId && projectMap.has(iparentId);
+                const projectExists = ipid && projectMap.has(ipid) && !areIdsMatching(ipid, p.id);
+                return !parentExists && !projectExists;
+            }
+
+            return areIdsMatching(iparentId, nContainerId) || (!iparentId && areIdsMatching(ipid, nContainerId) && !areIdsMatching(ipid, p.id));
         });
 
         [...subProjects].sort((a, b) => {
             const tasksA = allFilteredItems.filter(i => areIdsMatching(i.projectId, a.id) || areIdsMatching(i.parentId, a.id));
             const tasksB = allFilteredItems.filter(i => areIdsMatching(i.projectId, b.id) || areIdsMatching(i.parentId, b.id));
             return getProjectUrgencyScore(tasksB) - getProjectUrgencyScore(tasksA);
-        }).forEach(child => addProjectHierarchy(child, depth + (showGroups ? 1 : 0)));
+        }).forEach(proj => {
+            const pid = normalizeId(String(proj.id))!;
+            if (processedIds.has(pid)) return;
+            processedIds.add(pid);
+
+            if (showGroups) {
+                result.push({
+                    id: `header-${proj.id}`,
+                    type: 'header',
+                    item: { ...proj, id: `virtual-header-${proj.id}` },
+                    project: proj,
+                    depth
+                });
+            }
+
+            // Recurse into this project
+            addRecursiveHierarchy(proj.id + '', depth + (showGroups ? 1 : 0), proj);
+        });
     };
 
-    const itemLabel = (i: any) => ({ parentId: i.parentId ? String(i.parentId) : null, projectId: i.projectId ? String(i.projectId) : null });
-
-    const rootProjects = projectsInView.filter(p => {
-        const labels = itemLabel(p);
-        return !projectsInView.some(otherP => {
-            if (otherP === p) return false;
-            const opId = normalizeId(String(otherP.id));
-            const opcId = otherP.cloudId ? normalizeId(otherP.cloudId) : null;
-            const ppid = normalizeId(labels.parentId);
-            const pprojid = normalizeId(labels.projectId);
-            return areIdsMatching(ppid, opId) || areIdsMatching(ppid, opcId) ||
-                areIdsMatching(pprojid, opId) || areIdsMatching(pprojid, opcId);
-        });
-    }).sort((a, b) => {
-        if (!!a.tenantId !== !!b.tenantId) return a.tenantId ? -1 : 1;
-        const tasksA = allFilteredItems.filter(i => areIdsMatching(i.projectId, a.id) || areIdsMatching(i.parentId, a.id));
-        const tasksB = allFilteredItems.filter(i => areIdsMatching(i.projectId, b.id) || areIdsMatching(i.parentId, b.id));
-        return getProjectUrgencyScore(tasksB) - getProjectUrgencyScore(tasksA);
-    });
-
-    rootProjects.forEach(p => addProjectHierarchy(p, 0));
-
-    // 4. Remaining Items
-    const inboxItems = allFilteredItems.filter(item => !processedIds.has(normalizeId(item.id)!));
-    [...inboxItems].sort(compareGeneralList2Items).forEach(item => {
-        result.push({ id: item.id, type: 'item', item, depth: 0 });
-    });
+    // Entry Point: Start from null (root)
+    addRecursiveHierarchy(null, 0, null);
 
     return result;
 };
