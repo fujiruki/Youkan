@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { normalizeDateKey } from '../../logic/dateUtils';
+import { buildHierarchicalList } from '../../logic/hierarchy';
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
@@ -188,91 +189,17 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
     }, [allDays, onVisibleMonthChange, colWidth]);
 
     // --- Hierarchy & Sorting Logic ---
-    const buildTree = (taskList: Item[], parentId: string | null = null, depth = 0, skipParents = false): any[] => {
-        const result: any[] = [];
-        const children = taskList.filter(t => t.parentId === (parentId || undefined) || (!parentId && !t.parentId));
-
-        // Sort children based on requirement:
-        // 1. No due_date first
-        // 2. Earlier of (due_date or prep_date) first
-        children.sort((a, b) => {
-            const aDate = a.due_date || a.prep_date;
-            const bDate = b.due_date || b.prep_date;
-
-            if (!aDate && !bDate) return 0;
-            if (!aDate) return -1;
-            if (!bDate) return 1;
-
-            const timeA = typeof aDate === 'number' ? aDate : new Date(aDate).getTime() / 1000;
-            const timeB = typeof bDate === 'number' ? bDate : new Date(bDate).getTime() / 1000;
-            return timeA - timeB;
+    const transformedItems = useMemo(() => {
+        // Build Hierarchy using Common Logic
+        const hierarchicalWrappers = buildHierarchicalList({
+            activeProjectId: focusedProjectId,
+            allProjects: projects,
+            allItems: items,
+            showGroups: showGroups
         });
 
-        children.forEach(child => {
-            const subTree = buildTree(taskList, child.id, depth + 1, skipParents);
-            const hasChildren = subTree.length > 0;
-
-            if (!skipParents || !hasChildren) {
-                result.push({
-                    ...child,
-                    depth: skipParents ? 0 : depth,
-                    children: subTree
-                });
-            } else {
-                result.push(...subTree);
-            }
-        });
-        return result;
-    };
-
-    const flattenTree = (tree: any[]): any[] => {
-        const result: any[] = [];
-        tree.forEach(node => {
-            const { children, ...itemData } = node;
-            result.push(itemData);
-            if (children && children.length > 0) {
-                result.push(...flattenTree(children));
-            }
-        });
-        return result;
-    };
-
-    const transformedGroupedItems = useMemo(() => {
-        const groups: Record<string, Item[]> = {};
-        const noProjectKey = 'unassigned';
-
-        items.forEach(item => {
-            const key = item.projectId || noProjectKey;
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(item);
-        });
-
-        const sortedKeys = Object.keys(groups).filter(k => k !== 'unassigned');
-        sortedKeys.sort((a, b) => {
-            const pA = projects.find(p => p.id === a);
-            const pB = projects.find(p => p.id === b);
-            return (pA?.title || '').localeCompare(pB?.title || '');
-        });
-        const finalKeys = groups['unassigned'] ? ['unassigned', ...sortedKeys] : sortedKeys;
-
-        return finalKeys.map(groupKey => {
-            const project = projects.find(p => p.id === groupKey);
-            const firstItem = groups[groupKey]?.[0];
-            const groupTitle = groupKey === 'unassigned'
-                ? "Inbox (未分類)"
-                : (project?.title || project?.name || firstItem?.projectTitle || firstItem?.title || `Unknown Project (${groupKey})`);
-
-            // Build tree for this group
-            const tree = buildTree(groups[groupKey] || [], null, 0, !showGroups);
-            const flatItems = flattenTree(tree);
-
-            return {
-                projectId: groupKey,
-                projectName: groupTitle,
-                items: flatItems as (Item & { depth: number })[]
-            };
-        });
-    }, [items, projects, showGroups]);
+        return hierarchicalWrappers;
+    }, [items, projects, showGroups, focusedProjectId]);
 
     // Calculate detailed allocations using QuantityEngine
     const allocationMap = useMemo(() => {
@@ -366,123 +293,127 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
                 className="flex-1 overflow-auto overflow-x-auto relative"
             >
                 <div className="min-w-max pb-32">
-                    {transformedGroupedItems.map(group => (
-                        <div key={group.projectId}>
-                            {/* Project Header */}
-                            {group.projectName !== "Inbox (未分類)" && (
-                                <div className="sticky left-0 z-20 w-64 min-w-[16rem] bg-slate-100 dark:bg-slate-800 px-4 py-1.5 text-xs font-bold text-slate-500 border-y border-white dark:border-slate-700 shadow-sm">
-                                    {group.projectName}
+                    {transformedItems.map(wrapper => {
+                        if (wrapper.type === 'header') {
+                            const groupTitle = wrapper.item.title || (wrapper.item as any).name || `Project (${wrapper.item.id})`;
+                            return (
+                                <div
+                                    key={wrapper.id}
+                                    className="sticky left-0 z-20 w-64 min-w-[16rem] bg-slate-100 dark:bg-slate-800 px-4 py-1.5 text-xs font-bold text-slate-500 border-y border-white dark:border-slate-700 shadow-sm flex items-center"
+                                    style={{ paddingLeft: `${wrapper.depth * 16 + 16}px` }}
+                                >
+                                    {wrapper.depth > 0 && <span className="text-slate-400 mr-2">└</span>}
+                                    {groupTitle}
                                 </div>
-                            )}
+                            );
+                        }
 
-                            {group.items.map(item => {
-                                const prepDateObj = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
-                                const dueDateObj = item.due_date ? new Date(item.due_date) : null;
-                                const depth = (item as any).depth || 0;
+                        const item = wrapper.item;
+                        const prepDateObj = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
+                        const dueDateObj = item.due_date ? new Date(item.due_date) : null;
+                        const depth = wrapper.depth || 0;
 
-                                return (
+                        return (
+                            <div
+                                key={item.id}
+                                className="flex h-10 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
+                                onMouseEnter={() => setHoveredItemId(item.id)}
+                                onMouseLeave={() => setHoveredItemId(null)}
+                            >
+                                {/* Sticky Title Column */}
+                                <div className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                     <div
-                                        key={item.id}
-                                        className="flex h-10 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
-                                        onMouseEnter={() => setHoveredItemId(item.id)}
-                                        onMouseLeave={() => setHoveredItemId(null)}
+                                        className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center"
+                                        style={{ paddingLeft: `${depth * 16}px` }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const targetDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : (item.due_date ? new Date(item.due_date) : null);
+                                            if (targetDate) {
+                                                scrollToDate(targetDate);
+                                            }
+                                        }}
+                                        title="クリックで納期へスクロール"
                                     >
-                                        {/* Sticky Title Column */}
-                                        <div className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                                            <div
-                                                className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center"
-                                                style={{ paddingLeft: `${depth * 16}px` }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const targetDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : (item.due_date ? new Date(item.due_date) : null);
-                                                    if (targetDate) {
-                                                        scrollToDate(targetDate);
-                                                    }
-                                                }}
-                                                title="クリックで納期へスクロール"
-                                            >
-                                                {depth > 0 && <span className="text-slate-400 mr-1">└</span>}
-                                                <span className="truncate">{renderItemTitle(item)}</span>
-                                            </div>
-                                            {hoveredItemId === item.id && (
-                                                <button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors">
-                                                    <ChevronRight size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Timeline Cells */}
-                                        <div className="flex relative">
-                                            {allDays.map(date => {
-                                                const isSun = date.getDay() === 0;
-                                                const isSat = date.getDay() === 6;
-                                                const isPrep = prepDateObj && isSameDate(date, prepDateObj);
-                                                const isDue = dueDateObj && isSameDate(date, dueDateObj);
-
-                                                // Real Allocation Logic
-                                                const allocationSteps = allocationMap.get(item.id);
-                                                const step = allocationSteps?.find((s: any) => isSameDate(s.date, date));
-
-                                                return (
-                                                    <div
-                                                        key={date.toDateString()}
-                                                        data-gantt-date={normalizeDateKey(date)}
-                                                        className={cn(
-                                                            "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
-                                                            isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
-                                                        )}
-                                                    >
-                                                        {/* Real Allocation Chip (Blue) */}
-                                                        {step && (
-                                                            <div
-                                                                className={cn(
-                                                                    "absolute w-5 h-5 rounded-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
-                                                                    "bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
-                                                                )}
-                                                                title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
-                                                            >
-                                                                {step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''}
-                                                            </div>
-                                                        )}
-
-                                                        {/* My Deadline Handle (Draggable) */}
-                                                        {isPrep && (
-                                                            <div
-                                                                onMouseDown={(e) => {
-                                                                    if (onUpdateItem) {
-                                                                        e.preventDefault();
-                                                                        setDragState({
-                                                                            itemId: item.id,
-                                                                            startX: e.clientX,
-                                                                            currentX: e.clientX,
-                                                                            originalDate: prepDateObj!
-                                                                        });
-                                                                    }
-                                                                }}
-                                                                style={getBarStyle(item, 'prep', {})}
-                                                                className={cn(
-                                                                    "absolute top-0.5 bottom-0.5 right-0 w-1.5 rounded-full z-20 cursor-grab active:cursor-grabbing",
-                                                                    "bg-indigo-400 border border-white dark:border-slate-900 shadow-md",
-                                                                    "hover:w-3 hover:bg-indigo-500 transition-all",
-                                                                    onUpdateItem ? "" : "hidden"
-                                                                )}
-                                                                title={`目安納期: ${format(prepDateObj!, 'M/d')} (ドラッグして移動)`}
-                                                            />
-                                                        )}
-
-                                                        {/* Due Date Marker (Fixed) */}
-                                                        {isDue && (
-                                                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500/80 z-10" title={`顧客納期: ${format(dueDateObj!, 'M/d')} `} />
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        {depth > 0 && <span className="text-slate-400 mr-1">└</span>}
+                                        <span className="truncate">{renderItemTitle(item)}</span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ))}
+                                    {hoveredItemId === item.id && (
+                                        <button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors">
+                                            <ChevronRight size={14} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Timeline Cells */}
+                                <div className="flex relative">
+                                    {allDays.map(date => {
+                                        const isSun = date.getDay() === 0;
+                                        const isSat = date.getDay() === 6;
+                                        const isPrep = prepDateObj && isSameDate(date, prepDateObj);
+                                        const isDue = dueDateObj && isSameDate(date, dueDateObj);
+
+                                        // Real Allocation Logic
+                                        const allocationSteps = allocationMap.get(item.id);
+                                        const step = allocationSteps?.find((s: any) => isSameDate(s.date, date));
+
+                                        return (
+                                            <div
+                                                key={date.toDateString()}
+                                                data-gantt-date={normalizeDateKey(date)}
+                                                className={cn(
+                                                    "w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
+                                                    isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+                                                )}
+                                            >
+                                                {/* Real Allocation Chip (Blue) */}
+                                                {step && (
+                                                    <div
+                                                        className={cn(
+                                                            "absolute w-5 h-5 rounded-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
+                                                            "bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
+                                                        )}
+                                                        title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
+                                                    >
+                                                        {step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''}
+                                                    </div>
+                                                )}
+
+                                                {/* My Deadline Handle (Draggable) */}
+                                                {isPrep && (
+                                                    <div
+                                                        onMouseDown={(e) => {
+                                                            if (onUpdateItem) {
+                                                                e.preventDefault();
+                                                                setDragState({
+                                                                    itemId: item.id,
+                                                                    startX: e.clientX,
+                                                                    currentX: e.clientX,
+                                                                    originalDate: prepDateObj!
+                                                                });
+                                                            }
+                                                        }}
+                                                        style={getBarStyle(item, 'prep', {})}
+                                                        className={cn(
+                                                            "absolute top-0.5 bottom-0.5 right-0 w-1.5 rounded-full z-20 cursor-grab active:cursor-grabbing",
+                                                            "bg-indigo-400 border border-white dark:border-slate-900 shadow-md",
+                                                            "hover:w-3 hover:bg-indigo-500 transition-all",
+                                                            onUpdateItem ? "" : "hidden"
+                                                        )}
+                                                        title={`目安納期: ${format(prepDateObj!, 'M/d')} (ドラッグして移動)`}
+                                                    />
+                                                )}
+
+                                                {/* Due Date Marker (Fixed) */}
+                                                {isDue && (
+                                                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500/80 z-10" title={`顧客納期: ${format(dueDateObj!, 'M/d')} `} />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

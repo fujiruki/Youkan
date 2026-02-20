@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     BarChart2,
     ChevronDown,
@@ -161,7 +161,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
     const remainingQueue = queueItems.slice(1);
-    const allItemsForCalendar = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems];
+    const unifiedAllItems = useMemo(() => [
+        ...(executionItem ? [executionItem] : []),
+        ...todayCommits.filter(i => i.id !== executionItem?.id),
+        ...todayCandidates.filter(i => i.id !== executionItem?.id),
+        ...inboxItems,
+        ...pendingItems,
+        ...waitingItems,
+        ...(gdbLog || [])
+    ], [executionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -170,15 +178,14 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 e.preventDefault();
                 const targetId = contextMenu?.targetId || lastTargetId || activeFocusItem?.id;
                 if (targetId) {
-                    const all = [...inboxItems, ...pendingItems, ...waitingItems, ...(queueItems || [])];
-                    const item = all.find(i => i.id === targetId);
+                    const item = unifiedAllItems.find(i => i.id === targetId);
                     if (item) setSelectedItem(item);
                 }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [contextMenu, lastTargetId, activeFocusItem, inboxItems, pendingItems, waitingItems, queueItems]);
+    }, [contextMenu, lastTargetId, activeFocusItem, unifiedAllItems]);
 
     const handleSetEngaged = async (id: string, isEngaged: boolean) => {
         await setEngaged(id, isEngaged);
@@ -259,7 +266,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                             {viewMode === 'calendar' && (
                                 <RyokanCalendar
                                     ref={calendarRef}
-                                    items={allItemsForCalendar}
+                                    items={unifiedAllItems}
                                     members={members}
                                     capacityConfig={capacityConfig}
                                     projects={allProjects}
@@ -289,6 +296,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     hideHeader={true}
                                 />
                             )}
+
                         </div>
                     </div>
                 ) : (
@@ -475,7 +483,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     members={vm.members}
                     allProjects={vm.allProjects}
                     joinedTenants={joinedTenants}
-                    quantityItems={allItemsForCalendar}
+                    quantityItems={unifiedAllItems}
                     filterMode={filterMode}
                     capacityConfig={capacityConfig}
                     currentUserId={vm.currentUserId}
