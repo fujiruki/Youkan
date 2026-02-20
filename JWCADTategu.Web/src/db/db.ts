@@ -4,24 +4,26 @@ import { EstimationSettings } from '../features/plugins/tategu/domain/Estimation
 import { DxfLayerConfig } from '../features/plugins/tategu/domain/DxfConfig';
 import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
 
-import { Item } from '../features/core/jbwos/types'; // [NEW]
-import { Deliverable } from '../features/plugins/manufacturing/types'; // [NEW]
+import { Item } from '../features/core/jbwos/types';
+import { Deliverable } from '../features/plugins/manufacturing/types';
 
 export interface Project {
     id?: number;
-    title?: string; // [NEW] Unified
-    name: string;
+    title?: string;
+    /** @deprecated Use title instead */
+    name?: string;
     client?: string;
     settings?: EstimationSettings;
     dxfLayerConfig?: DxfLayerConfig;
-    isArchived?: boolean; // [NEW]
-    viewMode?: 'internal' | 'external'; // [NEW]
-    judgmentStatus?: 'inbox' | 'decision_hold' | 'someday' | 'active'; // [NEW] For GDB persistence
-    userId?: string; // [NEW] Owner User ID
-    tenantId?: string; // [NEW] Company/Tenant ID
-    cloudId?: string; // [NEW] Original Cloud UUID for Project Dashboard
-    updatedAt: Date;
-    createdAt: Date;
+    isArchived?: boolean;
+    viewMode?: 'internal' | 'external' | 'mixed';
+    judgmentStatus?: 'inbox' | 'decision_hold' | 'someday' | 'active' | 'waiting' | 'focus' | 'pending' | 'done';
+    userId?: string;
+    tenantId?: string;
+    cloudId?: string;
+    grossProfitTarget: number;
+    updatedAt: number | Date;
+    createdAt: number | Date;
 }
 
 export interface Door {
@@ -32,48 +34,37 @@ export interface Door {
     dimensions: DoorDimensions;
     specs: Record<string, any>;
     count: number;
-    thumbnail?: string; // Data URL for preview image
-    type?: string; // [RESTORED] For backward compatibility
-
-    // Schedule & Management Fields [NEW]
-    manHours?: number; // Standard production hours
-    complexity?: number; // 0.5 - 2.0 coefficient
-    startDate?: Date;
-    dueDate?: Date;
+    thumbnail?: string;
+    type?: string;
+    manHours?: number;
+    complexity?: number;
+    startDate?: number | Date;
+    dueDate?: number | Date;
     status?: 'design' | 'production' | 'completed';
-
-    // Generic/Production Item Fields [NEW]
-    category?: 'door' | 'frame' | 'furniture' | 'hardware' | 'other'; // Default 'door'
+    category?: 'door' | 'frame' | 'furniture' | 'hardware' | 'other';
     genericSpecs?: {
         unit: string;
         note: string;
     };
-
-    // Manufacturing Plugin Integration [NEW]
-    deliverableId?: string; // Links to Deliverable in Manufacturing Plugin
-
-    // [NEW] Estimated Time for Manufacturing/Site Work
-    estimatedWorkMinutes?: number;  // 製作見積時間（分）
-    estimatedSiteMinutes?: number;  // 現場見積時間（分）
-
-    // Constitution Scheduler Fields
+    deliverableId?: string;
+    estimatedWorkMinutes?: number;
+    estimatedSiteMinutes?: number;
     judgmentStatus?: 'inbox' | 'waiting' | 'ready' | 'pending' | 'done';
     waitingReason?: string;
     weight?: 1 | 2 | 3;
     roughTiming?: 'early_month' | 'mid_month' | 'late_month' | 'future';
-
-    updatedAt: Date;
-    createdAt: Date;
+    updatedAt: number | Date;
+    createdAt: number | Date;
 }
 
 export interface Task {
     id?: number;
     projectId: number;
-    doorId?: number; // [NEW] Link to Door
+    doorId?: number;
     title: string;
     note?: string;
-    startDate?: Date;
-    dueDate?: Date;
+    startDate?: number | Date;
+    dueDate?: number | Date;
     manHours?: number;
     status: 'todo' | 'doing' | 'done';
     createdAt: Date;
@@ -83,16 +74,12 @@ export interface FieldNote {
     id?: number;
     projectId: number;
     content: string;
-    photoBlob?: Blob; // Optional photo
+    photoBlob?: Blob;
     mimeType?: string;
-    createdAt: Date;
+    createdAt: number | Date;
 }
 
-export interface CatalogItemEntity extends CatalogItem {
-    // IndexedDB needs optional ID for auto-increment? 
-    // Actually CatalogItem usually uses UUID strings.
-    // Let's use string id as primary key for Catalog.
-}
+export interface CatalogItemEntity extends CatalogItem { }
 
 export interface DoorPhoto {
     id?: number;
@@ -104,9 +91,10 @@ export interface DoorPhoto {
 }
 
 export interface Settings {
-    id: string; // key, e.g., 'capacity_config'
+    id: string;
     value: any;
-    updatedAt: number;
+    createdAt?: number | Date;
+    updatedAt?: number | Date;
 }
 
 export class TateguDatabase extends Dexie {
@@ -123,20 +111,8 @@ export class TateguDatabase extends Dexie {
     constructor() {
         super('JWCADTateguDB');
 
-        this.version(16).stores({
-            projects: '++id, name, isArchived, judgmentStatus, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, doorId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
-            settings: 'id',
-            deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
-        });
-
         this.version(18).stores({
-            projects: '++id, userId, title, name, isArchived, judgmentStatus, updatedAt', // [NEW] title
+            projects: '++id, userId, title, name, isArchived, judgmentStatus, updatedAt',
             doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
             doorPhotos: '++id, doorId',
@@ -146,14 +122,13 @@ export class TateguDatabase extends Dexie {
             settings: 'id',
             deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
         }).upgrade(async tx => {
-            // [NEW] Migrate name -> title for all local projects
             await tx.table('projects').toCollection().modify(p => {
                 if (!p.title) p.title = p.name;
             });
         });
 
         this.version(17).stores({
-            projects: '++id, userId, name, isArchived, judgmentStatus, updatedAt', // [NEW] userId
+            projects: '++id, userId, name, isArchived, judgmentStatus, updatedAt',
             doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
             doorPhotos: '++id, doorId',
@@ -163,8 +138,6 @@ export class TateguDatabase extends Dexie {
             settings: 'id',
             deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
         }).upgrade(async tx => {
-            // Migrating existing projects to current user context
-            // Attempt to get user from localStorage
             let userId = 'legacy_user';
             try {
                 const stored = localStorage.getItem('jbwos_user');
@@ -172,8 +145,7 @@ export class TateguDatabase extends Dexie {
                     const u = JSON.parse(stored);
                     if (u && u.id) userId = u.id;
                 }
-            } catch (e) { /* ignore */ }
-
+            } catch (e) { }
             await tx.table('projects').toCollection().modify(p => {
                 p.userId = userId;
             });
@@ -188,11 +160,11 @@ export class TateguDatabase extends Dexie {
             fieldNotes: '++id, projectId, createdAt',
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
             settings: 'id',
-            deliverables: 'id, projectId, status, judgmentStatus, updatedAt' // [NEW]
+            deliverables: 'id, projectId, status, judgmentStatus, updatedAt'
         });
 
         this.version(14).stores({
-            projects: '++id, name, isArchived, judgmentStatus, updatedAt', // [NEW] Added judgmentStatus
+            projects: '++id, name, isArchived, judgmentStatus, updatedAt',
             doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
             catalog: 'id, name, category, *keywords, updatedAt',
             doorPhotos: '++id, doorId',
@@ -201,7 +173,6 @@ export class TateguDatabase extends Dexie {
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
             settings: 'id'
         }).upgrade(async tx => {
-            // Initialize judgmentStatus for existing projects
             await tx.table('projects').toCollection().modify(p => {
                 p.judgmentStatus = 'inbox';
             });
@@ -215,110 +186,7 @@ export class TateguDatabase extends Dexie {
             tasks: '++id, projectId, doorId, status, startDate, dueDate',
             fieldNotes: '++id, projectId, createdAt',
             items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt',
-            settings: 'id' // [NEW] Key-value store for settings
-        });
-
-        this.version(12).stores({
-            projects: '++id, name, isArchived, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, doorId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt'
-        });
-
-        this.version(11).stores({
-            projects: '++id, name, isArchived, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, deliverableId, updatedAt', // Added deliverableId
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt'
-        });
-
-        this.version(10).stores({
-            projects: '++id, name, isArchived, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, parentId, createdAt' // [NEW] parentId index
-        });
-
-        this.version(9).stores({
-            projects: '++id, name, isArchived, updatedAt', // Added isArchived to index
-            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, createdAt'
-        });
-
-        this.version(8).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt',
-            items: 'id, status, statusUpdatedAt, interrupt, dueHook, projectId, doorId, createdAt' // [NEW] JBWOS Items
-        });
-
-        this.version(7).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, status, category, judgmentStatus, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt'
-        }).upgrade(async tx => {
-            // For existing doors, set judgmentStatus to 'inbox'
-            await tx.table('doors').toCollection().modify(door => {
-                door.judgmentStatus = 'inbox';
-            });
-        });
-
-        this.version(6).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, status, category, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt'
-        });
-
-        this.version(5).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, status, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt'
-        });
-
-        this.version(4).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt',
-            doorPhotos: '++id, doorId',
-            tasks: '++id, projectId, status, startDate, dueDate',
-            fieldNotes: '++id, projectId, createdAt'
-        });
-
-        this.version(2).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, updatedAt',
-            catalog: 'id, name, category, *keywords, updatedAt'
-        });
-
-        // Backward compatibility for v1
-        this.version(1).stores({
-            projects: '++id, name, updatedAt',
-            doors: '++id, projectId, tag, updatedAt'
+            settings: 'id'
         });
     }
 }

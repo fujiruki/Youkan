@@ -1,8 +1,9 @@
-import { db, Project, Door } from '../db/db';
+import { db, Door } from '../db/db';
+import { Project as LocalProject } from '../features/core/jbwos/types';
 import { DefaultEstimationSettings } from '../features/plugins/tategu/domain/EstimationSettings';
 
 export class ProjectRepository {
-    async createProjectDraft(name: string): Promise<Project> {
+    async createProjectDraft(title: string): Promise<LocalProject> {
         let settings = DefaultEstimationSettings;
         try {
             const saved = localStorage.getItem('globalEstimationSettings');
@@ -14,14 +15,17 @@ export class ProjectRepository {
         }
 
         return {
-            name,
+            title,
+            name: title, // Maintain for backward compatibility if needed
             settings,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            grossProfitTarget: 0,
+            isArchived: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         };
     }
 
-    async saveProject(p: Project): Promise<number> {
+    async saveProject(p: LocalProject): Promise<number> {
         if (p.id) {
             await db.projects.update(p.id, p);
             return p.id;
@@ -31,12 +35,33 @@ export class ProjectRepository {
     }
 
     // Additional methods would be restored here
-    async getProject(id: number) {
-        return await db.projects.get(id);
+    async getAllProjects(): Promise<LocalProject[]> {
+        const list = await db.projects.orderBy('updatedAt').reverse().toArray();
+        return list.map(p => ({
+            ...p,
+            id: p.id,
+            title: p.title || p.name || 'Untitled',
+            name: p.name || p.title || 'Untitled',
+            isArchived: !!p.isArchived,
+            grossProfitTarget: (p as any).grossProfitTarget || 0,
+            createdAt: typeof p.createdAt === 'number' ? p.createdAt : (p.createdAt instanceof Date ? p.createdAt.getTime() : Date.now()),
+            updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : (p.updatedAt instanceof Date ? p.updatedAt.getTime() : Date.now())
+        } as LocalProject));
     }
 
-    async getAllProjects() {
-        return await db.projects.orderBy('updatedAt').reverse().toArray();
+    async getProject(id: number): Promise<LocalProject | undefined> {
+        const p = await db.projects.get(id);
+        if (!p) return undefined;
+        return {
+            ...p,
+            id: p.id,
+            title: p.title || p.name || 'Untitled',
+            name: p.name || p.title || 'Untitled',
+            isArchived: !!p.isArchived,
+            grossProfitTarget: (p as any).grossProfitTarget || 0,
+            createdAt: typeof p.createdAt === 'number' ? p.createdAt : (p.createdAt instanceof Date ? p.createdAt.getTime() : Date.now()),
+            updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : (p.updatedAt instanceof Date ? p.updatedAt.getTime() : Date.now())
+        } as LocalProject;
     }
 
     async deleteProject(id: number) {

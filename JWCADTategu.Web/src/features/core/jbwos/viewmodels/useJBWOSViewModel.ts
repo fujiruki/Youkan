@@ -141,13 +141,13 @@ export const useJBWOSViewModel = (projectId?: string) => {
             const tenants: any[] = await getRepository().getJoinedTenants();
             // Map to JoinedTenant schema
             const mappedTenants: JoinedTenant[] = tenants.map(t => {
-                if (typeof t === 'string') return { id: t, name: `Tenant ${t.substring(0, 4)}`, role: 'member' };
-                // Assuming t has id, name, role, etc.
+                if (typeof t === 'string') return { id: t, title: `Tenant ${t.substring(0, 4)}`, name: `Tenant ${t.substring(0, 4)}`, role: 'member' };
                 return {
                     id: t.id,
+                    title: t.name || `Tenant ${t.id?.substring(0, 4) || '???'}`,
                     name: t.name || `Tenant ${t.id?.substring(0, 4) || '???'}`,
                     role: t.role || 'member',
-                    capacityProfile: t.capacityProfile // [NEW] Pass through if available
+                    capacityProfile: t.capacityProfile
                 };
             });
             setJoinedTenants(mappedTenants);

@@ -76,15 +76,15 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     const selectedCategory = categories.find(c => c.id === 'general');
 
     const handleCreate = async () => {
-        if (!vm.name.trim()) return;
+        if (!vm.title.trim()) return;
 
         vm.setIsSubmitting(true);
 
         try {
             const payload: any = {
                 id: project?.id, // Important if editing
-                title: vm.name,
-                name: vm.name,
+                title: vm.title,
+                name: vm.title, // For compatibility, keep name as well
                 // types.ts: Project has 'name', 'clientName'. Item has 'title'.
                 // Usually we map them.
                 isProject: true,
@@ -107,7 +107,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
             await onCreate(payload, defaultTasks);
 
             // Reset handled by onClose usually, but let's clear inputs
-            vm.setName('');
+            vm.setTitle('');
             onClose();
         } catch (e) {
             console.error('Failed to create project', e);
@@ -234,8 +234,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                                 </label>
                                 <input
                                     type="text"
-                                    value={vm.name}
-                                    onChange={e => vm.setName(e.target.value)}
+                                    value={vm.title}
+                                    onChange={e => vm.setTitle(e.target.value)}
                                     className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                     placeholder="例: 玄関ドア新規製作"
                                     autoFocus
@@ -300,7 +300,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={vm.isSubmitting || !vm.name.trim()}
+                                    disabled={vm.isSubmitting || !vm.title.trim()}
                                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {vm.isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}

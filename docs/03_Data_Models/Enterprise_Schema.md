@@ -32,7 +32,7 @@ Represents a collection of tasks and stocks. Used for "Project Monitor" progress
 | Column | Type | Default | Description |
 |---|---|---|---|
 | `id` | TEXT (PK) | - | UUID (Deliverable ID for Tategu) |
-| `title` | TEXT | NOT NULL | Project Name |
+| `title` | TEXT | NOT NULL | Project Title (Display Name) |
 | `status` | TEXT | 'active' | 'active', 'completed', 'on_hold' |
 | `progress_rate` | INTEGER | 0 | Cached progress % (0-100) |
 | `total_weight` | INTEGER | 0 | Total estimated minutes |

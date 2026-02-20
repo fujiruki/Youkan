@@ -9,7 +9,7 @@ export const useJoineryViewModel = (
     onOpenDoor: (door: Door) => void
 ) => {
     // Mode State
-    const [viewMode, setViewMode] = useState<'internal' | 'external'>('internal');
+    const [viewMode, setViewMode] = useState<'internal' | 'external' | 'mixed'>('internal');
     const [doors, setDoors] = useState<Door[]>([]);
 
     // Tab State
@@ -149,7 +149,7 @@ export const useJoineryViewModel = (
     const handleDuplicate = async (e: React.MouseEvent, door: Door) => {
         e.stopPropagation();
         const { id, deliverableId, ...rest } = door; // Exclude deliverableId
-        const newId = await db.doors.add({ ...rest, name: `${door.name} (Copy)`, createdAt: new Date() });
+        const newId = await db.doors.add({ ...rest, name: `${door.name} (Copy)`, createdAt: new Date(), updatedAt: new Date() });
 
         const newDoor = await db.doors.get(newId);
         if (newDoor) {

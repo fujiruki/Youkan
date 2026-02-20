@@ -9,7 +9,9 @@ export interface AuthUser {
 
 export interface Tenant {
     id: string;
+    /** @deprecated Use title instead */
     name: string;
+    title: string; // Unified Title
     role: string;
     representativeName?: string;
     representativeEmail?: string;

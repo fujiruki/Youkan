@@ -73,11 +73,12 @@ export const FieldNoteList: React.FC<FieldNoteListProps> = ({ projectId }) => {
         }
     };
 
-    const formatDate = (date: Date) => {
+    const formatDate = (date: number | Date) => {
+        const d = date instanceof Date ? date : new Date(date);
         return new Intl.DateTimeFormat('ja-JP', {
             month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
-        }).format(date);
+        }).format(d);
     };
 
     return (
@@ -102,7 +103,7 @@ export const FieldNoteList: React.FC<FieldNoteListProps> = ({ projectId }) => {
                             {/* Timestamp Column */}
                             <div className="shrink-0 flex flex-col items-center pt-1">
                                 <div className="text-xs font-bold text-indigo-400">
-                                    {formatDate(note.createdAt)}
+                                    {formatDate(note.createdAt as any)}
                                 </div>
                                 <div className="w-px h-full bg-slate-700 mt-2 mb-[-16px] group-last:hidden" />
                             </div>

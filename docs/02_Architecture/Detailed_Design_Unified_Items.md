@@ -22,7 +22,7 @@
 | `assigned_to` | TEXT | 担当者User ID | **Grab機能の主役**。`create_user` (起案者) とは区別する。 |
 | `created_by` | TEXT | 作成者User ID | |
 | `parent_id` | TEXT | 親アイテムID | プロジェクト > タスク の階層構造を表現 |
-| `title` | TEXT | タイトル | |
+| `title` | TEXT | タイトル | プロジェクト名とタスク名の共通項。2026/02のリファクタリングにより `name` から統合。 |
 | `status` | TEXT | ステータス | `inbox`, `confirmed`, `today_commit`, `done` 等 |
 | `meta` | TEXT | **JSON** | 拡張属性（後述） |
 | `estimated_minutes` | INT | 見積時間 | |

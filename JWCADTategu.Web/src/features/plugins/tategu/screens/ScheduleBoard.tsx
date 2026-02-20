@@ -62,8 +62,8 @@ export const ScheduleBoard: React.FC = () => {
                 tenantId: proj?.tenantId,
                 title: d.name,
                 status: d.status || 'design',
-                startDate: d.startDate,
-                dueDate: d.dueDate,
+                startDate: d.startDate as any,
+                dueDate: d.dueDate as any,
                 manHours: d.manHours
             });
         });
@@ -83,7 +83,7 @@ export const ScheduleBoard: React.FC = () => {
                 tenantId: proj?.tenantId,
                 title: t.title,
                 status: status,
-                dueDate: t.dueDate,
+                dueDate: t.dueDate as any,
                 manHours: t.manHours
             });
         });

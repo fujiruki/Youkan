@@ -13,7 +13,8 @@ export interface ProjectExportData {
     };
     project: {
         id: string | undefined;
-        name: string;
+        title: string;
+        name: string; // Maintain for compatibility
         createdAt: string | undefined;
         updatedAt: string | undefined;
         doorCount: number;
@@ -63,9 +64,10 @@ export function exportProjectToJson(project: Project, doors: Door[]): string {
         },
         project: {
             id: project.id?.toString(),
-            name: project.name,
-            createdAt: project.createdAt?.toISOString(),
-            updatedAt: project.updatedAt?.toISOString(),
+            title: project.title || project.name || '',
+            name: project.title || project.name || '',
+            createdAt: project.createdAt ? (project.createdAt instanceof Date ? project.createdAt.toISOString() : new Date(project.createdAt).toISOString()) : undefined,
+            updatedAt: project.updatedAt ? (project.updatedAt instanceof Date ? project.updatedAt.toISOString() : new Date(project.updatedAt).toISOString()) : undefined,
             doorCount: doors.length
         },
         doors: doors.map(door => ({

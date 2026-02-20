@@ -36,11 +36,13 @@ export const EditorScreen: React.FC<{ doorId: string; onBack: () => void }> = ({
                 // TODO: Implement ProjectApiClient for full cloud support
                 setInitialProject({
                     id: parseInt(door.projectId, 10) || 0,
-                    name: 'Cloud Project',
-                    client: '',
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                });
+                    title: 'Auto-Loaded Project',
+                    name: 'Auto-Loaded Project',
+                    grossProfitTarget: 0,
+                    isArchived: false,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                } as any);
             } catch (e) {
                 console.error('[EditorScreen] Failed to load door:', e);
                 setError('Door not found or API error');

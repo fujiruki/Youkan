@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Project } from '../../db/db';
+import { Project as LocalProject } from '../../features/core/jbwos/types';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
@@ -8,8 +8,8 @@ import { ScheduleBoard } from '../../features/plugins/tategu/screens/ScheduleBoa
 import { FilterMode } from '../../features/core/jbwos/types';
 // import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
-export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {
-    const [projects, setProjects] = useState<Project[]>([]);
+export const DashboardScreen: React.FC<{ onOpenProject: (p: LocalProject) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {
+    const [projects, setProjects] = useState<LocalProject[]>([]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'projects' | 'schedule'>('projects');
 
@@ -68,7 +68,7 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; on
 
     // Hypothesis: Clicking a project currently goes to a different screen (ProjectScreen?).
     // I should check `App.tsx` or `ProjectScreen.tsx` (if exists).
-    // `find_by_name` for *Screen.tsx?
+    // `find_by_title` for *Screen.tsx?
 
     const loadProjects = async () => {
         const list = await projectRepository.getAllProjects();
@@ -84,7 +84,7 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; on
             console.log('[Dashboard] Draft created, saving...');
             const id = await projectRepository.saveProject(p);
             console.log('[Dashboard] Project Saved ID:', id);
-            onOpenProject({ ...p, id });
+            onOpenProject({ ...p, id } as LocalProject);
         } catch (e) {
             console.error('[Dashboard] Create Failed', e);
         }
@@ -177,17 +177,17 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: Project) => void; on
                                     </button>
                                 </div>
 
-                                <h3 className="text-xl font-bold mb-1 text-slate-200 group-hover:text-emerald-400 transition-colors">{p.name}</h3>
+                                <h3 className="text-xl font-bold mb-1 text-slate-200 group-hover:text-emerald-400 transition-colors">{p.title}</h3>
                                 <div className="text-sm text-slate-500 mb-4">{p.client || 'Client Name'}</div>
 
                                 <div className="mt-auto pt-4 border-t border-slate-800/50 flex flex-col gap-1 text-xs text-slate-500">
                                     <div className="flex items-center gap-2">
                                         <Clock size={12} />
-                                        <span>Updated: {p.updatedAt.toLocaleDateString()} {p.updatedAt.toLocaleTimeString()}</span>
+                                        <span>Updated: {new Date(p.updatedAt).toLocaleDateString()} {new Date(p.updatedAt).toLocaleTimeString()}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Calendar size={12} />
-                                        <span>Created: {p.createdAt.toLocaleDateString()}</span>
+                                        <span>Created: {new Date(p.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
                             </div>

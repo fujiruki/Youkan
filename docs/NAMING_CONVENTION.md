@@ -13,7 +13,7 @@
 
 | 対象層 | 規則 | 例 |
 | :--- | :--- | :--- |
-| **Frontend (TypeScript/JS)** | `camelCase` | `estimatedMinutes`, `manHours`, `isArchived` |
+| **Frontend (TypeScript/JS)** | `camelCase` | `title`, `estimatedMinutes`, `manHours`, `isArchived` |
 | **Backend (PHP / SQL)** | `snake_case` | `estimated_minutes`, `man_hours`, `is_archived` |
 
 ### データ境界（Repository層）の扱い

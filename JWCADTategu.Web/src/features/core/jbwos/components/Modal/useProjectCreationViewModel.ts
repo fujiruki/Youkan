@@ -15,7 +15,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
     const [creationMode, setCreationMode] = useState<'child' | 'root'>('root');
 
     // Form State
-    const [name, setName] = useState('');
+    const [title, setTitle] = useState('');
     const [clientName, setClientName] = useState('');
     const [grossProfitTarget, setGrossProfitTarget] = useState('0');
     const [color, setColor] = useState('#6366f1');
@@ -65,7 +65,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
         // should NOT reset the dialog state while it's open.
         if (context.initialData) {
             // Edit Mode
-            setName(context.initialData.title || context.initialData.name || '');
+            setTitle(context.initialData.title || context.initialData.name || '');
             setClientName(context.initialData.clientName || context.initialData.client || '');
             setGrossProfitTarget(context.initialData.grossProfitTarget?.toString() || '0');
             setColor(context.initialData.color || '#6366f1');
@@ -127,7 +127,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
     return {
         // State
         creationMode,
-        name,
+        title,
         clientName,
         grossProfitTarget,
         color,
@@ -137,7 +137,7 @@ export const useProjectCreationViewModel = (context: ProjectCreationContext) => 
 
         // Setters
         setCreationMode,
-        setName,
+        setTitle,
         setClientName,
         setGrossProfitTarget,
         setColor,

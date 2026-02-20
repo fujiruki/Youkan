@@ -74,7 +74,7 @@ export class MigrationService {
                         view_mode: p.viewMode || 'internal',
                         judgment_status: p.judgmentStatus || 'inbox',
                         is_archived: p.isArchived,
-                        created_at: p.createdAt?.getTime() || Date.now()
+                        created_at: p.createdAt ? Number(p.createdAt) : Date.now()
                     };
 
                     const res = await fetch('/api/projects', {
@@ -123,8 +123,8 @@ export class MigrationService {
                         status: d.status,
                         man_hours: d.manHours,
                         complexity: d.complexity,
-                        start_date: d.startDate?.toISOString(), // API expects string? Controller says ?? null.
-                        due_date: d.dueDate?.toISOString(),
+                        start_date: d.startDate ? (d.startDate instanceof Date ? d.startDate.toISOString() : new Date(d.startDate).toISOString()) : undefined,
+                        due_date: d.dueDate ? (d.dueDate instanceof Date ? d.dueDate.toISOString() : new Date(d.dueDate).toISOString()) : undefined,
                         category: d.category,
                         judgment_status: d.judgmentStatus,
                         waiting_reason: d.waitingReason,
@@ -132,8 +132,8 @@ export class MigrationService {
                         rough_timing: d.roughTiming,
                         dimensions: d.dimensions,
                         specs: d.specs,
-                        generic_specs: d.genericSpecs,
-                        created_at: d.createdAt?.getTime()
+                        created_at: d.createdAt ? Number(d.createdAt) : Date.now(),
+                        updated_at: d.updatedAt ? Number(d.updatedAt) : Date.now()
                     };
 
                     const res = await fetch('/api/doors', {

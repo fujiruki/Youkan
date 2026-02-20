@@ -1,3 +1,6 @@
+import { EstimationSettings } from '../../plugins/tategu/domain/EstimationSettings';
+import { DxfLayerConfig } from '../../plugins/tategu/domain/DxfConfig';
+
 export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
@@ -23,31 +26,34 @@ export interface StockJob {
     id: string;
     title: string;
     projectId?: string; // Link to projects.id (Deliverable ID)
+    startDate?: number | null;
     estimatedMinutes: number;
-    dueDate?: string | null;
+    dueDate?: number | null;
     status: StockStatus;
     createdAt: number;
 }
 
+// const createProject = async ... (Removed unused function)
 export interface Project {
-    id: string;
+    id?: number;
+    title: string;           // Unified Title
     /** @deprecated Use title instead */
-    name: string;
-    title: string;           // [NEW] Unified Title
+    name?: string;
     client?: string;      // Legacy
     clientName?: string;  // [NEW]
-    settings?: any;
-    dxfConfig?: any;
-    viewMode: 'internal' | 'external' | 'mixed';
-    judgmentStatus: JudgmentStatus;
+    settings?: EstimationSettings;
+    dxfLayerConfig?: DxfLayerConfig;
+    viewMode?: 'internal' | 'external' | 'mixed';
+    judgmentStatus?: 'inbox' | 'decision_hold' | 'someday' | 'active' | 'waiting' | 'focus' | 'pending' | 'done';
     isArchived: boolean;
-    deletedAt?: number | null; // [NEW]
     grossProfitTarget: number;
-    color?: string;
-    tenantId?: string;    // [NEW]
+    color?: string;       // [NEW]
+    userId?: string;
+    tenantId?: string;
     tenantName?: string;  // [NEW]
-    assigned_to?: string; // [NEW]
+    assigned_to?: string; // [NEW] Link to assigned user
     assigneeName?: string; // [NEW]
+    cloudId?: string;
     parentId?: string;    // [NEW] Sub-project support
     parentTitle?: string; // [NEW]
     createdAt: number;
@@ -87,7 +93,9 @@ export interface CapacityProfile {
 
 export interface JoinedTenant {
     id: string; // tenant_id
+    /** @deprecated Use title instead */
     name: string;
+    title: string; // Unified Title
     role: string;
     description?: string; // [NEW]
     capacityProfile?: CapacityProfile; // [NEW] Personal capacity setting for this tenant
@@ -269,7 +277,7 @@ export interface TaskTemplate {
 export interface ProjectCategory {
     id: string;
     /** @deprecated Use title instead */
-    name: string;
+    name?: string;
     title: string;           // [NEW] Unified Title
     icon?: string;
     defaultTasks: TaskTemplate[];
@@ -306,6 +314,7 @@ export interface ExternalItem {
     sourceId: string;        // Source Identifier (e.g. "mock-factory")
     metadata?: any;          // Extra data for import
 }
+
 
 export interface ExternalSource {
     id: string;              // "mock-factory"

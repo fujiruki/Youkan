@@ -25,7 +25,7 @@ interface Tenant {
 type FilterMode = 'all' | 'personal' | 'company';
 
 interface JBWOSHeaderProps {
-    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings';
+    currentView: 'jbwos' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings' | 'archive' | 'trash';
     onNavigateToToday: () => void;
     onNavigateToDashboard: () => void;
     onNavigateToHistory: () => void;

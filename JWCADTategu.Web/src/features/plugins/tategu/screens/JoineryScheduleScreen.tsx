@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Door } from '../../../../db/db';
-import { Project } from '../../../../db/db';
 import { JoineryHeader } from '../components/JoineryHeader';
 import { JoineryList } from '../components/JoineryList';
 import { JoineryTabs } from '../components/JoineryTabs';
@@ -13,13 +12,15 @@ import { DocumentList } from '../components/documents/DocumentList';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import { Document } from '../domain/ManufacturingTypes';
 
+import { Project as LocalProject } from '../../../../features/core/jbwos/types';
+
 type JoineryScheduleScreenProps = {
-    project: Project;
+    project: LocalProject;
     onBack: () => void;
     onOpenDoor: (door: Door) => void;
     onDeleteProject: (id: number) => void;
     onArchiveProject: (id: number) => void;
-    onUpdateProject: (p: Project) => void
+    onUpdateProject: (p: any) => void
 }
 
 export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
@@ -180,7 +181,10 @@ export const JoineryScheduleScreen: React.FC<JoineryScheduleScreenProps> = ({
                 item={editingGenericItem || {
                     name: '新規アイテム',
                     count: 1,
-                    category: 'other'
+                    category: 'other',
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    judgmentStatus: 'inbox' as any
                 }}
                 projectId={project.id!}
             />

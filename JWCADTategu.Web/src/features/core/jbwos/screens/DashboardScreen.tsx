@@ -1,17 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-    Plus,
     BarChart2,
-    Calendar,
     ChevronDown,
     ChevronRight,
-    Search,
-    Filter,
-    MoreVertical,
-    CheckCircle2,
-    Clock,
-    AlertCircle,
-    Layout
+    Clock
 } from 'lucide-react';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
 import { Item, Perspective } from '../types';
@@ -27,15 +19,13 @@ import { FocusCard } from '../components/Dashboard/FocusCard';
 import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
 import { GanttHeader } from '../components/Calendar/GanttHeader';
 import { Project as LocalProject } from '../../../../db/db';
-import { cn } from '../../../../../lib/utils';
-import { format, isValid } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { ViewContextBar } from '../components/Dashboard/ViewContextBar';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
-        className={`flex items - center gap - 2 mb - 2 mt - 4 ${onToggle ? 'cursor-pointer select-none group' : ''} `}
+        className={`flex items-center gap-2 mb-2 mt-4 ${onToggle ? 'cursor-pointer select-none group' : ''}`}
         onClick={onToggle}
     >
         {onToggle && (
@@ -63,12 +53,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         localStorage.setItem('jbwos_view_mode', viewMode);
     }, [viewMode]);
 
-    // Listen for header sub-navigation changes
     useEffect(() => {
         const handleViewModeChange = (e: CustomEvent<{ mode: string }>) => {
             const mode = e.detail?.mode;
             if (mode === 'stream' || mode === 'board' || mode === 'newspaper') {
-                // Map 'board' to 'panorama' for internal state
                 setViewMode(mode === 'board' ? 'panorama' : mode as any);
             }
         };
@@ -80,12 +68,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const vm = useJBWOSViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
     const {
-        gdbActive: _inboxItems,
-        gdbIntent: _pendingItems,
-        gdbPreparation: _waitingItems,
-        todayCandidates: _todayCandidates,
-        todayCommits: _todayCommits,
-        gdbLog: _gdbLog, // [FIX] Get raw log for filtering
+        gdbActive: inboxItemsRaw,
+        gdbIntent: pendingItemsRaw,
+        gdbPreparation: waitingItemsRaw,
+        todayCandidates: todayCandidatesRaw,
+        todayCommits: todayCommitsRaw,
+        gdbLog: gdbLogRaw,
         capacityUsed,
         capacityLimit,
         filterMode,
@@ -106,33 +94,23 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         allProjects
     } = vm;
 
-    const { /* user: authUser */ } = useAuth(); // [Unused]
-    // const effectiveUserId = currentUserId || authUser?.id; // [Unused]
-
-    // hideCompleted: read from localStorage, no CustomEvent sync needed
-    const [hideCompleted, _setHideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
+    const [hideCompleted] = useState(() => localStorage.getItem('jbwos_hide_completed') === 'true');
 
     const filterItems = (items: Item[]) => !hideCompleted ? items : items.filter(i => i.status !== 'done');
 
-    const inboxItems = filterItems(_inboxItems);
-    const pendingItems = filterItems(_pendingItems);
-    const waitingItems = filterItems(_waitingItems);
-    const todayCandidates = filterItems(_todayCandidates);
-    const todayCommits = filterItems(_todayCommits);
-    const gdbLog = filterItems(_gdbLog || []); // [FIX] Filter Log items too
+    const inboxItems = filterItems(inboxItemsRaw || []);
+    const pendingItems = filterItems(pendingItemsRaw || []);
+    const waitingItems = filterItems(waitingItemsRaw || []);
+    const todayCandidates = filterItems(todayCandidatesRaw || []);
+    const todayCommits = filterItems(todayCommitsRaw || []);
+    const gdbLog = filterItems(gdbLogRaw || []);
 
-    // Dispatch capacity updates to header (Must be after destructuring capacityUsed/limit)
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('jbwos-capacity-update', {
             detail: { used: capacityUsed, limit: capacityLimit }
         }));
     }, [capacityUsed, capacityLimit]);
 
-
-
-
-
-    // Create a filtered ViewModel wrapper for child components
     const filteredVM = {
         ...vm,
         gdbActive: inboxItems,
@@ -140,10 +118,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         gdbPreparation: waitingItems,
         todayCandidates: todayCandidates,
         todayCommits: todayCommits,
-        gdbLog: gdbLog, // [FIX] Override with filtered log
-        // Ensure all filtered lists are passed correctly
+        gdbLog: gdbLog,
     };
-
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
         const saved = localStorage.getItem('jbwos_gantt_row_height');
@@ -156,15 +132,14 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const [showGanttGroups, setShowGanttGroups] = useState<boolean>(() => {
         const saved = localStorage.getItem('jbwos_gantt_show_groups');
-        return saved !== 'false'; // Default to true
+        return saved !== 'false';
     });
 
     useEffect(() => {
         localStorage.setItem('jbwos_gantt_show_groups', showGanttGroups.toString());
     }, [showGanttGroups]);
 
-    // [NEW Phase 24] Calendar ref and visible month state
-    const calendarRef = React.useRef<RyokanCalendarHandle>(null);
+    const calendarRef = useRef<RyokanCalendarHandle>(null);
     const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
 
     const queueItems = [
@@ -180,25 +155,14 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         onDelete: (id) => vm.deleteItem(id)
     });
 
-
-    const handleViewModeChange = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
+    const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
         setViewMode(mode);
-        const basePath = import.meta.env.BASE_URL || '/';
-        const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
-        const urlMap = {
-            'stream': '登録と集中',
-            'panorama': '全体一覧',
-            'calendar': 'カレンダー',
-            'newspaper': '全体一覧２'
-        };
-        window.history.pushState({}, '', normalizedBase + urlMap[mode]);
     };
 
     const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
     const remainingQueue = queueItems.slice(1);
     const allItemsForCalendar = [...queueItems, ...inboxItems, ...pendingItems, ...waitingItems];
 
-    // Global Shortcuts Integration (ALT+D only, Delete is in hook)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.altKey && e.key.toLowerCase() === 'd') {
@@ -228,7 +192,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const { switchTenant } = useAuth();
 
-    // --- ViewContext computation ---
     const isCompanyAccount = (currentUserId?.length || 0) > 20;
     const perspective: Perspective = isCompanyAccount
         ? (filterMode === 'personal' ? 'company_internal' : 'company_business')
@@ -238,21 +201,15 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         if (isCompanyAccount) {
             return filterMode === 'personal' ? '社内業務の管理' : '事業の管理';
         }
-        // Personal Mode
         if (filterMode === 'personal' || filterMode === 'all') return '自分の時間管理';
-
-        // Specific Tenant Filtering in Personal Mode
         const tenant = joinedTenants.find(t => t.id === filterMode);
-        if (tenant) return `${tenant.name} マネージャーとして`;
-
+        if (tenant) return `${tenant.title || (tenant as any).name} マネージャーとして`;
         if (filterMode === 'company') return '会社業務の俯瞰';
-
         return '自分の時間管理';
     };
 
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-            {/* ViewContextBar: Switcher + Filter + Perspective */}
             <ViewContextBar
                 filterMode={filterMode}
                 onFilterChange={vm.setFilterMode}
@@ -262,18 +219,20 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                 perspectiveLabel={getPerspectiveLabel()}
                 onModeSwitch={switchTenant}
             />
-            {/* Gantt Header (calendar mode) or Density Bar (panorama mode) */}
-            {viewMode === 'calendar' && (
+
+            {(viewMode === 'calendar' || viewMode === 'panorama') && (
                 <GanttHeader
                     visibleDate={visibleMonth}
                     onPrevMonth={() => {
                         const prev = new Date(visibleMonth);
+                        prev.setDate(1);
                         prev.setMonth(prev.getMonth() - 1);
                         setVisibleMonth(prev);
                         calendarRef.current?.scrollToMonth(prev.getFullYear(), prev.getMonth());
                     }}
                     onNextMonth={() => {
                         const next = new Date(visibleMonth);
+                        next.setDate(1);
                         next.setMonth(next.getMonth() + 1);
                         setVisibleMonth(next);
                         calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
@@ -292,22 +251,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     onShowGroupsChange={setShowGanttGroups}
                 />
             )}
-            {viewMode === 'panorama' && (
-                <div className="shrink-0 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 px-6 py-1 flex items-center justify-end gap-2 z-10">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">密度</span>
-                    <input
-                        type="range"
-                        min="12"
-                        max="32"
-                        value={ganttRowHeight}
-                        onChange={(e) => setGanttRowHeight(parseInt(e.target.value))}
-                        className="w-20 accent-indigo-600 h-1.5 cursor-pointer"
-                    />
-                    <span className="text-[10px] font-mono text-slate-500 w-4">{ganttRowHeight}</span>
-                </div>
-            )}
 
-            {/* Dashboard Content */}
             <div className="flex-1 min-h-0 flex flex-col relative">
                 {(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
                     <div className="flex-1 flex flex-col overflow-hidden">
@@ -326,7 +270,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     hideHeader={true}
                                     onItemClick={(item) => setSelectedItem(item)}
                                     onVisibleMonthChange={(date: Date) => {
-                                        // Update state ONLY if valid and month/year changed to avoid infinite loop
                                         if (isValid(date) && (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear())) {
                                             setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
                                         }
@@ -335,12 +278,12 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 />
                             )}
                             {viewMode === 'newspaper' && (
-                                <NewspaperBoard viewModel={filteredVM} activeProject={activeProject} onOpenItem={setSelectedItem} />
+                                <NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} />
                             )}
                             {viewMode === 'panorama' && (
                                 <JbwosBoard
                                     initialLayoutMode="panorama"
-                                    onClose={() => handleViewModeChange('stream')}
+                                    onClose={() => handleViewModeChangeInternal('stream')}
                                     projectId={activeProject?.cloudId}
                                     rowHeight={ganttRowHeight}
                                     hideHeader={true}
@@ -350,7 +293,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto pb-20">
-                        {/* Immersive Dashboard Header (Stream view only) */}
                         <div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-8 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
                             {activeProject && (
                                 <div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">
@@ -398,7 +340,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                         </div>
 
                         <div className="max-w-4xl mx-auto px-4 md:px-6 space-y-4">
-                            {/* Inbox Section */}
                             <div className="space-y-2">
                                 <SectionHeader
                                     title="Inbox (Registration)"
@@ -406,11 +347,11 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     icon={<BarChart2 size={14} />}
                                 />
                                 <QuickInputWidget
-                                    viewModel={filteredVM}
+                                    viewModel={filteredVM as any}
                                     projectContext={activeProject ? {
                                         id: activeProject.cloudId || String(activeProject.id),
-                                        title: activeProject.title,
-                                        name: activeProject.name,
+                                        title: activeProject.title || activeProject.name || 'Untitled',
+                                        name: activeProject.title || activeProject.name || 'Untitled',
                                         tenantId: activeProject.tenantId
                                     } : null}
                                     onOpenItem={setSelectedItem}
@@ -441,7 +382,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                 </div>
                             </div>
 
-                            {/* Pending & Waiting Sections */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <SectionHeader
@@ -540,12 +480,10 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                     capacityConfig={capacityConfig}
                     currentUserId={vm.currentUserId}
                     updateItemMetrics={vm.updateItemMetrics}
-                    // @ts-ignore - perspectiveLabel exists but might not be in the type definition yet
+                    // @ts-ignore
                     perspectiveLabel={getPerspectiveLabel()}
                 />
             )}
-
-            {/* Global Dialog handled by App.tsx */}
         </div>
     );
 };

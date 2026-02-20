@@ -29,7 +29,6 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 }) => {
     const tenantCount = joinedTenants.length;
     const [showTenantDropdown, setShowTenantDropdown] = React.useState(false);
-    const [showFilterDropdown, setShowFilterDropdown] = React.useState(false);
 
     const isActive = (mode: FilterMode) => filterMode === mode;
 
@@ -39,28 +38,29 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
             : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700'
         }`;
 
+    const getModeLabel = () => {
+        if (isCompanyAccount) {
+            return perspectiveLabel === '社内業務の管理' ? '社内' : '事業';
+        }
+        // Personal Mode: if perspectiveLabel reflects a tenant manager view
+        if (perspectiveLabel.includes('マネージャー')) {
+            const tenantName = perspectiveLabel.split(' ')[0];
+            return `${tenantName}管理`;
+        }
+        return 'プライベート';
+    };
+
     const renderTenantButtons = () => {
         if (tenantCount === 0) return null;
 
-        if (tenantCount === 1) {
-            return (
-                <>
-                    <button className={btnClass('all')} onClick={() => onFilterChange('all')}>全て</button>
-                    <button className={btnClass('personal')} onClick={() => onFilterChange('personal')}>個人</button>
-                    <button className={btnClass(joinedTenants[0].id)} onClick={() => onFilterChange(joinedTenants[0].id)}>
-                        {joinedTenants[0].name}
-                    </button>
-                </>
-            );
-        }
-
-        if (tenantCount >= 2 && tenantCount <= 4) {
+        // 場面①: 個人×プライベート (全て、個人、会社、各テナント)
+        if (!isCompanyAccount && !perspectiveLabel.includes('マネージャー')) {
             return (
                 <>
                     <button className={btnClass('all')} onClick={() => onFilterChange('all')}>全て</button>
                     <button className={btnClass('personal')} onClick={() => onFilterChange('personal')}>個人</button>
                     <button className={btnClass('company')} onClick={() => onFilterChange('company')}>会社</button>
-                    <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                    <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-1" />
                     {joinedTenants.map(t => (
                         <button key={t.id} className={btnClass(t.id)} onClick={() => onFilterChange(t.id)}>
                             {t.name}
@@ -70,51 +70,24 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
             );
         }
 
-        // 5+ tenants: [All] [Personal] [Company ▼]
-        const selectedTenant = joinedTenants.find(t => t.id === filterMode);
-        return (
-            <>
-                <button className={btnClass('all')} onClick={() => onFilterChange('all')}>全て</button>
-                <button className={btnClass('personal')} onClick={() => onFilterChange('personal')}>個人</button>
-                <div className="relative">
-                    <button
-                        className={`${btnClass('company')} flex items-center gap-1`}
-                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                    >
-                        {selectedTenant ? selectedTenant.name : '会社'}
-                        <ChevronDown size={12} />
-                    </button>
-                    {showFilterDropdown && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 min-w-[140px] py-1">
-                                <button
-                                    className="w-full text-left px-3 py-1.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                    onClick={() => { onFilterChange('company'); setShowFilterDropdown(false); }}
-                                >
-                                    会社（全て）
-                                </button>
-                                {joinedTenants.map(t => (
-                                    <button
-                                        key={t.id}
-                                        className={`w-full text-left px-3 py-1.5 text-[10px] font-medium ${filterMode === t.id ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                                            }`}
-                                        onClick={() => { onFilterChange(t.id); setShowFilterDropdown(false); }}
-                                    >
-                                        {t.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            </>
-        );
+        // 場面③: 会社×社内 (全て、社内)
+        if (isCompanyAccount && perspectiveLabel === '社内業務の管理') {
+            return (
+                <>
+                    <button className={btnClass('all')} onClick={() => onFilterChange('all')}>全て</button>
+                    <button className={btnClass('personal')} onClick={() => onFilterChange('personal')}>社内</button>
+                </>
+            );
+        }
+
+        // 場面②: 個人×会社 (フィルタなし/最小化)
+        // 場面④: 会社×会社 (適切に設計 - ここでは会社内のプロジェクトフィルタなどを想定)
+        return null;
     };
 
     return (
-        <div className="shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-start gap-4 z-30">
-            {/* Left: Mode Switcher (Moved from Hamburger) */}
+        <div className="shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-start gap-3 z-30">
+            {/* Left: Mode Switcher (Case 1: [プライベート ▼], Case 2: [A社管理 ▼] etc.) */}
             <div className="flex items-center gap-1.5 shrink-0">
                 <div className="relative">
                     <button
@@ -129,7 +102,7 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
                         ) : (
                             <User size={12} className="text-indigo-500" />
                         )}
-                        <span>{isCompanyAccount ? '会社モード' : '個人モード'}</span>
+                        <span>{getModeLabel()}</span>
                         <ChevronDown size={10} className={isCompanyAccount ? 'text-white/60' : 'text-slate-400'} />
                     </button>
 
@@ -163,18 +136,17 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
                 </div>
             </div>
 
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
-
             {/* Middle: Filter Buttons */}
             <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar">
                 {renderTenantButtons()}
             </div>
 
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-            {/* Right Group: Perspective Label (Now on the left side of the right group) */}
+            {/* Right Group: Perspective Label */}
             <div className="flex items-center gap-3 shrink-0">
-                <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800/50 px-2.5 py-1 rounded-full border border-slate-200/50 dark:border-slate-700/50">
+                <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800/50 px-2.5 py-1 rounded-full border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5">
+                    <span className="opacity-50">📊</span>
                     {perspectiveLabel}
                 </span>
             </div>

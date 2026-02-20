@@ -76,16 +76,25 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 
     const handleOpenDetail = (project: Project) => {
         // Convert Project to Item compatible structure for DecisionDetailModal
+        // Convert Status - Project has more statuses than Item
+        const mapStatus = (s?: string): any => {
+            if (!s) return 'inbox';
+            if (s === 'active') return 'focus';
+            if (s === 'decision_hold') return 'waiting';
+            if (s === 'someday') return 'pending';
+            return s;
+        };
+
         const item: Item = {
-            id: project.id,
-            title: project.title || project.name,
-            status: project.judgmentStatus || 'inbox',
+            id: String(project.id),
+            title: project.title || project.name || 'Untitled Project',
+            status: mapStatus(project.judgmentStatus),
             focusOrder: 0,
             isEngaged: false,
             statusUpdatedAt: project.updatedAt || Math.floor(Date.now() / 1000),
             interrupt: false,
             weight: 2,
-            projectId: project.id,
+            projectId: String(project.id),
             isProject: true,
             tenantId: project.tenantId || null,
             createdAt: project.createdAt,
@@ -251,7 +260,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                         <td className="px-6 py-3 font-medium text-slate-700 dark:text-slate-200">
                                             <div className="flex items-center gap-2" style={{ marginLeft: `${project.depth * 1.5}rem` }}>
                                                 {project.depth > 0 && <span className="text-slate-300">└</span>}
-                                                {project.title || project.name}
+                                                {project.title}
                                             </div>
                                         </td>
                                         <td className="px-6 py-3 text-slate-500">
@@ -265,9 +274,9 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                                 <div
                                                     className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
                                                     style={{ backgroundColor: members.find(m => m.id === project.assigned_to)?.color || '#94a3b8' }}
-                                                    title={members.find(m => m.id === project.assigned_to)?.name}
+                                                    title={(members.find(m => m.id === project.assigned_to) as any)?.display_name || (members.find(m => m.id === project.assigned_to) as any)?.name}
                                                 >
-                                                    {members.find(m => m.id === project.assigned_to)?.name?.charAt(0)}
+                                                    {((members.find(m => m.id === project.assigned_to) as any)?.display_name || (members.find(m => m.id === project.assigned_to) as any)?.name)?.charAt(0)}
                                                 </div>
                                             )}
                                         </td>
@@ -294,7 +303,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                                                     <Building2 size={18} />
                                                 </div>
                                                 <div>
-                                                    <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{tenant.name}</h2>
+                                                    <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{(tenant as any).title || tenant.name}</h2>
                                                     <p className="text-xs text-slate-400">所属プロジェクト: {tenantProjects.length}件</p>
                                                 </div>
                                             </div>
@@ -403,6 +412,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
                 />
             )}
 
+
             {/* Decision Detail Modal integration for Projects */}
             {selectedItem && (
                 <DecisionDetailModal
@@ -495,7 +505,7 @@ const ProjectCard: React.FC<{
         }
     };
 
-    const statusBg = getStatusBgColor(project.judgmentStatus);
+    const statusBg = getStatusBgColor(project.judgmentStatus || 'inbox');
 
     return (
         <div
@@ -547,7 +557,7 @@ const ProjectCard: React.FC<{
                         >
                             <option value="">未割当</option>
                             {members.map(m => (
-                                <option key={m.id} value={m.id}>{(m as any).display_name || (m as any).name}</option>
+                                <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                             ))}
                         </select>
                     </div>
