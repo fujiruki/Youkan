@@ -98,18 +98,43 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const filterItems = (items: Item[]) => !hideCompleted ? items : items.filter(i => i.status !== 'done');
 
-    const inboxItems = filterItems(inboxItemsRaw || []);
-    const pendingItems = filterItems(pendingItemsRaw || []);
-    const waitingItems = filterItems(waitingItemsRaw || []);
-    const todayCandidates = filterItems(todayCandidatesRaw || []);
-    const todayCommits = filterItems(todayCommitsRaw || []);
-    const gdbLog = filterItems(gdbLogRaw || []);
+    const filterByContext = (items: Item[]) => {
+        return items.filter(item => {
+            if (filterMode === 'all') return true;
+            if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
+            if (filterMode === 'company') return !!item.tenantId;
+            // Tenant specific
+            return item.tenantId === filterMode;
+        });
+    };
+
+    const inboxItems = filterByContext(filterItems(inboxItemsRaw || []));
+    const pendingItems = filterByContext(filterItems(pendingItemsRaw || []));
+    const waitingItems = filterByContext(filterItems(waitingItemsRaw || []));
+    const todayCandidates = filterByContext(filterItems(todayCandidatesRaw || []));
+    const todayCommits = filterByContext(filterItems(todayCommitsRaw || []));
+    const gdbLog = filterByContext(filterItems(gdbLogRaw || []));
+
+    const activeExecutionItem = useMemo(() => {
+        if (!executionItem) return null;
+        const filtered = filterByContext([executionItem]);
+        return filtered.length > 0 ? executionItem : null;
+    }, [executionItem, filterMode]);
 
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('jbwos-capacity-update', {
             detail: { used: capacityUsed, limit: capacityLimit }
         }));
     }, [capacityUsed, capacityLimit]);
+
+    const filteredProjects = useMemo(() => {
+        return allProjects.filter(p => {
+            if (filterMode === 'all') return true;
+            if (filterMode === 'personal') return !p.tenantId || p.tenantId === '';
+            if (filterMode === 'company') return !!p.tenantId;
+            return p.tenantId === filterMode;
+        });
+    }, [allProjects, filterMode]);
 
     const filteredVM = {
         ...vm,
@@ -119,6 +144,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         todayCandidates: todayCandidates,
         todayCommits: todayCommits,
         gdbLog: gdbLog,
+        executionItem: activeExecutionItem,
+        allProjects: filteredProjects,
     };
 
     const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
@@ -143,9 +170,9 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
     const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
 
     const queueItems = [
-        ...(executionItem ? [executionItem] : []),
-        ...todayCommits.filter(i => i.id !== executionItem?.id),
-        ...todayCandidates.filter(i => i.id !== executionItem?.id)
+        ...(activeExecutionItem ? [activeExecutionItem] : []),
+        ...todayCommits.filter(i => i.id !== activeExecutionItem?.id),
+        ...todayCandidates.filter(i => i.id !== activeExecutionItem?.id)
     ];
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -161,15 +188,18 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
     const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
     const remainingQueue = queueItems.slice(1);
-    const unifiedAllItems = useMemo(() => [
-        ...(executionItem ? [executionItem] : []),
-        ...todayCommits.filter(i => i.id !== executionItem?.id),
-        ...todayCandidates.filter(i => i.id !== executionItem?.id),
-        ...inboxItems,
-        ...pendingItems,
-        ...waitingItems,
-        ...(gdbLog || [])
-    ], [executionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
+    const unifiedAllItems = useMemo(() => {
+        return [
+            ...(activeExecutionItem ? [activeExecutionItem] : []),
+            ...todayCommits.filter(i => i.id !== activeExecutionItem?.id),
+            ...todayCandidates.filter(i => i.id !== activeExecutionItem?.id),
+            ...inboxItems,
+            ...pendingItems,
+            ...waitingItems,
+            ...(gdbLog || [])
+        ];
+    }, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -269,7 +299,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
                                     items={unifiedAllItems}
                                     members={members}
                                     capacityConfig={capacityConfig}
-                                    projects={allProjects}
+                                    projects={filteredProjects}
                                     joinedTenants={joinedTenants}
                                     currentUserId={currentUserId}
                                     displayMode="gantt"
