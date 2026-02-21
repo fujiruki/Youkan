@@ -6,10 +6,9 @@ import {
     Clock
 } from 'lucide-react';
 import { useJBWOSViewModel } from '../viewmodels/useJBWOSViewModel';
-import { Item, Perspective } from '../types';
+import { Item } from '../types';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
-import { useAuth } from '../../auth/providers/AuthProvider';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
@@ -21,7 +20,6 @@ import { GanttHeader } from '../components/Calendar/GanttHeader';
 import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
-import { ViewContextBar } from '../components/Dashboard/ViewContextBar';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
     <div
@@ -227,36 +225,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
         handleRefresh();
     };
 
-    const { switchTenant } = useAuth();
-
-    const isCompanyAccount = (currentUserId?.length || 0) > 20;
-    const perspective: Perspective = isCompanyAccount
-        ? (filterMode === 'personal' ? 'company_internal' : 'company_business')
-        : (filterMode === 'personal' || filterMode === 'all' ? 'personal_private' : 'personal_company');
-
-    const getPerspectiveLabel = (): string => {
-        if (isCompanyAccount) {
-            return filterMode === 'personal' ? '社内業務の管理' : '事業の管理';
-        }
-        if (filterMode === 'personal' || filterMode === 'all') return '自分の時間管理';
-        const tenant = joinedTenants.find(t => t.id === filterMode);
-        if (tenant) return `${tenant.title || (tenant as any).name} マネージャーとして`;
-        if (filterMode === 'company') return '会社業務の俯瞰';
-        return '自分の時間管理';
-    };
-
     return (
         <div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-            <ViewContextBar
-                filterMode={filterMode}
-                onFilterChange={vm.setFilterMode}
-                joinedTenants={joinedTenants}
-                isCompanyAccount={isCompanyAccount}
-                perspective={perspective}
-                perspectiveLabel={getPerspectiveLabel()}
-                onModeSwitch={switchTenant}
-            />
-
             {(viewMode === 'calendar' || viewMode === 'panorama') && (
                 <GanttHeader
                     visibleDate={visibleMonth}

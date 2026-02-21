@@ -5,6 +5,8 @@ import { HealthCheck } from '../../features/core/jbwos/components/Layout/HealthC
 
 import { MenuDrawer } from './MenuDrawer';
 import { MotivatorWhisper } from '../../features/core/jbwos/components/Layout/MotivatorWhisper';
+import { ViewContextBar } from '../../features/core/jbwos/components/Dashboard/ViewContextBar';
+import { Perspective, FilterMode as JBWOSFilterMode } from '../../features/core/jbwos/types';
 
 
 // Basic types needed for props
@@ -17,6 +19,7 @@ interface AuthUser {
 interface Tenant {
     id: string;
     name: string;
+    title?: string;
     role: string;
     representativeName?: string;
     representativeEmail?: string;
@@ -144,7 +147,23 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
             window.removeEventListener('jbwos-calendar-view-mode-change', handleCalendarViewModeChange as EventListener);
             window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
         };
-    }, [capacity]);
+    }, [capacity, filterMode]);
+
+    const isCompanyAccount = (user?.id?.length || 0) > 20;
+    const perspective: Perspective = isCompanyAccount
+        ? (filterMode === 'personal' ? 'company_internal' : 'company_business')
+        : (filterMode === 'personal' || filterMode === 'all' ? 'personal_private' : 'personal_company');
+
+    const getPerspectiveLabel = (): string => {
+        if (isCompanyAccount) {
+            return filterMode === 'personal' ? '社内業務の管理' : '事業の管理';
+        }
+        if (filterMode === 'personal' || filterMode === 'all') return '自分の時間管理';
+        const tenant = joinedTenants.find(t => String(t.id) === String(filterMode));
+        if (tenant) return `${tenant.title || (tenant as any).name} マネージャーとして`;
+        if (filterMode === 'company') return '会社業務の俯瞰';
+        return '自分の時間管理';
+    };
 
     const getLegacyUserName = () => {
         try {
@@ -384,6 +403,17 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
                 </div>
             </div>
+
+            {/* 層3: 統合コンテキストバー */}
+            <ViewContextBar
+                filterMode={filterMode as JBWOSFilterMode}
+                onFilterChange={(mode: JBWOSFilterMode) => setFilterMode(mode as any)}
+                joinedTenants={joinedTenants as any}
+                isCompanyAccount={isCompanyAccount}
+                perspective={perspective}
+                perspectiveLabel={getPerspectiveLabel()}
+                onModeSwitch={onSwitchTenant}
+            />
         </div>
     );
 };

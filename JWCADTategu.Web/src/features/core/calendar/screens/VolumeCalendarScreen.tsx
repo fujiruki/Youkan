@@ -24,6 +24,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
     const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
         return (localStorage.getItem('jbwos_calendar_view_mode') as any) || 'gantt';
     });
+    const [filterMode, setFilterMode] = useState<string>(() => {
+        return localStorage.getItem('jbwos_global_filter') || 'all';
+    });
     const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
     const calendarRef = React.useRef<any>(null);
 
@@ -31,18 +34,34 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
         const handleModeChange = (e: CustomEvent<{ mode: 'grid' | 'timeline' | 'gantt' }>) => {
             if (e.detail?.mode) setViewMode(e.detail.mode);
         };
+        const handleFilterChange = (e: any) => {
+            if (e.detail?.mode) setFilterMode(e.detail.mode);
+        };
         window.addEventListener('jbwos-calendar-view-mode-change', handleModeChange as EventListener);
-        return () => window.removeEventListener('jbwos-calendar-view-mode-change', handleModeChange as EventListener);
+        window.addEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        return () => {
+            window.removeEventListener('jbwos-calendar-view-mode-change', handleModeChange as EventListener);
+            window.removeEventListener('jbwos-filter-change', handleFilterChange as EventListener);
+        };
     }, []);
 
     const {
-        items, members, projects, loading, error,
+        items: rawItems, members, projects, loading, error,
         handlePrevMonth, handleNextMonth, refresh,
         capacityConfig // [NEW]
     } = useVolumeCalendarViewModel({
         projectId: activeProjectId,
         tenantId: activeTenantId
     });
+
+    const items = React.useMemo(() => {
+        return (rawItems || []).filter(item => {
+            if (filterMode === 'all') return true;
+            if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
+            if (filterMode === 'company') return !!item.tenantId;
+            return item.tenantId === filterMode;
+        });
+    }, [rawItems, filterMode]);
 
     const handleUpdate = async (id: string, updates: Partial<Item>) => {
         try {
