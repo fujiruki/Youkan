@@ -27,7 +27,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
     const [filterMode, setFilterMode] = useState<string>(() => {
         return localStorage.getItem('jbwos_global_filter') || 'all';
     });
-    const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
     const calendarRef = React.useRef<any>(null);
 
     useEffect(() => {
@@ -46,6 +45,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
     }, []);
 
     const {
+        currentDate, setCurrentDate,
         items: rawItems, members, projects, loading, error,
         handlePrevMonth, handleNextMonth, refresh,
         capacityConfig // [NEW]
@@ -122,11 +122,11 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
             {/* Header Section (Unified GanttHeader) */}
             <GanttHeader
-                visibleDate={visibleMonth}
+                visibleDate={currentDate}
                 onPrevMonth={handlePrevMonth}
                 onNextMonth={handleNextMonth}
                 onGoToCurrentMonth={() => {
-                    setVisibleMonth(new Date());
+                    setCurrentDate(new Date());
                     calendarRef.current?.scrollToToday();
                 }}
                 onOpenDailySettings={() => calendarRef.current?.openDailySettings()}
@@ -147,12 +147,13 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
                     currentUserId={auth.user?.id}
                     onItemClick={setSelectedItem}
                     displayMode={viewMode}
+                    focusDate={currentDate}
                     onUpdateItem={handleUpdate}
                     capacityConfig={capacityConfig} // [NEW]
                     joinedTenants={auth.joinedTenants} // [NEW]
                     onVisibleMonthChange={(date) => {
-                        if (isValid(date) && (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear())) {
-                            setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                        if (isValid(date) && (date.getMonth() !== currentDate.getMonth() || date.getFullYear() !== currentDate.getFullYear())) {
+                            setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
                         }
                     }}
                     hideHeader={true}

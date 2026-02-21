@@ -61,6 +61,8 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
     }, [loadData]);
 
     return {
+        currentDate,
+        setCurrentDate,
         items,
         members,
         projects,
