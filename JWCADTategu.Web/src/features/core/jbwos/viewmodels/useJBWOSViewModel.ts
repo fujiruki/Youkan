@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { JBWOSRepository } from '../repositories/JBWOSRepository';
 import { CloudJBWOSRepository } from '../repositories/CloudJBWOSRepository'; // [NEW]
 import { Item, SideMemo, CapacityConfig, Member, FilterMode, JoinedTenant } from '../types';
@@ -31,15 +31,15 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	// --- State (Aligned with v3.1 Zones) ---
 	// GDB Shelf
 	// GDB Shelf
-	const [gdbActive, setGdbActive] = useState<Item[]>([]); // Inbox + Decision (Judgment)
-	const [gdbPreparation, setGdbPreparation] = useState<Item[]>([]); // Preparation (Blurry)
-	const [gdbIntent, setGdbIntent] = useState<Item[]>([]); // [NEW] Intent
-	const [gdbLog, setGdbLog] = useState<Item[]>([]);
+	// --- Raw State (Server-direct data) ---
+	const [gdbActiveRaw, setGdbActiveRaw] = useState<Item[]>([]);
+	const [gdbPreparationRaw, setGdbPreparationRaw] = useState<Item[]>([]);
+	const [gdbIntentRaw, setGdbIntentRaw] = useState<Item[]>([]);
+	const [gdbLogRaw, setGdbLogRaw] = useState<Item[]>([]);
 
-	// Today Screen
-	const [todayCandidates, setTodayCandidates] = useState<Item[]>([]);
-	const [todayCommits, setTodayCommits] = useState<Item[]>([]); // Max 2
-	const [executionItem, setExecutionItem] = useState<Item | null>(null); // Only 1 active
+	const [todayCandidatesRaw, setTodayCandidatesRaw] = useState<Item[]>([]);
+	const [todayCommitsRaw, setTodayCommitsRaw] = useState<Item[]>([]);
+	const [executionItemRaw, setExecutionItemRaw] = useState<Item | null>(null);
 
 	// Side Memos
 	const [memos, setMemos] = useState<SideMemo[]>([]);
@@ -48,7 +48,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	const [members, setMembers] = useState<Member[]>([]);
 
 	// [NEW] All Projects & Tenants
-	const [allProjects, setAllProjects] = useState<Item[]>([]);
+	const [allProjectsRaw, setAllProjectsRaw] = useState<Item[]>([]);
 	const [joinedTenants, setJoinedTenants] = useState<JoinedTenant[]>([]);
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -61,46 +61,116 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	// Loading & Error
 	const [error, setError] = useState<string | null>(null);
 
+	// --- [NEW] Declarative / Reactive Derived State ---
+	const filterItems = useCallback((items: Item[]) => {
+		// [REFINE] Focus-Aware Filtering (Strict Narrowing):
+		// As per design, Focus Layer is a further refinement of the Base Context.
+		// Displayed set = (Base Context Items) ∩ (Items in Focused Project)
+
+		// 1. Base Context Filtering (Matches ID ①-⑥)
+		let filtered = items;
+		if (filterMode === 'company') {
+			filtered = items.filter(i => !!i.tenantId || i.domain === 'business');
+		} else if (filterMode === 'personal') {
+			filtered = items.filter(i => !i.tenantId && i.domain !== 'business');
+		} else if (typeof filterMode === 'string' && filterMode !== 'all') {
+			filtered = items.filter(i => i.tenantId === filterMode);
+		}
+
+		// 2. Focus Layer Refinement (Pattern ⑦)
+		// If focusing, ONLY show items belonging to that project.
+		if (projectId) {
+			filtered = filtered.filter(i => i.projectId === projectId || i.id === projectId);
+		}
+
+		return filtered;
+	}, [filterMode, projectId]);
+
+	// [NEW] Filtered Projects Derived State
+	const allProjects = useMemo(() => filterItems(allProjectsRaw), [filterItems, allProjectsRaw]);
+
+	// [NEW] Listen for Filter Mode Changes (v2 Reactive)
+	useEffect(() => {
+		const handleFilterChange = (e: any) => {
+			const mode = e.detail?.mode;
+			if (mode) {
+				setFilterMode(mode);
+			}
+		};
+		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
+		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
+	}, []);
+
+	const gdbActive = useMemo(() => filterItems(gdbActiveRaw), [filterItems, gdbActiveRaw]);
+	const gdbPreparation = useMemo(() => filterItems(gdbPreparationRaw), [filterItems, gdbPreparationRaw]);
+	const gdbIntent = useMemo(() => filterItems(gdbIntentRaw), [filterItems, gdbIntentRaw]);
+	const gdbLog = useMemo(() => filterItems(gdbLogRaw), [filterItems, gdbLogRaw]);
+
+	const todayCandidates = useMemo(() => filterItems(todayCandidatesRaw), [filterItems, todayCandidatesRaw]);
+	const todayCommits = useMemo(() => filterItems(todayCommitsRaw), [filterItems, todayCommitsRaw]);
+	const executionItem = useMemo(() => {
+		if (!executionItemRaw) return null;
+		const filtered = filterItems([executionItemRaw]);
+		return filtered.length > 0 ? filtered[0] : null;
+	}, [filterItems, executionItemRaw]);
+
+	const ghostGdbCount = useMemo(() =>
+		(gdbActiveRaw.length + gdbPreparationRaw.length + gdbIntentRaw.length) -
+		(gdbActive.length + gdbPreparation.length + gdbIntent.length),
+		[gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbActive, gdbPreparation, gdbIntent]
+	);
+
+	const ghostTodayCount = useMemo(() =>
+		(todayCandidatesRaw.length + todayCommitsRaw.length) -
+		(todayCandidates.length + todayCommits.length),
+		[todayCandidatesRaw, todayCommitsRaw, todayCandidates, todayCommits]
+	);
+
 	// --- Data Fetching ---
 	const refreshGdb = useCallback(async (projectId?: string) => {
 		try {
-			const shelf = await getRepository().getGdbShelf(projectId);
-			console.log('[ViewModel] Fetched GDB Shelf:', shelf, 'for project:', projectId); // [DEBUG]
+			// [FUNDAMENTAL FIX] Determine Scope based on FilterMode
+			let scope: any = undefined;
+			if (filterMode === 'all') scope = 'aggregated';
+			else if (filterMode === 'personal') scope = 'personal';
+			else if (filterMode === 'company') scope = 'company';
+			else if (typeof filterMode === 'string') scope = 'company'; // Tenant ID specific
+
+			const shelf = await getRepository().getGdbShelf(projectId, scope);
+			console.log('[ViewModel] Fetched GDB Shelf:', shelf, 'scope:', scope, 'for project:', projectId);
 			if (!shelf) throw new Error('Shelf is null');
 
-			setGdbActive(
+			setGdbActiveRaw(
 				(Array.isArray(shelf.active) ? shelf.active : [])
 					.filter(Boolean)
-					.filter(i => i.status !== 'focus') // [FIX] Strict View Separation: Exclude 'focus' from Inbox (already in Center)
-					.sort(compareFocusItems) // [Correct] GlobalBoard Active uses Focus Logic (General List)
+					.filter(i => i.status !== 'focus')
+					.sort(compareFocusItems)
 			);
-			setGdbPreparation((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean).sort(compareFocusItems)); // Migrated from hold
-			setGdbIntent((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean).sort(compareFocusItems)); // [NEW]
-			setGdbLog((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
+			setGdbPreparationRaw((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean).sort(compareFocusItems));
+			setGdbIntentRaw((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean).sort(compareFocusItems));
+			setGdbLogRaw((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
 		} catch (e) {
 			console.error('Failed to fetch GDB:', e);
-			// Fallback to clear
-			setGdbActive(
-				// [FIX] Strict View Separation: Exclude 'focus' items from Inbox (Active)
-				// These are already shown in the Center (Focus/Queue) view.
-				[] // Clear on error
-			);
-			setGdbPreparation([]);
-			setGdbIntent([]);
-			setGdbLog([]);
+			setGdbActiveRaw([]);
+			setGdbPreparationRaw([]);
+			setGdbIntentRaw([]);
+			setGdbLogRaw([]);
 		}
-	}, []);
+	}, [filterMode]);
 
 	const refreshToday = useCallback(async () => {
 		try {
-			const today = await getRepository().getTodayView(projectId);
-			setTodayCommits(today.commits || []);
-			setExecutionItem(today.execution || null);
-			setTodayCandidates((today.candidates || []).sort(compareFocusItems)); // [NEW] Apply Focus Sorting
+			let scope: any = undefined;
+			if (filterMode === 'all') scope = 'aggregated';
+
+			const today = await getRepository().getTodayView(projectId, scope);
+			setTodayCommitsRaw(today.commits || []);
+			setExecutionItemRaw(today.execution || null);
+			setTodayCandidatesRaw((today.candidates || []).sort(compareFocusItems));
 		} catch (e) {
 			console.error('Failed to fetch Today:', e);
 		}
-	}, [projectId]);
+	}, [projectId, filterMode]);
 
 	const refreshMemos = useCallback(async () => {
 		try {
@@ -136,7 +206,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		try {
 			// Fetch all projects for selection in modals
 			const projs = await getRepository().getProjects('aggregated');
-			setAllProjects(projs);
+			setAllProjectsRaw(projs);
 
 			// Fetch joined tenants
 			const tenants: any[] = await getRepository().getJoinedTenants();
@@ -266,7 +336,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
 		const targetId = id.replace('virtual-header-', '');
 		// Optimistic Update: Remove from Active immediate
-		setGdbActive(prev => prev.filter(i => i.id !== id && i.id !== targetId));
+		setGdbActiveRaw(prev => prev.filter(i => i.id !== id && i.id !== targetId));
 
 		// [New] Apply updates optimistically if provided
 		if (updates) {
@@ -339,10 +409,10 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		// Optimistic: Move from Candidate to Commit
 		const target = todayCandidates.find(i => i.id === id);
 		if (target) {
-			setTodayCandidates(prev => prev.filter(i => i.id !== id));
+			setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
 			// Flag logic: existing status (focus) + is_today_commit flag
 			const updated = { ...target, flags: { ...target.flags, is_today_commit: true } };
-			setTodayCommits(prev => [...prev, updated]);
+			setTodayCommitsRaw(prev => [...prev, updated]);
 		}
 
 		// [Undo] Register Action
@@ -371,11 +441,11 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		const targetId = id.replace('virtual-header-', '');
 		// Optimistic: Calculate next state based on current closure (safe in this hook)
 		const nextList = todayCommits.filter(i => i.id !== id);
-		setTodayCommits(nextList);
+		setTodayCommitsRaw(nextList);
 
 		// Auto-promote
 		if (executionItem?.id === id) {
-			setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+			setExecutionItemRaw(nextList.length > 0 ? nextList[0] : null);
 		}
 
 		// [Undo] Register Action 
@@ -423,14 +493,14 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		const targetId = id.replace('virtual-header-', '');
 		// Optimistic: Remove from all active lists
 		const filter = (list: Item[]) => list.filter(i => i.id !== id && i.id !== targetId);
-		setGdbActive(prev => filter(prev));
-		setGdbPreparation(prev => filter(prev));
-		setGdbIntent(prev => filter(prev));
-		setGdbLog(prev => filter(prev)); // [FIX] NewspaperView反映漏れ
-		setAllProjects(prev => filter(prev)); // [FIX] プロジェクト一覧反映
-		setTodayCandidates(prev => filter(prev));
-		setTodayCommits(prev => filter(prev));
-		if (executionItem?.id === id || executionItem?.id === targetId) setExecutionItem(null);
+		setGdbActiveRaw(prev => filter(prev));
+		setGdbPreparationRaw(prev => filter(prev));
+		setGdbIntentRaw(prev => filter(prev));
+		setGdbLogRaw(prev => filter(prev)); // [FIX] NewspaperView反映漏れ
+		setAllProjectsRaw(prev => filter(prev)); // [FIX] プロジェクト一覧反映
+		setTodayCandidatesRaw(prev => filter(prev));
+		setTodayCommitsRaw(prev => filter(prev));
+		if (executionItem?.id === id || executionItem?.id === targetId) setExecutionItemRaw(null);
 
 		// [Undo] Register Action
 		addUndoAction({
@@ -466,13 +536,13 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 		// Optimistic UI
 		const filter = (list: Item[]) => list.filter(i => String(i.id) !== String(id) && String(i.id) !== String(targetId));
-		setGdbActive(prev => filter(prev));
-		setGdbPreparation(prev => filter(prev));
-		setGdbIntent(prev => filter(prev));
-		setTodayCandidates(prev => filter(prev));
-		setTodayCommits(prev => filter(prev));
-		setAllProjects(prev => filter(prev)); // [NEW] Ensure projects are also removed
-		if (executionItem?.id === String(id) || executionItem?.id === String(targetId)) setExecutionItem(null);
+		setGdbActiveRaw(prev => filter(prev));
+		setGdbPreparationRaw(prev => filter(prev));
+		setGdbIntentRaw(prev => filter(prev));
+		setTodayCandidatesRaw(prev => filter(prev));
+		setTodayCommitsRaw(prev => filter(prev));
+		setAllProjectsRaw(prev => filter(prev)); // [NEW] Ensure projects are also removed
+		if (executionItem?.id === String(id) || executionItem?.id === String(targetId)) setExecutionItemRaw(null);
 
 		try {
 			await getRepository().trashItem(targetId); // [Changed] Use trash instead of delete
@@ -511,12 +581,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		const targetId = id.replace('virtual-header-', '');
 		// Optimistically remove from today
 		const nextList = todayCommits.filter(i => i.id !== id && i.id !== targetId);
-		setTodayCommits(nextList);
-		setTodayCandidates(prev => prev.filter(i => i.id !== id && i.id !== targetId));
+		setTodayCommitsRaw(nextList);
+		setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id && i.id !== targetId));
 
 		// Auto-promote
 		if (executionItem?.id === id || executionItem?.id === targetId) {
-			setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+			setExecutionItemRaw(nextList.length > 0 ? nextList[0] : null);
 		}
 
 		// [Undo] Register Action
@@ -546,7 +616,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	const prioritizeTask = async (id: string) => {
 		const targetId = id.replace('virtual-header-', '');
 		// Optimistic: Move to top of todayCommits
-		setTodayCommits(prev => {
+		setTodayCommitsRaw(prev => {
 			const target = prev.find(i => i.id === id);
 			if (!target) return prev;
 			const others = prev.filter(i => i.id !== id);
@@ -554,7 +624,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		});
 		// Optimistic: Update executionItem immediately
 		const target = todayCommits.find(i => i.id === id);
-		if (target) setExecutionItem(target);
+		if (target) setExecutionItemRaw(target);
 
 		try {
 			// Server-side: Start Execution (implicitly makes it active/top)
@@ -571,11 +641,11 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		// Guard: Don't uncommit active if it's running? Optional.
 		// Optimistic: Remove from Commits, Add to Candidates
 		const nextList = todayCommits.filter(i => i.id !== id);
-		setTodayCommits(nextList);
+		setTodayCommitsRaw(nextList);
 
 		// Auto-promote
 		if (executionItem?.id === id) {
-			setExecutionItem(nextList.length > 0 ? nextList[0] : null);
+			setExecutionItemRaw(nextList.length > 0 ? nextList[0] : null);
 		}
 
 		// Add to candidates (needs pseudo item or find from cache)
@@ -598,7 +668,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		const inCommits = todayCommits.find(i => i.id === id);
 		if (inCommits) {
 			await uncommitFromToday(id);
-			setTodayCandidates(prev => {
+			setTodayCandidatesRaw(prev => {
 				const updated = { ...inCommits, status: 'focus', flags: { ...inCommits.flags, is_today_commit: false } } as any;
 				return [...prev, updated];
 			});
@@ -608,7 +678,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		// 2. If in Candidates, rotate to end
 		const inCandidates = todayCandidates.find(i => i.id === id);
 		if (inCandidates) {
-			setTodayCandidates(prev => {
+			setTodayCandidatesRaw(prev => {
 				const others = prev.filter(i => i.id !== id);
 				return [...others, inCandidates];
 			});
@@ -617,7 +687,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 			if (executionItem?.id === id) {
 				const others = todayCandidates.filter(i => i.id !== id);
 				const nextTop = others.length > 0 ? others[0] : null;
-				setExecutionItem(todayCommits.length > 0 ? todayCommits[0] : nextTop);
+				setExecutionItemRaw(todayCommits.length > 0 ? todayCommits[0] : nextTop);
 			}
 		}
 	};
@@ -636,12 +706,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		const target = todayCandidates.find(i => i.id === id);
 		if (target) {
 			// Remove from Candidates
-			setTodayCandidates(prev => prev.filter(i => i.id !== id));
+			setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
 			// Add to Commits at TOP
 			const newItem = { ...target, status: 'focus', flags: { ...target.flags, is_today_commit: true } } as any;
-			setTodayCommits(prev => [newItem, ...prev.filter(i => i.id !== id)]); // Prepend
+			setTodayCommitsRaw(prev => [newItem, ...prev.filter(i => i.id !== id)]); // Prepend
 			// Set Execution Item
-			setExecutionItem(newItem);
+			setExecutionItemRaw(newItem);
 		}
 
 
@@ -664,9 +734,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 	const updateItemTitle = async (id: string, newTitle: string) => {
 		// Optimistic
-		if (executionItem?.id === id) setExecutionItem({ ...executionItem, title: newTitle });
-		setTodayCommits(prev => prev.map(i => i.id === id ? { ...i, title: newTitle } : i));
-		setTodayCandidates(prev => prev.map(i => i.id === id ? { ...i, title: newTitle } : i));
+		if (executionItem?.id === id) setExecutionItemRaw({ ...executionItem, title: newTitle });
+		setTodayCommitsRaw(prev => prev.map(i => i.id === id ? { ...i, title: newTitle } : i));
+		setTodayCandidatesRaw(prev => prev.map(i => i.id === id ? { ...i, title: newTitle } : i));
 
 		try {
 			await getRepository().updateItem(id, { title: newTitle });
@@ -760,9 +830,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 		// [NEW] Add to appropriate list based on status
 		if (initialStatus === 'focus') {
-			setTodayCandidates(prev => [newItem, ...prev]);
+			setTodayCandidatesRaw(prev => [newItem, ...prev]);
 		} else {
-			setGdbActive(prev => [newItem, ...prev]);
+			setGdbActiveRaw(prev => [newItem, ...prev]);
 		}
 
 		// refreshGdb(); // Prevent flicker
@@ -785,15 +855,15 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 			if (date) {
 				// Move to Preparation
-				setGdbActive(prev => prev.filter(i => i.id !== id));
-				setGdbPreparation(prev => {
+				setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+				setGdbPreparationRaw(prev => {
 					const exists = prev.find(i => i.id === id);
 					return exists ? prev.map(i => i.id === id ? updatedItem : i) : [...prev, updatedItem];
 				});
 			} else {
 				// Move to Active
-				setGdbPreparation(prev => prev.filter(i => i.id !== id));
-				setGdbActive(prev => {
+				setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
+				setGdbActiveRaw(prev => {
 					const exists = prev.find(i => i.id === id);
 					return exists ? prev.map(i => i.id === id ? updatedItem : i) : [updatedItem, ...prev];
 				});
@@ -818,9 +888,9 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		if (item) {
 			const updatedItem = { ...item, status: 'pending' as const };
 
-			setGdbActive(prev => prev.filter(i => i.id !== id));
-			setGdbPreparation(prev => prev.filter(i => i.id !== id));
-			setGdbIntent(prev => [updatedItem, ...prev]);
+			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
+			setGdbIntentRaw(prev => [updatedItem, ...prev]);
 
 			// [Undo] Register Action
 			addUndoAction({
@@ -855,24 +925,24 @@ export const useJBWOSViewModel = (projectId?: string) => {
 			const updatedItem = { ...target, ...updates };
 
 			// 1. Remove from ALL lists first
-			setGdbActive(prev => prev.filter(i => i.id !== id));
-			setGdbPreparation(prev => prev.filter(i => i.id !== id));
-			setGdbIntent(prev => prev.filter(i => i.id !== id));
-			setTodayCandidates(prev => prev.filter(i => i.id !== id));
-			setTodayCommits(prev => prev.filter(i => i.id !== id));
+			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
+			setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
+			setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
+			setTodayCommitsRaw(prev => prev.filter(i => i.id !== id));
 
 			// 2. Add to appropriate list
 			if (isEngaged) {
 				// Add to Today Commits
-				setTodayCommits(prev => [updatedItem, ...prev]);
+				setTodayCommitsRaw(prev => [updatedItem, ...prev]);
 				// Update Execution Item
-				setExecutionItem(updatedItem);
+				setExecutionItemRaw(updatedItem);
 			} else {
 				// Return to Inbox? or just Focus (Candidate)?
 				// If checking OFF, usually implies -> Candidate or Inbox.
 				// For now, assume Candidate (Focus)
-				setTodayCandidates(prev => [updatedItem, ...prev]);
-				if (executionItem?.id === id) setExecutionItem(null);
+				setTodayCandidatesRaw(prev => [updatedItem, ...prev]);
+				if (executionItem?.id === id) setExecutionItemRaw(null);
 			}
 		}
 
@@ -936,31 +1006,31 @@ export const useJBWOSViewModel = (projectId?: string) => {
 			// If status changed, we need to MOVE
 			if (newStatus !== target.status) {
 				// Remove from OLD
-				setGdbActive(prev => prev.filter(i => i.id !== id));
-				setGdbPreparation(prev => prev.filter(i => i.id !== id));
-				setGdbIntent(prev => prev.filter(i => i.id !== id));
-				setTodayCandidates(prev => prev.filter(i => i.id !== id));
-				setTodayCommits(prev => prev.filter(i => i.id !== id));
+				setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+				setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
+				setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
+				setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
+				setTodayCommitsRaw(prev => prev.filter(i => i.id !== id));
 
 				// Add to NEW
-				if (newStatus === 'inbox') setGdbActive(prev => [updatedItem, ...prev]);
-				else if (newStatus === 'pending') setGdbActive(prev => [updatedItem, ...prev]);
+				if (newStatus === 'inbox') setGdbActiveRaw(prev => [updatedItem, ...prev]);
+				else if (newStatus === 'pending') setGdbActiveRaw(prev => [updatedItem, ...prev]);
 				else if (newStatus === 'focus') {
-					setTodayCandidates(prev => [updatedItem, ...prev]);
+					setTodayCandidatesRaw(prev => [updatedItem, ...prev]);
 				}
 			} else {
 				// Just property update
 				const updateList = (list: Item[]) => list.map(item => item.id === id ? { ...item, ...updates } : item);
-				setTodayCandidates(prev => updateList(prev));
-				setTodayCommits(prev => updateList(prev));
-				setGdbActive(prev => updateList(prev));
-				setGdbPreparation(prev => updateList(prev));
-				setGdbIntent(prev => updateList(prev));
+				setTodayCandidatesRaw(prev => updateList(prev));
+				setTodayCommitsRaw(prev => updateList(prev));
+				setGdbActiveRaw(prev => updateList(prev));
+				setGdbPreparationRaw(prev => updateList(prev));
+				setGdbIntentRaw(prev => updateList(prev));
 			}
 
 			// Update Execution Item if active
 			if (executionItem && executionItem.id === id) {
-				setExecutionItem(prev => prev ? { ...prev, ...updates } : null);
+				setExecutionItemRaw(prev => prev ? { ...prev, ...updates } : null);
 			}
 		}
 
@@ -1077,30 +1147,6 @@ export const useJBWOSViewModel = (projectId?: string) => {
 			console.error('Import failed', e);
 		}
 	};
-
-	// --- Computed Filtered Data & Ghost Counts ---
-	const filterItems = useCallback((items: Item[]) => {
-		if (filterMode === 'all') return items;
-		if (filterMode === 'company') {
-			// Company items: Explicitly linked to a tenant, or domain is 'business'
-			return items.filter(i => !!i.tenantId || i.domain === 'business');
-		}
-		if (filterMode === 'personal') {
-			// Personal items: No tenantId, and domain is not 'business' (usually 'private' or 'general')
-			return items.filter(i => !i.tenantId && i.domain !== 'business');
-		}
-		// filterMode is a tenantId string: filter to that specific tenant
-		return items.filter(i => i.tenantId === filterMode);
-	}, [filterMode]);
-
-	const filteredGdbActive = filterItems(gdbActive);
-	const filteredGdbPreparation = filterItems(gdbPreparation);
-	const filteredGdbIntent = filterItems(gdbIntent);
-	const filteredTodayCandidates = filterItems(todayCandidates);
-	const filteredTodayCommits = filterItems(todayCommits);
-
-	const ghostGdbCount = gdbActive.length + gdbPreparation.length + gdbIntent.length - (filteredGdbActive.length + filteredGdbPreparation.length + filteredGdbIntent.length);
-	const ghostTodayCount = todayCandidates.length + todayCommits.length - (filteredTodayCandidates.length + filteredTodayCommits.length);
 
 	// --- Capacity Used (Always Integrated/Unfiltered based on Matrix) ---
 	const capacityUsed = (() => {
@@ -1291,12 +1337,12 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	// --- Return to UI (Aligned with Dashboard Requirements) ---
 	return {
 		// State
-		gdbActive: filteredGdbActive,
-		gdbPreparation: filteredGdbPreparation,
-		gdbIntent: filteredGdbIntent,
+		gdbActive,
+		gdbPreparation,
+		gdbIntent,
 		gdbLog,
-		todayCandidates: filteredTodayCandidates,
-		todayCommits: filteredTodayCommits,
+		todayCandidates,
+		todayCommits,
 		executionItem,
 		memos,
 		members,

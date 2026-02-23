@@ -12,6 +12,8 @@ interface ViewContextBarProps {
 	perspectiveLabel: string;
 	/** [NEW] モード切替用 */
 	onModeSwitch?: (tenantId: string | null) => void;
+	/** [NEW] ログイン中のテナント名または「プライベート」 */
+	activeTenantName: string;
 }
 
 /**
@@ -25,7 +27,8 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 	joinedTenants,
 	isCompanyAccount,
 	perspectiveLabel,
-	onModeSwitch
+	onModeSwitch,
+	activeTenantName
 }) => {
 	const tenantCount = joinedTenants.length;
 	const [showTenantDropdown, setShowTenantDropdown] = React.useState(false);
@@ -38,15 +41,7 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 			: 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700'
 		}`;
 
-	const getModeLabel = () => {
-		if (perspectiveLabel.includes('マネージャー')) {
-			return perspectiveLabel.split('マネージャー')[0];
-		}
-		if (perspectiveLabel === '自分の時間管理' || perspectiveLabel === '会社業務の俯瞰') {
-			return 'プライベート';
-		}
-		return perspectiveLabel;
-	};
+	const getModeLabel = () => activeTenantName;
 
 	const renderTenantButtons = () => {
 		if (tenantCount === 0) return null;

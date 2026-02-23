@@ -50,22 +50,15 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 }) => {
 	const vm = useJBWOSViewModel(projectId);
 	const {
-		gdbActive: vmGdbActive,
-		gdbPreparation: vmGdbPreparation,
-		gdbIntent: vmGdbIntent,
-		gdbLog: vmGdbLog,
+		gdbActive,
+		gdbPreparation,
+		gdbIntent,
+		gdbLog,
 		ghostGdbCount,
 		ghostTodayCount,
-		allProjects // [NEW] Needed for logic
+		allProjects, // [NEW] Needed for logic
+		filterMode
 	} = vm;
-
-	// Only hideCompleted filter remains here; filterMode filtering is done upstream by ViewModel
-	const [hideCompleted, _setHideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
-
-	const gdbActive = hideCompleted ? vmGdbActive.filter(i => i.status !== 'done') : vmGdbActive;
-	const gdbPreparation = hideCompleted ? vmGdbPreparation.filter(i => i.status !== 'done') : vmGdbPreparation;
-	const gdbIntent = hideCompleted ? vmGdbIntent.filter(i => i.status !== 'done') : vmGdbIntent;
-	const gdbLog = vmGdbLog;
 
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const { joinedTenants } = useAuth(); // [RESTORED]

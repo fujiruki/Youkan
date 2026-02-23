@@ -165,8 +165,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 	const isCompanyAccount = (user?.id?.length || 0) > 20;
 	const { perspective, perspectiveLabel } = calculatePerspective(
 		isCompanyAccount,
-		filterMode as any,
-		joinedTenants as JoinedTenant[]
+		filterMode as any
 	);
 
 	const getLegacyUserName = () => {
@@ -417,6 +416,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 				perspective={perspective}
 				perspectiveLabel={activeProject?.title || perspectiveLabel}
 				onModeSwitch={onSwitchTenant}
+				activeTenantName={tenant?.title || tenant?.name || 'プライベート'}
 			/>
 		</div>
 	);

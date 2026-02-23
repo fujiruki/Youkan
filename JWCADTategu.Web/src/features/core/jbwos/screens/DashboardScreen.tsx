@@ -21,6 +21,7 @@ import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { calculatePerspective } from '../logic/perspective';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -67,17 +68,17 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 	const vm = useJBWOSViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
 	const {
-		gdbActive: inboxItemsRaw,
-		gdbIntent: pendingItemsRaw,
-		gdbPreparation: waitingItemsRaw,
-		todayCandidates: todayCandidatesRaw,
-		todayCommits: todayCommitsRaw,
-		gdbLog: gdbLogRaw,
+		gdbActive: inboxItems,
+		gdbIntent: pendingItems,
+		gdbPreparation: waitingItems,
+		todayCandidates,
+		todayCommits,
+		gdbLog,
 		capacityUsed,
 		capacityLimit,
 		filterMode,
 		ghostGdbCount,
-		executionItem,
+		executionItem: activeExecutionItem, // Use VM's filtered executionItem
 		refreshAll: handleRefresh,
 		updateItem,
 		deleteItem,
@@ -93,32 +94,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		allProjects
 	} = vm;
 
-	const [hideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
+	// [REFINED] All filtering (including filterMode) is now handled declaratively in ViewModel.
 
-	const filterItems = (items: Item[]) => !hideCompleted ? items : items.filter(i => i.status !== 'done');
-
-	const filterByContext = (items: Item[]) => {
-		return items.filter(item => {
-			if (filterMode === 'all') return true;
-			if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
-			if (filterMode === 'company') return !!item.tenantId;
-			// Tenant specific
-			return item.tenantId === filterMode;
-		});
-	};
-
-	const inboxItems = filterByContext(filterItems(inboxItemsRaw || []));
-	const pendingItems = filterByContext(filterItems(pendingItemsRaw || []));
-	const waitingItems = filterByContext(filterItems(waitingItemsRaw || []));
-	const todayCandidates = filterByContext(filterItems(todayCandidatesRaw || []));
-	const todayCommits = filterByContext(filterItems(todayCommitsRaw || []));
-	const gdbLog = filterByContext(filterItems(gdbLogRaw || []));
-
-	const activeExecutionItem = useMemo(() => {
-		if (!executionItem) return null;
-		const filtered = filterByContext([executionItem]);
-		return filtered.length > 0 ? executionItem : null;
-	}, [executionItem, filterMode]);
 
 	useEffect(() => {
 		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.CAPACITY_UPDATE, {
@@ -135,17 +112,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		});
 	}, [allProjects, filterMode]);
 
-	const filteredVM = {
-		...vm,
-		gdbActive: inboxItems,
-		gdbIntent: pendingItems,
-		gdbPreparation: waitingItems,
-		todayCandidates: todayCandidates,
-		todayCommits: todayCommits,
-		gdbLog: gdbLog,
-		executionItem: activeExecutionItem,
-		allProjects: filteredProjects,
-	};
+	// [REFINED] vm already contains filtered data and allProjects.
+	const filteredVM = vm;
 
 	const [ganttRowHeight, setGanttRowHeight] = useState<number>(() => {
 		const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_ROW_HEIGHT);
@@ -489,8 +457,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 					capacityConfig={capacityConfig}
 					currentUserId={vm.currentUserId}
 					updateItemMetrics={vm.updateItemMetrics}
-					// @ts-ignore
-					perspectiveLabel={getPerspectiveLabel()}
+					perspectiveLabel={calculatePerspective(vm.joinedTenants.length > 0, filterMode as any).perspectiveLabel}
 				/>
 			)}
 		</div>

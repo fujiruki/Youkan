@@ -192,8 +192,11 @@ export class ApiClient {
 	}
 
 	// --- Phase 2: Today API ---
-	public static async getTodayView(projectId?: string): Promise<any> { // Replace 'any' with proper type later
-		const query = projectId ? `?project_id=${projectId}` : '';
+	public static async getTodayView(projectId?: string, scope?: string): Promise<any> { // Replace 'any' with proper type later
+		const params = new URLSearchParams();
+		if (projectId) params.append('project_id', projectId);
+		if (scope) params.append('scope', scope);
+		const query = params.toString() ? `?${params.toString()}` : '';
 		return this.request('GET', `/today${query}`, undefined, true);
 	}
 
