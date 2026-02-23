@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { Item } from '../../types';
 import { useJBWOSViewModel } from '../../viewmodels/useJBWOSViewModel';
 import { format } from 'date-fns';
-import { compareGeneralList2Items, getProjectUrgencyScore } from '../../logic/sorting';
 import { buildHierarchicalList } from '../../logic/hierarchy';
 
 export type JBWOSViewModel = ReturnType<typeof useJBWOSViewModel>;
