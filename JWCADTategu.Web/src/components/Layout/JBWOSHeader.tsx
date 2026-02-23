@@ -100,6 +100,17 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 		localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) || 'gantt'
 	);
 
+	// [NEW] 【宣言的同期】テナント（モード）が切り替わった場合、それに対応するフィルタモードを自動設定する
+	useEffect(() => {
+		if (tenant?.id) {
+			// 特定テナント（A社等）へ切り替わった場合、そのテナントをフィルタ対象にする
+			setFilterMode(tenant.id as FilterMode);
+		} else {
+			// 個人（プライベート）へ切り替わった場合、デフォルトで 'personal' に設定
+			setFilterMode('personal');
+		}
+	}, [tenant?.id]);
+
 	// Persist filter mode & hideCompleted
 	useEffect(() => {
 		localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, filterMode);
