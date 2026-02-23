@@ -8,6 +8,7 @@ import { MotivatorWhisper } from '../../features/core/jbwos/components/Layout/Mo
 import { ViewContextBar } from '../../features/core/jbwos/components/Dashboard/ViewContextBar';
 import { calculatePerspective } from '../../features/core/jbwos/logic/perspective';
 import { JoinedTenant, FilterMode } from '../../features/core/jbwos/types';
+import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 
 
 // Basic types needed for props
@@ -74,36 +75,36 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [filterMode, setFilterMode] = useState<FilterMode>(() => {
-		const saved = localStorage.getItem('youkan_filter_mode');
+		const saved = localStorage.getItem(YOUKAN_KEYS.FILTER_MODE);
 		return (saved as FilterMode) || 'all';
 	});
 
 	const [hideCompleted] = useState(() => {
-		return localStorage.getItem('youkan_hide_completed') === 'true';
+		return localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true';
 	});
 
 	const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
 
 	// Dashboard用のビューモード状態
 	const [dashboardViewMode, setDashboardViewMode] = useState(() =>
-		localStorage.getItem('youkan_view_mode') || 'stream'
+		localStorage.getItem(YOUKAN_KEYS.VIEW_MODE) || 'stream'
 	);
 
 	// プロジェクト画面用のビューモード状態
 	const [projectViewMode, setProjectViewMode] = useState(() =>
-		localStorage.getItem('jbwos_project_view_mode') || 'grid'
+		localStorage.getItem(YOUKAN_KEYS.PROJECT_VIEW_MODE) || 'grid'
 	);
 
 	// カレンダー画面用のビューモード状態
 	const [calendarViewMode, setCalendarViewMode] = useState(() =>
-		localStorage.getItem('jbwos_calendar_view_mode') || 'gantt'
+		localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) || 'gantt'
 	);
 
 	// Persist filter mode & hideCompleted
 	useEffect(() => {
-		localStorage.setItem('youkan_filter_mode', filterMode);
-		localStorage.setItem('youkan_hide_completed', String(hideCompleted));
-		window.dispatchEvent(new CustomEvent('youkan-filter-change', {
+		localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, filterMode);
+		localStorage.setItem(YOUKAN_KEYS.HIDE_COMPLETED, String(hideCompleted));
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.FILTER_CHANGE, {
 			detail: { mode: filterMode, hideCompleted }
 		}));
 	}, [filterMode, hideCompleted]);
@@ -136,17 +137,17 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 				setFilterMode(mode);
 			}
 		};
-		window.addEventListener('youkan-view-mode-change', handleViewModeChange as EventListener);
-		window.addEventListener('youkan-capacity-update', handleCapacityUpdate as EventListener);
-		window.addEventListener('youkan-project-view-mode-change', handleProjectViewModeChange as EventListener);
-		window.addEventListener('youkan-calendar-view-mode-change', handleCalendarViewModeChange as EventListener);
-		window.addEventListener('youkan-filter-change', handleFilterChange as EventListener);
+		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
+		window.addEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
+		window.addEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
+		window.addEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
+		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		return () => {
-			window.removeEventListener('youkan-view-mode-change', handleViewModeChange as EventListener);
-			window.removeEventListener('youkan-capacity-update', handleCapacityUpdate as EventListener);
-			window.removeEventListener('youkan-project-view-mode-change', handleProjectViewModeChange as EventListener);
-			window.removeEventListener('youkan-calendar-view-mode-change', handleCalendarViewModeChange as EventListener);
-			window.removeEventListener('youkan-filter-change', handleFilterChange as EventListener);
+			window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
+			window.removeEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
+			window.removeEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
+			window.removeEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
+			window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		};
 	}, [capacity, filterMode]);
 
@@ -159,27 +160,27 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 
 	const getLegacyUserName = () => {
 		try {
-			const u = JSON.parse(localStorage.getItem('jbwos_user') || '{}');
+			const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
 			return u.name || 'User';
 		} catch { return 'User'; }
 	};
 
 	const handleDashboardViewChange = (mode: string) => {
 		setDashboardViewMode(mode);
-		localStorage.setItem('youkan_view_mode', mode);
-		window.dispatchEvent(new CustomEvent('youkan-view-mode-change', { detail: { mode } }));
+		localStorage.setItem(YOUKAN_KEYS.VIEW_MODE, mode);
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.VIEW_MODE_CHANGE, { detail: { mode } }));
 	};
 
 	const handleProjectViewChange = (mode: string) => {
 		setProjectViewMode(mode);
-		localStorage.setItem('youkan_project_view_mode', mode);
-		window.dispatchEvent(new CustomEvent('youkan-project-view-mode-change', { detail: { mode } }));
+		localStorage.setItem(YOUKAN_KEYS.PROJECT_VIEW_MODE, mode);
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, { detail: { mode } }));
 	};
 
 	const handleCalendarViewChange = (mode: string) => {
 		setCalendarViewMode(mode);
-		localStorage.setItem('youkan_calendar_view_mode', mode);
-		window.dispatchEvent(new CustomEvent('youkan-calendar-view-mode-change', { detail: { mode } }));
+		localStorage.setItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE, mode);
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, { detail: { mode } }));
 	};
 
 	// Check active states
@@ -204,8 +205,8 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 				onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
 				onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
 				onLogout={() => {
-					localStorage.removeItem('youkan_token');
-					localStorage.removeItem('youkan_user');
+					localStorage.removeItem(YOUKAN_KEYS.TOKEN);
+					localStorage.removeItem(YOUKAN_KEYS.USER);
 					window.location.href = './';
 				}}
 				userName={user?.name || getLegacyUserName()}
@@ -384,7 +385,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 						{/* Right Action: 新プロジェクト */}
 						<div className="flex items-center">
 							<button
-								onClick={() => window.dispatchEvent(new CustomEvent('jbwos-open-project-modal'))}
+								onClick={() => window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.OPEN_PROJECT_MODAL))}
 								className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all font-bold text-xs ring-1 ring-white/10"
 							>
 								<Plus size={16} strokeWidth={3} />

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { AuthUser, Tenant } from '../types';
 import { AuthService } from '../services/AuthService';
+import { YOUKAN_KEYS } from '../../session/youkanKeys';
 
 interface AuthContextType {
 	user: AuthUser | null;
@@ -34,9 +35,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		// --- DEBUG BYPASS (Dev Only) ---
 		if (import.meta.env.DEV && token === 'mock-debug-token') {
 			console.log('AuthProvider: Debug Token detected. Bypassing API check.');
-			const storedUser = localStorage.getItem('youkan_user');
-			const storedTenant = localStorage.getItem('youkan_tenant');
-			const storedJoined = localStorage.getItem('youkan_joined_tenants');
+			const storedUser = localStorage.getItem(YOUKAN_KEYS.USER);
+			const storedTenant = localStorage.getItem(YOUKAN_KEYS.TENANT);
+			const storedJoined = localStorage.getItem(YOUKAN_KEYS.JOINED_TENANTS);
 
 			if (storedUser) {
 				try {
@@ -105,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		setUser(newUser);
 		setTenant(newTenant);
 		setIsAuthenticated(true);
-		localStorage.setItem('youkan_token', token);
+		localStorage.setItem(YOUKAN_KEYS.TOKEN, token);
 	};
 
 	const logout = () => {
@@ -113,7 +114,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		setTenant(null);
 		setJoinedTenants([]);
 		setIsAuthenticated(false);
-		localStorage.removeItem('youkan_token');
+		localStorage.removeItem(YOUKAN_KEYS.TOKEN);
 		// AuthService.getInstance().logout(); // If implemented
 	};
 

@@ -7,6 +7,7 @@ import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
 import { QuantityEngine } from '../logic/QuantityEngine';
 import { ApiClient } from '../../../../api/client';
+import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
 
@@ -53,7 +54,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 	// [NEW] Filter Mode (Public/Private Filtering - Option 3)
 	const [filterMode, setFilterMode] = useState<FilterMode>(() => {
-		const saved = localStorage.getItem('youkan_filter_mode');
+		const saved = localStorage.getItem(YOUKAN_KEYS.FILTER_MODE);
 		return (saved === 'company' || saved === 'personal') ? saved as FilterMode : 'all';
 	});
 
@@ -116,7 +117,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	// }, []);
 
 	useEffect(() => {
-		localStorage.setItem('youkan_filter_mode', filterMode);
+		localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, filterMode);
 		// [FIX] Trigger refresh when filter changes to avoid stale view
 		refreshGdb(projectId);
 	}, [filterMode, projectId, refreshGdb]);
@@ -252,8 +253,8 @@ export const useJBWOSViewModel = (projectId?: string) => {
 			refreshAll();
 		};
 
-		window.addEventListener('youkan-data-changed', handleGlobalRefresh);
-		return () => window.removeEventListener('youkan-data-changed', handleGlobalRefresh);
+		window.addEventListener(YOUKAN_EVENTS.DATA_CHANGED, handleGlobalRefresh);
+		return () => window.removeEventListener(YOUKAN_EVENTS.DATA_CHANGED, handleGlobalRefresh);
 	}, [refreshAll]);
 
 	// --- Optimistic Actions ---
@@ -1014,7 +1015,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 	// --- JBWOS v2: View Matrix Context ---
 	const getQuantityContext = useCallback((): any => {
 		// [Haruki Model] Detect if Company or Person
-		const accountId = localStorage.getItem('jbwos_account_id') || '';
+		const accountId = localStorage.getItem(YOUKAN_KEYS.USER) ? (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || '') : '';
 		const isCompanyAcc = accountId.length > 20; // Rough check (UUID length vs individual short IDs)
 
 		// [NEW] Create Tenant Profiles Map for QuantityEngine
@@ -1141,7 +1142,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		try {
 			const id = await getRepository().createItem(newItem);
 			// Trigger global refresh so all views update
-			window.dispatchEvent(new Event('jbwos-data-changed'));
+			window.dispatchEvent(new Event(YOUKAN_EVENTS.DATA_CHANGED));
 			return id;
 		} catch (e) {
 			console.error('Failed to create subtask', e);
@@ -1262,7 +1263,7 @@ export const useJBWOSViewModel = (projectId?: string) => {
 		// 2. Persist to Backend (only for focused tenant context where we have memberId)
 		// In a real multi-tenant app, we would need an API to update "my profile in tenant X".
 		// Here we fallback to updateMember if the tenant matches.
-		const currentMember = members.find(m => m.userId === currentUserId || m.userId === localStorage.getItem('jbwos_account_id')); // Robust check
+		const currentMember = members.find(m => m.userId === currentUserId || m.userId === (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || '')); // Robust check
 
 		if (currentMember && focusedTenantId) {
 			const updateForCurrentContext = updates.find(u => u.tenantId === focusedTenantId);

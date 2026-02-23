@@ -29,6 +29,7 @@ import { useProjectViewModel } from './features/core/jbwos/viewmodels/useProject
 
 // Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
+import { YOUKAN_EVENTS } from './features/core/session/youkanKeys';
 import { LoginScreen } from './features/core/auth/screens/LoginScreen';
 import { RegistrationScreen } from './pages/RegistrationScreen';
 import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
@@ -364,8 +365,8 @@ const AppContent: React.FC<{
 
 		useEffect(() => {
 			const handleOpenModal = () => setIsProjectModalOpen(true);
-			window.addEventListener('jbwos-open-project-modal', handleOpenModal);
-			return () => window.removeEventListener('jbwos-open-project-modal', handleOpenModal);
+			window.addEventListener(YOUKAN_EVENTS.OPEN_PROJECT_MODAL, handleOpenModal);
+			return () => window.removeEventListener(YOUKAN_EVENTS.OPEN_PROJECT_MODAL, handleOpenModal);
 		}, []);
 
 		useEffect(() => {
