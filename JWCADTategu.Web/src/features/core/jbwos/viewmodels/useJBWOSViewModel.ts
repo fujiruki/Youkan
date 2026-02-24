@@ -63,27 +63,47 @@ export const useJBWOSViewModel = (projectId?: string) => {
 
 	// --- [NEW] Declarative / Reactive Derived State ---
 	const filterItems = useCallback((items: Item[]) => {
-		// [REFINE] Focus-Aware Filtering (Strict Narrowing):
-		// As per design, Focus Layer is a further refinement of the Base Context.
-		// Displayed set = (Base Context Items) ∩ (Items in Focused Project)
+		// [REFINE] Conditional Visibility Model (SVP v3.2):
+		// This logic ensures hierarchy integrity while respecting the "AND" refinement.
 
-		// 1. Base Context Filtering (Matches ID ①-⑥)
-		let filtered = items;
-		if (filterMode === 'company') {
-			filtered = items.filter(i => !!i.tenantId || i.domain === 'business');
-		} else if (filterMode === 'personal') {
-			filtered = items.filter(i => !i.tenantId && i.domain !== 'business');
-		} else if (typeof filterMode === 'string' && filterMode !== 'all') {
-			filtered = items.filter(i => i.tenantId === filterMode);
+		// Helper: Base Context Filtering Logic
+		const checkBase = (item: Item): boolean => {
+			if (filterMode === 'all') return true;
+			if (filterMode === 'company') {
+				return !!item.tenantId || item.domain === 'business';
+			} else if (filterMode === 'personal') {
+				return !item.tenantId && item.domain !== 'business';
+			} else if (typeof filterMode === 'string') {
+				return item.tenantId === filterMode;
+			}
+			return true;
+		};
+
+		// 1. Root Level (No Focus)
+		if (!projectId) {
+			return items.filter(i => checkBase(i));
 		}
 
-		// 2. Focus Layer Refinement (Pattern ⑦)
-		// If focusing, ONLY show items belonging to that project.
-		if (projectId) {
-			filtered = filtered.filter(i => i.projectId === projectId || i.id === projectId);
-		}
+		// 2. Project Focus Mode (Conditional Chain)
+		const anchor = items.find(i => i.id === projectId);
+		const isAnchorPassing = anchor ? checkBase(anchor) : false;
 
-		return filtered;
+		return items.filter(i => {
+			// A. Scope check: Item must belong to the focused project (or be the project itself)
+			if (i.projectId !== projectId && i.id !== projectId) return false;
+
+			// B. The project header (anchor) itself is ALWAYS shown to maintain UI structure
+			if (i.id === projectId) return true;
+
+			// C. Child items visibility depends on the anchor's status
+			if (isAnchorPassing) {
+				// Focused project matches the context -> Show everything inside (FULL visibility)
+				return true;
+			} else {
+				// Focused project is out-of-context -> Only show matching items (FILTERED visibility)
+				return checkBase(i);
+			}
+		});
 	}, [filterMode, projectId]);
 
 	// [NEW] Filtered Projects Derived State

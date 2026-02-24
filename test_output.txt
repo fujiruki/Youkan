@@ -1,0 +1,13 @@
+[200] GET /auth/me
+[200] GET /items
+[404] GET /items/gdb?scope=company
+   Response: {"error":"Item not found or access denied"}
+[404] GET /items/today?scope=company
+   Response: {"error":"Item not found or access denied"}
+[200] GET /memos
+[200] GET /members
+[404] GET /capacity
+   Response: {"error":"Not Found","path":"\/capacity","_debug":{"uri":"\/capacity","script_name":"\/index.php","path_info":"\/capacity"}}
+[200] GET /projects
+[404] GET /auth/joined-tenants
+   Response: {"error":"Auth endpoint not found"}

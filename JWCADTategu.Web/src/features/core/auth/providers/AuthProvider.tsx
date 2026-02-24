@@ -26,6 +26,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 	const checkAuth = async () => {
 		const token = AuthService.getInstance().getToken();
+		console.log('[AuthProvider] checkAuth started. Token exists:', !!token);
+
 		if (!token) {
 			setIsAuthenticated(false);
 			setIsLoading(false);
@@ -56,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 					setIsAuthenticated(true);
 				} catch (e) {
-					console.error('Failed to parse debug user data', e);
+					console.error('[AuthProvider] Failed to parse debug user data', e);
 					logout();
 				}
 			} else {
@@ -71,6 +73,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			// Use AuthService to get user info (handles correct API URL)
 			const authService = AuthService.getInstance();
 			const data = await authService.me();
+			console.log('[AuthProvider] /auth/me result:', data);
 
 			if (data && data.user) {
 				setUser({
@@ -88,15 +91,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				} : null);
 				setJoinedTenants(data.joinedTenants || []);
 				setIsAuthenticated(true);
+				console.log('[AuthProvider] Auth successful. User mapped.');
 			} else {
+				console.warn('[AuthProvider] /auth/me returned invalid data (no user). Logging out.');
 				logout();
 			}
 		} catch (e) {
+			console.error('[AuthProvider] checkAuth failed with exception:', e);
 			logout();
 		} finally {
 			setIsLoading(false);
 		}
 	};
+
 
 	useEffect(() => {
 		checkAuth();

@@ -18,13 +18,17 @@ export const useLoginViewModel = () => {
 
 	// [v22] Support both user and tenant login
 	const login = async (creds: LoginCredentials, accountType: 'user' | 'tenant' = 'user') => {
+		console.log(`[useLoginViewModel] login started for ${accountType}`, creds);
 		setIsLoading(true);
 		setError(null);
+		let success = false;
 		try {
 			const service = AuthService.getInstance();
 			const res = accountType === 'tenant'
 				? await service.loginTenant(creds)
 				: await service.loginUser(creds);
+
+			console.log(`[useLoginViewModel] API response:`, res);
 
 			if (res.user) {
 				localStorage.setItem(YOUKAN_KEYS.USER, JSON.stringify(res.user));
@@ -36,15 +40,25 @@ export const useLoginViewModel = () => {
 			if ((res as any).joinedTenants) {
 				localStorage.setItem(YOUKAN_KEYS.JOINED_TENANTS, JSON.stringify((res as any).joinedTenants));
 			}
-			window.location.reload();
+			console.log(`[useLoginViewModel] Storage updated, redirecting...`);
+			success = true;
+			// Use absolute path based on environment to ensure reliable redirection
+			const basePath = import.meta.env.BASE_URL || '/';
+			window.location.href = basePath;
 		} catch (e) {
+			console.error(`[useLoginViewModel] login failed:`, e);
 			setError(accountType === 'tenant'
 				? '会社アカウントのログインに失敗しました。メールアドレスとパスワードを確認してください。'
 				: 'ユーザーアカウントのログインに失敗しました。メールアドレスとパスワードを確認してください。');
 		} finally {
-			setIsLoading(false);
+			// Do not clear loading state if successful, because we are redirecting away
+			if (!success) {
+				setIsLoading(false);
+			}
 		}
 	};
+
+
 
 	// Modified register function supporting 'type' and optional personalEmail (for proprietor)
 	const register = async (name: string, email: string, pass: string, type: 'user' | 'proprietor' | 'company' = 'user', companyName?: string, personalEmail?: string) => {

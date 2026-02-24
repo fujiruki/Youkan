@@ -1,0 +1,3 @@
+[200] GET /projects?scope=aggregated
+[200] GET /projects?scope=company
+[200] GET /projects

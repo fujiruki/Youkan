@@ -35,6 +35,23 @@ class UserController extends BaseController {
             $this->sendError(400, 'User context required');
         }
 
+        // [New] Handle Company Account (account_type = tenant)
+        if (($this->currentUser['account_type'] ?? 'user') === 'tenant') {
+            $this->sendJSON([
+                'id' => $this->currentTenantId,
+                'email' => $this->currentUser['email'],
+                'display_name' => $this->currentUser['name'],
+                'birthday' => null,
+                'daily_capacity_minutes' => 480,
+                'non_working_hours' => null,
+                'preferences' => null,
+                'created_at' => null, // Or actual tenant created_at if joining
+                'active_task_id' => null,
+                'is_representative' => true
+            ]);
+            return;
+        }
+
         $stmt = $this->pdo->prepare("SELECT id, email, display_name, birthday, daily_capacity_minutes, non_working_hours, preferences, created_at, active_task_id FROM users WHERE id = ?");
         $stmt->execute([$this->currentUserId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -67,6 +84,14 @@ class UserController extends BaseController {
     protected function updateProfile() {
         if (!$this->currentUserId) {
             $this->sendError(400, 'User context required');
+        }
+
+        // [New] Prevent updates to user profile if logged in as company
+        if (($this->currentUser['account_type'] ?? 'user') === 'tenant') {
+            // For now, company profiles are not updated via /user/profile
+            // Just return success to prevent frontend errors.
+            $this->sendJSON(['success' => true]);
+            return;
         }
 
         $allowedFields = [
