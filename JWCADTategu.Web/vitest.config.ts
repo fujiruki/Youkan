@@ -1,11 +1,15 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vitest/config';
+import { defineConfig, mergeConfig } from 'vitest/config';
+import viteConfig from './vite.config';
 
-export default defineConfig({
-    test: {
-        globals: true, // Enable describe, it, expect globals
-        environment: 'jsdom',
-        setupFiles: [], // Add setup file if needed
-        pool: 'forks', // [FIX] Use forks for better stability on Windows
-    },
-});
+export default mergeConfig(
+	viteConfig,
+	defineConfig({
+		test: {
+			globals: true, // Enable describe, it, expect globals
+			environment: 'jsdom',
+			setupFiles: ['./src/setupTests.ts'], // Add setup file
+			pool: 'forks', // [FIX] Use forks for better stability on Windows
+		},
+	})
+);
