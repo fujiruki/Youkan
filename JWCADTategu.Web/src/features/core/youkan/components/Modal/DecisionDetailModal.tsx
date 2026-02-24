@@ -861,21 +861,22 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							</div>
 						</div>
 
-						{/* Subtasks Section */}
-						<div className="flex-1 min-h-0 pt-2 pb-10">
-							<SubtaskListWidget
-								parentId={item.id}
-								parentItem={item}
-								// [FIX] Use local state to reflect changes immediately
-								defaultProjectId={localProjectId || (item.isProject ? item.id : item.projectId) || undefined}
-								defaultTenantId={localTenantId || item.tenantId || undefined}
-								onNavigate={(subItem) => {
-									if (_onOpenItem) _onOpenItem(subItem);
-									else handleDrillDown(subItem);
-								}}
-								className="h-full"
-							/>
-						</div>
+						{/* Subtasks Section - [FIX] Only show if item is a project */}
+						{item.isProject && (
+							<div className="flex-1 min-h-0 pt-2 pb-10">
+								<SubtaskListWidget
+									parentId={item.id}
+									parentItem={item}
+									defaultProjectId={localProjectId || item.id || undefined}
+									defaultTenantId={localTenantId || item.tenantId || undefined}
+									onNavigate={(subItem) => {
+										if (_onOpenItem) _onOpenItem(subItem);
+										else handleDrillDown(subItem);
+									}}
+									className="h-full"
+								/>
+							</div>
+						)}
 
 					</div>
 				</div>

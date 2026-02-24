@@ -126,7 +126,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 
 					selectedDate={selectedDate} // Due Date (Red)
 					prepDate={prepDate}         // My Deadline (Blue)
-					focusDate={focusDate || selectedDate || prepDate || new Date()}
+					focusDate={focusDate || prepDate || selectedDate || new Date()} // [FIX] マイ期限 > 納期 の優先順位
 					onSelectDate={onSelectDate} // Handle click to set date
 
 					volumeOnly={isVolumeOnly}

@@ -65,6 +65,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	}, [propRowHeight, layoutMode, volumeOnly]);
 
 	const [editingDate, setEditingDate] = useState<Date | null>(null); // [NEW]
+	const [pendingScrollTarget, setPendingScrollTarget] = useState<Date | null>(null); // [FIX] Reactのライフサイクルに同期したスクロール用
 
 	const [selectedSigns, setSelectedSigns] = useState<Item[]>([]);
 	const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
@@ -111,39 +112,15 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	useImperativeHandle(calendarRef, () => ({
 		scrollToMonth: (year: number, month: number) => {
 			const targetDate = new Date(year, month, 15); // Middle of target month
-			// Ensure range covers the target date
-			if (range && (targetDate < range.start || targetDate > range.end)) {
-				// Expand range first, then scroll
-				const newStart = new Date(year, month - 2, 1);
-				const dayOfWeek = newStart.getDay();
-				newStart.setDate(newStart.getDate() - dayOfWeek);
-				const newEnd = new Date(year, month + 3, 0);
-				const endDayOfWeek = newEnd.getDay();
-				newEnd.setDate(newEnd.getDate() + (6 - endDayOfWeek));
-				setRange({ start: newStart, end: newEnd });
-				setHasInitialScrolled(false);
-				// Scroll will happen via effect after allDays update
-			} else {
-				scrollToDateElement(targetDate);
-			}
+			setPendingScrollTarget(targetDate);
 		},
 		scrollToToday: () => {
-			if (displayMode === 'gantt') {
-				// For Gantt, focusDate trigger or initial center today logic is used.
-				// We can also trigger a focusDate update by resetting it to null then back to today.
-				// But the most direct way in RyokanCalendar is to use the focusDate prop pattern.
-				// Actually, RyokanCalendar doesn't manage focusDate itself, it receives it.
-				// Let's use the local scroll logic if possible or rely on the parent updating focusDate.
-				// Since this is imperative, we manually scroll to today.
-				scrollToDateElement(new Date());
-			} else {
-				scrollToDateElement(new Date());
-			}
+			setPendingScrollTarget(new Date());
 		},
 		openDailySettings: (date?: Date) => {
 			setEditingDate(date || new Date());
 		}
-	}), [range, scrollToDateElement]);
+	}), []);
 
 	// [FIX] Initialize range with current month +/- 2 months (Total 5 months)
 	React.useEffect(() => {
@@ -206,22 +183,35 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	React.useEffect(() => {
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
 			const target = focusDate || today;
-			const targetKey = new Date(target);
-			const targetString = normalizeDateKey(targetKey);
-
-			// Find element in grid
-			const container = scrollContainerRef.current;
-			const targetEl = container.querySelector(`[data-date="${targetString}"]`);
-			if (targetEl) {
-				const containerRect = container.getBoundingClientRect();
-				const targetRect = targetEl.getBoundingClientRect();
-				// Calculate position to center the target element
-				const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
-				container.scrollTop = scrollOffset;
-				setHasInitialScrolled(true);
-			}
+			scrollToDateElement(target);
+			setHasInitialScrolled(true);
 		}
-	}, [allDays.length, hasInitialScrolled]); // Remove focusDate from deps here to prevent re-triggering
+	}, [allDays.length, hasInitialScrolled, scrollToDateElement, focusDate, today]);
+
+	// [FIX] Process pending scroll targets AFTER range & allDays updates (Reactive Sync)
+	React.useEffect(() => {
+		if (pendingScrollTarget && allDays.length > 0) {
+			if (!range || pendingScrollTarget < range.start || pendingScrollTarget > range.end) {
+				// Expand range to encompass target
+				const newStart = new Date(pendingScrollTarget.getFullYear(), pendingScrollTarget.getMonth() - 2, 1);
+				const dayOfWeek = newStart.getDay();
+				newStart.setDate(newStart.getDate() - dayOfWeek);
+				newStart.setHours(0, 0, 0, 0);
+
+				const newEnd = new Date(pendingScrollTarget.getFullYear(), pendingScrollTarget.getMonth() + 3, 0);
+				const endDayOfWeek = newEnd.getDay();
+				newEnd.setDate(newEnd.getDate() + (6 - endDayOfWeek));
+				newEnd.setHours(23, 59, 59, 999);
+
+				setRange({ start: newStart, end: newEnd });
+				return; // Wait for the next tick when allDays is updated
+			}
+
+			// Proceed to scroll if target is within current DOM
+			scrollToDateElement(pendingScrollTarget);
+			setPendingScrollTarget(null);
+		}
+	}, [pendingScrollTarget, allDays, range, scrollToDateElement]);
 
 	// [NEW Phase 24] Track visible month from scroll position
 	const lastReportedMonthRef = useRef<string>('');
@@ -575,7 +565,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						focusedProjectId={focusedProjectId}
 						showGroups={showGroups}
 						onVisibleMonthChange={onVisibleMonthChange}
-						focusDate={focusDate}
+						scrollRef={scrollContainerRef}
 					/>
 				)}
 			</div>

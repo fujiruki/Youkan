@@ -5,16 +5,16 @@ import { YOUKAN_KEYS } from '../features/core/session/youkanKeys';
 
 // Development uses Vite proxy (/api -> localhost:8000)
 // Production uses index.php with PATH_INFO.
-// FIX: Use absolute path calculation to prevent 404 when app is at sub-path (e.g. /today)
+// [FIX] 本番サーバーとローカル環境（SVP等によるローカルビルド検証）をURLホスト名でスマートに振り分ける
 const getApiBase = () => {
-	if (import.meta.env.DEV) return '/api';
+	const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-	// Production: Force absolute path
-	// Assuming deployed at /contents/TateguDesignStudio/
+	if (import.meta.env.DEV || isLocal) {
+		return '/api'; // ローカルVite(5173)のProxy、またはSVP(8000)のrouter.php（/api自動除去機能）へルーティング
+	}
+
+	// Production: Force absolute path for ConoHa Server
 	const deployPath = '/contents/TateguDesignStudio/';
-
-	// Check if we are actually under this path to be safe, or just force it.
-	// Given the deployment script targeting this path, forcing it is safest for now.
 	return `${deployPath}backend/index.php`;
 };
 
