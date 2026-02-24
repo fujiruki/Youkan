@@ -81,6 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					name: data.user.name,
 					email: data.user.email,
 					isRepresentative: data.user.is_representative,
+					accountType: (data.user as any).account_type || (data as any).accountType || 'user',
 					preferences: data.user.preferences
 				});
 				// Ensure tenant info includes representative info if present

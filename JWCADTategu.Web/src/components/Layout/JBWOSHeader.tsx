@@ -7,7 +7,7 @@ import { MenuDrawer } from './MenuDrawer';
 import { MotivatorWhisper } from '../../features/core/jbwos/components/Layout/MotivatorWhisper';
 import { ViewContextBar } from '../../features/core/jbwos/components/Dashboard/ViewContextBar';
 import { calculatePerspective } from '../../features/core/jbwos/logic/perspective';
-import { JoinedTenant, FilterMode } from '../../features/core/jbwos/types';
+import { FilterMode } from '../../features/core/jbwos/types';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 
 
@@ -16,6 +16,7 @@ interface AuthUser {
 	id: string;
 	name: string;
 	email: string;
+	accountType?: 'user' | 'tenant';
 }
 
 interface Tenant {
@@ -162,7 +163,7 @@ export const JBWOSHeader: React.FC<JBWOSHeaderProps> = ({
 		};
 	}, [capacity, filterMode]);
 
-	const isCompanyAccount = (user?.id?.length || 0) > 20;
+	const isCompanyAccount = user?.accountType === 'tenant';
 	const { perspective, perspectiveLabel } = calculatePerspective(
 		isCompanyAccount,
 		filterMode as any

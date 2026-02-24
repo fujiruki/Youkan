@@ -56,8 +56,7 @@ export const JbwosBoard: React.FC<GlobalBoardProps> = ({
 		gdbLog,
 		ghostGdbCount,
 		ghostTodayCount,
-		allProjects, // [NEW] Needed for logic
-		filterMode
+		allProjects // [NEW] Needed for logic
 	} = vm;
 
 	const [activeId, setActiveId] = useState<string | null>(null);

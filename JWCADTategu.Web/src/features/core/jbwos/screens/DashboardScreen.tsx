@@ -21,7 +21,6 @@ import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
-import { calculatePerspective } from '../logic/perspective';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -457,7 +456,6 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 					capacityConfig={capacityConfig}
 					currentUserId={vm.currentUserId}
 					updateItemMetrics={vm.updateItemMetrics}
-					perspectiveLabel={calculatePerspective(vm.joinedTenants.length > 0, filterMode as any).perspectiveLabel}
 				/>
 			)}
 		</div>

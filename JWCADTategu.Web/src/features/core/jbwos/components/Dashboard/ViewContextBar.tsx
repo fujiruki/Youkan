@@ -63,8 +63,8 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 			);
 		}
 
-		// 場面③: 会社×社内 (全て、社内)
-		if (isCompanyAccount && perspectiveLabel === '社内業務の管理') {
+		// 場面⑤, ⑥: 会社 (全て = 事業全体、社内 = 社内事務)
+		if (isCompanyAccount) {
 			return (
 				<>
 					<button className={btnClass('all')} onClick={() => onFilterChange('all')}>全て</button>
@@ -84,13 +84,13 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 			<div className="flex items-center gap-1.5 shrink-0">
 				<div className="relative">
 					<button
-						onClick={() => setShowTenantDropdown(!showTenantDropdown)}
+						onClick={() => !isCompanyAccount && setShowTenantDropdown(!showTenantDropdown)}
 						className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${joinedTenants.find(t => t.id === filterMode) || (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal' && filterMode !== 'company') || onModeSwitch === undefined && isCompanyAccount
 							? 'bg-blue-600 text-white border-blue-500 shadow-sm'
 							: (filterMode === 'company' || joinedTenants.length > 0 && filterMode === 'all') && isCompanyAccount
 								? 'bg-blue-600 text-white border-blue-500 shadow-sm'
 								: 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-							}`}
+							} ${isCompanyAccount ? 'cursor-default' : ''}`}
 					>
 						{isCompanyAccount ? (
 							<Building2 size={12} className="text-white/80" />
@@ -98,10 +98,10 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 							<User size={12} className="text-indigo-500" />
 						)}
 						<span>{getModeLabel()}</span>
-						<ChevronDown size={10} className={isCompanyAccount ? 'text-white/60' : 'text-slate-400'} />
+						{!isCompanyAccount && <ChevronDown size={10} className="text-slate-400" />}
 					</button>
 
-					{showTenantDropdown && onModeSwitch && (
+					{showTenantDropdown && !isCompanyAccount && onModeSwitch && (
 						<>
 							<div className="fixed inset-0 z-40" onClick={() => setShowTenantDropdown(false)} />
 							<div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 min-w-[180px] py-1.5 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
