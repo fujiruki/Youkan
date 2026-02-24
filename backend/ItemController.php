@@ -62,20 +62,22 @@ class ItemController extends BaseController {
             $filterClause = " AND items.is_archived = 1 AND items.deleted_at IS NULL ";
         }
 
-        if ($scope === 'aggregated' && !empty($this->joinedTenants)) {
+        if ($scope === 'aggregated') {
              // Fetch Personal Items + Company Items (Aggregated View)
-             $placeholders = implode(',', array_fill(0, count($this->joinedTenants), '?'));
+             $tenantIds = $this->joinedTenants ?: [];
+             $placeholders = '0'; // Default to "tenant_id IN (0)" which is false safely
+             if (!empty($tenantIds)) {
+                 $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+             }
              
              // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
              $projectId = $_GET['project_id'] ?? null;
              
              // Base params for tenant filter
-             $params = $this->joinedTenants;
+             $params = $tenantIds;
              
              if ($projectId) {
                  // [CORE FIX] ProjectFocused Mode:
-                 // Show items if (Owned by me) OR (Belongs to the focused project or its sub-projects)
-                 // Use recursive descendant fetch from BaseController
                  $descendants = $this->getProjectDescendantIds($projectId);
                  $pPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
 
@@ -84,13 +86,10 @@ class ItemController extends BaseController {
                     FROM items
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
-                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
-                    -- AND items.deleted_at IS NULL [REMOVED]
+                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
                     AND (
-                        -- Ownership Filter (my items)
                         (items.created_by = ? OR items.assigned_to = ?)
                         OR
-                        -- Project Membership Filter (any item in this project or sub-projects)
                         items.project_id IN ($pPlaceholders)
                     )
                     $filterClause
@@ -98,14 +97,12 @@ class ItemController extends BaseController {
                  ";
                  $params = array_merge($params, [$this->currentUserId, $this->currentUserId], $descendants);
              } else {
-                 // Non-ProjectFocused: Standard ownership filter only
                  $sql = "
                     SELECT items.*, parent.title as parent_title, t.name as tenant_name
                     FROM items
                     LEFT JOIN items parent ON items.parent_id = parent.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
-                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL)
-                    -- AND items.deleted_at IS NULL [REMOVED]
+                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
                     AND (
                         items.created_by = ?
                         OR items.assigned_to = ?
@@ -120,7 +117,6 @@ class ItemController extends BaseController {
              $stmt->execute($params);
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
              
-             // Inject tenant_name into mapRow or just pass it
              $this->sendJSON(array_map(function($row) {
                  $item = $this->mapItemRow($row);
                  $item['tenantName'] = $row['tenant_name'];
@@ -128,6 +124,67 @@ class ItemController extends BaseController {
                  return $item;
              }, $items));
              
+        } elseif ($scope === 'personal') {
+             // Fetch strictly Personal Items (tenant_id IS NULL)
+             $sql = "
+                 SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                        a.name as assignee_name, a.color as assignee_color
+                 FROM items
+                 LEFT JOIN items parent ON items.parent_id = parent.id
+                 LEFT JOIN tenants t ON items.tenant_id = t.id
+                 LEFT JOIN assignees a ON items.assigned_to = a.id
+                 WHERE (items.tenant_id IS NULL OR items.tenant_id = '')
+                 AND (items.created_by = ? OR items.assigned_to = ?)
+                 $filterClause
+                 ORDER BY items.updated_at DESC
+             ";
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute([$this->currentUserId, $this->currentUserId]);
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             
+             $this->sendJSON(array_map(function($row) {
+                 $item = $this->mapItemRow($row);
+                 $item['tenantId'] = null; // Enforce explicit null
+                 return $item;
+             }, $items));
+             
+        } elseif ($scope === 'company') {
+             // Fetch strictly Company Items
+             $tenantIds = $this->joinedTenants ?: []; 
+             if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+                 $tenantIds[] = $this->currentTenantId;
+             }
+             
+             if (empty($tenantIds)) {
+                 $this->sendJSON([]); // No company means no company items
+                 return;
+             }
+             
+             $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+             
+             $sql = "
+                 SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                        a.name as assignee_name, a.color as assignee_color
+                 FROM items
+                 LEFT JOIN items parent ON items.parent_id = parent.id
+                 LEFT JOIN tenants t ON items.tenant_id = t.id
+                 LEFT JOIN assignees a ON items.assigned_to = a.id
+                 WHERE items.tenant_id IN ($placeholders)
+                 AND (items.assigned_to = ? OR items.created_by = ?)
+                 $filterClause
+                 ORDER BY items.updated_at DESC
+             ";
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute(array_merge($tenantIds, [$this->currentUserId, $this->currentUserId]));
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+             
+             $this->sendJSON(array_map(function($row) {
+                 $item = $this->mapItemRow($row);
+                 $item['tenantName'] = $row['tenant_name'];
+                 $item['tenantId'] = $row['tenant_id'];
+                 return $item;
+             }, $items));
+
         } elseif ($scope === 'dashboard') {
             // Dashboard Scope: Aggregated Personal + Company Items (Life-Work Integration)
             // Strategy: Search in ALL joined tenants + Personal Space
