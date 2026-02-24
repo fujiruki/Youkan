@@ -1,5 +1,5 @@
-import { Member, CapacityConfig } from '../../jbwos/types';
-import { isHoliday } from '../../jbwos/logic/capacity';
+import { Member, CapacityConfig } from '../../youkan/types';
+import { isHoliday } from '../../youkan/logic/capacity';
 
 export type CapacityProvider = (date: Date) => number;
 

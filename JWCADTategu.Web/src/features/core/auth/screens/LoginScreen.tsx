@@ -145,7 +145,7 @@ export const LoginScreen: React.FC = () => {
                     rel="noopener noreferrer"
                     className="text-slate-400 hover:text-indigo-500 text-sm font-medium transition-colors border-b border-transparent hover:border-indigo-500"
                 >
-                    JBWOSとは？ (Introduction)
+                    Youkanとは？ (Introduction)
                 </a>
             </div>
 

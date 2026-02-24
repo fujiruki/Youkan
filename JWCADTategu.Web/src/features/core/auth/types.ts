@@ -3,7 +3,7 @@ export interface AuthUser {
 	name: string;
 	email: string;
 	isRepresentative?: boolean;
-	activeTaskId?: string; // [JBWOS] Current Focus Pointer
+	activeTaskId?: string; // [Youkan] Current Focus Pointer
 	accountType?: 'user' | 'tenant'; // [FIX] Added account type
 	preferences?: any;
 }
@@ -18,7 +18,7 @@ export interface Tenant {
 	representativeEmail?: string;
 }
 
-export interface JbwosTenant extends Tenant {
+export interface YoukanTenant extends Tenant {
 	// Basic Info
 	address?: string;
 	address_zip?: string;

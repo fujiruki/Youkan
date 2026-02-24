@@ -1,6 +1,6 @@
 import { Deliverable } from './types';
-import { JBWOSRepository } from '../../core/jbwos/repositories/JBWOSRepository';
-import { Item } from '../../core/jbwos/types';
+import { YoukanRepository } from '../../core/youkan/repositories/YoukanRepository';
+import { Item } from '../../core/youkan/types';
 
 export interface StockItem {
     id: string;
@@ -14,7 +14,7 @@ export interface StockItem {
 
 /**
  * 成果物からStockを作成
- * [Updated] JBWOS Inboxへ直接タスクとして追加する (Stock API廃止/延期)
+ * [Updated] Youkan Inboxへ直接タスクとして追加する (Stock API廃止/延期)
  */
 export async function syncStockFromDeliverable(
     deliverable: Deliverable,
@@ -28,7 +28,7 @@ export async function syncStockFromDeliverable(
         const title = `${projectTitle ? projectTitle + ': ' : ''}${deliverable.name} 製作`;
 
         try {
-            // Create JBWOS Item directly
+            // Create Youkan Item directly
             const newItem: Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'statusUpdatedAt'> = {
                 title: title,
                 status: 'inbox', // Direct to Inbox
@@ -43,7 +43,7 @@ export async function syncStockFromDeliverable(
                 isEngaged: false
             };
 
-            const newId = await JBWOSRepository.createItem(newItem);
+            const newId = await YoukanRepository.createItem(newItem);
             console.log('[StockIntegration] Created Inbox item:', newId, title);
 
             // Pseudo Stock Item for return
@@ -79,7 +79,7 @@ export async function syncStockFromDeliverable(
                 isEngaged: false
             };
 
-            const newId = await JBWOSRepository.createItem(newItem);
+            const newId = await YoukanRepository.createItem(newItem);
             console.log('[StockIntegration] Created Inbox item (Site):', newId, title);
 
             createdStocks.push({
@@ -100,7 +100,7 @@ export async function syncStockFromDeliverable(
 }
 
 /**
- * [NEW] Sync updates from Door (Deliverable) to JBWOS Tasks
+ * [NEW] Sync updates from Door (Deliverable) to Youkan Tasks
  */
 export async function syncDeliverableChanges(
     deliverable: Deliverable,
@@ -110,7 +110,7 @@ export async function syncDeliverableChanges(
         // 1. Find existing tasks linked to this door
         // We assume we stored doorId as string in the Item
         console.log(`[StockIntegration] Syncing Door ID: ${deliverable.id}, Name: ${deliverable.name}, Proj: ${projectTitle}`);
-        const relatedItems = await JBWOSRepository.getItemsBySourceId(String(deliverable.id));
+        const relatedItems = await YoukanRepository.getItemsBySourceId(String(deliverable.id));
         console.log(`[StockIntegration] Found ${relatedItems.length} related items.`);
 
         if (relatedItems.length === 0) {
@@ -165,7 +165,7 @@ export async function syncDeliverableChanges(
             if (hasChanges) {
                 console.log(`[Sync] Updating Item ${item.id}`, updates);
                 try {
-                    await JBWOSRepository.updateItemGeneric(item.id, updates);
+                    await YoukanRepository.updateItemGeneric(item.id, updates);
                     console.log(`[Sync] Update Success`);
                 } catch (err) {
                     console.error(`[Sync] Update Failed`, err);

@@ -2,9 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { DndContext, useDroppable, DragOverlay, useSensors, useSensor, PointerSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useJBWOSViewModel } from '../jbwos/viewmodels/useJBWOSViewModel';
-import { Item, CapacityConfig } from '../jbwos/types';
-import { getDailyCapacity, isHoliday } from '../jbwos/logic/capacity';
+import { useYoukanViewModel } from '../youkan/viewmodels/useYoukanViewModel';
+import { Item, CapacityConfig } from '../youkan/types';
+import { getDailyCapacity, isHoliday } from '../youkan/logic/capacity';
 import { format, addDays, startOfDay, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../lib/utils';
@@ -201,7 +201,7 @@ interface FutureBoardProps {
 }
 
 export const FutureBoard: React.FC<FutureBoardProps> = ({ onClose }) => {
-    const vm = useJBWOSViewModel();
+    const vm = useYoukanViewModel();
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [editingItem, setEditingItem] = useState<Item | null>(null);
     console.log(editingItem); // Fix unused error

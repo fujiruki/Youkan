@@ -1,6 +1,6 @@
 import React from 'react';
-import { Item, Member, CapacityConfig, FilterMode, JoinedTenant } from '../../features/core/jbwos/types';
-import { RyokanCalendar } from '../../features/core/jbwos/components/Calendar/RyokanCalendar';
+import { Item, Member, CapacityConfig, FilterMode, JoinedTenant } from '../../features/core/youkan/types';
+import { RyokanCalendar } from '../../features/core/youkan/components/Calendar/RyokanCalendar';
 import { cn } from '../../lib/utils';
 import { YOUKAN_KEYS } from '../../features/core/session/youkanKeys';
 

@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateAllocations } from './AllocationCalculator';
-import { Item } from '../../jbwos/types';
+import { Item } from '../../youkan/types';
 import { format } from 'date-fns';
 
 describe('AllocationCalculator', () => {

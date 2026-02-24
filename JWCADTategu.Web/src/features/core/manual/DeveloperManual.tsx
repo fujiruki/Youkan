@@ -18,9 +18,9 @@ export const DeveloperManual: React.FC = () => {
    │
    ├── Infrastructure
    │     ├── ApiClient (Axios wrapper)
-   │     └── Repositories (JBWOSRepository)
-   │           ├── CloudJBWOSRepository (API)
-   │           └── DexieJBWOSRepository (LocalDB)
+   │     └── Repositories (YoukanRepository)
+   │           ├── CloudYoukanRepository (API)
+   │           └── DexieYoukanRepository (LocalDB)
    │
    ▼
 [Backend (PHP 8.5)]

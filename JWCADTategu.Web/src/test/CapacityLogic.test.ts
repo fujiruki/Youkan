@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
-import { isHoliday, getDailyCapacity } from '../features/core/jbwos/logic/capacity';
-import { CapacityConfig } from '../features/core/jbwos/types';
+import { isHoliday, getDailyCapacity } from '../features/core/youkan/logic/capacity';
+import { CapacityConfig } from '../features/core/youkan/types';
 
 describe('Capacity Logic', () => {
     const mockConfig: CapacityConfig = {

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Package, Hammer, AlertTriangle } from 'lucide-react';
-import { JbwosTenant, TenantConfig } from '../../auth/types';
+import { YoukanTenant, TenantConfig } from '../../auth/types';
 
 interface PluginManagementProps {
-    tenant: JbwosTenant;
+    tenant: YoukanTenant;
     onUpdate: (updatedConfig: TenantConfig) => void;
 }
 

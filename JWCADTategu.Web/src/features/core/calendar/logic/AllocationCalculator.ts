@@ -1,5 +1,5 @@
 
-import { Item } from '../../jbwos/types';
+import { Item } from '../../youkan/types';
 import { format, parseISO, subDays } from 'date-fns';
 
 export interface DailyLoad {

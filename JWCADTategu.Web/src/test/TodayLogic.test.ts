@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { JBWOSRepository } from '../features/core/jbwos/repositories/JBWOSRepository';
-import { Item } from '../features/core/jbwos/types';
+import { YoukanRepository } from '../features/core/youkan/repositories/YoukanRepository';
+import { Item } from '../features/core/youkan/types';
 
 // Mock ApiClient to always fail
 vi.mock('../api/client', () => ({
@@ -21,8 +21,8 @@ vi.mock('../../../../db/db', () => ({
     }
 }));
 
-// Manual Mock JBWOSRepository.getGdbShelf
-const originalGetGdbShelf = JBWOSRepository.getGdbShelf;
+// Manual Mock YoukanRepository.getGdbShelf
+const originalGetGdbShelf = YoukanRepository.getGdbShelf;
 const getShelfMock = vi.fn();
 
 describe('TodayLogic Fallback (TDD)', () => {
@@ -30,12 +30,12 @@ describe('TodayLogic Fallback (TDD)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         // Manual overwrite
-        JBWOSRepository.getGdbShelf = getShelfMock;
+        YoukanRepository.getGdbShelf = getShelfMock;
     });
 
     afterEach(() => {
         // Restore
-        JBWOSRepository.getGdbShelf = originalGetGdbShelf;
+        YoukanRepository.getGdbShelf = originalGetGdbShelf;
     });
 
     it('should categorize "Ready + Flag" as Commit', async () => {
@@ -55,7 +55,7 @@ describe('TodayLogic Fallback (TDD)', () => {
         // Act
         let todayView;
         try {
-            todayView = await JBWOSRepository.getTodayView();
+            todayView = await YoukanRepository.getTodayView();
             console.log('Test Result View:', JSON.stringify(todayView, null, 2));
         } catch (e) {
             console.error('Test Execution Error:', e);
@@ -86,7 +86,7 @@ describe('TodayLogic Fallback (TDD)', () => {
             log: []
         });
 
-        const todayView = await JBWOSRepository.getTodayView();
+        const todayView = await YoukanRepository.getTodayView();
 
         expect(todayView.candidates).toHaveLength(1); // Task A
         expect(todayView.candidates[0].id).toBe('1');
@@ -100,7 +100,7 @@ describe('TodayLogic Fallback (TDD)', () => {
 
         getShelfMock.mockResolvedValueOnce({ active: mockItems, preparation: [], intent: [], log: [] });
 
-        const todayView = await JBWOSRepository.getTodayView();
+        const todayView = await YoukanRepository.getTodayView();
 
         expect(todayView.execution).toBeDefined();
         expect(todayView.execution?.id).toBe('1');

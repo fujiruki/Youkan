@@ -22,8 +22,8 @@ export type DeliverableStatus = 'pending' | 'in_progress' | 'completed';
  */
 export interface Deliverable {
     id: string;
-    projectId: string;            // 親プロジェクトID（JBWOS Item.id）
-    linkedItemId?: string;        // 自動生成されたJBWOSタスクへのリンク
+    projectId: string;            // 親プロジェクトID（Youkan Item.id）
+    linkedItemId?: string;        // 自動生成されたYoukanタスクへのリンク
 
     name: string;                 // 成果物名（例: "リビングドア"）
     type: DeliverableType;        // 製作物 or 現場作業
@@ -64,10 +64,10 @@ export interface Deliverable {
 
 /**
  * 製造業プロジェクト
- * JBWOS CoreのプロジェクトにManufacturingデータを紐付け
+ * Youkan CoreのプロジェクトにManufacturingデータを紐付け
  */
 export interface ManufacturingProject {
-    itemId: string;               // JBWOS Core のプロジェクトID
+    itemId: string;               // Youkan Core のプロジェクトID
     customerId?: string;          // Customer Plugin連携（任意）
 
     // 集計キャッシュ（パフォーマンス用）

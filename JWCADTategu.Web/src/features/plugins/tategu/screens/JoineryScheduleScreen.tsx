@@ -12,7 +12,7 @@ import { DocumentList } from '../components/documents/DocumentList';
 import { DocumentEditor } from '../components/documents/DocumentEditor';
 import { Document } from '../domain/ManufacturingTypes';
 
-import { Project as LocalProject } from '../../../../features/core/jbwos/types';
+import { Project as LocalProject } from '../../../../features/core/youkan/types';
 
 type JoineryScheduleScreenProps = {
     project: LocalProject;

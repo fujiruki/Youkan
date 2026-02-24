@@ -5,7 +5,7 @@ import { EstimationSettings } from '../features/plugins/tategu/domain/Estimation
 import { DxfLayerConfig } from '../features/plugins/tategu/domain/DxfConfig';
 import { CatalogItem } from '../features/plugins/tategu/domain/DoorSpecs';
 
-import { Item } from '../features/core/jbwos/types';
+import { Item } from '../features/core/youkan/types';
 import { Deliverable } from '../features/plugins/manufacturing/types';
 
 export interface Project {

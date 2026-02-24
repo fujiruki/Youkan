@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { DecisionDetailModal } from '../features/core/jbwos/components/Modal/DecisionDetailModal';
+import { DecisionDetailModal } from '../features/core/youkan/components/Modal/DecisionDetailModal';
 import { createMockItem } from './testUtils';
 
 // ToastContextのモック

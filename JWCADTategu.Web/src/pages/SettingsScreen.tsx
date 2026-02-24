@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useJBWOSViewModel } from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
+import { useYoukanViewModel } from '../features/core/youkan/viewmodels/useYoukanViewModel';
 import { useLoginViewModel } from '../features/core/auth/hooks/useLoginViewModel';
 import { HolidayConfigPanel } from '../features/core/settings/HolidayConfigPanel';
 import { MigrationWizard } from '../features/core/migration/MigrationWizard';
 import { CompanyProfileForm } from '../features/core/settings/components/CompanyProfileForm';
-import { MembersScreen } from '../features/core/jbwos/screens/MembersScreen';
+import { MembersScreen } from '../features/core/youkan/screens/MembersScreen';
 import { useAuth } from '../features/core/auth/providers/AuthProvider';
-import { JbwosTenant } from '../features/core/auth/types';
+import { YoukanTenant } from '../features/core/auth/types';
 import { ArrowLeft, Building, Users, Settings, Smartphone, LogOut, Package } from 'lucide-react'; // Added icons
 import { PluginManagement } from '../features/core/settings/components/PluginManagement';
 import { TenantConfig } from '../features/core/auth/types';
@@ -19,14 +19,14 @@ interface SettingsScreenProps {
 type TabType = 'company' | 'plugins' | 'members' | 'system';
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNavigateToManual }) => {
-    const vm = useJBWOSViewModel();
+    const vm = useYoukanViewModel();
     const { tenant, user } = useAuth();
     const { logout } = useLoginViewModel();
     const [activeTab, setActiveTab] = useState<TabType>(tenant ? 'company' : 'system');
     const [isLogoutConfirming, setIsLogoutConfirming] = useState(false);
 
     // Mock save handler
-    const handleCompanySave = (updated: JbwosTenant) => {
+    const handleCompanySave = (updated: YoukanTenant) => {
         console.log('Saving tenant config:', updated);
         window.alert('会社情報を保存しました (Mock)');
     };
@@ -107,7 +107,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     {activeTab === 'company' && tenant && (
                         <div className="animate-fade-in">
                             <CompanyProfileForm
-                                tenant={tenant as JbwosTenant}
+                                tenant={tenant as YoukanTenant}
                                 onSave={handleCompanySave}
                             />
                         </div>
@@ -117,7 +117,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack, onNaviga
                     {activeTab === 'plugins' && tenant && (
                         <div className="animate-fade-in">
                             <PluginManagement
-                                tenant={tenant as JbwosTenant}
+                                tenant={tenant as YoukanTenant}
                                 onUpdate={handlePluginUpdate}
                             />
                         </div>

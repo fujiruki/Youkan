@@ -1,5 +1,5 @@
 import { db, Door } from '../db/db';
-import { Project as LocalProject } from '../features/core/jbwos/types';
+import { Project as LocalProject } from '../features/core/youkan/types';
 import { DefaultEstimationSettings } from '../features/plugins/tategu/domain/EstimationSettings';
 
 export class ProjectRepository {

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Building, MapPin, Phone, FileText } from 'lucide-react';
-import { JbwosTenant } from '../../auth/types';
+import { YoukanTenant } from '../../auth/types';
 
 interface CompanyProfileFormProps {
-    tenant: JbwosTenant;
-    onSave: (updatedTenant: JbwosTenant) => void;
+    tenant: YoukanTenant;
+    onSave: (updatedTenant: YoukanTenant) => void;
 }
 
 export const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ tenant, onSave }) => {
-    const [formData, setFormData] = useState<JbwosTenant>(tenant);
+    const [formData, setFormData] = useState<YoukanTenant>(tenant);
     const [isDirty, setIsDirty] = useState(false);
 
     useEffect(() => {
@@ -16,7 +16,7 @@ export const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ tenant, 
         setIsDirty(false);
     }, [tenant]);
 
-    const handleChange = (field: keyof JbwosTenant, value: string) => {
+    const handleChange = (field: keyof YoukanTenant, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setIsDirty(true);
     };
@@ -74,7 +74,7 @@ export const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ tenant, 
                         <input
                             type="text"
                             value={formData.address_zip || ''}
-                            onChange={(e) => handleChange('address_zip' as keyof JbwosTenant, e.target.value)}
+                            onChange={(e) => handleChange('address_zip' as keyof YoukanTenant, e.target.value)}
                             className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500"
                             placeholder="100-0001"
                         />
@@ -133,7 +133,7 @@ export const CompanyProfileForm: React.FC<CompanyProfileFormProps> = ({ tenant, 
                         </label>
                         <select
                             value={formData.closingDate || 0}
-                            onChange={(e) => handleChange('closingDate' as keyof JbwosTenant, e.target.value)}
+                            onChange={(e) => handleChange('closingDate' as keyof YoukanTenant, e.target.value)}
                             className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500"
                         >
                             <option value={0}>末日</option>

@@ -158,7 +158,7 @@ export const DeliverableList: React.FC<DeliverableListProps> = ({ projectId, pro
                     className="w-4 h-4 rounded border-slate-300 text-purple-500 focus:ring-purple-400"
                 />
                 <Zap size={14} className="text-amber-500" />
-                成果物追加時にJBWOSタスクを自動生成
+                成果物追加時にYoukanタスクを自動生成
             </label>
 
             {/* Summary Panel */}

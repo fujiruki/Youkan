@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useVolumeCalendarViewModel } from '../viewmodels/useVolumeCalendarViewModel';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
-import { RyokanCalendar } from '../../jbwos/components/Calendar/RyokanCalendar';
+import { RyokanCalendar } from '../../youkan/components/Calendar/RyokanCalendar';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
-import { DecisionDetailModal } from '../../jbwos/components/Modal/DecisionDetailModal';
-import { Item } from '../../jbwos/types';
+import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetailModal';
+import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
-import { GanttHeader } from '../../jbwos/components/Calendar/GanttHeader';
+import { GanttHeader } from '../../youkan/components/Calendar/GanttHeader';
 import { isValid } from 'date-fns';
 
 interface Props {

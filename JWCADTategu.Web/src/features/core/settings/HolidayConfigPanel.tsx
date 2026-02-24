@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CapacityConfig, WeekDay } from '../jbwos/types';
+import { CapacityConfig, WeekDay } from '../youkan/types';
 
 interface HolidayConfigProps {
     config: CapacityConfig;

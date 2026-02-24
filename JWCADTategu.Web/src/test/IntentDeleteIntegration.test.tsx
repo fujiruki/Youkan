@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { JbwosBoard } from '../features/core/jbwos/components/GlobalBoard/GlobalBoard';
+import { YoukanBoard } from '../features/core/youkan/components/GlobalBoard/GlobalBoard';
 import { createMockItem } from './testUtils';
-import * as ViewModelHook from '../features/core/jbwos/viewmodels/useJBWOSViewModel';
+import * as ViewModelHook from '../features/core/youkan/viewmodels/useYoukanViewModel';
 
 // ToastContextのモック
 vi.mock('../contexts/ToastContext', () => ({
@@ -36,7 +36,7 @@ describe('Intent Item Delete Integration', () => {
 
     it('Intentカラムのアイテムを右クリック→Deleteキーで削除できる', async () => {
         // ViewModelの挙動をスパイ
-        vi.spyOn(ViewModelHook, 'useJBWOSViewModel').mockReturnValue({
+        vi.spyOn(ViewModelHook, 'useYoukanViewModel').mockReturnValue({
             // items for columns
             gdbActive: [],
             gdbPreparation: [],
@@ -66,7 +66,7 @@ describe('Intent Item Delete Integration', () => {
 
         render(
             <BrowserRouter>
-                <JbwosBoard />
+                <YoukanBoard />
             </BrowserRouter>
         );
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Item } from '../features/core/jbwos/types';
+import { Item } from '../features/core/youkan/types';
 import { ApiClient } from '../api/client';
 
 // ViewModel Return Type

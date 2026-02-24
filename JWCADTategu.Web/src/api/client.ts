@@ -1,4 +1,4 @@
-import { JudgableItem, Member, Assignee } from '../features/core/jbwos/types';
+import { JudgableItem, Member, Assignee } from '../features/core/youkan/types';
 import { YOUKAN_KEYS } from '../features/core/session/youkanKeys';
 
 // src/api/client.ts
@@ -30,7 +30,7 @@ export class ApiClient {
 
 	// Debug Mode Check
 	private static isDebug(): boolean {
-		return import.meta.env.DEV || !!localStorage.getItem('JBWOS_DEBUG');
+		return import.meta.env.DEV || !!localStorage.getItem('Youkan_DEBUG');
 	}
 
 	private static log(groupName: string, data: any, isError = false) {

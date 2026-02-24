@@ -1,12 +1,12 @@
 /**
  * Tategu Plugin - Entry Point
  * 
- * 建具プラグインをJBWOS Coreに登録するエントリーポイント。
+ * 建具プラグインをYoukan Coreに登録するエントリーポイント。
  * アプリ起動時に initializeTateguPlugin() を呼び出して初期化する。
  */
 
-// import { projectCategoryManager } from '../../core/jbwos/services/ProjectCategoryManager';
-import { ProjectCategory } from '../../core/jbwos/types';
+// import { projectCategoryManager } from '../../core/youkan/services/ProjectCategoryManager';
+import { ProjectCategory } from '../../core/youkan/types';
 
 export const TATEGU_PLUGIN_ID = 'tategu-core';
 
@@ -47,7 +47,7 @@ const tateguCategories: ProjectCategory[] = [
 ];
 
 /**
- * 建具プラグインを初期化し、JBWOS Coreにカテゴリを登録する
+ * 建具プラグインを初期化し、Youkan Coreにカテゴリを登録する
  */
 export function initializeTateguPlugin(): void {
     // [Cloud Phase 9]

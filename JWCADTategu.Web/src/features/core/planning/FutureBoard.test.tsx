@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FutureBoard } from './FutureBoard';
-import * as useJBWOSViewModelModule from '../jbwos/viewmodels/useJBWOSViewModel';
-import { Item } from '../jbwos/types';
+import * as useYoukanViewModelModule from '../youkan/viewmodels/useYoukanViewModel';
+import { Item } from '../youkan/types';
 
 // Mock dependencies
-vi.mock('../jbwos/viewmodels/useJBWOSViewModel');
-vi.mock('../jbwos/logic/capacity', () => ({
+vi.mock('../youkan/viewmodels/useYoukanViewModel');
+vi.mock('../youkan/logic/capacity', () => ({
     getDailyCapacity: vi.fn().mockReturnValue(480),
     isHoliday: vi.fn().mockReturnValue(false),
 }));
@@ -33,7 +33,7 @@ describe('FutureBoard', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        (useJBWOSViewModelModule.useJBWOSViewModel as any).mockReturnValue(mockViewModel);
+        (useYoukanViewModelModule.useYoukanViewModel as any).mockReturnValue(mockViewModel);
     });
 
     const createMockItem = (overrides: Partial<Item>): Item => ({

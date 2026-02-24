@@ -27,7 +27,7 @@ export const t = {
         depth: "見込み (D)",
         calc: "原価積算",
     },
-    jbwos: {
+    youkan: {
         inbox: {
             title: "放り込み箱",
             description: "未分別",

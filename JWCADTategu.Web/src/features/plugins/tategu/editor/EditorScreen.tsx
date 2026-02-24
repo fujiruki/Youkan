@@ -115,7 +115,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
                     updatedAt: new Date()
                 });
 
-                // [NEW] Sync changes to related JBWOS Tasks (Auto-save)
+                // [NEW] Sync changes to related Youkan Tasks (Auto-save)
                 try {
                     await syncDeliverableChanges(
                         {
@@ -177,7 +177,7 @@ const EditorContent: React.FC<{ initialDoor: Door; initialProject: Project; onBa
             // [CLOUD] Save via API instead of local IndexedDB
             await DoorApiClient.update(door.id, finalDoor);
 
-            // [NEW] Sync changes to related JBWOS Tasks (Manufacturing Plugin)
+            // [NEW] Sync changes to related Youkan Tasks (Manufacturing Plugin)
             // Convert Door to Deliverable-like object for sync
             try {
                 await syncDeliverableChanges(

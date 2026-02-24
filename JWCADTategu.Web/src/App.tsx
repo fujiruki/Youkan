@@ -1,31 +1,31 @@
 import { useState, useEffect } from 'react';
 import { JoineryScheduleScreen } from './features/plugins/tategu/screens/JoineryScheduleScreen';
 import { EditorScreen } from './features/plugins/tategu/editor/EditorScreen';
-import { JoinedTenant, Project as LocalProject } from './features/core/jbwos/types';
+import { JoinedTenant, Project as LocalProject } from './features/core/youkan/types';
 import { DebugBanner } from './components/Debug/DebugBanner';
 import { CatalogScreen } from './features/plugins/tategu/catalog/CatalogScreen';
 
-import { DashboardScreen } from './features/core/jbwos/screens/DashboardScreen'; // [NEW] Unified Dashboard
+import { DashboardScreen } from './features/core/youkan/screens/DashboardScreen'; // [NEW] Unified Dashboard
 import { FutureBoard } from './features/core/planning/FutureBoard'; // [Keep for now]
-import { HistoryScreen } from './features/core/jbwos/components/History/HistoryScreen'; // [NEW] History Screen
-import { ArchiveTrashScreen } from './features/core/jbwos/screens/ArchiveTrashScreen'; // [NEW]
-import { ProjectRegistryScreen } from './features/core/jbwos/screens/ProjectRegistryScreen'; // [RESTORED]
+import { HistoryScreen } from './features/core/youkan/components/History/HistoryScreen'; // [NEW] History Screen
+import { ArchiveTrashScreen } from './features/core/youkan/screens/ArchiveTrashScreen'; // [NEW]
+import { ProjectRegistryScreen } from './features/core/youkan/screens/ProjectRegistryScreen'; // [RESTORED]
 import { CustomerList } from './features/plugins/customer'; // [RESTORED]
 
-import { UndoProvider } from './features/core/jbwos/contexts/UndoContext';
-import { UndoToast } from './features/core/jbwos/components/UI/UndoToast';
+import { UndoProvider } from './features/core/youkan/contexts/UndoContext';
+import { UndoToast } from './features/core/youkan/components/UI/UndoToast';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
 import { ApiClient } from './api/client';
-import { JBWOSHeader } from './components/Layout/JBWOSHeader';
+import { YoukanHeader } from './components/Layout/YoukanHeader';
 import { SettingsScreen } from './pages/SettingsScreen'; // [NEW]
 import { CompanySettingsScreen } from './features/core/projects/screens/CompanySettingsScreen'; // [NEW]
-import { PersonalSettingsScreen } from './features/core/jbwos/screens/PersonalSettingsScreen'; // [NEW]
+import { PersonalSettingsScreen } from './features/core/youkan/screens/PersonalSettingsScreen'; // [NEW]
 
 import { ManualScreen } from './features/core/manual/ManualScreen'; // [NEW] Manuals
 import { UserManagementScreen } from './features/admin/screens/UserManagementScreen'; // [NEW] User Management
-import { ProjectCreationDialog } from './features/core/jbwos/components/Modal/ProjectCreationDialog';
-import { useProjectViewModel } from './features/core/jbwos/viewmodels/useProjectViewModel';
+import { ProjectCreationDialog } from './features/core/youkan/components/Modal/ProjectCreationDialog';
+import { useProjectViewModel } from './features/core/youkan/viewmodels/useProjectViewModel';
 
 // Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
@@ -37,7 +37,7 @@ import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
 import { db, Door } from './db/db';
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'jbwos' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'youkan' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
 
 function App() {
 	const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -74,7 +74,7 @@ function App() {
 
 		if (matches('dashboard') || matches('focus')) {
 			setCurrentView('dashboard');
-		} else if (matches('jbwos/panorama') || matches('panorama')) {
+		} else if (matches('youkan/panorama') || matches('panorama')) {
 			setCurrentView('dashboard');
 		} else if (matches('projects/personal') || matches('projects/company') || matches('projects')) {
 			setCurrentView('projects');
@@ -391,8 +391,8 @@ const AppContent: React.FC<{
 				<UndoProvider>
 					<div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
 						<DebugBanner />
-						{(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
-							<JBWOSHeader
+						{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
+							<YoukanHeader
 								currentView={currentView}
 								onNavigateToToday={() => setCurrentView('today')}
 								onNavigateToDashboard={handleNavigateToDashboard}
@@ -414,7 +414,7 @@ const AppContent: React.FC<{
 						)}
 
 						<div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#FDFDFD]' : ''}`}>
-							{(currentView === 'jbwos' || currentView === 'dashboard' || currentView === 'today') && (
+							{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today') && (
 								<DashboardScreen activeProject={activeProject} />
 							)}
 

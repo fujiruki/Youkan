@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Project as LocalProject } from '../../features/core/jbwos/types';
+import { Project as LocalProject } from '../../features/core/youkan/types';
 import { projectRepository } from '../../repositories/ProjectRepository';
 import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
 import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate, LayoutList, KanbanSquare } from 'lucide-react'; // [NEW] Icons
 import { ScheduleBoard } from '../../features/plugins/tategu/screens/ScheduleBoard';
-import { FilterMode } from '../../features/core/jbwos/types';
+import { FilterMode } from '../../features/core/youkan/types';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 // import { FieldNoteList } from './FieldNoteList'; // [NEW]
 

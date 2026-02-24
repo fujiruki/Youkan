@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { JbwosBoard } from '../features/core/jbwos/components/GlobalBoard/GlobalBoard';
-import { JBWOSRepository } from '../features/core/jbwos/repositories/JBWOSRepository';
+import { YoukanBoard } from '../features/core/youkan/components/GlobalBoard/GlobalBoard';
+import { YoukanRepository } from '../features/core/youkan/repositories/YoukanRepository';
 
 // Mock Dependencies
-vi.mock('../features/core/jbwos/components/GlobalBoard/BucketColumn', () => ({
+vi.mock('../features/core/youkan/components/GlobalBoard/BucketColumn', () => ({
     BucketColumn: ({ title, items, footer }: any) => (
         <div data-testid="bucket-column">
             <h2>{title}</h2>
@@ -19,8 +19,8 @@ vi.mock('../features/core/jbwos/components/GlobalBoard/BucketColumn', () => ({
 }));
 
 // Mock Repository
-vi.mock('../features/core/jbwos/repositories/JBWOSRepository', () => ({
-    JBWOSRepository: {
+vi.mock('../features/core/youkan/repositories/YoukanRepository', () => ({
+    YoukanRepository: {
         getGdbShelf: vi.fn().mockImplementation(async () => {
             await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
             return { active: [], preparation: [], intent: [], log: [] };
@@ -39,7 +39,7 @@ vi.mock('../contexts/ToastContext', () => ({
 }));
 
 // Mock UndoContext
-vi.mock('../features/core/jbwos/contexts/UndoContext', () => ({
+vi.mock('../features/core/youkan/contexts/UndoContext', () => ({
     useUndo: () => ({
         addUndoAction: vi.fn(),
     })
@@ -51,7 +51,7 @@ describe('Inbox Throw In Interaction (Real ViewModel)', () => {
     });
 
     it.skip('テキストボックスに入力してEnterを押すと、リストに即座に表示される (Optimistic Update)', async () => {
-        render(<JbwosBoard />);
+        render(<YoukanBoard />);
 
         // Wait for initial load (100ms delay in mock) to finish to avoid race condition overwriting optimistic update
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -67,7 +67,7 @@ describe('Inbox Throw In Interaction (Real ViewModel)', () => {
         // screen.debug();
 
         // 4. Verify Repository call (Backend)
-        expect(JBWOSRepository.addItemToInbox).toHaveBeenCalledWith('Optimistic Item');
+        expect(YoukanRepository.addItemToInbox).toHaveBeenCalledWith('Optimistic Item');
 
         // 5. Verify Optimistic Update (UI)
         // Note: verifying UI update is tricky with fireEvent/React batched updates in this mocked env.

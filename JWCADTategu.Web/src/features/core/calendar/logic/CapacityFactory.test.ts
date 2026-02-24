@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createCapacityProvider } from './CapacityFactory';
-import { Member, CapacityConfig } from '../../jbwos/types';
+import { Member, CapacityConfig } from '../../youkan/types';
 import { parseISO } from 'date-fns';
 
 describe('CapacityFactory', () => {

@@ -1,4 +1,4 @@
-import { ManufacturingPlugin, ExternalSource, ExternalItem } from '../../core/jbwos/types';
+import { ManufacturingPlugin, ExternalSource, ExternalItem } from '../../core/youkan/types';
 
 export class MockManufacturingPlugin implements ManufacturingPlugin {
     id = "mock-plugin";

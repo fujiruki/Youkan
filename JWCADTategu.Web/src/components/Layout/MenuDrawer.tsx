@@ -193,7 +193,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 								// We need to pass new callbacks or use specific logic.
 								// To keep it simple, abuse "onNavigateToHistory" or assume we added onNavigateToArchive?
 								// Let's use direct location change if the App router picks it up, OR we should have added onNavigateToArchive to MenuDrawer props.
-								// But updating MenuDrawer props means updating JBWOSHeader props too.
+								// But updating MenuDrawer props means updating YoukanHeader props too.
 								// Short-term: Abuse simple URL push if App.tsx popstate listener handles it? 
 								// App.tsx's useEffect handles URL ON MOUNT.
 								// Ideally we add props. Let's add props to MenuDrawer interface first?
@@ -201,7 +201,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 								// Or just add onNavigateToArchive/Trash to MenuDrawer props.
 								// I'll add them to interface in next step if I haven't.
 								// For now, let's assume we can add them to props or use a temporary hack.
-								// Actually, I should update JBWOSHeader AND MenuDrawer to accept onNavigateToArchive/Trash.
+								// Actually, I should update YoukanHeader AND MenuDrawer to accept onNavigateToArchive/Trash.
 								// But that cascades.
 								// Let's use window.history.pushState and dispatch event as App.tsx does for Dashboard.
 								window.history.pushState({ view: 'archive' }, '', '/contents/TateguDesignStudio/archive');

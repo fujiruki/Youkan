@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { startOfMonth, endOfMonth, format, addMonths, subMonths } from 'date-fns';
 import { ApiClient } from '../../../../api/client';
-import { Item } from '../../jbwos/types';
-import { useCapacityConfig } from '../../jbwos/hooks/useCapacityConfig';
+import { Item } from '../../youkan/types';
+import { useCapacityConfig } from '../../youkan/hooks/useCapacityConfig';
 
 interface FilterProps {
     projectId?: string | null;

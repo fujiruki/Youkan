@@ -87,7 +87,7 @@ export const DeliverableIntegrationService = {
                         console.log(`Created deliverable ${newDeliverableId} for door ${door.tag}`);
                     }
 
-                    // [JBWOS Enterprise] Stock (Shop Floor) への追加
+                    // [Youkan Enterprise] Stock (Shop Floor) への追加
                     // 直接Inboxのタスクにするのではなく、未割当ジョブとしてプールする
                     const deliverableForTask = { ...deliverableData, id: newDeliverableId } as Deliverable;
                     import('../../manufacturing/StockIntegrationService').then(({ syncStockFromDeliverable }) => {

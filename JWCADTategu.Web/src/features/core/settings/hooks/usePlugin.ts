@@ -1,13 +1,13 @@
 import { useAuth } from '../../auth/providers/AuthProvider';
-import { JbwosTenant } from '../../auth/types';
+import { YoukanTenant } from '../../auth/types';
 
 export const usePlugin = (pluginName: string): boolean => {
     const { tenant } = useAuth();
-    const jbwosTenant = tenant as JbwosTenant;
+    const youkanTenant = tenant as YoukanTenant;
 
-    if (!jbwosTenant || !jbwosTenant.config || !jbwosTenant.config.plugins) {
+    if (!youkanTenant || !youkanTenant.config || !youkanTenant.config.plugins) {
         return false;
     }
 
-    return jbwosTenant.config.plugins[pluginName] === true;
+    return youkanTenant.config.plugins[pluginName] === true;
 };
