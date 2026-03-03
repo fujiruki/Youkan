@@ -1,0 +1,23 @@
+{
+    "project_name": "TateguDesignStudio",
+    "services": [
+        {
+            "name": "PHP Backend",
+            "command": "php",
+            "args": "-S 0.0.0.0:8000 C:\\Fujiruki\\Projects\\TateguDesignStudio\\backend\\router.php",
+            "cwd": "C:\\Fujiruki\\Projects\\TateguDesignStudio\\backend",
+            "port": 8000,
+            "health_check_url": "http://127.0.0.1:8000/health.php",
+            "is_primary": false
+        },
+        {
+            "name": "Vite Frontend",
+            "command": "npm.cmd",
+            "args": "run dev -- --port 5173 --host 127.0.0.1",
+            "cwd": "JWCADTategu.Web",
+            "port": 5173,
+            "health_check_url": "http://127.0.0.1:5173/",
+            "is_primary": true
+        }
+    ]
+}

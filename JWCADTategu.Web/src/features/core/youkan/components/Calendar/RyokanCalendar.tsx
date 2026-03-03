@@ -566,6 +566,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						showGroups={showGroups}
 						onVisibleMonthChange={onVisibleMonthChange}
 						scrollRef={scrollContainerRef}
+						onDateClick={onDateClick}
 					/>
 				)}
 			</div>

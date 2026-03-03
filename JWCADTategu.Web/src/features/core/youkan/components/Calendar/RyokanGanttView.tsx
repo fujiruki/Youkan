@@ -35,18 +35,20 @@ interface GanttViewProps {
 	onVisibleMonthChange?: (date: Date) => void;
 	focusDate?: Date | null;
 	scrollRef?: React.RefObject<HTMLDivElement>;
+	onDateClick?: (date: Date) => void;
 }
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
 	onUpdateItem,
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
-	showGroups, onVisibleMonthChange, focusDate, scrollRef
+	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick
 }) => {
 	const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
 	const isSyncing = useRef(false);
+	const lastReportedMonthRef = useRef<string | null>(null); // [NEW] Track reported month
 
 	const colWidth = 24; // w-6 = 1.5rem = 24px
 
@@ -115,6 +117,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			if (isSyncing.current) return;
 			isSyncing.current = true;
 			header.scrollLeft = body.scrollLeft;
+
 			requestAnimationFrame(() => {
 				isSyncing.current = false;
 			});
@@ -265,9 +268,17 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const isSat = day.getDay() === 6;
 							const isFirst = day.getDate() === 1;
 							return (
-								<div key={i} data-gantt-date={normalizeDateKey(day)} className={`flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 ${isFirst ? 'border-l border-l-slate-300' : ''}`}>
+								<div
+									key={i}
+									data-gantt-date={normalizeDateKey(day)}
+									className={cn(
+										`flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
+										isFirst ? 'border-l border-l-slate-300' : ''
+									)}
+									onClick={() => onDateClick?.(day)}
+								>
 									{isFirst && (
-										<div className="absolute top-2 text-[10px] font-bold text-slate-500 whitespace-nowrap ml-1">
+										<div className="absolute top-2 text-[10px] font-bold text-slate-500 whitespace-nowrap ml-1 pointer-events-none">
 											{format(day, 'M月')}
 										</div>
 									)}

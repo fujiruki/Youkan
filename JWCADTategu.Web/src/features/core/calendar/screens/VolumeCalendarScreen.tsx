@@ -22,6 +22,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 }) => {
 	const auth = useAuth();
 	const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+	const [selectedDateForCapacity, setSelectedDateForCapacity] = useState<Date | null>(null); // [NEW] Track selected date for DailySettings
 	const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
 		return (localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) as any) || 'gantt';
 	});
@@ -49,7 +50,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		currentDate, setCurrentDate,
 		items: rawItems, members, projects, loading, error,
 		handlePrevMonth, handleNextMonth, refresh,
-		capacityConfig // [NEW]
+		capacityConfig, // [NEW]
+		handleUpdateCapacityException // [NEW Phase 24] Save
 	} = useVolumeCalendarViewModel({
 		projectId: activeProjectId,
 		tenantId: activeTenantId
@@ -121,21 +123,31 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
 	return (
 		<div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-			{/* Header Section (Unified GanttHeader) */}
-			<GanttHeader
-				visibleDate={currentDate}
-				onPrevMonth={handlePrevMonth}
-				onNextMonth={handleNextMonth}
-				onGoToCurrentMonth={() => {
-					setCurrentDate(new Date());
-					calendarRef.current?.scrollToToday();
-				}}
-				onOpenDailySettings={() => calendarRef.current?.openDailySettings()}
-				rowHeight={24}
-				onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
-				showGroups={true}
-				onShowGroupsChange={() => { }}
-			/>
+			{/* Header Section (Unified GanttHeader) - [FIX] Show only in Gantt mode */}
+			{viewMode === 'gantt' && (
+				<GanttHeader
+					visibleDate={currentDate}
+					onPrevMonth={() => {
+						handlePrevMonth();
+						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
+					}}
+					onNextMonth={() => {
+						handleNextMonth();
+						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
+					}}
+					onGoToCurrentMonth={() => {
+						setCurrentDate(new Date());
+						calendarRef.current?.scrollToToday();
+					}}
+					onOpenDailySettings={() => calendarRef.current?.openDailySettings(selectedDateForCapacity || new Date())}
+					rowHeight={24}
+					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+				/>
+			)}
 
 			<div className="flex-1 overflow-hidden relative">
 				<RyokanCalendar
@@ -151,7 +163,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					focusDate={currentDate}
 					onUpdateItem={handleUpdate}
 					capacityConfig={capacityConfig} // [NEW]
+					onUpdateCapacityException={handleUpdateCapacityException} // [NEW Phase 24]
 					joinedTenants={auth.joinedTenants} // [NEW]
+					onDateClick={setSelectedDateForCapacity} // [NEW] Track selected date for DailySettings
 					onVisibleMonthChange={(date) => {
 						if (isValid(date) && (date.getMonth() !== currentDate.getMonth() || date.getFullYear() !== currentDate.getFullYear())) {
 							setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
