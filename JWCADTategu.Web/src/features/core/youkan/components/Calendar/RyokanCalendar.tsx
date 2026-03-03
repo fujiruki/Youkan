@@ -77,24 +77,18 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
 
 	// [NEW Phase 24] Expose imperative scroll control
-	const scrollToDateElement = useCallback((targetDate: Date) => {
+	const scrollToDateElement = useCallback((targetDate: Date, instant: boolean = false) => {
 		if (!scrollContainerRef.current) return;
 		const container = scrollContainerRef.current;
+		const scrollBehavior = instant ? 'instant' as ScrollBehavior : 'smooth' as ScrollBehavior;
 
 		if (displayMode === 'gantt') {
-			// Horizontal scrolling logic for Gantt
-			// Note: RyokanGanttView has its own scrollToDate, but here we coordinate from parent
-			// The simplest way to trigger Gantt scroll is via focusDate prop updating in DashboardScreen,
-			// but for imperative calls from ref, we need a way to reach into RyokanGanttView.
-			// Since we can't easily reach it without a ref, we'll try to find the date header element.
-			// Better: Dispatch a custom event or use the focusDate pattern more strictly.
-			// For now, let's look for the date cell in Gantt body.
 			const targetEl = container.querySelector(`[data-gantt-date="${normalizeDateKey(targetDate)}"]`);
 			if (targetEl) {
 				const rect = targetEl.getBoundingClientRect();
 				const containerRect = container.getBoundingClientRect();
 				const scrollOffset = container.scrollLeft + rect.left - containerRect.left - (containerRect.width / 2) + (rect.width / 2);
-				container.scrollTo({ left: scrollOffset, behavior: 'smooth' });
+				container.scrollTo({ left: scrollOffset, behavior: scrollBehavior });
 			}
 		} else {
 			// Vertical scrolling logic for Grid/Timeline
@@ -104,7 +98,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				const containerRect = container.getBoundingClientRect();
 				const targetRect = targetEl.getBoundingClientRect();
 				const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
-				container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+				container.scrollTo({ top: scrollOffset, behavior: scrollBehavior });
 			}
 		}
 	}, [displayMode]);
@@ -183,7 +177,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	React.useEffect(() => {
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
 			const target = focusDate || today;
-			scrollToDateElement(target);
+			scrollToDateElement(target, true); // 初回はアニメーションなしで即座に表示
 			setHasInitialScrolled(true);
 		}
 	}, [allDays.length, hasInitialScrolled, scrollToDateElement, focusDate, today]);
