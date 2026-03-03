@@ -123,11 +123,12 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 					)}
 					<span className="truncate flex-1">{item.title}</span>
 					<button
-						className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
+						className="opacity-60 hover:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
 						onClick={(e) => {
 							e.stopPropagation();
 							setIsInlineInputOpen(true);
 						}}
+						title="サブアイテムを追加"
 					>
 						<span className="text-lg leading-none">+</span>
 					</button>
