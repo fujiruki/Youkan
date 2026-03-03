@@ -11,11 +11,12 @@ interface NewspaperBoardProps {
 	viewModel: any; // Type from hook return
 	activeProject?: any | null; // From Dashboard
 	onOpenItem: (item: any) => void;
+	hideCompleted?: boolean;
 }
 
-export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem }) => {
+export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false }) => {
 	// const { joinedTenants } = useAuth(); // Unused for now
-	const items = useNewspaperItems(viewModel, activeProject);
+	const items = useNewspaperItems(viewModel, activeProject, hideCompleted);
 
 	// View State (Persisted)
 	const [fontSize, setFontSize] = useState<number>(() => {

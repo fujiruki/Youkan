@@ -17,7 +17,7 @@ export interface NewspaperItemWrapper {
 	displayDateType?: 'due' | 'prep' | null;
 }
 
-export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: any | null): NewspaperItemWrapper[] => {
+export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false): NewspaperItemWrapper[] => {
 	const {
 		gdbActive,
 		gdbPreparation,
@@ -46,7 +46,8 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 			activeProjectId: activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null),
 			allProjects: viewModelProjects,
 			allItems: allItemsRaw,
-			showGroups: true
+			showGroups: true,
+			hideCompleted
 		});
 
 		// 3. Add Newspaper-specific formatting (Dates)
@@ -80,5 +81,5 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 			return wrapper as NewspaperItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted]);
 };

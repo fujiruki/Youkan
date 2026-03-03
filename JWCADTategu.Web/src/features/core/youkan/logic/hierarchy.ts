@@ -6,6 +6,7 @@ export interface HierarchyOptions {
 	allProjects: Item[];
 	showGroups?: boolean;
 	allItems: Item[];
+	hideCompleted?: boolean;
 }
 
 export interface HierarchicalWrapper {
@@ -34,7 +35,7 @@ const areIdsMatching = (id1: any, id2: any): boolean => {
 };
 
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
-	const { allItems, allProjects, showGroups = true, activeProjectId } = options;
+	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false } = options;
 
 	// 1. Prepare Data
 	// We treat everything that is a project (isProject=true or in allProjects) as a potential container.
@@ -60,6 +61,7 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 		if (seenItemIds.has(nid)) return false;
 		seenItemIds.add(nid);
 		if (item.isArchived) return false;
+		if (hideCompleted && item.status === 'done') return false;
 		// If it's a project container, we don't treat it as a "task" item in the main list
 		if (item.isProject || item.type === 'project') return false;
 		return true;

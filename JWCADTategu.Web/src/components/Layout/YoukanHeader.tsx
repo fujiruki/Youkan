@@ -80,7 +80,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 		return (saved as FilterMode) || 'all';
 	});
 
-	const [hideCompleted] = useState(() => {
+	const [hideCompleted, setHideCompleted] = useState(() => {
 		return localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true';
 	});
 
@@ -419,6 +419,15 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				perspectiveLabel={activeProject?.title || perspectiveLabel}
 				onModeSwitch={onSwitchTenant}
 				activeTenantName={tenant?.title || tenant?.name || 'プライベート'}
+				showCompleted={!hideCompleted}
+				onToggleCompleted={() => {
+					const next = !hideCompleted;
+					setHideCompleted(next);
+					localStorage.setItem(YOUKAN_KEYS.HIDE_COMPLETED, String(next));
+					window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.FILTER_CHANGE, {
+						detail: { mode: filterMode, hideCompleted: next }
+					}));
+				}}
 			/>
 		</div>
 	);

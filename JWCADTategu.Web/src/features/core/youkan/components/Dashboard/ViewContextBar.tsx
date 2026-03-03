@@ -1,6 +1,6 @@
 import React from 'react';
 import { FilterMode, Perspective } from '../../types';
-import { User, Building2, ChevronDown } from 'lucide-react';
+import { User, Building2, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 interface ViewContextBarProps {
 	filterMode: FilterMode;
@@ -14,6 +14,9 @@ interface ViewContextBarProps {
 	onModeSwitch?: (tenantId: string | null) => void;
 	/** [NEW] ログイン中のテナント名または「プライベート」 */
 	activeTenantName: string;
+	/** [NEW] 完了表示スイッチ */
+	showCompleted: boolean;
+	onToggleCompleted: () => void;
 }
 
 /**
@@ -28,7 +31,9 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 	isCompanyAccount,
 	perspectiveLabel,
 	onModeSwitch,
-	activeTenantName
+	activeTenantName,
+	showCompleted,
+	onToggleCompleted
 }) => {
 	const tenantCount = joinedTenants.length;
 	const [showTenantDropdown, setShowTenantDropdown] = React.useState(false);
@@ -88,8 +93,8 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 					<button
 						onClick={() => !isCompanyAccount && setShowTenantDropdown(!showTenantDropdown)}
 						className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${isCompanyContext
-								? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-								: 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+							? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+							: 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
 							} ${isCompanyAccount ? 'cursor-default' : ''}`}
 					>
 						{isCompanyAccount ? (
@@ -138,8 +143,22 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 
 			<div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-			{/* Right Group: Perspective Label */}
-			<div className="flex items-center gap-3 shrink-0">
+			{/* Right Group: Completed Toggle + Perspective Label */}
+			<div className="flex items-center gap-2 shrink-0">
+				<button
+					onClick={onToggleCompleted}
+					className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md border transition-all duration-150 ${showCompleted
+							? 'bg-indigo-600/10 text-indigo-500 border-indigo-300 dark:border-indigo-700'
+							: 'text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-600'
+						}`}
+					title={showCompleted ? '完了タスクを非表示にする' : '完了タスクを表示する'}
+				>
+					<CheckCircle2 size={12} className={showCompleted ? 'text-indigo-500' : 'text-slate-400'} />
+					{showCompleted ? '完了表示' : '完了非表示'}
+				</button>
+
+				<div className="w-px h-3 bg-slate-200 dark:bg-slate-700" />
+
 				<span className="text-[10px] text-slate-400 font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800/50 px-2.5 py-1 rounded-full border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5">
 					<span className="opacity-50">📊</span>
 					{perspectiveLabel}

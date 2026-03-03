@@ -63,6 +63,17 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		return () => window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 	}, []);
 
+	// [NEW] 完了表示スイッチの状態管理
+	const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
+
+	useEffect(() => {
+		const handleFilterChange = (e: CustomEvent) => {
+			if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
+		};
+		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
+		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
+	}, []);
+
 
 	const vm = useYoukanViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
@@ -253,7 +264,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 								/>
 							)}
 							{viewMode === 'newspaper' && (
-								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} />
+								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} />
 							)}
 							{viewMode === 'panorama' && (
 								<YoukanBoard
