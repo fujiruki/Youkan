@@ -218,8 +218,8 @@ class ProjectController extends BaseController {
             if (!in_array($itemTenantId, $this->joinedTenants)) {
                 $this->sendError(403, 'Access Denied');
             }
-        } elseif ($item['created_by'] != (string)$this->currentUserId) {
-            $this->sendError(403, 'Access Denied');
+        } elseif ($item['created_by'] != (string)$this->currentUserId && ($item['assigned_to'] ?? '') != (string)$this->currentUserId) {
+            $this->sendError(403, 'Access Denied (created_by=' . $item['created_by'] . ', assigned_to=' . ($item['assigned_to'] ?? 'NULL') . ', currentUserId=' . $this->currentUserId . ')');
         }
 
         $data = $this->getInput();

@@ -694,8 +694,8 @@ class ItemController extends BaseController {
         }
         
         $isAdmin = ($this->currentUser['role'] ?? '') === 'admin';
-        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] != (string)$this->currentUserId) {
-            $this->sendError(403, 'Access Denied: Cannot edit private item of another user');
+        if (!$isAdmin && is_null($existing['project_id']) && $existing['created_by'] != (string)$this->currentUserId && ($existing['assigned_to'] ?? '') != (string)$this->currentUserId) {
+            $this->sendError(403, 'Access Denied: Cannot edit private item of another user (created_by=' . $existing['created_by'] . ', assigned_to=' . ($existing['assigned_to'] ?? 'NULL') . ', currentUserId=' . $this->currentUserId . ')');
         }
 
         $data = $this->getInput();
