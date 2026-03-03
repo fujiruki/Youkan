@@ -48,7 +48,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
 	const isSyncing = useRef(false);
-	const lastReportedMonthRef = useRef<string | null>(null); // [NEW] Track reported month
+
 
 	const colWidth = 24; // w-6 = 1.5rem = 24px
 
