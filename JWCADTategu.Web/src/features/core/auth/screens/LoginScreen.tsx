@@ -5,7 +5,7 @@ import { Building2, User } from 'lucide-react';
 type AccountTab = 'user' | 'tenant';
 
 export const LoginScreen: React.FC = () => {
-    const { login, isLoading, error, debugLogin } = useLoginViewModel();
+    const { login, isLoading, error } = useLoginViewModel();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<AccountTab>('user');
@@ -119,7 +119,12 @@ export const LoginScreen: React.FC = () => {
                     <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 space-y-2">
                         <button
                             type="button"
-                            onClick={() => debugLogin('tenant')}
+                            onClick={() => {
+                                setActiveTab('tenant');
+                                setEmail('info@door-fujita.com');
+                                setPassword('passc');
+                                setTimeout(() => login({ email: 'info@door-fujita.com', password: 'passc' }, 'tenant'), 0);
+                            }}
                             className="w-full text-center text-[10px] text-slate-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2 py-1 px-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/10"
                         >
                             <span className="p-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[8px]">🏢</span>
@@ -127,7 +132,12 @@ export const LoginScreen: React.FC = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => debugLogin('user')}
+                            onClick={() => {
+                                setActiveTab('user');
+                                setEmail('fjt.suntree@gmail.com');
+                                setPassword('passa');
+                                setTimeout(() => login({ email: 'fjt.suntree@gmail.com', password: 'passa' }, 'user'), 0);
+                            }}
                             className="w-full text-center text-[10px] text-slate-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2 py-1 px-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/10"
                         >
                             <span className="p-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[8px]">👤</span>
