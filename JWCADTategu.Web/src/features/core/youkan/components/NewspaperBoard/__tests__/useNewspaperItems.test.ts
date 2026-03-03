@@ -42,10 +42,10 @@ describe('useNewspaperItems', () => {
 
         // Verify "No Project" items come first
         const firstTwo = items.slice(0, 2);
-        expect(firstTwo.every(i => !i.isHeader && !i.item.projectId)).toBe(true);
+        expect(firstTwo.every(i => i.type !== 'header' && !i.item.projectId)).toBe(true);
 
         // Verify Company Project comes next
-        const compHeaderIndex = items.findIndex(i => i.isHeader && i.project?.id === 'p1');
+        const compHeaderIndex = items.findIndex(i => i.type === 'header' && i.project?.id === 'p1');
         expect(compHeaderIndex).toBeGreaterThan(1); // After inbox items
 
         // Verify Item follows header
@@ -53,12 +53,12 @@ describe('useNewspaperItems', () => {
         // Verify Done Item is also present for Project A
         // The order between '2' and '99' depends on iteration order or logic.
         // Since we just push, they should be both in the list.
-        const projAItems = items.filter(i => i.project?.id === 'p1' && !i.isHeader);
+        const projAItems = items.filter(i => i.project?.id === 'p1' && i.type !== 'header');
         expect(projAItems.find(i => i.item.id === '99')).toBeDefined();
         expect(projAItems.find(i => i.item.id === '2')).toBeDefined();
 
         // Verify Personal Project comes last
-        const persHeaderIndex = items.findIndex(i => i.isHeader && i.project?.id === 'p2');
+        const persHeaderIndex = items.findIndex(i => i.type === 'header' && i.project?.id === 'p2');
         expect(persHeaderIndex).toBeGreaterThan(compHeaderIndex);
 
         // Verify Item follows header
@@ -67,7 +67,7 @@ describe('useNewspaperItems', () => {
 
     it('should generate virtual headers for projects with items', () => {
         const { result } = renderHook(() => useNewspaperItems(mockViewModel as any));
-        const headers = result.current.filter(i => i.isHeader);
+        const headers = result.current.filter(i => i.type === 'header');
         expect(headers.length).toBe(2);
         expect(headers[0].project?.title).toBe('Company Project A');
         expect(headers[1].project?.title).toBe('Personal Project B');

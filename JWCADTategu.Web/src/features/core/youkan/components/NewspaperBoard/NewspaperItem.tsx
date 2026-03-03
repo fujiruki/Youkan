@@ -71,7 +71,8 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 	onAddChild,
 	titleLimit
 }) => {
-	const { item, isHeader, depth, project, displayDate, displayDateType } = wrapper;
+	const { item, type, depth, project, displayDate, displayDateType } = wrapper;
+	const isHeader = type === 'header';
 	const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
 	const [inlineInputValue, setInlineInputValue] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -117,9 +118,9 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 					}}
 				>
 					{depth > 0 ? (
-						<FolderOpen size="1em" className="text-indigo-400 fill-indigo-400/5" />
+						<FolderOpen size="1em" className="text-slate-400 dark:text-slate-500" />
 					) : (
-						<Folder size="1.1em" className="text-blue-500 fill-blue-500/10" />
+						<Folder size="1em" className="text-slate-400 dark:text-slate-500" />
 					)}
 					<span className="truncate flex-1">{item.title}</span>
 					<button

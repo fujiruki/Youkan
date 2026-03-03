@@ -11,7 +11,6 @@ export interface NewspaperItemWrapper {
 	type: 'item' | 'header';
 	item: Item;
 	project?: Item | null; // Projects are Items in ViewModel
-	isHeader: boolean;
 	depth: number;
 	// [NEW] Enhanced date info
 	displayDate?: string | null;     // format: 'M/d'
