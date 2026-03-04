@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useVolumeCalendarViewModel } from '../viewmodels/useVolumeCalendarViewModel';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { useFilter } from '../../youkan/contexts/FilterContext';
 import { RyokanCalendar } from '../../youkan/components/Calendar/RyokanCalendar';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
@@ -26,23 +27,16 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
 		return (localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) as any) || 'gantt';
 	});
-	const [filterMode, setFilterMode] = useState<string>(() => {
-		return localStorage.getItem(YOUKAN_KEYS.FILTER_MODE) || 'all';
-	});
+	const { filterMode } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
 	useEffect(() => {
 		const handleModeChange = (e: CustomEvent<{ mode: 'grid' | 'timeline' | 'gantt' }>) => {
 			if (e.detail?.mode) setViewMode(e.detail.mode);
 		};
-		const handleFilterChange = (e: any) => {
-			if (e.detail?.mode) setFilterMode(e.detail.mode);
-		};
 		window.addEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleModeChange as EventListener);
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		return () => {
 			window.removeEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleModeChange as EventListener);
-			window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		};
 	}, []);
 

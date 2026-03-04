@@ -9,6 +9,7 @@ import { ViewContextBar } from '../../features/core/youkan/components/Dashboard/
 import { calculatePerspective } from '../../features/core/youkan/logic/perspective';
 import { FilterMode } from '../../features/core/youkan/types';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
+import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 
 
 // Basic types needed for props
@@ -75,14 +76,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	activeProject // [NEW] Read active project
 }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
-	const [filterMode, setFilterMode] = useState<FilterMode>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.FILTER_MODE);
-		return (saved as FilterMode) || 'all';
-	});
-
-	const [hideCompleted, setHideCompleted] = useState(() => {
-		return localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true';
-	});
+	const { filterMode, setFilterMode, hideCompleted, toggleCompleted } = useFilter();
 
 	const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
 
@@ -101,25 +95,16 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 		localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) || 'gantt'
 	);
 
-	// [NEW] 【宣言的同期】テナント（モード）が切り替わった場合、それに対応するフィルタモードを自動設定する
+	// [REFACTORED] テナント切替時のフィルタモード自動設定（Context経由）
 	useEffect(() => {
 		if (tenant?.id) {
-			// 特定テナント（A社等）へ切り替わった場合、そのテナントをフィルタ対象にする
 			setFilterMode(tenant.id as FilterMode);
 		} else {
-			// 個人（プライベート）へ切り替わった場合、デフォルトで 'personal' に設定
 			setFilterMode('personal');
 		}
-	}, [tenant?.id]);
+	}, [tenant?.id, setFilterMode]);
 
-	// Persist filter mode & hideCompleted
-	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, filterMode);
-		localStorage.setItem(YOUKAN_KEYS.HIDE_COMPLETED, String(hideCompleted));
-		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.FILTER_CHANGE, {
-			detail: { mode: filterMode, hideCompleted }
-		}));
-	}, [filterMode, hideCompleted]);
+	// Persist filter mode (localStorage同期はFilterContextが担当)
 
 	// Listen for updates from screens
 	useEffect(() => {
@@ -143,25 +128,17 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 			const mode = e.detail?.mode;
 			if (mode) setCalendarViewMode(mode);
 		};
-		const handleFilterChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode === 'all' || mode === 'personal' || mode === 'company') {
-				setFilterMode(mode);
-			}
-		};
 		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 		window.addEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
 		window.addEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
 		window.addEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		return () => {
 			window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 			window.removeEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
 			window.removeEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
 			window.removeEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
-			window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		};
-	}, [capacity, filterMode]);
+	}, [capacity]);
 
 	const isCompanyAccount = user?.accountType === 'tenant';
 	const isCompanyContext = filterMode === 'company' || (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal');
@@ -420,14 +397,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				onModeSwitch={onSwitchTenant}
 				activeTenantName={tenant?.title || tenant?.name || 'プライベート'}
 				showCompleted={!hideCompleted}
-				onToggleCompleted={() => {
-					const next = !hideCompleted;
-					setHideCompleted(next);
-					localStorage.setItem(YOUKAN_KEYS.HIDE_COMPLETED, String(next));
-					window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.FILTER_CHANGE, {
-						detail: { mode: filterMode, hideCompleted: next }
-					}));
-				}}
+				onToggleCompleted={toggleCompleted}
 			/>
 		</div>
 	);

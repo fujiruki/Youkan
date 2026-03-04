@@ -13,6 +13,7 @@ import { ProjectRegistryScreen } from './features/core/youkan/screens/ProjectReg
 import { CustomerList } from './features/plugins/customer'; // [RESTORED]
 
 import { UndoProvider } from './features/core/youkan/contexts/UndoContext';
+import { FilterProvider } from './features/core/youkan/contexts/FilterContext';
 import { UndoToast } from './features/core/youkan/components/UI/UndoToast';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
@@ -388,149 +389,151 @@ const AppContent: React.FC<{
 
 		return (
 			<>
-				<UndoProvider>
-					<div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
-						<DebugBanner />
-						{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
-							<YoukanHeader
-								currentView={currentView}
-								onNavigateToToday={() => setCurrentView('today')}
-								onNavigateToDashboard={handleNavigateToDashboard}
-								onNavigateToHistory={() => setCurrentView('history')}
-								onNavigateToProjects={handleNavigateToProjects}
-								onNavigateToSettings={() => setCurrentView('settings')}
-								onNavigateToCustomers={() => setCurrentView('customers')}
-								onNavigateToPlanning={() => setCurrentView('planning')}
-								onNavigateToCalendar={() => setCurrentView('calendar')}
-								onNavigateToCompanySettings={() => setCurrentView('companySettings')}
-								onNavigateToPersonalSettings={() => setCurrentView('personalSettings')}
-								user={user}
-								tenant={tenant}
-								joinedTenants={mappedTenants}
-								onSwitchTenant={switchTenant}
-								activeProject={activeProject}
-								onClearProject={handleClearProjectFocus}
-							/>
-						)}
-
-						<div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#FDFDFD]' : ''}`}>
-							{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today') && (
-								<DashboardScreen activeProject={activeProject} />
-							)}
-
-							{(currentView === 'projects' || currentView === 'projectList') && (
-								<ProjectRegistryScreen
-									onSelect={(project) => {
-										const pIdStr = String(project.id || '');
-										if (/^\d+$/.test(pIdStr)) {
-											handleOpenProject(parseInt(pIdStr, 10));
-										} else {
-											handleOpenCloudProject(pIdStr, project.title || project.name, project.tenantId);
-										}
-									}}
+				<FilterProvider>
+					<UndoProvider>
+						<div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
+							<DebugBanner />
+							{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
+								<YoukanHeader
+									currentView={currentView}
+									onNavigateToToday={() => setCurrentView('today')}
+									onNavigateToDashboard={handleNavigateToDashboard}
+									onNavigateToHistory={() => setCurrentView('history')}
+									onNavigateToProjects={handleNavigateToProjects}
+									onNavigateToSettings={() => setCurrentView('settings')}
+									onNavigateToCustomers={() => setCurrentView('customers')}
+									onNavigateToPlanning={() => setCurrentView('planning')}
+									onNavigateToCalendar={() => setCurrentView('calendar')}
+									onNavigateToCompanySettings={() => setCurrentView('companySettings')}
+									onNavigateToPersonalSettings={() => setCurrentView('personalSettings')}
+									user={user}
+									tenant={tenant}
+									joinedTenants={mappedTenants}
+									onSwitchTenant={switchTenant}
+									activeProject={activeProject}
+									onClearProject={handleClearProjectFocus}
 								/>
 							)}
 
-							{currentView === 'schedule' && activeProject && (
-								<JoineryScheduleScreen
-									project={activeProject}
-									onBack={handleBackToProjectList}
-									onOpenDoor={handleOpenDoor}
-									onDeleteProject={handleDeleteProject}
-									onArchiveProject={handleArchiveProject}
-									onUpdateProject={setActiveProject}
-								/>
-							)}
+							<div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#FDFDFD]' : ''}`}>
+								{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today') && (
+									<DashboardScreen activeProject={activeProject} />
+								)}
 
-							{currentView === 'editor' && activeDoor && (
-								<EditorScreen
-									doorId={String(activeDoor.id!)}
-									onBack={handleBackToSchedule}
-								/>
-							)}
-
-							{currentView === 'catalog' && (
-								<CatalogScreen onBack={handleBackToDashboard} />
-							)}
-
-							{currentView === 'calendar' && (
-								<VolumeCalendarScreen
-									onNavigateHome={handleBackToDashboard}
-									activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null)}
-									activeTenantId={tenant?.id}
-								/>
-							)}
-
-							{currentView === 'planning' && (
-								<FutureBoard onClose={() => setCurrentView('dashboard')} />
-							)}
-
-							{currentView === 'history' && (
-								<HistoryScreen onBack={() => setCurrentView('dashboard')} />
-							)}
-
-							{currentView === 'settings' && (
-								<div className="h-full w-full overflow-auto">
-									<SettingsScreen
-										onBack={handleBackToDashboard}
-										onNavigateToManual={() => setCurrentView('manual')}
+								{(currentView === 'projects' || currentView === 'projectList') && (
+									<ProjectRegistryScreen
+										onSelect={(project) => {
+											const pIdStr = String(project.id || '');
+											if (/^\d+$/.test(pIdStr)) {
+												handleOpenProject(parseInt(pIdStr, 10));
+											} else {
+												handleOpenCloudProject(pIdStr, project.title || project.name, project.tenantId);
+											}
+										}}
 									/>
-								</div>
-							)}
+								)}
 
-							{currentView === 'customers' && (
-								<div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-950">
-									<CustomerList />
-								</div>
-							)}
+								{currentView === 'schedule' && activeProject && (
+									<JoineryScheduleScreen
+										project={activeProject}
+										onBack={handleBackToProjectList}
+										onOpenDoor={handleOpenDoor}
+										onDeleteProject={handleDeleteProject}
+										onArchiveProject={handleArchiveProject}
+										onUpdateProject={setActiveProject}
+									/>
+								)}
 
-							{currentView === 'companySettings' && (
-								<div className="h-full w-full overflow-auto bg-slate-50">
-									<CompanySettingsScreen onNavigateHome={handleBackToDashboard} />
-								</div>
-							)}
+								{currentView === 'editor' && activeDoor && (
+									<EditorScreen
+										doorId={String(activeDoor.id!)}
+										onBack={handleBackToSchedule}
+									/>
+								)}
 
-							{currentView === 'manual' && (
-								<div className="h-full w-full overflow-auto">
-									<ManualScreen />
-								</div>
-							)}
+								{currentView === 'catalog' && (
+									<CatalogScreen onBack={handleBackToDashboard} />
+								)}
 
-							{currentView === 'archive' && (
-								<ArchiveTrashScreen mode="archive" onBack={handleBackToDashboard} />
-							)}
-							{currentView === 'trash' && (
-								<ArchiveTrashScreen mode="trash" onBack={handleBackToDashboard} />
-							)}
+								{currentView === 'calendar' && (
+									<VolumeCalendarScreen
+										onNavigateHome={handleBackToDashboard}
+										activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null)}
+										activeTenantId={tenant?.id}
+									/>
+								)}
 
-							{currentView === 'userlist' && (
-								<div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
-									<UserManagementScreen />
-								</div>
-							)}
+								{currentView === 'planning' && (
+									<FutureBoard onClose={() => setCurrentView('dashboard')} />
+								)}
 
-							{currentView === 'personalSettings' && (
-								<PersonalSettingsScreen onBack={handleBackToDashboard} />
+								{currentView === 'history' && (
+									<HistoryScreen onBack={() => setCurrentView('dashboard')} />
+								)}
+
+								{currentView === 'settings' && (
+									<div className="h-full w-full overflow-auto">
+										<SettingsScreen
+											onBack={handleBackToDashboard}
+											onNavigateToManual={() => setCurrentView('manual')}
+										/>
+									</div>
+								)}
+
+								{currentView === 'customers' && (
+									<div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-950">
+										<CustomerList />
+									</div>
+								)}
+
+								{currentView === 'companySettings' && (
+									<div className="h-full w-full overflow-auto bg-slate-50">
+										<CompanySettingsScreen onNavigateHome={handleBackToDashboard} />
+									</div>
+								)}
+
+								{currentView === 'manual' && (
+									<div className="h-full w-full overflow-auto">
+										<ManualScreen />
+									</div>
+								)}
+
+								{currentView === 'archive' && (
+									<ArchiveTrashScreen mode="archive" onBack={handleBackToDashboard} />
+								)}
+								{currentView === 'trash' && (
+									<ArchiveTrashScreen mode="trash" onBack={handleBackToDashboard} />
+								)}
+
+								{currentView === 'userlist' && (
+									<div className="h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
+										<UserManagementScreen />
+									</div>
+								)}
+
+								{currentView === 'personalSettings' && (
+									<PersonalSettingsScreen onBack={handleBackToDashboard} />
+								)}
+							</div>
+
+							<UndoToast />
+
+							{isProjectModalOpen && (
+								<ProjectCreationDialog
+									isOpen={isProjectModalOpen}
+									onClose={() => setIsProjectModalOpen(false)}
+									onCreate={async (payload) => {
+										await createProject(payload);
+										setIsProjectModalOpen(false);
+									}}
+									activeScope={activeScope}
+									tenants={mappedTenants}
+									project={null}
+								/>
 							)}
 						</div>
-
-						<UndoToast />
-
-						{isProjectModalOpen && (
-							<ProjectCreationDialog
-								isOpen={isProjectModalOpen}
-								onClose={() => setIsProjectModalOpen(false)}
-								onCreate={async (payload) => {
-									await createProject(payload);
-									setIsProjectModalOpen(false);
-								}}
-								activeScope={activeScope}
-								tenants={mappedTenants}
-								project={null}
-							/>
-						)}
-					</div>
-				</UndoProvider>
+					</UndoProvider>
+				</FilterProvider>
 				<ToastContainer toasts={toasts} onDismiss={dismissToast} />
 			</>
 		);

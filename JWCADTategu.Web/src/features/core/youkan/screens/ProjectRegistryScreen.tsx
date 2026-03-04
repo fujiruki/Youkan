@@ -4,6 +4,7 @@ import { Project } from '../types';
 import { Plus, Edit2, Trash2, Building2, Archive, LayoutGrid, MoreVertical, Calendar } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { useFilter } from '../contexts/FilterContext';
 
 
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
@@ -129,27 +130,26 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	}, [contextMenu, lastTargetId, projects]);
 
-	// [NEW] Synchronize with Global Header events
+	// [REFACTORED] FilterContextでフィルタモードを取得し、activeScopeと同期
+	const { filterMode } = useFilter();
 	useEffect(() => {
-		const handleFilterChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode === 'personal' || mode === 'company') {
-				setActiveScope(mode);
-			}
-		};
+		if (filterMode === 'personal' || filterMode === 'company') {
+			setActiveScope(filterMode as 'personal' | 'company');
+		}
+	}, [filterMode, setActiveScope]);
+
+	useEffect(() => {
 		const handleViewModeChange = (e: any) => {
 			const mode = e.detail?.mode;
 			if (mode === 'grid' || mode === 'list') {
 				setViewMode(mode);
 			}
 		};
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 		window.addEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 		return () => {
-			window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
 			window.removeEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 		};
-	}, [setActiveScope]);
+	}, []);
 
 	// [NEW] Confirmation Modal State
 	const [confirmDialog, setConfirmDialog] = useState<{

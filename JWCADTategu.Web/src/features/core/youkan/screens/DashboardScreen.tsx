@@ -21,6 +21,7 @@ import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { useFilter } from '../contexts/FilterContext';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -63,16 +64,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		return () => window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 	}, []);
 
-	// [NEW] 完了表示スイッチの状態管理
-	const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
-
-	useEffect(() => {
-		const handleFilterChange = (e: CustomEvent) => {
-			if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
-		};
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-	}, []);
+	// [REFACTORED] FilterContextから完了表示状態を取得
+	const { hideCompleted } = useFilter();
 
 
 	const vm = useYoukanViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));

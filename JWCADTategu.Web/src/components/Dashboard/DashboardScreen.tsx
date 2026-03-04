@@ -5,8 +5,7 @@ import { t } from '../../i18n/labels';
 import { GlobalSettingsModal } from '../Settings/GlobalSettingsModal';
 import { Folder, Plus, Trash2, Clock, Calendar, Settings, BookTemplate, LayoutList, KanbanSquare } from 'lucide-react'; // [NEW] Icons
 import { ScheduleBoard } from '../../features/plugins/tategu/screens/ScheduleBoard';
-import { FilterMode } from '../../features/core/youkan/types';
-import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
+import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 // import { FieldNoteList } from './FieldNoteList'; // [NEW]
 
 export const DashboardScreen: React.FC<{ onOpenProject: (p: LocalProject) => void; onOpenCatalog: () => void }> = ({ onOpenProject, onOpenCatalog }) => {
@@ -14,18 +13,8 @@ export const DashboardScreen: React.FC<{ onOpenProject: (p: LocalProject) => voi
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState<'projects' | 'schedule'>('projects');
 
-	// Filter Logic
-	const [filterMode, setFilterMode] = useState<FilterMode>(() => (localStorage.getItem(YOUKAN_KEYS.FILTER_MODE) as FilterMode) || 'all');
-	const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
-
-	useEffect(() => {
-		const handleFilterChange = (e: CustomEvent) => {
-			if (e.detail?.mode) setFilterMode(e.detail.mode);
-			if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
-		};
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-	}, []);
+	// [REFACTORED] FilterContextでフィルタ状態を取得
+	const { filterMode, hideCompleted } = useFilter();
 
 	const filteredProjects = projects.filter(p => {
 		if (hideCompleted && p.isArchived) return false;

@@ -4,7 +4,7 @@ import { KanbanSquare, CheckCircle2, Clock, Hammer, Calendar } from 'lucide-reac
 import clsx from 'clsx';
 
 import { GanttChart } from './GanttChart';
-import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../../core/session/youkanKeys';
+import { useFilter } from '../../../core/youkan/contexts/FilterContext';
 
 export type ScheduleItem = {
 	type: 'door' | 'task';
@@ -29,18 +29,8 @@ export const ScheduleBoard: React.FC = () => {
 	const [items, setItems] = useState<ScheduleItem[]>([]);
 	const [viewMode, setViewMode] = useState<'kanban' | 'gantt'>('kanban');
 
-	// Filter Logic
-	const [filterMode, setFilterMode] = useState<string>(() => localStorage.getItem(YOUKAN_KEYS.FILTER_MODE) || 'all');
-	const [hideCompleted, setHideCompleted] = useState(() => localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true');
-
-	useEffect(() => {
-		const handleFilterChange = (e: CustomEvent) => {
-			if (e.detail?.mode) setFilterMode(e.detail.mode);
-			if (e.detail?.hideCompleted !== undefined) setHideCompleted(e.detail.hideCompleted);
-		};
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-	}, []);
+	// [REFACTORED] FilterContextでフィルタ状態を取得
+	const { filterMode, hideCompleted } = useFilter();
 
 	const loadData = async () => {
 		const projects = await db.projects.toArray();

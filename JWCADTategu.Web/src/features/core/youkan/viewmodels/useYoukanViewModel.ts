@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { YoukanRepository } from '../repositories/YoukanRepository';
 import { CloudYoukanRepository } from '../repositories/CloudYoukanRepository'; // [NEW]
-import { Item, SideMemo, CapacityConfig, Member, FilterMode, JoinedTenant } from '../types';
+import { Item, SideMemo, CapacityConfig, Member, JoinedTenant } from '../types';
 import { useUndo } from '../contexts/UndoContext';
 import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
@@ -10,6 +10,7 @@ import { ApiClient } from '../../../../api/client';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
+import { useFilter } from '../contexts/FilterContext';
 
 const getUseCloud = () => {
 	// Enforce Cloud Mode by default (User Request)
@@ -52,11 +53,8 @@ export const useYoukanViewModel = (projectId?: string) => {
 	const [joinedTenants, setJoinedTenants] = useState<JoinedTenant[]>([]);
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-	// [NEW] Filter Mode (Public/Private Filtering - Option 3)
-	const [filterMode, setFilterMode] = useState<FilterMode>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.FILTER_MODE);
-		return (saved === 'company' || saved === 'personal') ? saved as FilterMode : 'all';
-	});
+	// [REFACTORED] FilterContextからフィルタモードを取得（ローカルステート廃止）
+	const { filterMode } = useFilter();
 
 	// Loading & Error
 	const [error, setError] = useState<string | null>(null);
@@ -98,17 +96,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// [NEW] Filtered Projects Derived State
 	const allProjects = useMemo(() => filterItems(allProjectsRaw), [filterItems, allProjectsRaw]);
 
-	// [NEW] Listen for Filter Mode Changes (v2 Reactive)
-	useEffect(() => {
-		const handleFilterChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode) {
-				setFilterMode(mode);
-			}
-		};
-		window.addEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.FILTER_CHANGE, handleFilterChange as EventListener);
-	}, []);
+	// [REMOVED] FILTER_CHANGEイベントリスナーはFilterContextに統合済み
 
 	const gdbActive = useMemo(() => filterItems(gdbActiveRaw), [filterItems, gdbActiveRaw]);
 	const gdbPreparation = useMemo(() => filterItems(gdbPreparationRaw), [filterItems, gdbPreparationRaw]);
@@ -196,7 +184,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// }, []);
 
 	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, filterMode);
+		// [REFACTORED] localStorage同期はFilterContextが担当
 		// [FIX] Trigger refresh when filter changes to avoid stale view
 		refreshGdb(projectId);
 	}, [filterMode, projectId, refreshGdb]);
@@ -1358,7 +1346,6 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 		// Filter / Ghost Info
 		filterMode,
-		setFilterMode,
 		ghostGdbCount,
 		ghostTodayCount,
 
