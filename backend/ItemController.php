@@ -82,9 +82,10 @@ class ItemController extends BaseController {
                  $pPlaceholders = implode(',', array_fill(0, count($descendants), '?'));
 
                  $sql = "
-                    SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                    SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name
                     FROM items
                     LEFT JOIN items parent ON items.parent_id = parent.id
+                    LEFT JOIN items proj ON items.project_id = proj.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
                     AND (
@@ -98,9 +99,10 @@ class ItemController extends BaseController {
                  $params = array_merge($params, [$this->currentUserId, $this->currentUserId], $descendants);
              } else {
                  $sql = "
-                    SELECT items.*, parent.title as parent_title, t.name as tenant_name
+                    SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name
                     FROM items
                     LEFT JOIN items parent ON items.parent_id = parent.id
+                    LEFT JOIN items proj ON items.project_id = proj.id
                     LEFT JOIN tenants t ON items.tenant_id = t.id
                     WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
                     AND (
@@ -127,10 +129,11 @@ class ItemController extends BaseController {
         } elseif ($scope === 'personal') {
              // Fetch strictly Personal Items (tenant_id IS NULL)
              $sql = "
-                 SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                 SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name,
                         a.name as assignee_name, a.color as assignee_color
                  FROM items
                  LEFT JOIN items parent ON items.parent_id = parent.id
+                 LEFT JOIN items proj ON items.project_id = proj.id
                  LEFT JOIN tenants t ON items.tenant_id = t.id
                  LEFT JOIN assignees a ON items.assigned_to = a.id
                  WHERE (items.tenant_id IS NULL OR items.tenant_id = '')
@@ -163,10 +166,11 @@ class ItemController extends BaseController {
              $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
              
              $sql = "
-                 SELECT items.*, parent.title as parent_title, t.name as tenant_name,
+                 SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name,
                         a.name as assignee_name, a.color as assignee_color
                  FROM items
                  LEFT JOIN items parent ON items.parent_id = parent.id
+                 LEFT JOIN items proj ON items.project_id = proj.id
                  LEFT JOIN tenants t ON items.tenant_id = t.id
                  LEFT JOIN assignees a ON items.assigned_to = a.id
                  WHERE items.tenant_id IN ($placeholders)
@@ -906,10 +910,9 @@ class ItemController extends BaseController {
     }
 
 
-    // [JBWOS] Bulk Reorder Logic
+    // [JBWOS] Bulk Reorder Logic - sort_orderカラムを更新
     private function reorderFocus() {
         $data = $this->getInput();
-        // Expecting: { items: [ { id: 'xxx', order: 1 }, ... ] }
         if (empty($data['items']) || !is_array($data['items'])) {
             $this->sendError(400, 'Invalid items data');
         }
@@ -917,15 +920,23 @@ class ItemController extends BaseController {
         try {
             $this->pdo->beginTransaction();
 
-            $sql = "UPDATE items SET focus_order = ? WHERE id = ? AND tenant_id = ?";
+            $now = time();
+            $sql = "UPDATE items SET sort_order = ?, updated_at = ? WHERE id = ? AND (
+                (tenant_id IS NULL AND created_by = ?) OR
+                (tenant_id = ? AND (created_by = ? OR assigned_to = ?))
+            )";
             $stmt = $this->pdo->prepare($sql);
 
             foreach ($data['items'] as $item) {
                 if (isset($item['id'], $item['order'])) {
                      $stmt->execute([
-                         (int)$item['order'], 
-                         $item['id'], 
-                         $this->currentTenantId // Strictly scoped to current tenant
+                         (int)$item['order'],
+                         $now,
+                         $item['id'],
+                         $this->currentUserId,
+                         $this->currentTenantId,
+                         $this->currentUserId,
+                         $this->currentUserId,
                      ]);
                 }
             }

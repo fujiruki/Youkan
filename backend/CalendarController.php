@@ -47,31 +47,33 @@ class CalendarController extends BaseController {
         $sqlParams = [$targetUserId, $this->currentUserId];
 
         if ($tenantId) {
-            $tenantClause = " AND (tenant_id = ? OR tenant_id IS NULL) ";
+            $tenantClause = " AND (items.tenant_id = ? OR items.tenant_id IS NULL) ";
             $sqlParams[] = $tenantId;
         }
 
         $sql = "
-            SELECT 
-                id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes,
-                created_by, assigned_to, project_id, status
-            FROM items 
-            WHERE 
-                (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
+            SELECT
+                items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
+                items.created_by, items.assigned_to, items.project_id, items.status,
+                proj.title as real_project_title
+            FROM items
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
+                (items.assigned_to = ? OR (items.assigned_to IS NULL AND items.created_by = ?))
                 $tenantClause
                 AND (
-                    (due_date >= ? AND due_date <= ?)
+                    (items.due_date >= ? AND items.due_date <= ?)
                     OR
-                    (prep_date >= ? AND prep_date <= ?)
+                    (items.prep_date >= ? AND items.prep_date <= ?)
                 )
-                AND status NOT IN ('decision_rejected', 'archive', 'done')
+                AND items.status NOT IN ('decision_rejected', 'archive', 'done')
         ";
 
         array_push($sqlParams, $rangeStart, $rangeEnd, $rangeStart, $rangeEnd);
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($sqlParams);
-        
+
         $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $result = [];
 
@@ -136,24 +138,26 @@ class CalendarController extends BaseController {
         $sqlParams = [$targetUserId, $this->currentUserId];
 
         if ($tenantId) {
-            $tenantClause = " AND (tenant_id = ? OR tenant_id IS NULL) ";
+            $tenantClause = " AND (items.tenant_id = ? OR items.tenant_id IS NULL) ";
             $sqlParams[] = $tenantId;
         }
 
         $sql = "
-            SELECT 
-                id, tenant_id, title, due_date, prep_date, work_days, estimated_minutes,
-                status, created_by, assigned_to, project_id
-            FROM items 
-            WHERE 
-                (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
+            SELECT
+                items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
+                items.status, items.created_by, items.assigned_to, items.project_id,
+                proj.title as real_project_title
+            FROM items
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
+                (items.assigned_to = ? OR (items.assigned_to IS NULL AND items.created_by = ?))
                 $tenantClause
                 AND (
-                    (due_date >= ? AND due_date <= ?)
+                    (items.due_date >= ? AND items.due_date <= ?)
                     OR
-                    (prep_date >= ? AND prep_date <= ?)
+                    (items.prep_date >= ? AND items.prep_date <= ?)
                 )
-                AND status NOT IN ('decision_rejected', 'archive', 'done')
+                AND items.status NOT IN ('decision_rejected', 'archive', 'done')
         ";
 
         array_push($sqlParams, $startDate, $endDate);

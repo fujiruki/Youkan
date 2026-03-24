@@ -139,7 +139,8 @@ class BaseController {
         $item['dueStatus'] = $item['due_status'] ?? null;
         
         // Project Context
-        $item['projectTitle'] = $item['real_project_title'] ?? $item['parent_title'] ?? null;
+        $item['projectTitle'] = $item['real_project_title'] ?? null;
+        $item['parentTitle'] = $item['parent_title'] ?? null;
         $item['projectType'] = $item['project_type'] ?? null;
         $item['projectCategory'] = $item['project_category'] ?? null;
         

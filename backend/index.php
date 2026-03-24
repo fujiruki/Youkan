@@ -78,7 +78,7 @@ if (isset($_SERVER['PATH_INFO'])) {
 } else {
     // Fallback: Manually parse REQUEST_URI
     $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $scriptName = $_SERVER['SCRIPT_NAME']; // e.g. /contents/TateguDesignStudio/index.php
+    $scriptName = $_SERVER['SCRIPT_NAME']; // e.g. /contents/Youkan/index.php
     $scriptDir = dirname($scriptName);
 
     // If URI starts with script name (e.g. /.../index.php/foo), strip it

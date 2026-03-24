@@ -70,10 +70,11 @@ class GdbController extends BaseController {
         
         // Active
         $sqlActive = "
-            SELECT items.*, parent.title as parent_title
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE 
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
                 $whereClause
                 $whereSuffix
                 AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
@@ -95,10 +96,11 @@ class GdbController extends BaseController {
 
         // Preparation
         $sqlPrep = "
-            SELECT items.*, parent.title as parent_title
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE 
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
                 $whereClause
                 $whereSuffix
                 AND items.status = 'decision_hold'
@@ -114,10 +116,11 @@ class GdbController extends BaseController {
 
         // Intent
         $sqlIntent = "
-            SELECT items.*, parent.title as parent_title
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE 
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
                 $whereClause
                 $whereSuffix
                 AND items.status = 'intent' 
@@ -131,10 +134,11 @@ class GdbController extends BaseController {
 
         // History
         $sqlLog = "
-            SELECT items.*, parent.title as parent_title
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE 
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
                 $whereClause
                 $whereSuffix
                 AND items.status IN ('decision_rejected') 

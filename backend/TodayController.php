@@ -82,23 +82,46 @@ class TodayController extends BaseController {
 
         $queryParams = $params;
 
-        // Zone 1: Commit (Status: today_commit)
+        // Zone 1: Commit (Status: today_commit / focus)
         $sqlCommits = "
-            SELECT items.*, parent.title as parent_title 
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
+            LEFT JOIN items proj ON items.project_id = proj.id
             WHERE $whereClause AND items.status IN ('today_commit', 'focus')
-            ORDER BY items.sort_order ASC, items.updated_at DESC
         ";
         $stmtCommits = $this->pdo->prepare($sqlCommits);
         $stmtCommits->execute($queryParams);
-        $commits = array_map([$this, 'mapItemRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC));
+        $commits = array_values(array_filter(array_map([$this, 'mapItemRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC))));
+
+        // ソート: sort_orderが手動設定済み(>0)なら優先、未設定(0)ならdue_dateが近い順
+        usort($commits, function($a, $b) {
+            $aOrder = (int)($a['sort_order'] ?? 0);
+            $bOrder = (int)($b['sort_order'] ?? 0);
+
+            // 両方手動設定済み → sort_order昇順
+            if ($aOrder > 0 && $bOrder > 0) {
+                return $aOrder - $bOrder;
+            }
+            // 片方だけ手動設定済み → 手動設定済みが先
+            if ($aOrder > 0) return -1;
+            if ($bOrder > 0) return 1;
+
+            // 両方未設定 → due_dateが近い順（NULLS LAST）
+            $aDue = $a['due_date'] ?? null;
+            $bDue = $b['due_date'] ?? null;
+            if ($aDue === null && $bDue === null) return 0;
+            if ($aDue === null) return 1;
+            if ($bDue === null) return -1;
+            return strcmp($aDue, $bDue);
+        });
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
         $sqlExec = "
-            SELECT items.*, parent.title as parent_title 
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
+            LEFT JOIN items proj ON items.project_id = proj.id
             WHERE $whereClause AND items.status IN ('execution_in_progress', 'execution_paused') 
             ORDER BY items.updated_at DESC
         ";
@@ -110,10 +133,11 @@ class TodayController extends BaseController {
         // Zone 3: Life
         // Candidates for Today (Status: confirmed OR ready)
         $sqlCandidates = "
-            SELECT items.*, parent.title as parent_title 
-            FROM items 
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
-            WHERE 
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
                 $whereClause AND
                 ((items.status IN ('confirmed', 'ready')) 
                 OR 
@@ -122,7 +146,7 @@ class TodayController extends BaseController {
         ";
         $stmtCandidates = $this->pdo->prepare($sqlCandidates);
         $stmtCandidates->execute($queryParams);
-        $candidates = array_map([$this, 'mapItemRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC));
+        $candidates = array_values(array_filter(array_map([$this, 'mapItemRow'], $stmtCandidates->fetchAll(PDO::FETCH_ASSOC))));
 
 
         return [
