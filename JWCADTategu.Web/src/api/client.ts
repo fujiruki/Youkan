@@ -14,7 +14,7 @@ const getApiBase = () => {
 	}
 
 	// Production: Force absolute path for ConoHa Server
-	const deployPath = '/contents/TateguDesignStudio/';
+	const deployPath = '/contents/Youkan/';
 	return `${deployPath}backend/index.php`;
 };
 

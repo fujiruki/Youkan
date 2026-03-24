@@ -7,7 +7,7 @@ $token = 'mock-debug-token'; // Use mock token behavior logic if verifying again
 // So any long string in URL might trigger it.
 
 $localBase = 'http://localhost:8000/backend/index.php';
-$remoteBase = 'http://door-fujita.com/contents/TateguDesignStudio/backend/index.php';
+$remoteBase = 'http://door-fujita.com/contents/Youkan/backend/index.php';
 
 // Generate a long dummy token typical of JWT
 $longToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.' . str_repeat('a', 500) . '.signature';

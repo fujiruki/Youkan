@@ -32,5 +32,5 @@ export default defineConfig({
             },
         },
     },
-    base: '/contents/TateguDesignStudio/', // 本番環境の絶対パス
+    base: '/contents/Youkan/', // 本番環境の絶対パス
 });

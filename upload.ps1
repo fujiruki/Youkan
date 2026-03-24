@@ -25,10 +25,10 @@ $serverPort = "8022"
 
 # 🎯 重要: デプロイ先のディレクトリを指定してください
 # 例: "public_html/door-fujita.com/contents/YOUR_PROJECT_NAME"
-$remoteDir = "public_html/door-fujita.com/contents/TateguDesignStudio"  # <-- ここを変更
+$remoteDir = "public_html/door-fujita.com/contents/Youkan"  # <-- ここを変更
 
 # SSH秘密鍵のパス（プロジェクトルートからの相対パス）
-$sshKeyPath = "docs/01_RULES/UPLOAD/key-2025-11-29-07-10.pem"
+$sshKeyPath = "C:\Fujiruki\Secret\key-2026-03-21-18-16-ConohaforAI.pem"
 
 # フロントエンドのディレクトリ名（自動検出も可能）
 $frontendDir = "JWCADTategu.Web"  # <-- プロジェクトに合わせて変更
