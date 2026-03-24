@@ -96,7 +96,7 @@ function App() {
 
 	const handleNavigateToProjects = (scope: 'personal' | 'company' = 'personal') => {
 		setCurrentView('projects');
-		const deployBase = '/contents/TateguDesignStudio/';
+		const deployBase = '/contents/Youkan/';
 		const params = new URLSearchParams();
 		if (activeProject?.cloudId) {
 			params.set('projectId', activeProject.cloudId);
@@ -149,7 +149,7 @@ function App() {
 		};
 		setActiveProject(cloudProject);
 		setCurrentView('dashboard');
-		const deployBase = '/contents/TateguDesignStudio/';
+		const deployBase = '/contents/Youkan/';
 		const params = new URLSearchParams();
 		params.set('projectId', projectId);
 		if (projectName) params.set('title', projectName);
@@ -191,7 +191,7 @@ function App() {
 	const handleBackToProjectList = () => {
 		setCurrentView('projects');
 		setActiveProject(null);
-		const deployBase = '/contents/TateguDesignStudio/';
+		const deployBase = '/contents/Youkan/';
 		window.history.pushState({ view: 'projects' }, '', `${deployBase}projects/personal`);
 	};
 

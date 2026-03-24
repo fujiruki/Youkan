@@ -10,6 +10,7 @@ import { ApiClient } from '../../../../api/client';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
+import { sanitizeItems } from '../logic/sanitizeItems';
 import { useFilter } from '../contexts/FilterContext';
 
 const getUseCloud = () => {
@@ -61,8 +62,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// --- [NEW] Declarative / Reactive Derived State ---
 	const filterItems = useCallback((items: Item[]) => {
-		// [REFINE] Conditional Visibility Model (SVP v3.2):
-		// This logic ensures hierarchy integrity while respecting the "AND" refinement.
+		const safeItems = sanitizeItems(items);
 
 		// Helper: Base Context Filtering Logic
 		const checkBase = (item: Item): boolean => {
@@ -79,11 +79,11 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 		// 1. Root Level (No Focus)
 		if (!projectId) {
-			return items.filter(i => checkBase(i));
+			return safeItems.filter(i => checkBase(i));
 		}
 
 		// 2. Project Focus Mode (AND Logic Chain)
-		return items.filter(i => {
+		return safeItems.filter(i => {
 			// A. Focus Layer (Scope check): Item must belong to the focused project (or be the project itself)
 			if (i.projectId !== projectId && i.id !== projectId) return false;
 
@@ -161,9 +161,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 			if (filterMode === 'all') scope = 'aggregated';
 
 			const today = await getRepository().getTodayView(projectId, scope);
-			setTodayCommitsRaw(today.commits || []);
+			setTodayCommitsRaw((today.commits || []).filter((item: any) => item != null));
 			setExecutionItemRaw(today.execution || null);
-			setTodayCandidatesRaw((today.candidates || []).sort(compareFocusItems));
+			setTodayCandidatesRaw((today.candidates || []).filter((item: any) => item != null).sort(compareFocusItems));
 		} catch (e) {
 			console.error('Failed to fetch Today:', e);
 		}

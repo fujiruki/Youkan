@@ -175,7 +175,8 @@ const DayColumn = ({ day, vm, setEditingItem }: { day: Date, vm: any, setEditing
 };
 
 // Stock List (Unscheduled)
-const StockList = ({ items, setEditingItem }: { items: Item[], setEditingItem: (item: Item | null) => void }) => {
+const StockList = ({ items: rawItems, setEditingItem }: { items: Item[], setEditingItem: (item: Item | null) => void }) => {
+    const items = rawItems.filter(i => i != null && !!i.id);
     const { setNodeRef } = useDroppable({ id: 'stock' });
 
     return (

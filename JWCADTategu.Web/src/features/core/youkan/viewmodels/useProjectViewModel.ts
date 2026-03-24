@@ -22,7 +22,7 @@ export const useProjectViewModel = () => {
     const handleSetScope = useCallback((scope: 'personal' | 'company') => {
         setActiveScope(scope);
         // Force absolute path for the subdirectory deployment
-        const deployBase = '/contents/TateguDesignStudio/';
+        const deployBase = '/contents/Youkan/';
         const newPath = `${deployBase}projects/${scope}`;
         window.history.pushState({ scope }, '', newPath);
     }, []);

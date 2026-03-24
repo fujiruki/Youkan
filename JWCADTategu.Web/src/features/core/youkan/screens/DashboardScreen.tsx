@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
 	BarChart2,
 	ChevronDown,
@@ -8,10 +8,12 @@ import {
 import { useYoukanViewModel } from '../viewmodels/useYoukanViewModel';
 import { Item } from '../types';
 import { SmartItemRow } from '../components/Dashboard/SmartItemRow';
+import { SortableFocusQueue } from '../components/Dashboard/SortableFocusQueue';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { YoukanBoard } from '../components/GlobalBoard/GlobalBoard';
 import { FocusCard } from '../components/Dashboard/FocusCard';
@@ -22,6 +24,7 @@ import { isValid } from 'date-fns';
 import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
+import { ApiClient } from '../../../../api/client';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -143,7 +146,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		...(activeExecutionItem ? [activeExecutionItem] : []),
 		...todayCommits.filter(i => i.id !== activeExecutionItem?.id),
 		...todayCandidates.filter(i => i.id !== activeExecutionItem?.id)
-	];
+	].filter(i => i != null && !!i.id);
 
 	const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 	const [isPendingExpanded, setIsPendingExpanded] = useState(false);
@@ -167,7 +170,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 			...pendingItems,
 			...waitingItems,
 			...(gdbLog || [])
-		];
+		].filter(item => item != null);
 	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
 
 
@@ -196,6 +199,22 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 		await completeItem(id);
 		handleRefresh();
 	};
+
+	const handleReorder = useCallback(async (newOrder: Item[]) => {
+		const payload = {
+			items: newOrder.map((item, index) => ({
+				id: item.id,
+				order: index + 1,
+			})),
+		};
+		try {
+			await ApiClient.request('POST', '/items?action=reorder_focus', payload);
+			handleRefresh();
+		} catch (err) {
+			console.error('並べ替え失敗', err);
+			handleRefresh();
+		}
+	}, [handleRefresh]);
 
 	return (
 		<div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
@@ -302,18 +321,13 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 								{remainingQueue.length > 0 && (
 									<div className="mt-4 space-y-1">
 										<SectionHeader title="Next Strategy" count={remainingQueue.length} icon={<Clock size={14} />} />
-										<div className="grid grid-cols-1 gap-[2px]">
-											{remainingQueue.map((item, index) => (
-												<SmartItemRow
-													key={item.id}
-													item={item}
-													onClick={() => setSelectedItem(item)}
-													onContextMenu={handleContextMenu}
-													onFocus={handleSetEngaged}
-													index={index}
-												/>
-											))}
-										</div>
+										<SortableFocusQueue
+											items={remainingQueue}
+											onReorder={handleReorder}
+											onItemClick={(item) => setSelectedItem(item)}
+											onContextMenu={handleContextMenu}
+											onFocus={handleSetEngaged}
+										/>
 									</div>
 								)}
 							</div>
@@ -419,12 +433,25 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 					y={contextMenu.y}
 					itemId={contextMenu.targetId!}
 					onClose={closeMenu}
-					onDelete={deleteItem}
-					onEdit={(id) => {
-						const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
-						const item = all.find(i => i.id === id);
-						if (item) setSelectedItem(item);
-					}}
+					actions={buildItemContextMenuActions(contextMenu.targetId!, {
+						onOpenDetail: (id) => {
+							const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
+							const item = all.find(i => i.id === id);
+							if (item) setSelectedItem(item);
+						},
+						onMakeProject: async (id) => {
+							await vm.updateItem(id, { isProject: true });
+						},
+						onResolveYes: async (id) => {
+							await vm.resolveDecision(id, 'yes');
+						},
+						onResolveNo: async (id) => {
+							await vm.resolveDecision(id, 'no', 'history');
+						},
+						onDelete: async (id) => {
+							await vm.deleteItem(id);
+						},
+					})}
 				/>
 			)}
 

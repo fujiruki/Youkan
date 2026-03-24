@@ -47,8 +47,9 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
         id: id,
     });
 
-    const visibleItems = (expanded || isCompact) ? items : items.slice(0, MAX_VISIBLE);
-    const hiddenCount = items.length - MAX_VISIBLE;
+    const safeItems = items.filter(i => i != null && !!i.id);
+    const visibleItems = (expanded || isCompact) ? safeItems : safeItems.slice(0, MAX_VISIBLE);
+    const hiddenCount = safeItems.length - MAX_VISIBLE;
 
     // [NEW] Hierarchical Sorting Helper
     const sortItemsHierarchically = (allItems: Item[]) => {

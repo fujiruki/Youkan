@@ -17,10 +17,8 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
-import {
-	CheckCircle2, AlertCircle, FolderPlus,
-	BookOpen, X, Trash2, Edit2
-} from 'lucide-react';
+import { AlertCircle, BookOpen, X } from 'lucide-react';
+import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import { ContextMenu } from './ContextMenu';
@@ -317,52 +315,27 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 					y={contextMenu.y}
 					itemId={contextMenu.targetId!}
 					onClose={closeMenu}
-					onDelete={async (id) => {
-						await vm.deleteItem(id);
-						closeMenu();
-					}}
-					actions={[
-						{
-							label: '詳細 / 名前変更',
-							icon: <Edit2 size={14} />,
-							onClick: () => {
-								const item = findItem(contextMenu.targetId!);
-								if (item) {
-									setDetailItem(item);
-									setInitialFocus(undefined);
-								}
+					actions={buildItemContextMenuActions(contextMenu.targetId!, {
+						onOpenDetail: (id) => {
+							const item = findItem(id);
+							if (item) {
+								setDetailItem(item);
+								setInitialFocus(undefined);
 							}
 						},
-						{
-							label: 'プロジェクト化',
-							icon: <FolderPlus size={14} />,
-							onClick: async () => {
-								await vm.updateItem(contextMenu.targetId!, { isProject: true });
-							}
+						onMakeProject: async (id) => {
+							await vm.updateItem(id, { isProject: true });
 						},
-						{
-							label: '今日やる (Done Today)',
-							icon: <CheckCircle2 size={14} className="text-green-500" />,
-							onClick: async () => {
-								await vm.resolveDecision(contextMenu.targetId!, 'yes');
-							}
+						onResolveYes: async (id) => {
+							await vm.resolveDecision(id, 'yes');
 						},
-						{
-							label: '断る (Rejected)',
-							icon: <AlertCircle size={14} className="text-amber-500" />,
-							onClick: async () => {
-								await vm.resolveDecision(contextMenu.targetId!, 'no', 'history');
-							}
+						onResolveNo: async (id) => {
+							await vm.resolveDecision(id, 'no', 'history');
 						},
-						{
-							label: '完全削除 (Delete)',
-							icon: <Trash2 size={14} />,
-							danger: true,
-							onClick: async () => {
-								await vm.deleteItem(contextMenu.targetId!);
-							}
-						}
-					]}
+						onDelete: async (id) => {
+							await vm.deleteItem(id);
+						},
+					})}
 				/>
 			)}
 

@@ -204,7 +204,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 								// Actually, I should update YoukanHeader AND MenuDrawer to accept onNavigateToArchive/Trash.
 								// But that cascades.
 								// Let's use window.history.pushState and dispatch event as App.tsx does for Dashboard.
-								window.history.pushState({ view: 'archive' }, '', '/contents/TateguDesignStudio/archive');
+								window.history.pushState({ view: 'archive' }, '', '/contents/Youkan/archive');
 								// Force App re-render? App.tsx state change is needed.
 								// App.tsx doesn't listen to popstate for state changes unless we added it.
 								// It only checks on mount.

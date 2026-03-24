@@ -48,7 +48,10 @@ export const CloudYoukanRepository = {
 		// To ensure we can build the full hierarchy client-side, we fetch 'aggregated' scope.
 		// We avoid project_id filter at API level if focused, trusting hierarchy.ts to filter correctly.
 		const resolvedScope = projectId ? 'aggregated' : (scope || 'dashboard');
-		const allItems = await ApiClient.getAllItems({ scope: resolvedScope });
+		const allItems = await ApiClient.getAllItems({
+			scope: resolvedScope,
+			...(projectId ? { project_id: projectId } : {}),
+		});
 
 		// Categorize based on Youkan Logic
 		return {
