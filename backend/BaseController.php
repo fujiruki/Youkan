@@ -42,6 +42,17 @@ class BaseController {
 
         $payload = JWTService::decrypt($token);
         if (!$payload) {
+            $apiUser = $this->authenticateByApiToken($token);
+            if ($apiUser) {
+                $this->currentUser = $apiUser;
+                $this->currentUserId = $apiUser['id'];
+
+                $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
+                $stmt->execute([$this->currentUserId]);
+                $this->joinedTenants = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $this->currentTenantId = $this->joinedTenants[0] ?? '';
+                return;
+            }
             $this->sendError(401, 'Invalid or expired token');
         }
 
@@ -68,7 +79,7 @@ class BaseController {
             // Allow tenant-less access (Personal Mode)
             // Always default to empty string for Personal context
             // This matches the logic in ProjectController and ItemController
-            $this->currentTenantId = ''; 
+            $this->currentTenantId = '';
         }
     }
 
@@ -225,6 +236,23 @@ class BaseController {
             error_log("[BaseController] Update Error on $table ($id): " . $e->getMessage());
             $this->sendError(500, 'Database Error during update');
         }
+    }
+
+    protected function authenticateByApiToken($token) {
+        $stmt = $this->pdo->prepare("SELECT * FROM api_tokens WHERE token = ?");
+        $stmt->execute([$token]);
+        $apiToken = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$apiToken) {
+            return null;
+        }
+
+        $this->pdo->prepare("UPDATE api_tokens SET last_used_at = ? WHERE id = ?")
+            ->execute([time(), $apiToken['id']]);
+
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$apiToken['user_id']]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
     /**

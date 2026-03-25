@@ -1,182 +1,112 @@
-# タスク管理 (JBWOS Refinement)
+# Youkan
 
-- [x] **フェーズ 1: Backend Intelligence (脳の構築)** <!-- id: 101 -->
-    - [x] **DBスキーマ定義 (SQLite)** <!-- id: 103 -->
-        - [x] `events` テーブル作成 <!-- id: 1031 -->
-        - [x] `daily_logs` テーブル作成 <!-- id: 1032 -->
-        - [x] `side_memos` テーブル作成 <!-- id: 1033 -->
-        - [x] ItemsテーブルへのRDDカラム追加 <!-- id: 1034 -->
-    - [x] **API実装 (PHP)** <!-- id: 104 -->
-        - [x] `POST /api/decision/{id}/resolve` (イベント記録・RDD更新) <!-- id: 1041 -->
-        - [x] `POST /api/today/commit` (Today候補確定・最大2件チェック) <!-- id: 105 -->
-        - [x] `GET /api/today` (計算済みTodayビュー取得) <!-- id: 106 -->
-        - [x] `GET /api/gdb` (GDB用アイテム取得・純化) <!-- id: 1061 -->
-        - [x] **横メモAPI** (`GET`, `POST`, `DELETE`, `MoveToInbox`) <!-- id: 113 -->
+## Agent-ソートロジック改修
+### タスク
+- [x] タスク1: TodayController の commits ソート順を「着手開始日が近い順」に変更
+  - [x] 1-1. 既存テスト・コードの理解
+  - [x] 1-2. TodayControllerのcommitsソート順テストを書く（RED）
+  - [x] 1-3. 実装（GREEN）- PHP側usortでsort_order優先、未設定ならdue_date近い順
+  - [x] 1-4. TypeScriptコンパイル確認
+- [x] タスク2: Stream ViewにFocusタスクのドラッグ&ドロップ並べ替え追加
+  - [x] 2-1. reorderFocus()のsort_order統一テストを書く（RED）
+  - [x] 2-2. reorderFocus()をsort_orderに修正 + 個人タスク対応（GREEN）
+  - [x] 2-3. SortableFocusQueueコンポーネントのテストを書く（RED）
+  - [x] 2-4. SortableFocusQueueコンポーネントを実装（GREEN: 4テストパス）
+  - [x] 2-5. DashboardScreenに統合（TypeScriptコンパイルOK, 回帰テスト13件パス）
 
-- [x] **フェーズ 2: Frontend Dumb-ification (ビューア化)** <!-- id: 107 -->
-    - [x] **Repository更新**: 新APIへの移行・直接DB更新の廃止 <!-- id: 108 -->
-    - [x] **Store/ViewModel更新**: クライアント側ロジックの削除 <!-- id: 109 -->
-    - [x] **横メモUI実装**: 控えめなパネル・ソートなし <!-- id: 114 -->
-    - [x] **新UI仕様適用 (v3.1)**: <!-- id: 118 -->
-        - [x] Today: 確認ボタン・開始ボタン削除・3ゾーン厳格化 <!-- id: 1181 -->
-        - [x] GDB: 棚レイアウト・縦積み・詳細ビュー分離・納期隠蔽 <!-- id: 1182 -->
+## Agent-nullクラッシュ修正
+### 根本原因
+`@dnd-kit/sortable` の `SortableContext` 内部 useMemo で `'id' in item` チェックが行われるが、
+`typeof null === 'object'` が true のため、null要素があると `'id' in null` で TypeError になる。
 
-- [ ] **フェーズ 4: 未来ボード (Tomorrow Planning) & 名称変更** <!-- id: 120 -->
-    - [ ] **インフラ整備** <!-- id: 121 -->
-        - [ ] リネーム `JWCADTategu.Web` -> `JBWOS.Web` <!-- id: 1211 -->
-    - [x] **フェーズ 1: 基盤とUI** <!-- id: 122 -->
-        - [x] 休日/キャパシティ設定 (`Settings` モジュール) - 基本機能完了 <!-- id: 1221 -->
-        - [ ] 祝日API連携・例外日設定（追加開発中）
-        - [x] UIコンポーネント: `FutureBoard.tsx` (フリップ/遷移) <!-- id: 1222 -->
-        - [x] Today画面からの遷移開始 <!-- id: 1223 -->
-        - [x] キャパシティバーと在庫の山 (実データ) 表示 <!-- id: 1224 -->
-        - [x] **実データ連携**: ストックとプランのStore統合 <!-- id: 1225 -->
-        - [x] **ドラッグ＆ドロップ**: ストック・プラン間のアイテム移動 <!-- id: 1226 -->
-        - [ ] 複数日スワイプビュー <!-- id: 1232 -->
-    - [ ] **フェーズ 2: ロジックとインテリジェンス** <!-- id: 123 -->
-        - [ ] 逆算ロジック (提案エンジン) <!-- id: 1231 -->
+### タスク
+- [x] 根本原因の調査（'id' in null の発生箇所特定）
+  - dnd-kitのSortableContext内部: `typeof item === 'object' && 'id' in item`
+  - items配列にnull/undefinedが混入 or id==nullのアイテムが含まれると発生
+- [x] テスト作成（RED確認） - sanitizeItems: 8テスト
+- [x] 修正実装（GREEN確認） - sanitizeItems関数 + 全箇所に防御フィルタ適用
+- [x] ビルド確認 - tsc --noEmit OK, vite build OK
 
-- [ ] **フェーズ 5: アーキテクチャ分離 (Core Separation)** <!-- id: 130 -->
-    - [x] **フォルダ再構成** <!-- id: 131 -->
-        - [x] `src/features/core` (JBWOS) の作成 <!-- id: 1311 -->
-        - [x] `src/features/plugins/tategu` の作成 <!-- id: 1312 -->
-    - [ ] **モジュール移行** <!-- id: 132 -->
-        - [x] `jbwos` (Time/Tasks) を `core` へ移動 <!-- id: 1321 -->
-        - [x] `planning` (FutureBoard) を `core` へ移動 <!-- id: 1322 -->
-        - [x] `settings` を `core` へ移動 <!-- id: 1324 -->
-        - [ ] Tategu固有コンポーネント(マスタデータ等)のプラグイン化 <!-- id: 1323 -->
-    - [x] **建具プラグイン移行** <!-- id: 133 -->
-        - [x] `components/Editor` を `plugins/tategu/editor` へ移動 <!-- id: 1331 -->
-        - [x] `components/Catalog` を `plugins/tategu/catalog` へ移動 <!-- id: 1332 -->
-        - [x] `JoineryScheduleScreen` & `ProjectListScreen` を `plugins/tategu/screens` へ移動 <!-- id: 1333 -->
-        - [x] `domain` フォルダを `plugins/tategu/domain` へ移動 <!-- id: 1334 -->
-        - [x] Tateguプラグインのインポート更新 <!-- id: 1335 -->
+## Agent-SdDD仕様書整備 (2026-03-24)
+### タスク
+- [x] 既存ドキュメントの調査・読み込み（00_Vision/, spec/, SPEC/, User_Voices/）
+- [x] 実際のコード構成の確認（package.json, db.php, App.tsx, コントローラ群）
+- [x] docs/SPEC.md 作成（仕様書目次・全体概要）
+- [x] docs/request_log.md 作成（リクエスト履歴テンプレート）
+- [x] docs/spec/01_概要.md 作成（Youkanとは何か・ターゲット・課題・思想）
+- [x] docs/spec/02_機能仕様.md 作成（全15機能の一覧と詳細）
+- [x] docs/spec/03_画面設計.md 作成（4つのView Mode・共通コンポーネント・画面遷移）
+- [x] docs/spec/04_データ設計.md 作成（DB設計・状態定義・API設計）
+- [x] docs/spec/05_技術設計.md 作成（技術スタック・3層アーキテクチャ・ディレクトリ構造）
+- [x] docs/spec/06_変更履歴.md 作成（SdDD導入記録）
 
-- [ ] **フェーズ 3: Execution & Life Persistence (事実の蓄積)** <!-- id: 110 -->
-    - [x] **バックエンド実装** <!-- id: 1101 -->
-        - [x] DBマイグレーション (Projects, Logs, Items) <!-- id: 1102 -->
-        - [x] API: Projects (CRUD with Target/Color) <!-- id: 1103 -->
-        - [x] API: Logs (Life & Execution) <!-- id: 1104 -->
-        - [x] API: History (Summary & Timeline) <!-- id: 1105 -->
-    - [x] Life/Execution ログ記録APIの実装 <!-- id: 111 -->
-    - [x] **History画面作成**: 事実ログの表示 UI <!-- id: 112 -->
-    - [x] **Project Registry画面作成**: プロジェクト管理 UI <!-- id: 113 -->
-    - [x] **起動スクリプトの修正**: verify_and_start.ps1の堅牢化
-    - [x] **ドキュメント再構成**: 整理とDOCS_OPS作成 <!-- id: 114 -->
+## Agent-ドラッグ&ドロップ範囲改善 (2026-03-24)
+### タスク
+- [x] テスト作成（RED確認） - カード全体のドラッグ属性検証: 3テスト
+- [x] 実装（GREEN確認） - attributes/listenersをカード全体のdivに移動
+- [x] ビルド確認 - tsc --noEmit OK, vite build OK
 
-- [ ] **フェーズ 3.5: セキュリティ強化 (ポストレビュー)** <!-- id: 120 -->
-    - [ ] **Backend Security**: ItemController/ProjectControllerのクエリスコープ修正 <!-- id: 1201 -->
-    - [x] **会社設定機能の実装** (Company Settings) <!-- id: 1204 -->
-        - [x] Frontend: 設定画面のタブ化とUI実装 <!-- id: 12041 -->
-        - [x] Frontend: プラグイン管理UIとFeature Flagロジック <!-- id: 12043 -->
-        - [x] Backend: Tenantsテーブル拡張 (Configカラム) <!-- id: 12042 -->
-    - [x] **ユーザー登録機能の実装** (Registration) <!-- id: 1205 -->
-        - [x] Environment: デバッグデータ更新・ブランチ作成 <!-- id: 12050 -->
-        - [x] Backend: AuthController拡張 (Type分岐) <!-- id: 12051 -->
-        - [x] Frontend: 登録ポータル画面 (3 Entrances) <!-- id: 12052 -->
-        - [x] Frontend: 個人事業主登録フォーム <!-- id: 12053 -->
-    - [ ] **Manager Capacity View**: 量感のみ取得するAPIの実装 <!-- id: 1202 -->
-    - [ ] **Security Verification**: アクセス権限の自動テスト <!-- id: 1203 -->
+## Agent-総会プロジェクトバグ調査 (2026-03-24)
+### 調査結果
+- [x] バックエンドのproject_id割り当てロジック調査（ItemController.php create/update）
+- [x] フロントエンドのアイテム作成フロー調査（QuickInputWidget → throwIn → addItemToInbox）
+- [x] プロジェクトフォーカスモードの設計意図確認（SPEC_ProjectFocused_Visibility.md）
+- [x] 本番DBデータ確認（総会プロジェクトの紐づきアイテム6件、全て正当）
+- [x] 調査報告書作成（docs/SPEC/investigation_soukai_bug.md）
+- [x] requests.md 更新（調査結果に基づく要件具体化）
 
-- [ ] **フェーズ 4.0: 量感カレンダー (Volume Calendar)** <!-- id: 160 -->
-    - [x] **詳細設計**: ロジックとMVVM構成の定義 (`Detailed_Design_VolumeCalendar.md`)
-    - [x] **Backend**: `memberships` テーブル拡張 (`is_core`, `capacity`) <!-- id: 161 -->
-    - [x] **Backend**: `TenantController` API更新 (GET/PUT) <!-- id: 162 -->
-    - [x] **Backend**: `CalendarController` API拡張 (GET) <!-- id: 162.5 -->
-    - [x] **Frontend**: メンバー設定画面 (主力チェック・キャパ設定) <!-- id: 163 -->
-    - [x] **Frontend Logic**: `AllocationCalculator` (TDD) <!-- id: 165 -->
-    - [ ] **Frontend UI**: `VolumeCalendar` 画面実装 (MVVM) <!-- id: 164 -->
-- [x] **Logic**: 量感カレンダー背景色ロジックの改善 (タスク量・キャパ合算)
-- [x] **UI**: 定休日・休日の色表現の更新 (濃い灰色)
-- [x] **UI**: タイムライン表示の復旧とタイトル形式の適正化
+### 発見した問題（修正済み）
+1. `BaseController.php:142` - projectTitle フォールバックロジック修正済み
+2. `CloudYoukanRepository.ts:50-51` - GdbShelf API修正済み
+3. データ不整合18件 → マイグレーション実行済み（19件更新）
 
-- [ ] **フェーズ 4.5: デザインと物語 (User Nuance)** <!-- id: 140 -->
-    - [ ] **AI会議**: 明日の計画のストーリーとユーザーフロー <!-- id: 1401 -->
-        - [ ] ストーリードキュメント作成 (`docs/design/Story_TomorrowPlanning.md`)
-    - [ ] **ストーリーに基づくUI改善** <!-- id: 1402 -->
-    - [ ] UI: 詳細な見積入力 (スクロール可能な日時 + 数値入力) <!-- id: 1403 -->
-    - [ ] UI: モバイル用横メモ (スライドボタン) <!-- id: 1404 -->
-    - [x] **UI改善 & 拡張**: ドロップダウン共通化・プラグインフック導入 <!-- id: 1405 -->
-        - [x] 共通コンポーネント `YoukanDropdown.tsx` 作成 (Compact/Z-Index/Scroll対応)
-        - [x] プラグイン拡張機構 (`ExtensionSlot.tsx`, `registry.tsx`) 実装
-        - [x] `TenantSelector.tsx` を修正し、`YoukanDropdown` を使用するように変更
-    - [x] ボタン/ドロップダウンの切り替えロジックは維持
-- [x] `ProjectCreationDialog.tsx` を更新
-    - [x] `ExtensionSlot` を配置
-    - [x] `ManufacturingProjectFields` を削除し、プラグイン経由で読み込むように変更
-- [x] `DecisionDetailModal.tsx` のヘッダーにあるテナント/プロジェクト選択ドロップダウンを `YoukanDropdown` に置き換え
-    - [x] `activeMenu` 等のステート管理を `YoukanDropdown` 内部へ委譲して削除
-- [ ] **メンテナンス: ロジック修正とテスト** <!-- id: 150 -->
-    - [x] **Today画面ロジック** <!-- id: 151 --> ※ 2026-01-18 検証済み
-        - [x] Fix: "Commit to Today" -> 閉じる/保存の挙動 <!-- id: 1511 -->
-        - [x] Fix: "Complete" ボタンの挙動 (GDB/Log/Return?) <!-- id: 1512 --> - Today画面に留まり次タスク切り替え
-        - [x] Fix: Today -> GDB -> Back ナビゲーションの一貫性 <!-- id: 1513 --> - 状態保持を確認
-        - [x] **テスト追加**: Commit/Complete/Navigationの挙動検証 <!-- id: 1514 --> - ブラウザテスト実施
-    - [x] **データ永続化** <!-- id: 152 -->
-        - [x] Fix: 閉じる際の保存 (詳細モーダル) 全フィールド (見積等) <!-- id: 1521 -->
-    - [x] **カレンダー表示** <!-- id: 153 -->
-        - [x] Fix: 複数日背景色の描画 <!-- id: 1531 -->
-    - [x] **API Resilience** <!-- id: 154 -->
-        - [x] Fix: Backend接続 (Port 8000 & Proxy Config) <!-- id: 1541 -->
-        - [x] Test: JBWOSRepository 単体テスト (Vitest) <!-- id: 1542 -->
-    - [x] **Bug Fix**: プロジェクトフォーカス時のアイテム所属不具合
-        - [x] Frontend: `App.tsx` / `DashboardScreen.tsx` での `tenantId` 伝搬
-        - [x] Backend: `ProjectController` / `ItemController` の camelCase 対応と自動継承ロジック
-        - [x] Fix: プロジェクトフォーカス作成時のタスク所属表示 (Backend JOIN不足対応)
-    - [ ] **詳細画面カレンダー改修 (Minaoshi)** <!-- id: 155 -->
-        - [ ] Feat: 指示線（Pressure Lines）の非表示オプション追加 <!-- id: 1551 -->
-        - [ ] Fix: 目安期間の計算バグ調査・修正 <!-- id: 1552 -->
+### 次のアクション
+- [x] ユーザーに具体的なUI画面でのバグ再現手順をヒアリング
+- [x] 問題Aの修正: projectTitle フォールバックロジック修正
+- [x] 問題Bのデータ修復: マイグレーションSQL実行
+- [x] 問題Cの修正: GdbShelf API呼び出し修正
 
-- [ ] **フェーズ 5: Haruki Status Model Refactoring (思想の統一)** <!-- id: 170 -->
-    - [x] **定義**: `STATUS_MODEL_HARUKI.md` の策定 <!-- id: 171 -->
-    - [ ] **マイグレーション計画**: DB/Frontendの移行設計 (`implementation_plan_migration.md`) <!-- id: 172 -->
-    - [x] **マイグレーション計画**: DB/Frontendの移行設計 (`implementation_plan_migration.md`) <!-- id: 172 -->
-    - [x] **Frontend**: `types.ts` の厳格化 (5 Statuses) <!-- id: 173 -->
-    - [x] **Backend**: DBマイグレーションスクリプト作成 & 実行 <!-- id: 174 -->
-    - [x] **UI修正**: JBWOS / Today / FutureBoard のロジック更新 <!-- id: 175 -->
+## Agent-総会プロジェクトバグ修正 (2026-03-24)
+### タスク
+- [x] 問題1: projectTitle フォールバックロジック修正
+  - [x] 1-1. PHPテスト作成（backend/tests/test_project_title_fallback.php）
+  - [x] 1-2. BaseController.php 修正 + 本番デプロイ
+- [x] 問題2: データ不整合の修復（本番DBマイグレーション）
+  - [x] 2-1. 影響範囲確認SELECT（18件、うち17件がis_project親）
+  - [x] 2-2. マイグレーションSQL実行（19件更新、バックアップ: jbwos.sqlite.bak_20260324_soukai_fix）
+- [x] 問題3: GdbShelf API でproject_id未送信
+  - [x] 3-1. フロントエンドテスト作成（RED確認: 1テスト失敗）
+  - [x] 3-2. CloudYoukanRepository.ts 修正（GREEN確認: 4テスト全パス）
+- [x] ビルド確認（tsc --noEmit OK, vite build OK, 回帰テスト8/8パス）
 
-- [x] **ドキュメント整理・日本語化** <!-- id: 115 -->
-    - [x] `JBWOS_Defined_Master.md` (v3.1) の策定 <!-- id: 116 -->
-    - [x] API 500エラーの調査と特定 (ItemController.php での ManufacturingSyncService 読み込み漏れ)
-- [x] 修正計画の策定 (implementation_plan.md)
-### 第2フェーズ：UI刷新とプライバシー問題の解決 [x]
-- [x] 指示線（量感カレンダー）の位置ズレ修正
-- [x] 詳細設計の策定 (/sekkei)
-    - [x] `implementation_plan.md` の更新 (MVVM/TDD詳細設計)
-    - [x] `task.md` の更新 (具体的タスク分解)
-- [x] バックエンドの修正（プライバシーロジックの不具合解消）
-- [x] 全体一覧2（Newspaper Board）の UI 刷新
-- [x] 量感カレンダー（Ryokan Calendar）の表示・インタラクション改善
-    - [x] `CalendarController.php` の SELECT に `assigned_to` を追加
-    - [x] `BaseController::mapItemRow` による全項目マッピングの徹底
-- [x] ドメインロジック：期日優先度判定の実装
-    - [x] `useNewspaperItems.ts` で `displayDate` (Due/Prepの近い方) を算出
-    - [x] `displayDateType` による色の識別フラグを追加
-- [x] コンポーネント：全体一覧2の刷新
-    - [x] `NewspaperItem.tsx` の `justify-between` レイアウト実装
-    - [x] 右寄せ項目（StatusDot + 納期）の配置
-    - [x] StatusDot の多色化 (FOCUS: 青, 他: 薄グレー)
-    - [x] インデント縦線のスタイリング調整
-- [x] コンポーネント：量感カレンダーの表示改善
-    - [x] アイテムカードに「アイテム名＋プロジェクト名（先頭4文字）」を表示
-    - [x] シングルクリックで指示線（アニメーション 0.5s）を表示
-    - [x] 背景または空セルのクリックで強調表示・指示線をリセット
-    - [x] ダブルクリックで負荷内訳（タスクリスト）を表示
-- [x] API 500 エラーの解消 (致命的エラー: Access level to ItemController::toCamel() の修正)
-- [x] `PATCH` HTTP メソッドの公式サポート (backend/index.php, BaseController)
-- [x] 各コントローラーの共通リファクタリング (`updateEntity` メソッドの導入)
-- [x] 量感カレンダーからの更新動作確認 (200 OK Success)
-- [x] UI調整：最小列幅の確保
-    - [x] 25文字（設定可能）の最小幅を確保し、横スクロールを制御
-- [x] 検証とクリーンアップ
-    - [x] 全機能の動作確認（ブラウザサブエージェントによる自動検証）
-    - [x] 未使用コード、インポートの整理
-    - [x] 完了報告の作成 (walkthrough.md)
-    - [x] `docs` フォルダの整理 (アーカイブ化) <!-- id: 117 -->
-    - [x] 計画書の日本語化 (`implementation_plan.md`, `task.md`) <!-- id: 119 -->
+## Agent-real_project_title JOIN不足修正 (2026-03-24)
+### 根本原因
+GdbController, TodayController, ItemController(aggregated/personal/company), CalendarController の
+SQLクエリに `LEFT JOIN items proj ON items.project_id = proj.id` がなく、
+`proj.title as real_project_title` が取得できていなかった。
+BaseController.mapItemRow は `real_project_title` を参照するが、SQL結果に含まれないため
+常にNULLとなり、プロジェクト所属アイテムでも `projectTitle` が空になっていた。
 
-# 完了タスク (Previous Work)
-- [x] **初期UIリファインメント** <!-- id: 89 -->
-    - [x] 純粋GDBの実装 (判断のみ) <!-- id: 91 -->
-    - [x] Today画面の作成 (Execution分離) <!-- id: 93 -->
-    - [x] ナビゲーション追加 <!-- id: 95 -->
+### タスク
+- [x] 1. テスト作成（backend/tests/test_real_project_title_join.php）
+- [x] 2. GdbController.php: 4つのSQL全てに proj JOIN追加
+- [x] 3. TodayController.php: 3つのSQL全てに proj JOIN追加
+- [x] 4. ItemController.php: aggregated(2箇所), personal, company の4つのSQLに proj JOIN追加
+- [x] 5. CalendarController.php: getLoad, getItems の2つのSQLに proj JOIN追加 + カラム名にitems.プレフィックス追加
+- [x] 6. ビルド確認（tsc --noEmit OK, vite build OK）
+
+## Agent-右クリックメニュー統一 (2026-03-24)
+### 要件
+登録と集中画面（DashboardScreen）の右クリックメニューを全体一覧2（GlobalBoard）と同じメニュー項目にする。
+
+### 差分
+- GlobalBoard: 5項目（詳細/名前変更、プロジェクト化、今日やる、断る、完全削除）
+- DashboardScreen: 2項目（詳細/名前変更、削除）- legacyモード使用
+
+### タスク
+- [x] 1. 共通アクション生成関数 `buildItemContextMenuActions` を作成
+  - [x] 1-1. テスト作成（RED確認: モジュール未存在で失敗）
+  - [x] 1-2. 実装（GREEN確認: 5テスト全パス）
+- [x] 2. DashboardScreenのContextMenuをactionsモードに変更
+- [x] 3. GlobalBoardも共通関数を使うようにリファクタ
+- [x] 4. ビルド確認（tsc --noEmit OK, vite build OK, 回帰テスト6/6パス）
