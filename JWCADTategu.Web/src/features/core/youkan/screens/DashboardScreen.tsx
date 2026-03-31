@@ -225,7 +225,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 
 	return (
 		<div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
-			{(viewMode === 'calendar' || viewMode === 'panorama') && (
+			{viewMode === 'calendar' && (
 				<GanttHeader
 					visibleDate={visibleMonth}
 					onPrevMonth={() => {
@@ -291,7 +291,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 									onClose={() => handleViewModeChangeInternal('stream')}
 									projectId={activeProject?.cloudId}
 									rowHeight={ganttRowHeight}
-									hideHeader={true}
+									hideHeader={false}
 								/>
 							)}
 
