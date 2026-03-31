@@ -70,7 +70,9 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 	const result: HierarchicalWrapper[] = [];
 	const processedIds = new Set<string>();
 
-	const addRecursiveHierarchy = (containerId: string | null, depth: number, projectContext: Item | null) => {
+	const addRecursiveHierarchy = (containerId: string | null, rawDepth: number, projectContext: Item | null) => {
+		// showGroups=false（一覧モード）では全アイテムをフラット表示
+		const depth = showGroups ? rawDepth : 0;
 		const nContainerId = normalizeId(containerId);
 
 		// A. Add Sub-Tasks (Direct children of this container)

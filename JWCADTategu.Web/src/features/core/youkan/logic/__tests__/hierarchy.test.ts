@@ -165,6 +165,41 @@ describe('buildHierarchicalList（ガントチャート用）', () => {
     expect(items[0].depth).toBe(0);
   });
 
+  it('showGroups=falseで親子タスクも全てdepth=0（フラットリスト）', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const parentTask = makeItem('task-parent', null, 'proj-1');
+    const childTask = makeItem('task-child', 'task-parent', 'proj-1');
+    const result = buildHierarchicalList({
+      allItems: [parentTask, childTask],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const headers = result.filter(w => w.type === 'header');
+    const items = result.filter(w => w.type === 'item');
+    expect(headers.length).toBe(0);
+    expect(items.length).toBe(2);
+    items.forEach(item => {
+      expect(item.depth).toBe(0);
+    });
+  });
+
+  it('showGroups=falseで深いネスト（孫タスク）も全てdepth=0', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const parent = makeItem('task-1', null, 'proj-1');
+    const child = makeItem('task-2', 'task-1', 'proj-1');
+    const grandchild = makeItem('task-3', 'task-2', 'proj-1');
+    const result = buildHierarchicalList({
+      allItems: [parent, child, grandchild],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const items = result.filter(w => w.type === 'item');
+    expect(items.length).toBe(3);
+    items.forEach(item => {
+      expect(item.depth).toBe(0);
+    });
+  });
+
   it('showGroups切替でアイテム数は変わらない（ヘッダーのみ変化）', () => {
     const project = makeProjectItem('proj-1', 'プロジェクトA');
     const tasks = [
