@@ -326,8 +326,8 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 						<NavSection title="ダッシュボード" isActive={isDashboard} icon={<LayoutDashboard size={14} />}>
 							<div className="flex gap-1">
 								<SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
-								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
-								<SubNavTab label="全体一覧2" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
+								<SubNavTab label="状況把握" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
+								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
 							</div>
 						</NavSection>
 

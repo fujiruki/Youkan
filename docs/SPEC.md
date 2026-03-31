@@ -52,7 +52,7 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 
 - **フロントエンド**: React + TypeScript + Vite + Tailwind CSS で実装済み
 - **バックエンド**: PHP + SQLite で実装済み
-- **実装済み機能**: Stream View、Panorama View、Newspaper View、量感カレンダー、詳細モーダル、ドラッグ&ドロップ並べ替え（Morning Planning）、マルチテナント、プロジェクト管理、プラグインシステム（建具）
+- **実装済み機能**: Stream View（登録と集中）、Panorama View（状況把握）、Newspaper View（全体一覧）、量感カレンダー、詳細モーダル、ドラッグ&ドロップ並べ替え（Morning Planning）、マルチテナント、プロジェクト管理、プラグインシステム（建具）
 - **認証**: JWT認証（個人アカウント・会社アカウント）
 
 ---
