@@ -1,8 +1,15 @@
 # Youkan
 
-## Agent-ガントボタン修正 (scrollRef二重管理バグ)
+## Agent-バグ修正（総会表示+無限再帰）
 ### タスク
-- [x] 1. scrollContainerRef.current の全参照箇所を確認
-- [x] 2. テスト作成（RED）
-- [x] 3. 修正実装（GREEN）
-- [x] 4. ビルド確認（tsc --noEmit + vite build）
+- [x] バグ2調査: 無限再帰の原因特定（致命的・最優先）
+  - [x] 再帰関数の特定
+  - [x] 循環参照データの検出ロジック確認
+  - [x] テスト作成（RED）
+  - [x] 修正実装（GREEN）
+- [x] バグ1調査: 総会プロジェクト表示問題
+  - [x] ガントチャートのデータ取得フロー調査
+  - [x] projectTitleグルーピングロジック調査
+  - [x] テスト作成（RED） ※hierarchy.testに統合済み
+  - [x] 修正実装（GREEN）
+- [x] ビルド確認（tsc --noEmit + vite build）

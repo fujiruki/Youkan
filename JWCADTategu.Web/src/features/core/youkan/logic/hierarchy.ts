@@ -170,3 +170,91 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 
 	return result;
 };
+
+/**
+ * BucketColumn用: アイテム配列を親子関係でフラット化する。
+ * 循環参照を検出してスキップする。
+ */
+export const sortItemsHierarchically = (allItems: Item[]): { item: Item; depth: number }[] => {
+	const itemMap = new Map<string, Item>();
+	const childrenMap = new Map<string, Item[]>();
+	const roots: Item[] = [];
+
+	allItems.forEach(item => {
+		itemMap.set(item.id, item);
+		if (item.parentId && allItems.find(p => p.id === item.parentId)) {
+			if (!childrenMap.has(item.parentId)) childrenMap.set(item.parentId, []);
+			childrenMap.get(item.parentId)!.push(item);
+		} else {
+			roots.push(item);
+		}
+	});
+
+	const result: { item: Item; depth: number }[] = [];
+	const visited = new Set<string>();
+
+	const processItem = (item: Item, depth: number) => {
+		if (visited.has(item.id)) return;
+		visited.add(item.id);
+		result.push({ item, depth });
+		const children = childrenMap.get(item.id) || [];
+		children.forEach(child => processItem(child, depth + 1));
+	};
+
+	roots.forEach(root => processItem(root, 0));
+
+	// 循環参照でrootsに入らなかったアイテムをdepth 0で追加
+	allItems.forEach(item => {
+		if (!visited.has(item.id)) {
+			visited.add(item.id);
+			result.push({ item, depth: 0 });
+		}
+	});
+
+	return result;
+};
+
+/**
+ * ProjectRegistryScreen用: プロジェクト配列を親子関係でフラット化する。
+ * 循環参照を検出してスキップする。
+ */
+export const getHierarchicalProjects = <T extends { id?: number; parentId?: string }>(
+	projs: T[]
+): (T & { depth: number })[] => {
+	const result: (T & { depth: number })[] = [];
+	const visited = new Set<string>();
+
+	const rootProjects = projs.filter(p =>
+		!p.parentId || !projs.some(pp => String(pp.id) === String(p.parentId))
+	);
+
+	const addRecursive = (parentId: string, depth: number) => {
+		const children = projs.filter(p => String(p.parentId) === String(parentId));
+		children.forEach(child => {
+			const childId = String(child.id);
+			if (visited.has(childId)) return;
+			visited.add(childId);
+			result.push({ ...child, depth: depth + 1 });
+			addRecursive(childId, depth + 1);
+		});
+	};
+
+	rootProjects.forEach(root => {
+		const rootId = String(root.id);
+		if (visited.has(rootId)) return;
+		visited.add(rootId);
+		result.push({ ...root, depth: 0 });
+		addRecursive(rootId, 0);
+	});
+
+	// 循環参照でrootsにもchildrenにも入らなかったプロジェクトをdepth 0で追加
+	projs.forEach(p => {
+		const pid = String(p.id);
+		if (!visited.has(pid)) {
+			visited.add(pid);
+			result.push({ ...p, depth: 0 });
+		}
+	});
+
+	return result;
+};

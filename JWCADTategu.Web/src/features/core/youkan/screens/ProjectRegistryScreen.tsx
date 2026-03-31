@@ -5,7 +5,7 @@ import { Plus, Edit2, Trash2, Building2, Archive, LayoutGrid, MoreVertical, Cale
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
-
+import { getHierarchicalProjects } from '../logic/hierarchy';
 
 import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
@@ -39,27 +39,6 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 	const rawFilteredProjects = activeScope === 'company'
 		? projects.filter(p => p.tenantId)
 		: projects.filter(p => !p.tenantId);
-
-	// [NEW] Recursive hierarchy sorting
-	const getHierarchicalProjects = (projs: Project[]): (Project & { depth: number })[] => {
-		const result: (Project & { depth: number })[] = [];
-		const rootProjects = projs.filter(p => !p.parentId || !projs.some(pp => String(pp.id) === String(p.parentId)));
-
-		const addRecursive = (parentId: string, depth: number) => {
-			const children = projs.filter(p => String(p.parentId) === String(parentId));
-			children.forEach(child => {
-				result.push({ ...child, depth: depth + 1 });
-				addRecursive(String(child.id), depth + 1);
-			});
-		};
-
-		rootProjects.forEach(root => {
-			result.push({ ...root, depth: 0 });
-			addRecursive(String(root.id), 0);
-		});
-
-		return result;
-	};
 
 	const filteredProjects = getHierarchicalProjects(rawFilteredProjects);
 

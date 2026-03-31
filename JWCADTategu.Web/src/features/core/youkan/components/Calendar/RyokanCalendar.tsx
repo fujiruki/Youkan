@@ -401,20 +401,21 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 
 		let title = item.title;
 		const proj = projects.find(p => p.id === item.projectId);
-		if (proj) {
-			const shortProj = proj.name.substring(0, 4);
+		const projName = proj?.title || proj?.name || '';
+		// グループ表示中はヘッダーでプロジェクト名が表示されるため、タイトルには付加しない
+		if (proj && !showGroups) {
+			const shortProj = projName.substring(0, 4);
 			title = `${title} [${shortProj}]`;
 		}
 
 		// [Relaxed Privacy Logic]
-		// Check if item belongs to a tenant the user is a member of
 		if (!effectiveUserId ||
 			String(item.createdBy) === String(effectiveUserId) ||
 			String(item.assignedTo) === String(effectiveUserId) ||
 			isProjectContext) {
 			return title;
 		}
-		return `予定あり [${proj?.name.substring(0, 4) || '???'}]`;
+		return `予定あり [${projName.substring(0, 4) || '???'}]`;
 	};
 
 	const resetHighlights = () => {
@@ -705,7 +706,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 														</span>
 														{proj && (
 															<span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-																{proj.name}
+																{proj.title || proj.name}
 															</span>
 														)}
 													</div>
@@ -755,7 +756,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 														</span>
 														{proj && (
 															<span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-																{proj.name}
+																{proj.title || proj.name}
 															</span>
 														)}
 													</div>

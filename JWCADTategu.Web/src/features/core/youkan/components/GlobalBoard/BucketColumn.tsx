@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ItemCard } from './ItemCard';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
+import { sortItemsHierarchically } from '../../logic/hierarchy';
 
 interface BucketColumnProps {
     id: string; // 'inbox', 'ready', 'waiting', 'pending'
@@ -51,41 +52,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     const visibleItems = (expanded || isCompact) ? safeItems : safeItems.slice(0, MAX_VISIBLE);
     const hiddenCount = safeItems.length - MAX_VISIBLE;
 
-    // [NEW] Hierarchical Sorting Helper
-    const sortItemsHierarchically = (allItems: Item[]) => {
-        const itemMap = new Map<string, Item>();
-        const childrenMap = new Map<string, Item[]>();
-        const roots: Item[] = [];
-
-        // 1. Build Maps
-        allItems.forEach(item => {
-            itemMap.set(item.id, item);
-            if (item.parentId && allItems.find(p => p.id === item.parentId)) {
-                if (!childrenMap.has(item.parentId)) childrenMap.set(item.parentId, []);
-                childrenMap.get(item.parentId)!.push(item);
-            } else {
-                roots.push(item);
-            }
-        });
-
-        // 2. Flatten safely (Recursive)
-        const result: { item: Item; depth: number }[] = [];
-        const processItem = (item: Item, depth: number) => {
-            result.push({ item, depth });
-            const children = childrenMap.get(item.id) || [];
-            children.forEach(child => processItem(child, depth + 1));
-        };
-
-        roots.forEach(root => processItem(root, 0));
-        return result;
-    };
-
-    // Use hierarchical sort mainly for Panorama/Compact mode, 
-    // or always if we want hierarchy in standard view too.
-    // User requested specifically for Panorama ("Panorama Hierarchy").
-    // Let's apply it generally for now as it's cleaner, or strictly if isCompact.
-    // Given "Focus" view might rely on strict date ordering, maybe only for isCompact?
-    // Let's try applying to visibleItems.
+    // 階層ソート（循環参照防止付き）
 
     const sortedHierarchy = React.useMemo(() => sortItemsHierarchically(visibleItems), [visibleItems]);
 
