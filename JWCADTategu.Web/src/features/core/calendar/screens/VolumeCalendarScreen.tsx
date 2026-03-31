@@ -27,6 +27,13 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
 		return (localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) as any) || 'gantt';
 	});
+	const [showGanttGroups, setShowGanttGroups] = useState<boolean>(() => {
+		const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS);
+		return saved !== 'false';
+	});
+	useEffect(() => {
+		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
+	}, [showGanttGroups]);
 	const { filterMode } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
@@ -138,8 +145,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onOpenDailySettings={() => calendarRef.current?.openDailySettings(selectedDateForCapacity || new Date())}
 					rowHeight={24}
 					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
-					showGroups={true}
-					onShowGroupsChange={() => { }}
+					showGroups={showGanttGroups}
+					onShowGroupsChange={setShowGanttGroups}
 				/>
 			)}
 
@@ -167,6 +174,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 						}
 					}}
 					hideHeader={true}
+					showGroups={showGanttGroups}
 				/>
 			</div>
 

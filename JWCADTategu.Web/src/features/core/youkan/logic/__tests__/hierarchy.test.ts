@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortItemsHierarchically, getHierarchicalProjects } from '../hierarchy';
+import { sortItemsHierarchically, getHierarchicalProjects, buildHierarchicalList } from '../hierarchy';
 import { Item } from '../../types';
 
 const makeItem = (id: string, parentId?: string | null, projectId?: string | null): Item => ({
@@ -111,5 +111,81 @@ describe('getHierarchicalProjects（ProjectRegistry用）', () => {
     ];
     const result = getHierarchicalProjects(projects);
     expect(result.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('buildHierarchicalList（ガントチャート用）', () => {
+  const makeProjectItem = (id: string, title: string): Item => ({
+    id,
+    title,
+    status: 'inbox',
+    focusOrder: 0,
+    isEngaged: false,
+    statusUpdatedAt: 0,
+    interrupt: false,
+    weight: 2,
+    parentId: null,
+    projectId: null,
+    createdAt: 0,
+    updatedAt: 0,
+    memo: '',
+    due_date: '',
+    flags: {},
+    isProject: true,
+    type: 'project',
+  });
+
+  it('showGroups=trueでプロジェクトヘッダーが含まれる', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const task = makeItem('task-1', null, 'proj-1');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [project] as any,
+      showGroups: true,
+    });
+    const headers = result.filter(w => w.type === 'header');
+    const items = result.filter(w => w.type === 'item');
+    expect(headers.length).toBe(1);
+    expect(items.length).toBe(1);
+    expect(items[0].depth).toBe(1);
+  });
+
+  it('showGroups=falseでプロジェクトヘッダーが含まれない（一覧モード）', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const task = makeItem('task-1', null, 'proj-1');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const headers = result.filter(w => w.type === 'header');
+    const items = result.filter(w => w.type === 'item');
+    expect(headers.length).toBe(0);
+    expect(items.length).toBe(1);
+    expect(items[0].depth).toBe(0);
+  });
+
+  it('showGroups切替でアイテム数は変わらない（ヘッダーのみ変化）', () => {
+    const project = makeProjectItem('proj-1', 'プロジェクトA');
+    const tasks = [
+      makeItem('task-1', null, 'proj-1'),
+      makeItem('task-2', null, 'proj-1'),
+      makeItem('task-3'),
+    ];
+    const grouped = buildHierarchicalList({
+      allItems: tasks,
+      allProjects: [project] as any,
+      showGroups: true,
+    });
+    const flat = buildHierarchicalList({
+      allItems: tasks,
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const groupedItems = grouped.filter(w => w.type === 'item');
+    const flatItems = flat.filter(w => w.type === 'item');
+    expect(groupedItems.length).toBe(flatItems.length);
+    expect(grouped.filter(w => w.type === 'header').length).toBeGreaterThan(0);
+    expect(flat.filter(w => w.type === 'header').length).toBe(0);
   });
 });

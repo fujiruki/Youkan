@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ItemCard } from './ItemCard';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
-import { sortItemsHierarchically } from '../../logic/hierarchy';
+import { sortItemsHierarchically, buildHierarchicalList } from '../../logic/hierarchy';
 
 interface BucketColumnProps {
     id: string; // 'inbox', 'ready', 'waiting', 'pending'
@@ -19,9 +19,11 @@ interface BucketColumnProps {
     onClickItem?: (item: Item) => void; // [NEW]
     onCreateSubTask?: (parentId: string, title: string) => Promise<string | undefined>; // [NEW]
     inputRef?: React.RefObject<HTMLInputElement>;
-    isCompact?: boolean; // [NEW] Super Compact Mode
-    rowHeight?: number; // [NEW]
-    headerRight?: React.ReactNode; // [NEW]
+    isCompact?: boolean;
+    rowHeight?: number;
+    headerRight?: React.ReactNode;
+    showGroups?: boolean;
+    allProjects?: Item[];
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -36,9 +38,11 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     onContextMenu,
     onClickItem, // [NEW]
     onCreateSubTask, // [NEW]
-    isCompact = false, // [NEW]
+    isCompact = false,
     rowHeight = 12,
-    headerRight // [NEW]
+    headerRight,
+    showGroups = false,
+    allProjects = []
 }) => {
     const MAX_VISIBLE = 5;
     const [expanded, setExpanded] = React.useState(false);
@@ -53,8 +57,17 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     const hiddenCount = safeItems.length - MAX_VISIBLE;
 
     // 階層ソート（循環参照防止付き）
-
-    const sortedHierarchy = React.useMemo(() => sortItemsHierarchically(visibleItems), [visibleItems]);
+    // showGroups=trueの場合はプロジェクト別グルーピング（buildHierarchicalList）を使用
+    const sortedHierarchy = React.useMemo(() => {
+        if (showGroups && allProjects.length > 0) {
+            return buildHierarchicalList({
+                allItems: visibleItems,
+                allProjects,
+                showGroups: true,
+            }).map(w => ({ item: w.item, depth: w.depth, type: w.type }));
+        }
+        return sortItemsHierarchically(visibleItems).map(x => ({ ...x, type: 'item' as const }));
+    }, [visibleItems, showGroups, allProjects]);
 
     return (
         <div className={cn(
@@ -109,22 +122,35 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                     <>
                         <SortableContext
                             id={id}
-                            items={sortedHierarchy.map(x => x.item.id)}
+                            items={sortedHierarchy.filter(x => x.type !== 'header').map(x => x.item.id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {sortedHierarchy.map(({ item, depth }) => (
-                                <ItemCard
-                                    key={item.id}
-                                    item={item}
-                                    onRename={onRenameItem}
-                                    onContextMenu={onContextMenu}
-                                    onClick={() => onClickItem?.(item)}
-                                    isCompact={isCompact}
-                                    depth={depth} // [NEW] Pass depth
-                                    onCreateSubTask={onCreateSubTask} // [NEW] Connect function
-                                    rowHeight={rowHeight} // [FIX] Required for density sync
-                                />
-                            ))}
+                            {sortedHierarchy.map(({ item, depth, type }) => {
+                                if (type === 'header') {
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className="px-2 py-1 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 mt-1 first:mt-0"
+                                            style={{ paddingLeft: `${depth * 12 + 8}px` }}
+                                        >
+                                            {item.title || (item as any).name || 'Untitled'}
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <ItemCard
+                                        key={item.id}
+                                        item={item}
+                                        onRename={onRenameItem}
+                                        onContextMenu={onContextMenu}
+                                        onClick={() => onClickItem?.(item)}
+                                        isCompact={isCompact}
+                                        depth={depth}
+                                        onCreateSubTask={onCreateSubTask}
+                                        rowHeight={rowHeight}
+                                    />
+                                );
+                            })}
                         </SortableContext>
 
                         {/* Expand Trigger (View All) - Only for Standard Mode or if we want to limit in Compact? */}

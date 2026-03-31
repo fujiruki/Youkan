@@ -292,6 +292,8 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 									projectId={activeProject?.cloudId}
 									rowHeight={ganttRowHeight}
 									hideHeader={false}
+									showGroups={showGanttGroups}
+									onShowGroupsChange={setShowGanttGroups}
 								/>
 							)}
 

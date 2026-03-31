@@ -17,7 +17,7 @@ import { BucketColumn } from './BucketColumn';
 import { ItemCard } from './ItemCard';
 import { GentleMessage } from './GentleMessage';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
-import { AlertCircle, BookOpen, X } from 'lucide-react';
+import { AlertCircle, BookOpen, X, LayoutGrid, List } from 'lucide-react';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
@@ -33,10 +33,12 @@ import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 
 interface GlobalBoardProps {
 	onClose?: () => void;
-	initialLayoutMode?: 'standard' | 'panorama'; // [NEW]
-	projectId?: string; // [NEW] Filter for specific project
-	rowHeight?: number; // [NEW] Display density
-	hideHeader?: boolean; // [NEW]
+	initialLayoutMode?: 'standard' | 'panorama';
+	projectId?: string;
+	rowHeight?: number;
+	hideHeader?: boolean;
+	showGroups?: boolean;
+	onShowGroupsChange?: (value: boolean) => void;
 }
 
 export const YoukanBoard: React.FC<GlobalBoardProps> = ({
@@ -44,7 +46,9 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 	initialLayoutMode,
 	projectId,
 	rowHeight = 12,
-	hideHeader = false
+	hideHeader = false,
+	showGroups = true,
+	onShowGroupsChange
 }) => {
 	const vm = useYoukanViewModel(projectId);
 	const {
@@ -387,7 +391,31 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 							<span className="hidden md:inline">⚡ Today's Decision</span>
 							<span className="md:hidden">⚡</span>
 
-							{/* Consistently using DashboardScreen's header for View Mode switching */}
+							{/* プロジェクト別/一覧切替 (Panorama Only) */}
+							{layoutMode === 'panorama' && onShowGroupsChange && (
+								<div className="hidden md:flex items-center p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 ml-4">
+									<button
+										onClick={() => onShowGroupsChange(true)}
+										className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black ${showGroups
+											? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-600'
+											: 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+										}`}
+									>
+										<LayoutGrid size={14} strokeWidth={2.5} />
+										プロジェクト別
+									</button>
+									<button
+										onClick={() => onShowGroupsChange(false)}
+										className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black ${!showGroups
+											? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-600'
+											: 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+										}`}
+									>
+										<List size={14} strokeWidth={2.5} />
+										一覧
+									</button>
+								</div>
+							)}
 
 							{/* Density Slider (Panorama Only) */}
 							{layoutMode === 'panorama' && (
@@ -459,6 +487,8 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 									isCompact={layoutMode === 'panorama'}
 									rowHeight={rowHeight}
 									onCreateSubTask={vm.createSubTask}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
 									headerRight={
 										focusedProject ? (
 											<div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 border border-slate-200 dark:border-slate-600" >
@@ -522,15 +552,17 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 								<BucketColumn
 									id="waiting"
 									title="【待ち (Waiting)】"
-									items={gdbPreparation} // Mapped to Waiting
+									items={gdbPreparation}
 									description="他者や到着を待っている状態。"
 									className={layoutMode === 'panorama' ? "p-2" : "w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-0"}
 									emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">待ちなし</div>}
 									onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
 									onContextMenu={handleContextMenu}
 									isCompact={layoutMode === 'panorama'}
-									rowHeight={rowHeight} // [NEW]
+									rowHeight={rowHeight}
 									onCreateSubTask={vm.createSubTask}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
 								/>
 							</div>
 						</section>
@@ -544,15 +576,17 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 								<BucketColumn
 									id="pending"
 									title="【保留 (Pending)】"
-									items={gdbIntent} // Mapped to Pending
+									items={gdbIntent}
 									description="今はやらないと決めたもの（棚）。"
 									className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
 									emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}
 									onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
 									onContextMenu={handleContextMenu}
 									isCompact={layoutMode === 'panorama'}
-									rowHeight={rowHeight} // [NEW]
+									rowHeight={rowHeight}
 									onCreateSubTask={vm.createSubTask}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
 								/>
 							</div>
 						</section>
@@ -572,7 +606,9 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 									emptyMessage={<div className="p-4 text-center text-slate-300 text-xs">履歴なし</div>}
 									onContextMenu={handleContextMenu}
 									isCompact={layoutMode === 'panorama'}
-									rowHeight={rowHeight} // [NEW]
+									rowHeight={rowHeight}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
 								/>
 							</div>
 						</section>
