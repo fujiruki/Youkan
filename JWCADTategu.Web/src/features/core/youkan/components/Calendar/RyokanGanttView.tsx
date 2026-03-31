@@ -49,6 +49,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const headerContainerRef = useRef<HTMLDivElement>(null);
 	const isSyncing = useRef(false);
 
+	// scrollRefが渡された場合はそちらを優先する実効ref
+	const effectiveScrollRef = scrollRef || scrollContainerRef;
+
 
 	const colWidth = 24; // w-6 = 1.5rem = 24px
 
@@ -100,7 +103,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	// Sync Scroll Logic: Use native event listeners for better control
 	useEffect(() => {
 		const header = headerContainerRef.current;
-		const body = scrollContainerRef.current;
+		const body = effectiveScrollRef.current;
 
 		if (!header || !body) return;
 
@@ -148,18 +151,18 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 	// Scroll to date logic
 	const scrollToDate = (date: Date) => {
-		if (!scrollContainerRef.current) return;
+		if (!effectiveScrollRef.current) return;
 
 		// Find index of date in allDays
 		const index = allDays.findIndex(d => isSameDate(d, date));
 		if (index === -1) return;
 
 		const scrollPos = index * colWidth;
-		const containerWidth = scrollContainerRef.current.clientWidth;
+		const containerWidth = effectiveScrollRef.current.clientWidth;
 		// Center the date: (scrollPos) - (containerWidth / 2) + (colWidth / 2)
 		const centerOffset = containerWidth / 2 - colWidth / 2;
 
-		scrollContainerRef.current.scrollTo({
+		effectiveScrollRef.current.scrollTo({
 			left: Math.max(0, scrollPos - centerOffset),
 			behavior: 'smooth'
 		});
@@ -167,7 +170,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 	// [PHASE 24] Handle scroll to update visible month in header
 	useEffect(() => {
-		const container = scrollContainerRef.current;
+		const container = effectiveScrollRef.current;
 		if (!container || !onVisibleMonthChange) return;
 
 		const handleScroll = () => {
@@ -297,7 +300,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 			{/* Body */}
 			<div
-				ref={scrollRef || scrollContainerRef}
+				ref={effectiveScrollRef}
 				className="flex-1 overflow-auto overflow-x-auto relative min-h-0"
 			>
 				<div className="min-w-max pb-32 relative">

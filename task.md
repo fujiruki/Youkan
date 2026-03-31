@@ -1,10 +1,8 @@
 # Youkan
 
-## Agent-View名変更 (R-008)
+## Agent-ガントボタン修正 (scrollRef二重管理バグ)
 ### タスク
-- [x] タスク1: YoukanHeader.tsx のUIラベル変更
-  - [x] 1-1. 現在のラベル箇所の特定
-  - [x] 1-2. テスト作成（RED）: 「状況把握」「全体一覧」ラベル確認
-  - [x] 1-3. 実装（GREEN）: label="全体一覧"→"状況把握"、label="全体一覧2"→"全体一覧"
-- [x] タスク2: 他に「全体一覧」「全体一覧2」のUI文字列が残っていないか網羅的に確認・修正
-- [x] ビルド確認（tsc --noEmit + vite build）
+- [x] 1. scrollContainerRef.current の全参照箇所を確認
+- [x] 2. テスト作成（RED）
+- [x] 3. 修正実装（GREEN）
+- [x] 4. ビルド確認（tsc --noEmit + vite build）
