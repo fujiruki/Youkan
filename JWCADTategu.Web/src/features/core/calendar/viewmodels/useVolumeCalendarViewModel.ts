@@ -12,6 +12,7 @@ interface FilterProps {
 export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [items, setItems] = useState<Item[]>([]);
+	const [completedItems, setCompletedItems] = useState<Item[]>([]);
 	const [members, setMembers] = useState<any[]>([]);
 	const [projects, setProjects] = useState<any[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -30,17 +31,24 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 
 			// Build Query Params
 			let itemQuery = `/calendar/items?start_date=${start}&end_date=${end}`;
-			if (tenantId) itemQuery += `&tenantId=${tenantId}`;
-			if (projectId) itemQuery += `&projectId=${projectId}`;
+			let completedQuery = `/calendar/completed?start_date=${start}&end_date=${end}`;
+			if (tenantId) {
+				itemQuery += `&tenantId=${tenantId}`;
+				completedQuery += `&tenantId=${tenantId}`;
+			}
+			if (projectId) {
+				itemQuery += `&projectId=${projectId}`;
+			}
 
-			// Parallel fetch: Items, Members, Projects
-			const [fetchedItems, rawMembers, fetchedProjects] = await Promise.all([
+			const [fetchedItems, fetchedCompleted, rawMembers, fetchedProjects] = await Promise.all([
 				ApiClient.request<Item[]>('GET', itemQuery),
+				ApiClient.request<Item[]>('GET', completedQuery).catch(() => [] as Item[]),
 				ApiClient.request<any[]>('GET', '/members'),
 				ApiClient.request<any[]>('GET', '/projects')
 			]);
 
 			setItems(fetchedItems);
+			setCompletedItems(fetchedCompleted);
 			setMembers(rawMembers);
 			setProjects(fetchedProjects);
 
@@ -81,6 +89,7 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 		currentDate,
 		setCurrentDate,
 		items,
+		completedItems,
 		members,
 		projects,
 		loading,

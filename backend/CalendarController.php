@@ -199,12 +199,73 @@ class CalendarController extends BaseController {
         echo json_encode($result);
     }
 
+    /**
+     * 指定期間に完了したアイテムを取得
+     * Endpoint: /calendar/completed
+     * Params: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD)
+     */
+    public function getCompletedItems($params) {
+        $this->authenticate();
+
+        $startDate = $params['start_date'] ?? date('Y-m-01');
+        $endDate = $params['end_date'] ?? date('Y-m-t');
+
+        // Unixタイムスタンプに変換（日の開始と終了）
+        $startTs = strtotime($startDate . ' 00:00:00');
+        $endTs = strtotime($endDate . ' 23:59:59');
+
+        $tenantId = $params['tenantId'] ?? null;
+        $tenantClause = "";
+        $sqlParams = [$this->currentUserId, $this->currentUserId, $startTs, $endTs];
+
+        if ($tenantId) {
+            $tenantClause = " AND (items.tenant_id = ? OR items.tenant_id IS NULL) ";
+            $sqlParams[] = $tenantId;
+        }
+
+        $sql = "
+            SELECT
+                items.id, items.tenant_id, items.title, items.due_date, items.prep_date,
+                items.status, items.created_by, items.assigned_to, items.project_id,
+                items.completed_at, items.estimated_minutes, items.work_days,
+                proj.title as real_project_title
+            FROM items
+            LEFT JOIN items proj ON items.project_id = proj.id
+            WHERE
+                (items.assigned_to = ? OR (items.assigned_to IS NULL AND items.created_by = ?))
+                AND items.completed_at IS NOT NULL
+                AND items.completed_at >= ?
+                AND items.completed_at <= ?
+                $tenantClause
+                AND items.deleted_at IS NULL
+            ORDER BY items.completed_at DESC
+        ";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($sqlParams);
+        $rawItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $result = [];
+        foreach ($rawItems as $row) {
+            $item = $this->mapItemRow($row);
+            $isMine = ($item['created_by'] === $this->currentUserId || ($item['assignedTo'] ?? null) === $this->currentUserId);
+            $isSameCompany = in_array($item['tenant_id'], $this->joinedTenants);
+
+            if ($isMine || $isSameCompany) {
+                $result[] = $item;
+            }
+        }
+
+        echo json_encode($result);
+    }
+
     public function handleRequest($method, $id = null) {
         $params = $_GET;
-        if (preg_match('#/items$#', $_SERVER['REQUEST_URI'])) {
+        if (preg_match('#/completed$#', $_SERVER['REQUEST_URI'])) {
+            $this->getCompletedItems($params);
+        } elseif (preg_match('#/items$#', $_SERVER['REQUEST_URI'])) {
             $this->getItems($params);
         } else {
-            // Default load
             echo json_encode($this->getLoad($params));
         }
     }

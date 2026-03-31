@@ -23,13 +23,14 @@ interface CalendarCellProps {
     renderItemTitle: (item: Item) => string;
     volumeOnly?: boolean;
     isTarget?: boolean;
-    targetItem?: Item; // [NEW] Explicit item for overlay
+    targetItem?: Item;
     rowHeight?: number;
+    completedCount?: number;
 }
 
 export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
-    volumeOnly = false, isTarget = false, targetItem, rowHeight
+    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -123,6 +124,14 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                         >
                             {isMini ? format(date, 'MM/dd') : date.getDate()}
                         </span>
+                        {completedCount > 0 && !isMini && (
+                            <span
+                                className="ml-0.5 px-1 py-px rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-[8px] font-black text-emerald-600 dark:text-emerald-400 leading-none"
+                                title={`${completedCount}件完了`}
+                            >
+                                {completedCount}
+                            </span>
+                        )}
                     </div>
                 </div>
 

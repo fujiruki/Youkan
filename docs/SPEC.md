@@ -7,9 +7,7 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 
 ---
 
-## 仕様書一覧
-
-### コア仕様書（`spec/`）
+## 仕様書一覧（`spec/`）
 
 | # | ファイル | 概要 | 最終更新 |
 |:--|:--|:--|:--|
@@ -20,32 +18,33 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 | 05 | [技術設計](spec/05_技術設計.md) | 技術スタック・アーキテクチャ | 2026-03-24 |
 | 06 | [変更履歴](spec/06_変更履歴.md) | 仕様変更の経緯と理由 | 2026-03-24 |
 
-### 旧仕様書（参照用）
+---
 
-| ファイル | 概要 | 備考 |
-|:--|:--|:--|
-| [spec/00_MASTER_SPEC.md](spec/00_MASTER_SPEC.md) | 旧JBWOS統合定義書 v3.4 | SdDD導入前の「憲法」。内容は新spec/*.mdに統合済み |
-| [spec/01_STATE_MATRIX.md](spec/01_STATE_MATRIX.md) | 旧アイテム状態定義表 | 04_データ設計.mdに統合済み |
-| [spec/02_VIEW_DEFINITIONS.md](spec/02_VIEW_DEFINITIONS.md) | 旧画面・表示仕様 | 03_画面設計.mdに統合済み |
-| [spec/03_MORNING_PLANNING.md](spec/03_MORNING_PLANNING.md) | 朝の段取りビュー仕様 | 02_機能仕様.mdに統合済み |
-| [SPEC/](SPEC/) | 大文字SPECディレクトリ | spec/と同内容。spec/を正とする |
-
-### 要望管理
+## 要望管理
 
 | ファイル | 役割 |
 |:--|:--|
 | [requests.md](requests.md) | 未対応の要望一覧 |
 | [request_log.md](request_log.md) | 全リクエストの対応履歴 |
 
-### 設計参照資料（`00_Vision/`）
+---
+
+## 開発ルール
 
 | ファイル | 内容 |
 |:--|:--|
-| [00_Vision/System_Grand_Design.md](00_Vision/System_Grand_Design.md) | グランドデザイン（3層構造・マルチテナント） |
-| [00_Vision/SYSTEM_PHILOSOPHY_AND_VISION.md](00_Vision/SYSTEM_PHILOSOPHY_AND_VISION.md) | 思想と全体像（アカウントモデル・フィルタ定義） |
-| [00_Vision/JBWOS_TERMINOLOGY_DICTIONARY.md](00_Vision/JBWOS_TERMINOLOGY_DICTIONARY.md) | 用語辞典 |
-| [00_Vision/Capacity_Management_Spec.md](00_Vision/Capacity_Management_Spec.md) | キャパシティ管理仕様 |
-| [00_Vision/User_Voices/](00_Vision/User_Voices/) | 晴樹の要望・仕様議論の記録 |
+| [sddd/rules.md](sddd/rules.md) | SdDDワークフロー・役割定義・禁止事項 |
+
+---
+
+## 参照資料（`reference/`）
+
+| ファイル | 内容 |
+|:--|:--|
+| [reference/vision/](reference/vision/) | グランドデザイン・用語辞典・思想 |
+| [reference/decisions/](reference/decisions/) | AI会議判例集 |
+| [reference/naming_convention.md](reference/naming_convention.md) | 命名規約 |
+| [reference/user_voices_oral/](reference/user_voices_oral/) | 晴樹の口頭要望原文 |
 
 ---
 
@@ -68,15 +67,14 @@ Youkan/
 │       ├── features/plugins/       # プラグイン（建具・顧客・製造）
 │       └── ...
 ├── backend/              # バックエンド（PHP + SQLite）
-│   ├── ItemController.php
-│   ├── TodayController.php
-│   ├── CalendarController.php
-│   └── ...
 ├── docs/                 # 仕様書群
 │   ├── SPEC.md           # ← このファイル（目次）
-│   ├── spec/             # コア仕様書
+│   ├── spec/             # SdDD仕様書（01〜06）
+│   ├── sddd/rules.md     # SdDDルール
 │   ├── requests.md       # 未対応要望
 │   ├── request_log.md    # 対応履歴
-│   └── 00_Vision/        # 設計思想・参照資料
-└── ...
+│   ├── handover/         # Agent引き継ぎ
+│   ├── reference/        # 参照資料
+│   └── 99_Archive/       # 旧ドキュメント（SdDD導入前）
+└── task.md               # 現在のタスク進捗
 ```

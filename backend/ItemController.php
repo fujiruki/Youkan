@@ -756,7 +756,11 @@ class ItemController extends BaseController {
             $this->pdo->prepare("UPDATE items SET status_updated_at = ? WHERE id = ?")
                 ->execute([time(), $id]);
             if ($data['status'] === 'done') {
-                $this->pdo->prepare("UPDATE items SET is_intent = 0 WHERE id = ?")
+                $this->pdo->prepare("UPDATE items SET is_intent = 0, completed_at = ? WHERE id = ?")
+                    ->execute([time(), $id]);
+            } else {
+                // done以外に戻した場合、completed_atをNULLにリセット
+                $this->pdo->prepare("UPDATE items SET completed_at = NULL WHERE id = ?")
                     ->execute([$id]);
             }
         }

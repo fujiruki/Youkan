@@ -4,6 +4,7 @@ import {
 	closestCenter,
 	KeyboardSensor,
 	PointerSensor,
+	TouchSensor,
 	useSensor,
 	useSensors,
 	DragEndEvent,
@@ -34,14 +35,27 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, index, onClick, onCon
 		listeners,
 		setNodeRef,
 		transform,
-		transition,
 		isDragging,
-	} = useSortable({ id: item.id });
+	} = useSortable({ id: item.id, transition: null });
 
-	const style = {
+	const [justDropped, setJustDropped] = React.useState(false);
+	const wasDragging = React.useRef(false);
+
+	React.useEffect(() => {
+		if (isDragging) {
+			wasDragging.current = true;
+		} else if (wasDragging.current) {
+			wasDragging.current = false;
+			setJustDropped(true);
+			const timer = setTimeout(() => setJustDropped(false), 500);
+			return () => clearTimeout(timer);
+		}
+	}, [isDragging]);
+
+	const style: React.CSSProperties = {
 		transform: CSS.Transform.toString(transform),
-		transition,
 		opacity: isDragging ? 0.5 : 1,
+		touchAction: 'none',
 	};
 
 	return (
@@ -50,7 +64,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ item, index, onClick, onCon
 			style={style}
 			data-sortable-item
 			data-testid="sortable-card"
-			className="flex items-center gap-0 cursor-grab active:cursor-grabbing"
+			className={`flex items-center gap-0 cursor-grab active:cursor-grabbing transition-colors duration-500 ${justDropped ? 'bg-amber-100' : ''}`}
 			{...attributes}
 			{...listeners}
 		>
@@ -93,6 +107,12 @@ export const SortableFocusQueue: React.FC<SortableFocusQueueProps> = ({
 		useSensor(PointerSensor, {
 			activationConstraint: {
 				distance: 5,
+			},
+		}),
+		useSensor(TouchSensor, {
+			activationConstraint: {
+				delay: 250,
+				tolerance: 5,
 			},
 		}),
 		useSensor(KeyboardSensor, {

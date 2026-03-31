@@ -3,6 +3,7 @@ import { Item } from '../../types';
 import { QuantityEngine } from '../../logic/QuantityEngine';
 import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
 import { safeParseDate, normalizeDateKey, safeFormat } from '../../logic/dateUtils';
 import { RyokanGridView } from './RyokanGridView';
@@ -28,7 +29,7 @@ const getStartOfToday = () => {
 
 
 export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
-	items, onItemClick, capacityConfig, members,
+	items, completedItems = [], onItemClick, capacityConfig, members,
 	layoutMode = 'panorama', displayMode: propDisplayMode, filterMode: _filterMode = 'all',
 	onSelectDate, selectedDate, prepDate, focusDate,
 	workDays = 1,
@@ -68,6 +69,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const [pendingScrollTarget, setPendingScrollTarget] = useState<Date | null>(null); // [FIX] Reactのライフサイクルに同期したスクロール用
 
 	const [selectedSigns, setSelectedSigns] = useState<Item[]>([]);
+	const [selectedDateCompleted, setSelectedDateCompleted] = useState<{ date: Date; items: Item[] } | null>(null);
 	const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
 	const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
 
@@ -103,18 +105,93 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 	}, [displayMode]);
 
+	// [R-007] 今月を中央にスクロール（横: 月全体を中央、縦: 関連アイテム群を中央）
+	const scrollToCurrentMonthCenter = useCallback(() => {
+		if (!scrollContainerRef.current) return;
+		const container = scrollContainerRef.current;
+		const now = new Date();
+
+		if (displayMode === 'gantt') {
+			// 横方向: 今月の1日〜末日の中央をビューポート中央に
+			const monthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+			const monthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+			const firstKey = normalizeDateKey(monthFirstDay);
+			const lastKey = normalizeDateKey(monthLastDay);
+
+			const firstEl = container.querySelector(`[data-gantt-date="${firstKey}"]`);
+			const lastEl = container.querySelector(`[data-gantt-date="${lastKey}"]`);
+
+			if (firstEl) {
+				const containerRect = container.getBoundingClientRect();
+				const firstRect = firstEl.getBoundingClientRect();
+				const lastRect = lastEl ? lastEl.getBoundingClientRect() : firstRect;
+
+				const monthCenterX = (firstRect.left + lastRect.right) / 2;
+				const viewportCenterX = containerRect.left + containerRect.width / 2;
+				const horizontalScroll = container.scrollLeft + (monthCenterX - viewportCenterX);
+				container.scrollTo({ left: Math.max(0, horizontalScroll), behavior: 'smooth' });
+			}
+
+			// 縦方向: 今月が目安期間に含まれるアイテム群の中央を表示
+			const allItemRows = container.querySelectorAll('.flex.h-10.border-b');
+			if (allItemRows.length > 0) {
+				const matchingRows: HTMLElement[] = [];
+				allItemRows.forEach((row) => {
+					// 行内の割当チップやマーカーから今月の日付を探す
+					const ganttCells = row.querySelectorAll(`[data-gantt-date]`);
+					let hasCurrentMonth = false;
+					ganttCells.forEach((cell) => {
+						const dateStr = cell.getAttribute('data-gantt-date');
+						if (!dateStr) return;
+						const [y, m] = dateStr.split('-').map(Number);
+						if (y === now.getFullYear() && m === now.getMonth() + 1) {
+							// セルに割当チップやマーカーがあるか確認
+							if (cell.querySelector('.bg-indigo-500, .bg-indigo-600, .bg-indigo-400, .bg-red-500')) {
+								hasCurrentMonth = true;
+							}
+						}
+					});
+					if (hasCurrentMonth) {
+						matchingRows.push(row as HTMLElement);
+					}
+				});
+
+				if (matchingRows.length > 0) {
+					const firstRow = matchingRows[0];
+					const lastRow = matchingRows[matchingRows.length - 1];
+					const groupCenterY = (firstRow.offsetTop + lastRow.offsetTop + lastRow.offsetHeight) / 2;
+					const verticalScroll = groupCenterY - container.clientHeight / 2;
+					container.scrollTo({ top: Math.max(0, verticalScroll), behavior: 'smooth' });
+				}
+			}
+		} else {
+			// Grid/Timeline: 従来のスクロール
+			scrollToDateElement(now);
+		}
+	}, [displayMode, scrollToDateElement]);
+
 	useImperativeHandle(calendarRef, () => ({
 		scrollToMonth: (year: number, month: number) => {
 			const targetDate = new Date(year, month, 15); // Middle of target month
 			setPendingScrollTarget(targetDate);
 		},
 		scrollToToday: () => {
-			setPendingScrollTarget(new Date());
+			// [R-007] 「今月を表示」は今月全体を中央にスクロール
+			const now = new Date();
+			const monthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+			// rangeが今月を含まない場合はrangeを拡張してから再試行
+			if (range && (monthFirstDay < range.start || monthFirstDay > range.end)) {
+				setPendingScrollTarget(now);
+			}
+			// DOMの更新後にスクロール実行
+			requestAnimationFrame(() => {
+				scrollToCurrentMonthCenter();
+			});
 		},
 		openDailySettings: (date?: Date) => {
 			setEditingDate(date || new Date());
 		}
-	}), []);
+	}), [scrollToCurrentMonthCenter, range]);
 
 	// [FIX] Initialize range with current month +/- 2 months (Total 5 months)
 	React.useEffect(() => {
@@ -206,6 +283,19 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			setPendingScrollTarget(null);
 		}
 	}, [pendingScrollTarget, allDays, range, scrollToDateElement]);
+
+	// 完了タスクを日付キー別にグループ化
+	const completedByDate = useMemo(() => {
+		const map = new Map<string, Item[]>();
+		for (const item of completedItems) {
+			if (!item.completedAt) continue;
+			const d = new Date(item.completedAt * 1000);
+			const key = normalizeDateKey(d);
+			if (!map.has(key)) map.set(key, []);
+			map.get(key)!.push(item);
+		}
+		return map;
+	}, [completedItems]);
 
 	// [NEW Phase 24] Track visible month from scroll position
 	const lastReportedMonthRef = useRef<string>('');
@@ -331,6 +421,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		setPressureConnections([]);
 		setFlashingItemIds(new Set());
 		setSelectedSigns([]);
+		setSelectedDateCompleted(null);
 	};
 
 	const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => {
@@ -338,14 +429,16 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		const metric = metrics.get(dateKey);
 		const signs = metric?.contributingItems || [];
 
-		// [NEW] Separate handling for specific date number click (List View)
+		// 日付クリック時: 負荷内訳 + 完了タスクを表示
 		if (actionType === 'dateClick') {
+			const dateCompletedItems = completedByDate.get(dateKey) || [];
+			if (dateCompletedItems.length > 0 || signs.length > 0) {
+				setSelectedSigns(signs);
+				setSelectedDateCompleted(dateCompletedItems.length > 0 ? { date, items: dateCompletedItems } : null);
+				setPressureConnections([]);
+			}
 			if (onDateClick) {
 				onDateClick(date);
-			} else {
-				// Fallback for Main Screen: Double click behavior (Breakdown)
-				setSelectedSigns(signs);
-				setPressureConnections([]);
 			}
 			return;
 		}
@@ -361,7 +454,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 
 		if (actionType === 'doubleClick') {
+			const dateCompletedItems = completedByDate.get(dateKey) || [];
 			setSelectedSigns(signs);
+			setSelectedDateCompleted(dateCompletedItems.length > 0 ? { date, items: dateCompletedItems } : null);
 			setPressureConnections([]);
 			return;
 		}
@@ -534,6 +629,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						volumeOnly={volumeOnly}
 						targetItemId={targetItemId}
 						rowHeight={rowHeight}
+						completedByDate={completedByDate}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -565,62 +661,125 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				)}
 			</div>
 
-			{selectedSigns.length > 0 && (
+			{(selectedSigns.length > 0 || selectedDateCompleted) && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
 					<div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[80vh]">
 						<div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 sticky top-0">
 							<div>
-								<h3 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">負荷内訳</h3>
-								<p className="text-sm text-slate-400 font-bold mt-1">選択された日の影響要因</p>
+								<h3 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+									{selectedDateCompleted ? '日の振り返り' : '負荷内訳'}
+								</h3>
+								<p className="text-sm text-slate-400 font-bold mt-1">
+									{selectedDateCompleted
+										? `${format(selectedDateCompleted.date, 'M月d日', { locale: ja })}の記録`
+										: '選択された日の影響要因'
+									}
+								</p>
 							</div>
-							<button onClick={() => setSelectedSigns([])} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
+							<button onClick={resetHighlights} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all">
 								<X className="w-6 h-6 text-slate-400" />
 							</button>
 						</div>
 						<div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-							{selectedSigns.map((item: Item) => {
-								const proj = projects.find(p => p.id === item.projectId);
-								return (
-									<div
-										key={item.id}
-										onClick={() => { onItemClick?.(item); setSelectedSigns([]); }}
-										className={cn(
-											"group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer bg-white dark:bg-slate-900 border-l-4 shadow-sm",
-											item.status === 'focus' ? "border-l-orange-400" :
-												item.status === 'done' ? "border-l-emerald-400" :
-													item.status === 'waiting' ? "border-l-amber-400" : "border-l-slate-300"
-										)}
-									>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2 mb-0.5">
-												<span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-													{item.title}
-												</span>
-												{proj && (
-													<span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-														{proj.name}
-													</span>
-												)}
-											</div>
-											<div className="flex items-center gap-3">
-												{item.due_date && (
-													<span className="text-[10px] text-slate-400 flex items-center gap-1">
-														期限: {safeFormat(item.due_date, 'MM/dd')}
-													</span>
-												)}
-												{item.estimatedMinutes && (
-													<span className="text-[10px] text-slate-400 flex items-center gap-1">
-														工数: {Math.round(item.estimatedMinutes / 60 * 10) / 10}h
-													</span>
-												)}
-											</div>
-										</div>
-										<div className="opacity-0 group-hover:opacity-100 transition-opacity">
-											<ChevronRight size={16} className="text-indigo-500" />
-										</div>
+							{/* 完了タスクセクション */}
+							{selectedDateCompleted && selectedDateCompleted.items.length > 0 && (
+								<>
+									<div className="flex items-center gap-2 px-1 pt-1 pb-2">
+										<div className="w-2 h-2 rounded-full bg-emerald-500" />
+										<span className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+											完了 ({selectedDateCompleted.items.length})
+										</span>
 									</div>
-								);
-							})}
+									{selectedDateCompleted.items.map((item: Item) => {
+										const proj = projects.find(p => p.id === item.projectId);
+										return (
+											<div
+												key={item.id}
+												onClick={() => { onItemClick?.(item); resetHighlights(); }}
+												className="group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-all cursor-pointer bg-white dark:bg-slate-900 border-l-4 border-l-emerald-400 shadow-sm"
+											>
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-2 mb-0.5">
+														<span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+															{item.title}
+														</span>
+														{proj && (
+															<span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+																{proj.name}
+															</span>
+														)}
+													</div>
+													{item.completedAt && (
+														<span className="text-[10px] text-emerald-500 flex items-center gap-1">
+															完了: {format(new Date(item.completedAt * 1000), 'HH:mm')}
+														</span>
+													)}
+												</div>
+												<div className="opacity-0 group-hover:opacity-100 transition-opacity">
+													<ChevronRight size={16} className="text-emerald-500" />
+												</div>
+											</div>
+										);
+									})}
+								</>
+							)}
+
+							{/* 負荷タスクセクション */}
+							{selectedSigns.length > 0 && (
+								<>
+									{selectedDateCompleted && (
+										<div className="flex items-center gap-2 px-1 pt-3 pb-2 border-t border-slate-100 dark:border-slate-800 mt-2">
+											<div className="w-2 h-2 rounded-full bg-indigo-500" />
+											<span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+												負荷 ({selectedSigns.length})
+											</span>
+										</div>
+									)}
+									{selectedSigns.map((item: Item) => {
+										const proj = projects.find(p => p.id === item.projectId);
+										return (
+											<div
+												key={item.id}
+												onClick={() => { onItemClick?.(item); resetHighlights(); }}
+												className={cn(
+													"group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer bg-white dark:bg-slate-900 border-l-4 shadow-sm",
+													item.status === 'focus' ? "border-l-orange-400" :
+														item.status === 'done' ? "border-l-emerald-400" :
+															item.status === 'waiting' ? "border-l-amber-400" : "border-l-slate-300"
+												)}
+											>
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-2 mb-0.5">
+														<span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+															{item.title}
+														</span>
+														{proj && (
+															<span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+																{proj.name}
+															</span>
+														)}
+													</div>
+													<div className="flex items-center gap-3">
+														{item.due_date && (
+															<span className="text-[10px] text-slate-400 flex items-center gap-1">
+																期限: {safeFormat(item.due_date, 'MM/dd')}
+															</span>
+														)}
+														{item.estimatedMinutes && (
+															<span className="text-[10px] text-slate-400 flex items-center gap-1">
+																工数: {Math.round(item.estimatedMinutes / 60 * 10) / 10}h
+															</span>
+														)}
+													</div>
+												</div>
+												<div className="opacity-0 group-hover:opacity-100 transition-opacity">
+													<ChevronRight size={16} className="text-indigo-500" />
+												</div>
+											</div>
+										);
+									})}
+								</>
+							)}
 						</div>
 					</div>
 				</div>

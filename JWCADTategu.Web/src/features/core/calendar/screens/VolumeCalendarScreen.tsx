@@ -42,10 +42,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
 	const {
 		currentDate, setCurrentDate,
-		items: rawItems, members, projects, loading, error,
+		items: rawItems, completedItems, members, projects, loading, error,
 		handlePrevMonth, handleNextMonth, refresh,
-		capacityConfig, // [NEW]
-		handleUpdateCapacityException // [NEW Phase 24] Save
+		capacityConfig,
+		handleUpdateCapacityException
 	} = useVolumeCalendarViewModel({
 		projectId: activeProjectId,
 		tenantId: activeTenantId
@@ -147,6 +147,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 				<RyokanCalendar
 					ref={calendarRef}
 					items={items || []}
+					completedItems={completedItems || []}
 					members={members || []}
 					projects={projects || []}
 					focusedProjectId={activeProjectId}
@@ -156,10 +157,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					displayMode={viewMode}
 					focusDate={currentDate}
 					onUpdateItem={handleUpdate}
-					capacityConfig={capacityConfig} // [NEW]
-					onUpdateCapacityException={handleUpdateCapacityException} // [NEW Phase 24]
-					joinedTenants={auth.joinedTenants} // [NEW]
-					onDateClick={setSelectedDateForCapacity} // [NEW] Track selected date for DailySettings
+					capacityConfig={capacityConfig}
+					onUpdateCapacityException={handleUpdateCapacityException}
+					joinedTenants={auth.joinedTenants}
+					onDateClick={setSelectedDateForCapacity}
 					onVisibleMonthChange={(date) => {
 						if (isValid(date) && (date.getMonth() !== currentDate.getMonth() || date.getFullYear() !== currentDate.getFullYear())) {
 							setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));

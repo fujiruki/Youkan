@@ -163,6 +163,9 @@ export interface Item {
     createdAt: number;
     updatedAt: number;
 
+    // --- Completion ---
+    completedAt?: number | null; // 完了日時（Unixタイムスタンプ）
+
     // --- Archive & Trash ---
     isArchived?: boolean;    // [NEW]
     deletedAt?: number | null; // [NEW] If set, it's in trash

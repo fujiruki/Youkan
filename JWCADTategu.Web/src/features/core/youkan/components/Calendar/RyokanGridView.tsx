@@ -27,11 +27,12 @@ interface GridViewProps {
     renderItemTitle: (item: Item) => string;
     pressureConnections?: PressureConnection[];
     onBackgroundClick?: () => void;
-    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void; // [NEW] Loop back for infinite scroll
+    onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
     flashingIds: Set<string>;
     volumeOnly?: boolean;
     targetItemId?: string;
     rowHeight?: number;
+    completedByDate?: Map<string, Item[]>;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -43,7 +44,8 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     flashingIds,
     volumeOnly = false,
     targetItemId,
-    rowHeight
+    rowHeight,
+    completedByDate
 }) => {
     return (
         <div
@@ -122,6 +124,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 isTarget={isTarget}
                                 targetItem={targetItem}
                                 rowHeight={rowHeight}
+                                completedCount={completedByDate?.get(dateKey)?.length || 0}
                             />
                         );
                     })}

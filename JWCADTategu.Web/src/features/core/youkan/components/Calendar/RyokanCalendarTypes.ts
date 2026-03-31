@@ -12,6 +12,7 @@ export interface PressureConnection {
 
 export interface RyokanCalendarProps {
     items: Item[];
+    completedItems?: Item[];
     onItemClick?: (item: Item) => void;
     capacityConfig?: CapacityConfig;
     members?: Member[];

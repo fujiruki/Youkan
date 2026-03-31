@@ -165,6 +165,7 @@ class BaseController {
 
         // Dates & Trash
         $item['deletedAt'] = isset($item['deleted_at']) ? (int)$item['deleted_at'] : null;
+        $item['completedAt'] = isset($item['completed_at']) ? (int)$item['completed_at'] : null;
         $item['prep_date'] = isset($item['prep_date']) ? (int)$item['prep_date'] : null;
         $item['work_days'] = (int)($item['work_days'] ?? 1);
 
