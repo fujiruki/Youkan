@@ -161,7 +161,7 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="w-full pl-3 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-800 focus:border-blue-300 transition-all text-sm"
+                    className="w-full pl-[0.7em] pr-[2.5em] py-[0.4em] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-800 focus:border-blue-300 transition-all text-[1em]"
                 />
                 <button
                     type="submit"

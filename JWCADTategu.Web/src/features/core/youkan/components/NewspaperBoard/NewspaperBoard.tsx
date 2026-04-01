@@ -104,7 +104,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 						columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
 						fontSize: `${fontSize}px`,
 						// [FIX] Layout: Ensure content flows horizontally
-						columnWidth: `${fontSize * 25}px`,
+						columnWidth: `${fontSize * 15}px`,
 						width: 'max-content',
 						minWidth: '100%'
 					}}
