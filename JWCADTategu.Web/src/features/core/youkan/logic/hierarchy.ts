@@ -1,5 +1,5 @@
 import { Item } from '../types';
-import { compareGeneralList2Items, getProjectUrgencyScore } from './sorting';
+import { compareGeneralList2Items, compareGanttListItems, getProjectUrgencyScore } from './sorting';
 
 export interface HierarchyOptions {
 	activeProjectId?: string | null;
@@ -168,6 +168,14 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 		addRecursiveHierarchy(activeProj.id + '', (showGroups ? 1 : 0), activeProj);
 	} else {
 		addRecursiveHierarchy(null, 0, null);
+	}
+
+	// showGroups=false（一覧モード）では全アイテムを期限ベースで再ソート
+	if (!showGroups) {
+		result.sort((a, b) => {
+			if (a.type !== b.type) return a.type === 'header' ? -1 : 1;
+			return compareGanttListItems(a.item, b.item);
+		});
 	}
 
 	return result;

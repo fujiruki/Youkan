@@ -81,7 +81,8 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			/>
 		);
 
-		expect(screen.getByTestId('project-label-task-1')).toHaveTextContent('ウェブサイト構築');
+		const label = screen.getByTestId('project-label-task-1');
+		expect(label).toHaveTextContent('[ウェブサイト構築]');
 		expect(screen.queryByTestId('project-label-task-2')).toBeNull();
 	});
 
@@ -101,6 +102,27 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 		);
 
 		expect(screen.queryByTestId('project-label-task-1')).toBeNull();
+	});
+
+	it('item.projectTitleがwrapper.project.titleより優先される（別テナント混入防止）', () => {
+		// バックエンドのJOINで正しいプロジェクト名がprojectTitleに入っている場合、
+		// hierarchy.tsのprojectContextよりもprojectTitleを優先する
+		const projects = [makeProject('prj-1', '総会')];
+		const items = [
+			{ ...makeItem('task-1', 'テスト作業', 'prj-1'), projectTitle: '佐礼谷プロジェクト' },
+		];
+
+		render(
+			<RyokanGanttView
+				{...defaultProps}
+				items={items}
+				projects={projects}
+				showGroups={false}
+			/>
+		);
+
+		const label = screen.getByTestId('project-label-task-1');
+		expect(label).toHaveTextContent('[佐礼谷プロジェクト]');
 	});
 
 	it('showGroups=false でプロジェクトに属さないアイテムにはプロジェクト名が表示されない', () => {

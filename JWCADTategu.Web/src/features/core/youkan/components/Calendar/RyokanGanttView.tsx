@@ -365,15 +365,17 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											title="クリックで納期へスクロール"
 										>
 											{depth > 0 && <span className="text-slate-400 mr-1">└</span>}
-											<span className="truncate">{renderItemTitle(item)}</span>
-											{!showGroups && wrapper.project && (
-												<span
-													data-testid={`project-label-${item.id}`}
-													className="ml-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-normal whitespace-nowrap"
-												>
-													{wrapper.project.title || (wrapper.project as any).name}
-												</span>
-											)}
+											<span className="truncate">
+												{renderItemTitle(item)}
+												{!showGroups && (item.projectTitle || wrapper.project) && (
+													<span
+														data-testid={`project-label-${item.id}`}
+														className="ml-1 text-[10px] text-slate-400 dark:text-slate-500 font-normal whitespace-nowrap"
+													>
+														[{item.projectTitle || wrapper.project?.title || (wrapper.project as any)?.name}]
+													</span>
+												)}
+											</span>
 										</div>
 										{hoveredItemId === item.id && (
 											<button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors">

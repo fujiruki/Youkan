@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore } from '../sorting';
+import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore, compareGanttListItems } from '../sorting';
 import { Item } from '../../types';
 
 // Helper to create mock items
@@ -174,6 +174,54 @@ describe('Sorting Logic', () => {
             expect(compareGeneralList2Items(itemA, itemB)).toBeLessThan(0); // A before B
         });
 
+        it('sorts No Deadline before Has Deadline', () => {
+            const noDead = mockItem({ title: 'No Dead' });
+            const hasDead = mockItem({ title: 'Has Dead', due_date: '2026-01-01' });
+            expect(compareGeneralList2Items(noDead, hasDead)).toBeLessThan(0);
+        });
+    });
+
+    describe('compareGanttListItems（ガント一覧モード用ソート）', () => {
+        it('納期もマイ期限もないアイテムが先頭に来る', () => {
+            const noDead = mockItem({ title: '期限なし' });
+            const hasDue = mockItem({ title: '納期あり', due_date: '2026-01-10' });
+            const hasPrep = mockItem({ title: 'マイ期限あり', prep_date: 1767225600 });
+
+            expect(compareGanttListItems(noDead, hasDue)).toBeLessThan(0);
+            expect(compareGanttListItems(noDead, hasPrep)).toBeLessThan(0);
+            expect(compareGanttListItems(hasDue, noDead)).toBeGreaterThan(0);
+        });
+
+        it('期限ありアイテムは納期・マイ期限のうち早い方の昇順', () => {
+            const earlyDue = mockItem({ title: '早い納期', due_date: '2026-01-05' });
+            const lateDue = mockItem({ title: '遅い納期', due_date: '2026-01-15' });
+            expect(compareGanttListItems(earlyDue, lateDue)).toBeLessThan(0);
+        });
+
+        it('両方設定されている場合は早い方の日付で比較する', () => {
+            // マイ期限が1/3、納期が1/10 → 有効日付は1/3
+            const itemA = mockItem({ title: 'A', due_date: '2026-01-10', prep_date: Math.floor(new Date('2026-01-03').getTime() / 1000) });
+            // 納期のみ1/5
+            const itemB = mockItem({ title: 'B', due_date: '2026-01-05' });
+            // AのEffective=1/3、BのEffective=1/5 → Aが先
+            expect(compareGanttListItems(itemA, itemB)).toBeLessThan(0);
+        });
+
+        it('着手限界日ではなく純粋な日付で比較する（見積もり時間を引かない）', () => {
+            // 同じ納期でも見積もり時間が違うアイテムは同順になる
+            const shortEst = mockItem({ title: '短い見積もり', due_date: '2026-01-10', estimatedMinutes: 60 });
+            const longEst = mockItem({ title: '長い見積もり', due_date: '2026-01-10', estimatedMinutes: 4800 });
+            expect(compareGanttListItems(shortEst, longEst)).toBe(0);
+        });
+
+        it('期限なし同士はcreatedAt降順（新しいものが先）', () => {
+            const oldItem = mockItem({ title: '古い', createdAt: 1000 });
+            const newItem = mockItem({ title: '新しい', createdAt: 2000 });
+            expect(compareGanttListItems(oldItem, newItem)).toBeGreaterThan(0);
+        });
+    });
+
+    describe('getProjectUrgencyScore', () => {
         it('sorts Project Urgency Score correctly', () => {
             // Project A: Has item starting 1st.
             // Project B: Has item starting 5th.

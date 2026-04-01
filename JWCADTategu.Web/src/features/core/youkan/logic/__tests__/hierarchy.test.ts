@@ -200,6 +200,25 @@ describe('buildHierarchicalList（ガントチャート用）', () => {
     });
   });
 
+  it('showGroups=falseでは期限なしアイテムが先頭、期限ありは日付昇順', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const noDates = { ...makeItem('task-no-date', null, 'proj-1'), title: '期限なし' };
+    const earlyDue = { ...makeItem('task-early', null, 'proj-1'), title: '早い納期', due_date: '2026-01-05' };
+    const latePrep = { ...makeItem('task-late', null, 'proj-1'), title: '遅い期限', prep_date: Math.floor(new Date('2026-01-15').getTime() / 1000) };
+
+    const result = buildHierarchicalList({
+      allItems: [earlyDue, noDates, latePrep],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    expect(items).toHaveLength(3);
+    expect(items[0].item.title).toBe('期限なし');
+    expect(items[1].item.title).toBe('早い納期');
+    expect(items[2].item.title).toBe('遅い期限');
+  });
+
   it('showGroups切替でアイテム数は変わらない（ヘッダーのみ変化）', () => {
     const project = makeProjectItem('proj-1', 'プロジェクトA');
     const tasks = [

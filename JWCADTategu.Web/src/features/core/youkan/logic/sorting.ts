@@ -149,6 +149,26 @@ export const compareGeneralList2Items = (a: Item, b: Item): number => {
     return (a.createdAt || 0) - (b.createdAt || 0);
 };
 
+// ----------------------------------------------------------------------
+// 4. Gantt List Sorting (一覧モード用)
+// ----------------------------------------------------------------------
+// 1. 納期(due_date)もマイ期限(prep_date)もないアイテムが先頭
+//    - 期限なし同士はcreatedAt降順（新しいものが先）
+// 2. 期限ありは「納期・マイ期限のうち早い方」の昇順
+export const compareGanttListItems = (a: Item, b: Item): number => {
+    const aDeadline = getEffectiveDeadline(a);
+    const bDeadline = getEffectiveDeadline(b);
+
+    if (aDeadline === null && bDeadline !== null) return -1;
+    if (aDeadline !== null && bDeadline === null) return 1;
+
+    if (aDeadline === null && bDeadline === null) {
+        return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+
+    return (aDeadline as number) - (bDeadline as number);
+};
+
 // Project Sorting Helper
 // Projects are sorted by the Earliest Start Limit of their contained items.
 // This function assumes you have a list of items for each project and can find the min.
