@@ -242,4 +242,34 @@ describe('buildHierarchicalList（ガントチャート用）', () => {
     expect(grouped.filter(w => w.type === 'header').length).toBeGreaterThan(0);
     expect(flat.filter(w => w.type === 'header').length).toBe(0);
   });
+
+  it('showGroups=false でも is_project=true のアイテムは結果に含まれない', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const task = makeItem('task-1', null, 'proj-1');
+    // allItemsにis_project=trueのプロジェクト自体が混入した場合
+    const result = buildHierarchicalList({
+      allItems: [project, task],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const items = result.filter(w => w.type === 'item');
+    expect(items.length).toBe(1);
+    expect(items[0].item.id).toBe('task-1');
+    // プロジェクト自体が一覧に含まれていないこと
+    expect(items.find(w => w.item.id === 'proj-1')).toBeUndefined();
+  });
+
+  it('showGroups=false で wrapper.project は null（projectTitleのみ使用）', () => {
+    const project = makeProjectItem('proj-1', '総会');
+    const task = { ...makeItem('task-1', null, 'proj-1'), projectTitle: '佐礼谷プロジェクト' };
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [project] as any,
+      showGroups: false,
+    });
+    const items = result.filter(w => w.type === 'item');
+    expect(items.length).toBe(1);
+    // showGroups=false ではwrapper.projectはnull（フロントはitem.projectTitleのみ使用すべき）
+    expect(items[0].project).toBeNull();
+  });
 });

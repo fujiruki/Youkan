@@ -367,12 +367,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											{depth > 0 && <span className="text-slate-400 mr-1">└</span>}
 											<span className="truncate">
 												{renderItemTitle(item)}
-												{!showGroups && (item.projectTitle || wrapper.project) && (
+												{!showGroups && item.projectTitle && (
 													<span
 														data-testid={`project-label-${item.id}`}
 														className="ml-1 text-[10px] text-slate-400 dark:text-slate-500 font-normal whitespace-nowrap"
 													>
-														[{item.projectTitle || wrapper.project?.title || (wrapper.project as any)?.name}]
+														[{item.projectTitle}]
 													</span>
 												)}
 											</span>

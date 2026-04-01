@@ -65,10 +65,10 @@ const defaultProps = {
 };
 
 describe('ガント一覧モード（showGroups=false）でプロジェクト名表示', () => {
-	it('showGroups=false のとき、プロジェクトに属するアイテムにプロジェクト名が表示される', () => {
+	it('showGroups=false のとき、projectTitleを持つアイテムにプロジェクト名が表示される', () => {
 		const projects = [makeProject('prj-1', 'ウェブサイト構築')];
 		const items = [
-			makeItem('task-1', 'デザイン作成', 'prj-1'),
+			{ ...makeItem('task-1', 'デザイン作成', 'prj-1'), projectTitle: 'ウェブサイト構築' },
 			makeItem('task-2', '個人タスク'),
 		];
 
@@ -141,5 +141,44 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 		);
 
 		expect(screen.queryByTestId('project-label-task-1')).toBeNull();
+	});
+
+	it('item.projectTitleがnullでwrapper.projectがある場合でもフォールバック表示しない', () => {
+		const projects = [makeProject('prj-1', '総会')];
+		const items = [
+			makeItem('task-1', 'テスト作業', 'prj-1'),
+		];
+		// projectTitleがundefined（バックエンドからの応答にない場合）
+
+		render(
+			<RyokanGanttView
+				{...defaultProps}
+				items={items}
+				projects={projects}
+				showGroups={false}
+			/>
+		);
+
+		// wrapper.projectへのフォールバックが無効なので、projectTitleがないアイテムにはラベルなし
+		expect(screen.queryByTestId('project-label-task-1')).toBeNull();
+	});
+
+	it('item.projectTitleがある場合のみプロジェクト名が表示される', () => {
+		const projects = [makeProject('prj-1', '総会')];
+		const items = [
+			{ ...makeItem('task-1', 'テスト作業', 'prj-1'), projectTitle: '佐礼谷プロジェクト' },
+		];
+
+		render(
+			<RyokanGanttView
+				{...defaultProps}
+				items={items}
+				projects={projects}
+				showGroups={false}
+			/>
+		);
+
+		const label = screen.getByTestId('project-label-task-1');
+		expect(label).toHaveTextContent('[佐礼谷プロジェクト]');
 	});
 });

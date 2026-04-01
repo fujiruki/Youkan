@@ -102,7 +102,7 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 				id: task.id,
 				type: 'item',
 				item: task,
-				project: projectContext,
+				project: showGroups ? projectContext : null,
 				depth
 			});
 			// Task can have children too!

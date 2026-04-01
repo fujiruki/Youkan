@@ -55,6 +55,7 @@ class CalendarController extends BaseController {
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
                 items.created_by, items.assigned_to, items.project_id, items.status,
+                items.is_project,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -67,6 +68,7 @@ class CalendarController extends BaseController {
                     (items.prep_date >= ? AND items.prep_date <= ?)
                 )
                 AND items.status NOT IN ('decision_rejected', 'archive', 'done')
+                AND items.is_project = 0
         ";
 
         array_push($sqlParams, $rangeStart, $rangeEnd, $rangeStart, $rangeEnd);
@@ -146,6 +148,7 @@ class CalendarController extends BaseController {
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
                 items.status, items.created_by, items.assigned_to, items.project_id,
+                items.is_project,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -158,6 +161,7 @@ class CalendarController extends BaseController {
                     (items.prep_date >= ? AND items.prep_date <= ?)
                 )
                 AND items.status NOT IN ('decision_rejected', 'archive', 'done')
+                AND items.is_project = 0
         ";
 
         array_push($sqlParams, $startDate, $endDate);
@@ -228,6 +232,7 @@ class CalendarController extends BaseController {
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date,
                 items.status, items.created_by, items.assigned_to, items.project_id,
                 items.completed_at, items.estimated_minutes, items.work_days,
+                items.is_project,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -238,6 +243,7 @@ class CalendarController extends BaseController {
                 AND items.completed_at <= ?
                 $tenantClause
                 AND items.deleted_at IS NULL
+                AND items.is_project = 0
             ORDER BY items.completed_at DESC
         ";
 

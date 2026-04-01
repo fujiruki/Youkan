@@ -1,19 +1,16 @@
 # Youkan
 
-## Agent-ガント一覧改善（ソート+表示+総会バグ）
+## Agent-ガント一覧根本修正+総会バグ
 ### タスク
-- [x] 問題1: 一覧モードのソート順修正
-  - [x] 1-1. 現在のソートロジック調査
-  - [x] 1-2. テスト作成（RED）
-  - [x] 1-3. 実装（GREEN）
-- [x] 問題2: プロジェクト名を末尾に表示
-  - [x] 2-1. テスト作成（RED）
-  - [x] 2-2. 実装（GREEN）
-- [x] 問題3: [総会]バグ調査・修正
-  - [x] 3-1. バックエンドSQL調査
-  - [x] 3-2. データ確認
-  - [x] 3-3. テスト作成（RED）
-  - [x] 3-4. 修正実装（GREEN）
+- [x] Step1: 原因特定
+  - [x] 1-1. CalendarController.php SQL調査
+  - [x] 1-2. BaseController.php mapItemRow調査
+  - [x] 1-3. ローカルDB データ確認
+  - [x] 1-4. 原因判定・報告
+- [x] Step2: バックエンド修正
+- [x] Step3: フロントエンド修正
+  - [x] 3-1. hierarchy.ts: is_project除外テスト（RED）→ 既存ロジックでPASS
+  - [x] 3-2. hierarchy.ts: wrapper.project=null テスト（RED）→ 実装（GREEN）
+  - [x] 3-3. RyokanGanttView: wrapper.projectフォールバック除去テスト（RED）→ 実装（GREEN）
+  - [x] 3-4. 既存テスト修正（projectTitle依存に変更）
 - [x] ビルド確認（tsc --noEmit + vite build）
-
-### 完了
