@@ -42,13 +42,14 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 	const projectMap = new Map<string, Item>();
 	allProjects.forEach(p => {
 		if (!p || !p.id) return;
-		const nid = normalizeId(String(p.id))!;
+		const nid = normalizeId(String(p.id));
+		if (!nid) return; // IDがnull/undefined/空文字のプロジェクトをスキップ
 		projectMap.set(nid, p);
 	});
 	allItems.forEach(item => {
 		if (item && item.id && (item.isProject || item.type === 'project')) {
-			const nid = normalizeId(item.id)!;
-			if (!projectMap.has(nid)) {
+			const nid = normalizeId(item.id);
+			if (nid && !projectMap.has(nid)) {
 				projectMap.set(nid, item);
 			}
 		}

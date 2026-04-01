@@ -164,7 +164,7 @@ class CalendarController extends BaseController {
                 AND items.is_project = 0
         ";
 
-        array_push($sqlParams, $startDate, $endDate);
+        array_push($sqlParams, $startDate, $endDate, $startDate, $endDate);
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($sqlParams);

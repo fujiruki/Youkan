@@ -48,6 +48,7 @@ class ProjectController extends BaseController {
                     OR
                     (items.tenant_id IS NOT NULL AND items.assigned_to = ?)
                 )
+                AND items.id IS NOT NULL
                 AND items.is_archived = 0 AND items.deleted_at IS NULL
                 ORDER BY items.updated_at DESC
             ";
@@ -67,6 +68,7 @@ class ProjectController extends BaseController {
                 WHERE 
                     items.is_project = 1 
                     AND items.tenant_id IN ($placeholders)
+                    AND items.id IS NOT NULL
                     AND items.is_archived = 0 AND items.deleted_at IS NULL
                 ORDER BY t.name ASC, items.updated_at DESC
             ";
@@ -87,6 +89,7 @@ class ProjectController extends BaseController {
                     OR
                     (items.tenant_id IN ($placeholders))
                 )
+                AND items.id IS NOT NULL
                 AND items.is_archived = 0 AND items.deleted_at IS NULL
                 ORDER BY items.updated_at DESC
             ";
@@ -101,6 +104,7 @@ class ProjectController extends BaseController {
                     items.is_project = 1 
                     AND (items.tenant_id IS NULL OR items.tenant_id = '') 
                     AND (items.created_by = ? OR items.assigned_to = ?)
+                    AND items.id IS NOT NULL
                     AND items.is_archived = 0 AND items.deleted_at IS NULL
                 ORDER BY items.updated_at DESC
             ";
