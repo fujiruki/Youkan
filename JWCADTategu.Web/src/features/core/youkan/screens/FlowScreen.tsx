@@ -26,6 +26,7 @@ import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flo
 import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
 import { DependencyRepository } from '../repositories/DependencyRepository';
+import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint } from '../logic/flowAutoPlace';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -38,6 +39,8 @@ const dependencyRepo = new DependencyRepository();
 
 // ノードの重なり判定用閾値（ピクセル）
 const OVERLAP_THRESHOLD = 80;
+// エッジ挿入判定用閾値（ピクセル）
+const EDGE_INSERT_THRESHOLD = 100;
 
 interface FlowScreenProps {
   activeProjectId?: string;
@@ -57,6 +60,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const { showToast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const unplacedListRef = useRef<UnplacedItemListHandle>(null);
+  const [isAutoPlacing, setIsAutoPlacing] = useState(false);
   // ドラッグ開始位置の記録（重ねてリンク用）
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
 
@@ -162,6 +166,60 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     setSelectedEdgeIds(edges.map((e) => e.id));
   }, []);
 
+  // ノード位置マップの取得（エッジ挿入検出用）
+  const getNodePositions = useCallback(() => {
+    const positions = new Map<string, { x: number; y: number }>();
+    for (const node of nodes) {
+      if (node.type === 'flowItem') {
+        positions.set(node.id, { x: node.position.x, y: node.position.y });
+      }
+    }
+    return positions;
+  }, [nodes]);
+
+  // エッジ挿入処理
+  const handleEdgeInsert = useCallback(
+    async (itemId: string, position: { x: number; y: number }) => {
+      const nodePositions = getNodePositions();
+      const nearest = findNearestEdge(position, edges, nodePositions, EDGE_INSERT_THRESHOLD);
+      if (!nearest) return false;
+
+      try {
+        // 旧エッジを削除
+        await dependencyRepo.deleteDependency(nearest.edge.id);
+        setDependencies((prev) => prev.filter((d) => d.id !== nearest.edge.id));
+
+        // 新エッジ2本を作成: source→dropped, dropped→target
+        const dep1 = await dependencyRepo.createDependency(nearest.edge.source, itemId);
+        const dep2 = await dependencyRepo.createDependency(itemId, nearest.edge.target);
+        setDependencies((prev) => [...prev, dep1, dep2]);
+
+        // ドロップ位置をエッジ中間点に設定
+        const sourcePos = nodePositions.get(nearest.edge.source);
+        const targetPos = nodePositions.get(nearest.edge.target);
+        if (sourcePos && targetPos) {
+          const mid = calculateEdgeMidpoint(sourcePos, targetPos);
+          await updateItemMeta(itemId, { flow_x: mid.x, flow_y: mid.y });
+          setAllItems((prev) =>
+            prev.map((item) =>
+              item.id === itemId
+                ? { ...item, meta: { ...(item.meta || {}), flow_x: mid.x, flow_y: mid.y } }
+                : item
+            )
+          );
+        }
+
+        showToast({ type: 'success', title: 'エッジ挿入', message: 'フローに挿入しました', duration: 2000 });
+        return true;
+      } catch (err) {
+        console.error('[FlowScreen] エッジ挿入失敗:', err);
+        showToast({ type: 'error', title: 'エッジ挿入失敗', message: String(err), duration: 5000 });
+        return false;
+      }
+    },
+    [edges, getNodePositions, updateItemMeta, showToast]
+  );
+
   // ドラッグ開始時の位置記録
   const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
     dragStartPositions.current.set(node.id, { ...node.position });
@@ -210,13 +268,17 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           );
         }
       } else {
-        // 通常の位置保存
-        await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
+        // エッジ挿入を試行
+        const inserted = await handleEdgeInsert(draggedNode.id, draggedNode.position);
+        if (!inserted) {
+          // 通常の位置保存
+          await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
+        }
       }
 
       dragStartPositions.current.delete(draggedNode.id);
     },
-    [nodes, updateItemMeta, showToast, setNodes]
+    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -291,6 +353,11 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       if (!itemId) return;
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+      // エッジ挿入を試行
+      const inserted = await handleEdgeInsert(itemId, position);
+      if (inserted) return;
+
       await updateItemMeta(itemId, { flow_x: position.x, flow_y: position.y });
 
       setAllItems((prev) =>
@@ -301,8 +368,57 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         )
       );
     },
-    [screenToFlowPosition, updateItemMeta]
+    [screenToFlowPosition, updateItemMeta, handleEdgeInsert]
   );
+
+  // 全て自動配置
+  const handleAutoPlace = useCallback(async () => {
+    if (unplacedItems.length === 0) return;
+    setIsAutoPlacing(true);
+
+    try {
+      const placements = calculateAutoPlacement(unplacedItems);
+
+      // チェーン（依存関係）を一括作成
+      for (const p of placements) {
+        if (p.chainFrom) {
+          try {
+            const dep = await dependencyRepo.createDependency(p.chainFrom, p.itemId);
+            setDependencies((prev) => [...prev, dep]);
+          } catch {
+            // 重複や循環参照は無視
+          }
+        }
+      }
+
+      // flow_x/flow_y を一括保存
+      for (const p of placements) {
+        await updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y });
+      }
+
+      // ローカルステート更新
+      setAllItems((prev) =>
+        prev.map((item) => {
+          const placement = placements.find((p) => p.itemId === item.id);
+          if (!placement) return item;
+          return {
+            ...item,
+            meta: { ...(item.meta || {}), flow_x: placement.flow_x, flow_y: placement.flow_y },
+          };
+        })
+      );
+
+      showToast({ type: 'success', title: '自動配置完了', message: `${placements.length}件を配置しました`, duration: 3000 });
+
+      // fitView で全体表示
+      setTimeout(() => fitView({ duration: 300 }), 100);
+    } catch (err) {
+      console.error('[FlowScreen] 自動配置失敗:', err);
+      showToast({ type: 'error', title: '自動配置失敗', message: String(err), duration: 5000 });
+    } finally {
+      setIsAutoPlacing(false);
+    }
+  }, [unplacedItems, updateItemMeta, showToast, fitView]);
 
   // --- キーボードショートカット ---
   const createNodeBelow = useCallback(
@@ -523,7 +639,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           className="!bg-white/80 !border-slate-200"
         />
       </ReactFlow>
-      <UnplacedItemList ref={unplacedListRef} items={unplacedItems} />
+      <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} />
     </div>
   );
 };

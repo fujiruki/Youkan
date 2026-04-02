@@ -673,12 +673,88 @@ class ItemController extends BaseController {
             
             // [v23] Sync Manufacturing Data
             ManufacturingSyncService::syncItem($this->pdo, $id, $data);
-            
+
+            // [Phase5] プロジェクト付きアイテム作成時の自動チェーン追加
+            $projectIdForChain = $data['projectId'] ?? null;
+            if ($projectIdForChain) {
+                $this->autoChainAndPlace($id, $projectIdForChain);
+            }
+
             $this->sendJSON(['id' => $id, 'success' => true]);
         } catch (PDOException $e) {
             $this->sendError(500, 'Database Error: ' . $e->getMessage());
         }
 
+    }
+
+    /**
+     * プロジェクト内フローチェーンの末尾ノードを検出
+     * 末尾 = item_dependenciesのtarget_item_idだが、同プロジェクト内のsource_item_idにはなっていないもの
+     */
+    protected function findChainTail($projectId) {
+        $stmt = $this->pdo->prepare("
+            SELECT d.target_item_id
+            FROM item_dependencies d
+            JOIN items i ON d.target_item_id = i.id
+            WHERE i.project_id = ?
+            AND d.tenant_id = ?
+            AND d.target_item_id NOT IN (
+                SELECT d2.source_item_id
+                FROM item_dependencies d2
+                JOIN items i2 ON d2.source_item_id = i2.id
+                WHERE i2.project_id = ?
+                AND d2.tenant_id = ?
+            )
+            LIMIT 1
+        ");
+        $stmt->execute([$projectId, $this->currentTenantId, $projectId, $this->currentTenantId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? $row['target_item_id'] : null;
+    }
+
+    /**
+     * 新アイテムをフローチェーン末尾に接続し、flow座標を自動配置
+     */
+    protected function autoChainAndPlace($newItemId, $projectId) {
+        $tailId = $this->findChainTail($projectId);
+        if (!$tailId || $tailId === $newItemId) return false;
+
+        // 末尾→新アイテムの依存関係を作成
+        $depId = 'dep_' . uniqid() . '_' . bin2hex(random_bytes(4));
+        $now = time();
+        try {
+            $stmt = $this->pdo->prepare(
+                "INSERT INTO item_dependencies (id, tenant_id, source_item_id, target_item_id, created_at) VALUES (?, ?, ?, ?, ?)"
+            );
+            $stmt->execute([$depId, $this->currentTenantId, $tailId, $newItemId, $now]);
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'UNIQUE constraint failed') !== false) {
+                return false;
+            }
+            throw $e;
+        }
+
+        // 末尾ノードのflow座標を読み取り、y+150の位置に配置
+        $tailStmt = $this->pdo->prepare("SELECT meta FROM items WHERE id = ?");
+        $tailStmt->execute([$tailId]);
+        $tailRow = $tailStmt->fetch(PDO::FETCH_ASSOC);
+        $tailMeta = $tailRow && $tailRow['meta'] ? json_decode($tailRow['meta'], true) : [];
+
+        $flowX = $tailMeta['flow_x'] ?? 0;
+        $flowY = ($tailMeta['flow_y'] ?? 0) + 150;
+
+        // 新アイテムの既存metaとマージ
+        $newStmt = $this->pdo->prepare("SELECT meta FROM items WHERE id = ?");
+        $newStmt->execute([$newItemId]);
+        $newRow = $newStmt->fetch(PDO::FETCH_ASSOC);
+        $newMeta = $newRow && $newRow['meta'] ? json_decode($newRow['meta'], true) : [];
+        $newMeta['flow_x'] = $flowX;
+        $newMeta['flow_y'] = $flowY;
+
+        $this->pdo->prepare("UPDATE items SET meta = ? WHERE id = ?")
+            ->execute([json_encode($newMeta), $newItemId]);
+
+        return true;
     }
 
     private function update($id) {

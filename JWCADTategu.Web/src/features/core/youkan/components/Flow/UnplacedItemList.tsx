@@ -3,6 +3,8 @@ import type { Item } from '../../types';
 
 interface UnplacedItemListProps {
   items: Item[];
+  onAutoPlace?: () => void;
+  isAutoPlacing?: boolean;
 }
 
 export interface UnplacedItemListHandle {
@@ -10,7 +12,7 @@ export interface UnplacedItemListHandle {
 }
 
 const UnplacedItemListComponent = forwardRef<UnplacedItemListHandle, UnplacedItemListProps>(
-  ({ items }, ref) => {
+  ({ items, onAutoPlace, isAutoPlacing }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
@@ -31,6 +33,17 @@ const UnplacedItemListComponent = forwardRef<UnplacedItemListHandle, UnplacedIte
             未配置 ({items.length})
           </h3>
         </div>
+        {items.length > 0 && onAutoPlace && (
+          <div className="px-2 py-1.5 border-b border-slate-200">
+            <button
+              onClick={onAutoPlace}
+              disabled={isAutoPlacing}
+              className="w-full px-3 py-1.5 text-[11px] font-bold text-white bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-300 rounded-lg transition-colors"
+            >
+              {isAutoPlacing ? '配置中...' : '全て自動配置'}
+            </button>
+          </div>
+        )}
         <div className="overflow-y-auto max-h-[calc(60vh-40px)] p-2 space-y-1">
           {items.map((item) => (
             <div
