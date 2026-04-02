@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { Item } from '../../types';
+import { useMemo, useState, useEffect } from 'react';
+import { Item, Dependency } from '../../types';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { format } from 'date-fns';
 import { buildHierarchicalList } from '../../logic/hierarchy';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
@@ -17,6 +18,8 @@ export interface NewspaperItemWrapper {
 	displayDateType?: 'due' | 'prep' | null;
 }
 
+const dependencyRepo = new DependencyRepository();
+
 export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false): NewspaperItemWrapper[] => {
 	const {
 		gdbActive,
@@ -28,6 +31,12 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 		todayCommits,
 		executionItem
 	} = viewModel;
+
+	const [dependencies, setDependencies] = useState<Dependency[]>([]);
+
+	useEffect(() => {
+		dependencyRepo.getDependencies().then(setDependencies).catch(console.error);
+	}, []);
 
 	return useMemo(() => {
 		// 1. Gather all tasks from ALL zones
@@ -47,7 +56,8 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 			allProjects: viewModelProjects,
 			allItems: allItemsRaw,
 			showGroups: true,
-			hideCompleted
+			hideCompleted,
+			dependencies
 		});
 
 		// 3. Add Newspaper-specific formatting (Dates)
@@ -81,5 +91,5 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 			return wrapper as NewspaperItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, dependencies]);
 };
