@@ -333,3 +333,11 @@ export interface ManufacturingPlugin {
     // Optional: Capability to handle import/sync
     onImport?(item: ExternalItem): Promise<void>;
 }
+
+// --- アイテム依存関係（フローView） ---
+export interface Dependency {
+    id: string;
+    sourceItemId: string;
+    targetItemId: string;
+    createdAt: number;
+}

@@ -358,7 +358,21 @@ function ensureTables($pdo) {
             updated_at INTEGER,
             FOREIGN KEY(tenant_id) REFERENCES tenants(id),
             FOREIGN KEY(user_id) REFERENCES users(id)
-        )"
+        )",
+        // [v27] アイテム依存関係（フローView用）
+        "CREATE TABLE IF NOT EXISTS item_dependencies (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT,
+            source_item_id TEXT NOT NULL,
+            target_item_id TEXT NOT NULL,
+            created_at INTEGER,
+            FOREIGN KEY(source_item_id) REFERENCES items(id),
+            FOREIGN KEY(target_item_id) REFERENCES items(id),
+            UNIQUE(source_item_id, target_item_id)
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_dep_source ON item_dependencies(source_item_id)",
+        "CREATE INDEX IF NOT EXISTS idx_dep_target ON item_dependencies(target_item_id)",
+        "CREATE INDEX IF NOT EXISTS idx_dep_tenant ON item_dependencies(tenant_id)"
     ];
 
     foreach ($commands as $sql) {

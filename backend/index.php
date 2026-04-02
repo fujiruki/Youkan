@@ -581,6 +581,15 @@ if (preg_match('#^(/api)?/life/([^/]+)(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// Dependency Routes（フローView: アイテム依存関係）
+require_once 'DependencyController.php';
+if (preg_match('#^(/api)?/dependencies(?:/([^/]+))?$#', $path, $matches)) {
+    $controller = new DependencyController();
+    $id = $matches[2] ?? null;
+    $controller->handleRequest($method, $id);
+    exit;
+}
+
 // Fallback 404
 http_response_code(404);
 echo json_encode([
