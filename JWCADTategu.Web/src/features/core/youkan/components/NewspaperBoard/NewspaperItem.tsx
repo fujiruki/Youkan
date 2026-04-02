@@ -102,18 +102,18 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 	if (isHeader) {
 		return (
 			<div
-				className="mb-[2px] mt-[0.6em] break-inside-avoid group/header relative"
-				style={{ breakAfter: 'avoid' }}
+				className="mb-[2px] break-inside-avoid group/header relative"
+				style={{ breakAfter: 'avoid', marginTop: depth === 0 ? '0.6em' : '0' }}
 			>
 				<IndentLines depth={depth} />
 				{depth === 0 && (
-					<div className="border-t border-slate-200 dark:border-slate-700 mb-[2px]" style={{ marginLeft: `${depth * 1.5 + 0.5}rem` }} />
+					<div className="border-t border-slate-200 dark:border-slate-700" style={{ marginLeft: `${depth * 1.5 + 0.5}rem`, marginBottom: '2px' }} />
 				)}
 				<div className={cn(
-					"flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold px-1 py-0 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
+					"flex items-center gap-[0.3em] text-slate-700 dark:text-slate-200 font-bold rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 leading-none",
 					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
 				)}
-					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
+					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem`, paddingRight: '4px', paddingTop: '0', paddingBottom: '0', margin: '0' }}
 					onClick={() => onClick(item)}
 					onContextMenu={(e) => {
 						e.preventDefault();
@@ -121,20 +121,20 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 					}}
 				>
 					{depth > 0 ? (
-						<FolderOpen size="1em" className="text-slate-400 dark:text-slate-500" />
+						<FolderOpen size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					) : (
-						<Folder size="1em" className="text-slate-400 dark:text-slate-500" />
+						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
-					<span className="truncate flex-1" style={{ maxWidth: `${titleLimit || 20}em` }}>{item.title}</span>
+					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{item.title}</span>
 					<button
-						className="opacity-60 hover:opacity-100 p-1 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400"
+						className="opacity-60 hover:opacity-100 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400 shrink-0"
 						onClick={(e) => {
 							e.stopPropagation();
 							setIsInlineInputOpen(true);
 						}}
 						title="サブアイテムを追加"
 					>
-						<span className="text-lg leading-none">+</span>
+						<span className="text-sm leading-none">+</span>
 					</button>
 				</div>
 
