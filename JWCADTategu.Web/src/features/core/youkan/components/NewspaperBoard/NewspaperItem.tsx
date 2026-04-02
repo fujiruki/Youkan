@@ -106,9 +106,12 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 				style={{ breakAfter: 'avoid' }}
 			>
 				<IndentLines depth={depth} />
+				{depth === 0 && (
+					<div className="border-t border-slate-200 dark:border-slate-700 mb-[2px]" style={{ marginLeft: `${depth * 1.5 + 0.5}rem` }} />
+				)}
 				<div className={cn(
 					"flex items-center gap-[0.5em] text-slate-700 dark:text-slate-200 font-bold p-1 rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50",
-					depth === 0 ? "border-b border-slate-200 dark:border-slate-700 pb-[2px]" : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
+					depth === 0 ? "pb-[2px]" : "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
 				)}
 					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
 					onClick={() => onClick(item)}
