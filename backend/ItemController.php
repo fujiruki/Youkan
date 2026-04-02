@@ -742,6 +742,11 @@ class ItemController extends BaseController {
         // 1.5 [Hook] 依存関係の日程制約チェック
         $this->validateDependencyConstraint($id, $data);
 
+        // 1.6 カスケード用に更新前の日付を保持
+        $preCascadeStmt = $this->pdo->prepare("SELECT due_date, prep_date FROM items WHERE id = ?");
+        $preCascadeStmt->execute([$id]);
+        $preCascadeDates = $preCascadeStmt->fetch(PDO::FETCH_ASSOC);
+
         // 2. Main Update using BaseController helper
         $allowedFields = [
             'title', 'status', 'memo', 'due_date', 'is_boosted', 'boosted_date', 
@@ -773,7 +778,7 @@ class ItemController extends BaseController {
         ManufacturingSyncService::syncItem($this->pdo, $id, $data);
 
         // 5. [Hook] 依存関係に基づく自動日程調整（カスケード）
-        $this->cascadeDependencyDates($id, $data);
+        $this->cascadeDependencyDates($id, $data, $preCascadeDates);
 
         $this->sendJSON(['success' => true]);
     }
@@ -975,10 +980,10 @@ class ItemController extends BaseController {
         if ($newPrepDate !== null) {
             $stmt = $this->pdo->prepare(
                 "SELECT d.source_item_id, i.due_date FROM item_dependencies d
-                 JOIN items i ON d.source_item_id = i.id
-                 WHERE d.target_item_id = ?"
+                 JOIN items i ON d.source_item_id = i.id AND i.tenant_id = d.tenant_id
+                 WHERE d.target_item_id = ? AND d.tenant_id = ?"
             );
-            $stmt->execute([$itemId]);
+            $stmt->execute([$itemId, $this->currentTenantId]);
             $sources = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($sources as $src) {
@@ -995,10 +1000,10 @@ class ItemController extends BaseController {
         if ($newDueDate !== null) {
             $stmt = $this->pdo->prepare(
                 "SELECT d.target_item_id, i.prep_date FROM item_dependencies d
-                 JOIN items i ON d.target_item_id = i.id
-                 WHERE d.source_item_id = ?"
+                 JOIN items i ON d.target_item_id = i.id AND i.tenant_id = d.tenant_id
+                 WHERE d.source_item_id = ? AND d.tenant_id = ?"
             );
-            $stmt->execute([$itemId]);
+            $stmt->execute([$itemId, $this->currentTenantId]);
             $targets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($targets as $tgt) {
@@ -1016,14 +1021,12 @@ class ItemController extends BaseController {
      * 依存関係に基づく自動日程調整（カスケード）
      * 前提タスクのdue_dateが後ろにずれた場合、後続タスクも連動してずれる
      */
-    private function cascadeDependencyDates($itemId, $data) {
+    private function cascadeDependencyDates($itemId, $data, $preCascadeDates = null) {
         $newDueDate = $data['dueDate'] ?? $data['due_date'] ?? null;
         if ($newDueDate === null) return;
 
-        // 変更前のdue_dateを取得
-        $stmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ?");
-        $stmt->execute([$itemId]);
-        $oldDueDate = $stmt->fetchColumn();
+        // 更新前の値を使用（updateEntity実行後はDBが更新済みのため引数から取得）
+        $oldDueDate = $preCascadeDates['due_date'] ?? null;
         if (!$oldDueDate) return;
 
         $oldTs = is_numeric($oldDueDate) ? (int)$oldDueDate : strtotime($oldDueDate);

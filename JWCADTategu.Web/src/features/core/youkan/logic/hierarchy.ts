@@ -50,6 +50,7 @@ const sortWithDependencies = (
 		return [...items].sort(compareFn);
 	}
 
+	const itemMap = new Map(items.map(i => [i.id, i]));
 	const itemIds = new Set(items.map(i => i.id));
 	// このアイテム群に関連する依存関係のみ抽出
 	const relevantDeps = dependencies.filter(
@@ -95,8 +96,8 @@ const sortWithDependencies = (
 	const queue = [...chainHeads];
 	while (queue.length > 0) {
 		queue.sort((a, b) => {
-			const itemA = items.find(i => i.id === a);
-			const itemB = items.find(i => i.id === b);
+			const itemA = itemMap.get(a);
+			const itemB = itemMap.get(b);
 			if (!itemA || !itemB) return 0;
 			return compareFn(itemA, itemB);
 		});
@@ -143,7 +144,6 @@ const sortWithDependencies = (
 	}
 
 	// 各チェーンの代表アイテム（トポロジカル順で最初 = 先頭）を取得
-	const itemMap = new Map(items.map(i => [i.id, i]));
 	const chainRepresentatives: { chain: string[]; representative: Item }[] = chains.map(chain => {
 		// トポロジカル順でこのチェーンの最初のアイテムを見つける
 		const orderedChain = topoOrder.filter(id => chain.includes(id));

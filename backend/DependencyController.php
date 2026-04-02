@@ -58,9 +58,20 @@ class DependencyController extends BaseController {
      * source → target の依存を追加した場合に循環が生じるか判定
      */
     protected function hasCycle($sourceItemId, $targetItemId) {
-        // 自己参照
         if ($sourceItemId === $targetItemId) {
             return true;
+        }
+
+        // 現在テナントの全依存関係を一括取得（N+1解消）
+        $stmt = $this->pdo->prepare(
+            "SELECT source_item_id, target_item_id FROM item_dependencies WHERE tenant_id = ?"
+        );
+        $stmt->execute([$this->currentTenantId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $graph = [];
+        foreach ($rows as $row) {
+            $graph[$row['source_item_id']][] = $row['target_item_id'];
         }
 
         // target から到達可能なノードに source が含まれるか（DFS）
@@ -77,14 +88,7 @@ class DependencyController extends BaseController {
             }
             $visited[$current] = true;
 
-            // current を source とする既存の依存関係を取得
-            $stmt = $this->pdo->prepare(
-                "SELECT target_item_id FROM item_dependencies WHERE source_item_id = ?"
-            );
-            $stmt->execute([$current]);
-            $targets = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            foreach ($targets as $t) {
+            foreach ($graph[$current] ?? [] as $t) {
                 if (!isset($visited[$t])) {
                     $stack[] = $t;
                 }
