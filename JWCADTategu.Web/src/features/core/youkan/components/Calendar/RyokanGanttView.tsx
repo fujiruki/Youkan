@@ -1,11 +1,13 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Item, CapacityConfig, JoinedTenant } from '../../types';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { Item, Dependency, CapacityConfig, JoinedTenant } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList } from '../../logic/hierarchy';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
+import { validateDependencyConstraint, calculateCascadeAdjustments } from '../../logic/dependencyConstraint';
 
 const isSameDate = (d1: Date, d2: Date) => {
 	return d1.getFullYear() === d2.getFullYear() &&
@@ -48,12 +50,31 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
 	const isSyncing = useRef(false);
+	const [dependencies, setDependencies] = useState<Dependency[]>([]);
+	const [constraintError, setConstraintError] = useState<string | null>(null);
 
 	// scrollRefが渡された場合はそちらを優先する実効ref
 	const effectiveScrollRef = scrollRef || scrollContainerRef;
 
-
 	const colWidth = 24; // w-6 = 1.5rem = 24px
+
+	// 依存関係データの取得
+	useEffect(() => {
+		const repo = new DependencyRepository();
+		repo.getDependencies().then(deps => {
+			setDependencies(deps);
+		}).catch(() => {
+			// 取得失敗時は空配列のまま
+		});
+	}, [items]);
+
+	// 表示中のアイテムに関連する依存関係のみフィルタ
+	const visibleDependencies = useMemo(() => {
+		const itemIds = new Set(items.map(i => i.id));
+		return dependencies.filter(d =>
+			itemIds.has(d.sourceItemId) && itemIds.has(d.targetItemId)
+		);
+	}, [dependencies, items]);
 
 	// Drag & Drop State
 	const [dragState, setDragState] = useState<{
@@ -63,17 +84,51 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		originalDate: Date;
 	} | null>(null);
 
-	// Update item handler
-	const handleDragEnd = async (itemId: string, daysDiff: number) => {
+	// 依存関係制約チェック付きのドラッグ終了処理
+	const handleDragEnd = useCallback(async (itemId: string, daysDiff: number) => {
 		const item = items.find(i => i.id === itemId);
 		if (!item || !item.prep_date || daysDiff === 0) return;
 
-		const newDate = new Date(item.prep_date * 1000); // Convert Unix timestamp to Date object
-		newDate.setDate(newDate.getDate() + daysDiff);
+		const newPrepUnix = (item.prep_date as number) + daysDiff * 86400;
 
-		// Call parent update handler
-		onUpdateItem?.(itemId, { prep_date: newDate.getTime() / 1000 }); // Convert back to Unix timestamp
-	};
+		// 制約チェック
+		const simpleItems = items.map(i => ({
+			id: i.id,
+			prep_date: i.prep_date ? (i.prep_date as number) : null,
+			due_date: i.due_date || null,
+		}));
+		const validation = validateDependencyConstraint(
+			itemId,
+			{ prep_date: newPrepUnix },
+			simpleItems,
+			visibleDependencies
+		);
+
+		if (!validation.valid) {
+			setConstraintError(validation.reason || '依存関係の制約に違反しています');
+			setTimeout(() => setConstraintError(null), 3000);
+			return;
+		}
+
+		// カスケード調整の計算
+		const cascadeUpdates = calculateCascadeAdjustments(
+			itemId,
+			{ prep_date: newPrepUnix },
+			simpleItems,
+			visibleDependencies
+		);
+
+		// 本体の更新
+		await onUpdateItem?.(itemId, { prep_date: newPrepUnix });
+
+		// カスケード更新
+		for (const adj of cascadeUpdates) {
+			const updates: Partial<Item> = {};
+			if (adj.prep_date !== undefined) updates.prep_date = adj.prep_date;
+			if (adj.due_date !== undefined) updates.due_date = adj.due_date;
+			await onUpdateItem?.(adj.itemId, updates);
+		}
+	}, [items, visibleDependencies, onUpdateItem]);
 
 	useEffect(() => {
 		if (!dragState) return;
@@ -322,6 +377,16 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 						})}
 					</div>
 
+					{/* 依存関係の矢印線（SVGオーバーレイ） */}
+					<GanttDependencyArrows
+						dependencies={visibleDependencies}
+						transformedItems={transformedItems}
+						allDays={allDays}
+						colWidth={colWidth}
+						rowHeight={40}
+						stickyColWidth={256}
+					/>
+
 					<div className="relative z-10">
 						{transformedItems.map(wrapper => {
 							if (wrapper.type === 'header') {
@@ -457,6 +522,127 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					</div>
 				</div>
 			</div>
+			{/* 依存関係制約エラートースト */}
+		{constraintError && (
+			<div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-bold animate-in fade-in slide-in-from-bottom-4 duration-300">
+				{constraintError}
+			</div>
+		)}
 		</div>
+	);
+};
+
+/**
+ * ガントチャート上に依存関係の矢印線を描画するSVGオーバーレイ
+ */
+const GanttDependencyArrows: React.FC<{
+	dependencies: Dependency[];
+	transformedItems: { id: string; type: string; item: Item }[];
+	allDays: Date[];
+	colWidth: number;
+	rowHeight: number;
+	stickyColWidth: number;
+}> = ({ dependencies, transformedItems, allDays, colWidth, rowHeight, stickyColWidth }) => {
+	if (dependencies.length === 0 || allDays.length === 0) return null;
+
+	const itemRowIndex = useMemo(() => {
+		const map = new Map<string, number>();
+		transformedItems.forEach((w, i) => {
+			if (w.type === 'item') {
+				map.set(w.item.id, i);
+			}
+		});
+		return map;
+	}, [transformedItems]);
+
+	const dayIndexMap = useMemo(() => {
+		const map = new Map<string, number>();
+		allDays.forEach((d, i) => {
+			const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+			map.set(key, i);
+		});
+		return map;
+	}, [allDays]);
+
+	const getDateIndex = (item: Item): number | null => {
+		// prep_date（目安納期）をソースの末尾、due_dateをフォールバックとして使用
+		let dateObj: Date | null = null;
+		if (item.prep_date) {
+			dateObj = new Date((item.prep_date as number) * 1000);
+		} else if (item.due_date) {
+			dateObj = new Date(item.due_date);
+		}
+		if (!dateObj) return null;
+		const key = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+		return dayIndexMap.get(key) ?? null;
+	};
+
+	const arrows = useMemo(() => {
+		return dependencies.map(dep => {
+			const sourceItem = transformedItems.find(w => w.type === 'item' && w.item.id === dep.sourceItemId)?.item;
+			const targetItem = transformedItems.find(w => w.type === 'item' && w.item.id === dep.targetItemId)?.item;
+			if (!sourceItem || !targetItem) return null;
+
+			const sourceRow = itemRowIndex.get(dep.sourceItemId);
+			const targetRow = itemRowIndex.get(dep.targetItemId);
+			if (sourceRow === undefined || targetRow === undefined) return null;
+
+			const sourceDayIdx = getDateIndex(sourceItem);
+			const targetDayIdx = getDateIndex(targetItem);
+			if (sourceDayIdx === null || targetDayIdx === null) return null;
+
+			// ソースの末尾（日付セルの右端）からターゲットの先頭（日付セルの左端）へ
+			const x1 = stickyColWidth + (sourceDayIdx + 1) * colWidth;
+			const y1 = sourceRow * rowHeight + rowHeight / 2;
+			const x2 = stickyColWidth + targetDayIdx * colWidth;
+			const y2 = targetRow * rowHeight + rowHeight / 2;
+
+			return { key: dep.id, x1, y1, x2, y2 };
+		}).filter(Boolean) as { key: string; x1: number; y1: number; x2: number; y2: number }[];
+	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth]);
+
+	if (arrows.length === 0) return null;
+
+	const maxX = Math.max(...arrows.map(a => Math.max(a.x1, a.x2))) + 20;
+	const maxY = Math.max(...arrows.map(a => Math.max(a.y1, a.y2))) + 20;
+
+	return (
+		<svg
+			className="absolute top-0 left-0 pointer-events-none z-[5]"
+			width={maxX}
+			height={maxY}
+			style={{ overflow: 'visible' }}
+		>
+			<defs>
+				<marker
+					id="gantt-dep-arrowhead"
+					markerWidth="8"
+					markerHeight="6"
+					refX="8"
+					refY="3"
+					orient="auto"
+				>
+					<polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+				</marker>
+			</defs>
+			{arrows.map(({ key, x1, y1, x2, y2 }) => {
+				const path = `M ${x1} ${y1} C ${x1 + 20} ${y1}, ${x2 - 20} ${y2}, ${x2} ${y2}`;
+
+				return (
+					<path
+						key={key}
+						d={y1 === y2
+							? `M ${x1} ${y1} L ${x2} ${y2}`
+							: path
+						}
+						stroke="#94a3b8"
+						strokeWidth="1.5"
+						fill="none"
+						opacity="0.6"
+						markerEnd="url(#gantt-dep-arrowhead)"
+					/>
+				);
+			})}
+		</svg>
 	);
 };

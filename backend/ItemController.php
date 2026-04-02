@@ -739,6 +739,9 @@ class ItemController extends BaseController {
             }
         }
 
+        // 1.5 [Hook] 依存関係の日程制約チェック
+        $this->validateDependencyConstraint($id, $data);
+
         // 2. Main Update using BaseController helper
         $allowedFields = [
             'title', 'status', 'memo', 'due_date', 'is_boosted', 'boosted_date', 
@@ -768,7 +771,10 @@ class ItemController extends BaseController {
 
         // 4. [Hook] Sync Manufacturing Data
         ManufacturingSyncService::syncItem($this->pdo, $id, $data);
-        
+
+        // 5. [Hook] 依存関係に基づく自動日程調整（カスケード）
+        $this->cascadeDependencyDates($id, $data);
+
         $this->sendJSON(['success' => true]);
     }
 
@@ -952,6 +958,138 @@ class ItemController extends BaseController {
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             $this->sendError(500, 'Reorder Failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 依存関係の日程制約バリデーション
+     * prep_date/due_date の変更が依存関係の制約に違反しないか確認
+     */
+    private function validateDependencyConstraint($itemId, $data) {
+        $newPrepDate = $data['prepDate'] ?? $data['prep_date'] ?? null;
+        $newDueDate = $data['dueDate'] ?? $data['due_date'] ?? null;
+
+        if ($newPrepDate === null && $newDueDate === null) return;
+
+        // prep_dateの変更 → このアイテムが後続タスク（target）の場合をチェック
+        if ($newPrepDate !== null) {
+            $stmt = $this->pdo->prepare(
+                "SELECT d.source_item_id, i.due_date FROM item_dependencies d
+                 JOIN items i ON d.source_item_id = i.id
+                 WHERE d.target_item_id = ?"
+            );
+            $stmt->execute([$itemId]);
+            $sources = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($sources as $src) {
+                if (!$src['due_date']) continue;
+                $sourceDueTs = is_numeric($src['due_date']) ? (int)$src['due_date'] : strtotime($src['due_date']);
+                $newPrepTs = is_numeric($newPrepDate) ? (int)$newPrepDate : strtotime($newPrepDate);
+                if ($newPrepTs < $sourceDueTs) {
+                    $this->sendError(409, '前提タスクの完了予定日より前に配置できません');
+                }
+            }
+        }
+
+        // due_dateの変更 → このアイテムが前提タスク（source）の場合をチェック
+        if ($newDueDate !== null) {
+            $stmt = $this->pdo->prepare(
+                "SELECT d.target_item_id, i.prep_date FROM item_dependencies d
+                 JOIN items i ON d.target_item_id = i.id
+                 WHERE d.source_item_id = ?"
+            );
+            $stmt->execute([$itemId]);
+            $targets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($targets as $tgt) {
+                if (!$tgt['prep_date']) continue;
+                $targetPrepTs = (int)$tgt['prep_date'];
+                $newDueTs = is_numeric($newDueDate) ? (int)$newDueDate : strtotime($newDueDate);
+                if ($newDueTs > $targetPrepTs) {
+                    $this->sendError(409, '後続タスクの開始日より後に完了予定日を設定できません');
+                }
+            }
+        }
+    }
+
+    /**
+     * 依存関係に基づく自動日程調整（カスケード）
+     * 前提タスクのdue_dateが後ろにずれた場合、後続タスクも連動してずれる
+     */
+    private function cascadeDependencyDates($itemId, $data) {
+        $newDueDate = $data['dueDate'] ?? $data['due_date'] ?? null;
+        if ($newDueDate === null) return;
+
+        // 変更前のdue_dateを取得
+        $stmt = $this->pdo->prepare("SELECT due_date FROM items WHERE id = ?");
+        $stmt->execute([$itemId]);
+        $oldDueDate = $stmt->fetchColumn();
+        if (!$oldDueDate) return;
+
+        $oldTs = is_numeric($oldDueDate) ? (int)$oldDueDate : strtotime($oldDueDate);
+        $newTs = is_numeric($newDueDate) ? (int)$newDueDate : strtotime($newDueDate);
+        $diffSeconds = $newTs - $oldTs;
+
+        // 前にずれた場合はカスケード不要
+        if ($diffSeconds <= 0) return;
+
+        $visited = [];
+        $queue = [$itemId];
+        $now = time();
+
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+            if (isset($visited[$currentId])) continue;
+            $visited[$currentId] = true;
+
+            // 後続タスクを取得
+            $depStmt = $this->pdo->prepare(
+                "SELECT target_item_id FROM item_dependencies WHERE source_item_id = ?"
+            );
+            $depStmt->execute([$currentId]);
+            $targets = $depStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($targets as $targetId) {
+                if (isset($visited[$targetId])) continue;
+
+                $itemStmt = $this->pdo->prepare("SELECT prep_date, due_date FROM items WHERE id = ?");
+                $itemStmt->execute([$targetId]);
+                $targetItem = $itemStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$targetItem || !$targetItem['prep_date']) continue;
+
+                $updates = [];
+                $params = [];
+
+                // prep_dateをずらす
+                $oldPrep = (int)$targetItem['prep_date'];
+                $newPrep = $oldPrep + $diffSeconds;
+                $updates[] = "prep_date = ?";
+                $params[] = $newPrep;
+
+                // due_dateもずらす（存在する場合）
+                if ($targetItem['due_date']) {
+                    $oldDue = is_numeric($targetItem['due_date']) ? (int)$targetItem['due_date'] : strtotime($targetItem['due_date']);
+                    $newDue = $oldDue + $diffSeconds;
+                    // due_dateの形式を維持
+                    if (is_numeric($targetItem['due_date'])) {
+                        $updates[] = "due_date = ?";
+                        $params[] = $newDue;
+                    } else {
+                        $updates[] = "due_date = ?";
+                        $params[] = date('Y-m-d', $newDue);
+                    }
+                }
+
+                $updates[] = "updated_at = ?";
+                $params[] = $now;
+                $params[] = $targetId;
+
+                $sql = "UPDATE items SET " . implode(', ', $updates) . " WHERE id = ?";
+                $upStmt = $this->pdo->prepare($sql);
+                $upStmt->execute($params);
+
+                $queue[] = $targetId;
+            }
         }
     }
 
