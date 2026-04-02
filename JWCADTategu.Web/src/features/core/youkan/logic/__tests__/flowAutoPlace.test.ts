@@ -122,6 +122,84 @@ describe('calculateAutoPlacement', () => {
     const chains = result.filter((r) => r.chainFrom != null);
     expect(chains).toHaveLength(0);
   });
+
+  it('既存依存関係がある場合、チェーン順で配置しノンチェーンは下に追加', () => {
+    const deps = [
+      { id: 'd1', sourceItemId: 'b', targetItemId: 'c', createdAt: 0 },
+    ];
+    const items = [
+      makeItem({ id: 'a', projectId: 'p1', createdAt: 100 }),
+      makeItem({ id: 'b', projectId: 'p1', createdAt: 200 }),
+      makeItem({ id: 'c', projectId: 'p1', createdAt: 300 }),
+    ];
+    const result = calculateAutoPlacement(items, deps);
+
+    // b→c のチェーンが先、aはチェーン外なのでその下
+    const bResult = result.find((r) => r.itemId === 'b')!;
+    const cResult = result.find((r) => r.itemId === 'c')!;
+    const aResult = result.find((r) => r.itemId === 'a')!;
+
+    expect(bResult.flow_x).toBe(0);
+    expect(bResult.flow_y).toBe(0);
+    expect(cResult.flow_x).toBe(0);
+    expect(cResult.flow_y).toBe(150);
+    // aはチェーン外、b→cの下に配置
+    expect(aResult.flow_x).toBe(0);
+    expect(aResult.flow_y).toBe(300);
+    // 既存チェーンのchainFromは生成しない（既にある）
+    expect(cResult.chainFrom).toBeUndefined();
+    expect(aResult.chainFrom).toBeUndefined();
+  });
+
+  it('複数チェーンがあるプロジェクトでは最長チェーンから順に配置', () => {
+    const deps = [
+      { id: 'd1', sourceItemId: 'a', targetItemId: 'b', createdAt: 0 },
+      { id: 'd2', sourceItemId: 'b', targetItemId: 'c', createdAt: 0 },
+      { id: 'd3', sourceItemId: 'x', targetItemId: 'y', createdAt: 0 },
+    ];
+    const items = [
+      makeItem({ id: 'a', projectId: 'p1', createdAt: 100 }),
+      makeItem({ id: 'b', projectId: 'p1', createdAt: 200 }),
+      makeItem({ id: 'c', projectId: 'p1', createdAt: 300 }),
+      makeItem({ id: 'x', projectId: 'p1', createdAt: 400 }),
+      makeItem({ id: 'y', projectId: 'p1', createdAt: 500 }),
+      makeItem({ id: 'z', projectId: 'p1', createdAt: 600 }),
+    ];
+    const result = calculateAutoPlacement(items, deps);
+
+    // a→b→c（長さ3）が先、x→y（長さ2）が続く、zはチェーン外
+    const aR = result.find((r) => r.itemId === 'a')!;
+    const bR = result.find((r) => r.itemId === 'b')!;
+    const cR = result.find((r) => r.itemId === 'c')!;
+    const xR = result.find((r) => r.itemId === 'x')!;
+    const yR = result.find((r) => r.itemId === 'y')!;
+    const zR = result.find((r) => r.itemId === 'z')!;
+
+    // 全て同一プロジェクトなのでx=0
+    expect(aR.flow_x).toBe(0);
+    expect(aR.flow_y).toBe(0);
+    expect(bR.flow_y).toBe(150);
+    expect(cR.flow_y).toBe(300);
+    expect(xR.flow_y).toBe(450);
+    expect(yR.flow_y).toBe(600);
+    expect(zR.flow_y).toBe(750);
+  });
+
+  it('クロスプロジェクトの依存関係はプロジェクト集約に影響しない', () => {
+    const deps = [
+      { id: 'd1', sourceItemId: 'a', targetItemId: 'b', createdAt: 0 },
+    ];
+    const items = [
+      makeItem({ id: 'a', projectId: 'p1', createdAt: 100 }),
+      makeItem({ id: 'b', projectId: 'p2', createdAt: 200 }),
+    ];
+    const result = calculateAutoPlacement(items, deps);
+
+    // aはp1列、bはp2列に配置（プロジェクト別は維持）
+    const aR = result.find((r) => r.itemId === 'a')!;
+    const bR = result.find((r) => r.itemId === 'b')!;
+    expect(aR.flow_x).not.toBe(bR.flow_x);
+  });
 });
 
 describe('findNearestEdge', () => {

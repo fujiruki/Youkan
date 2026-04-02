@@ -1,4 +1,4 @@
-import type { Item } from '../types';
+import type { Item, Dependency } from '../types';
 import { parseISO, isValid, startOfDay } from 'date-fns';
 
 // 納期/マイ期限の早い方を返す（sorting.tsと同等ロジック）
@@ -47,8 +47,59 @@ export interface PlacementResult {
 const X_OFFSET = 300;
 const Y_INTERVAL = 150;
 
+// 同一プロジェクト内の依存関係からチェーン（トポロジカル順）を構築
+const buildDependencyChains = (
+  projectItemIds: Set<string>,
+  deps: Dependency[]
+): string[][] => {
+  // プロジェクト内の依存関係のみ抽出
+  const internalDeps = deps.filter(
+    (d) => projectItemIds.has(d.sourceItemId) && projectItemIds.has(d.targetItemId)
+  );
+  if (internalDeps.length === 0) return [];
+
+  // 隣接リストと入次数
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, number>();
+  const nodesInDeps = new Set<string>();
+
+  for (const dep of internalDeps) {
+    nodesInDeps.add(dep.sourceItemId);
+    nodesInDeps.add(dep.targetItemId);
+    const targets = outgoing.get(dep.sourceItemId) || [];
+    targets.push(dep.targetItemId);
+    outgoing.set(dep.sourceItemId, targets);
+    incoming.set(dep.targetItemId, (incoming.get(dep.targetItemId) || 0) + 1);
+    if (!incoming.has(dep.sourceItemId)) incoming.set(dep.sourceItemId, 0);
+  }
+
+  // ルートノード（入次数0）ごとにチェーンをたどる
+  const roots = [...nodesInDeps].filter((id) => (incoming.get(id) || 0) === 0);
+  const visited = new Set<string>();
+  const chains: string[][] = [];
+
+  for (const root of roots) {
+    const chain: string[] = [];
+    let current: string | undefined = root;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      chain.push(current);
+      const nexts: string[] = outgoing.get(current) || [];
+      current = nexts.find((n: string) => !visited.has(n));
+    }
+    if (chain.length > 0) chains.push(chain);
+  }
+
+  // 長いチェーンを先に
+  chains.sort((a, b) => b.length - a.length);
+  return chains;
+};
+
 // アイテム群の自動配置座標＋チェーン情報を計算
-export const calculateAutoPlacement = (items: Item[]): PlacementResult[] => {
+export const calculateAutoPlacement = (
+  items: Item[],
+  existingDeps: Dependency[] = []
+): PlacementResult[] => {
   // プロジェクト別にグルーピング
   const projectGroups = new Map<string, Item[]>();
   const unassigned: Item[] = [];
@@ -68,22 +119,50 @@ export const calculateAutoPlacement = (items: Item[]): PlacementResult[] => {
 
   const results: PlacementResult[] = [];
   let projectIndex = 0;
+  const hasDeps = existingDeps.length > 0;
 
-  // プロジェクトごとにソートして配置＋チェーン生成
+  // プロジェクトごとに配置
   for (const [, group] of projectGroups) {
-    const sorted = sortItemsForChain(group);
     const x = projectIndex * X_OFFSET;
+    const itemIds = new Set(group.map((i) => i.id));
 
-    for (let i = 0; i < sorted.length; i++) {
-      const result: PlacementResult = {
-        itemId: sorted[i].id,
-        flow_x: x,
-        flow_y: i * Y_INTERVAL,
-      };
-      if (i > 0) {
-        result.chainFrom = sorted[i - 1].id;
+    if (hasDeps) {
+      // 既存依存関係のチェーン順で配置
+      const chains = buildDependencyChains(itemIds, existingDeps);
+      const placedIds = new Set<string>();
+      let yIndex = 0;
+
+      // チェーンに含まれるアイテムをチェーン順に配置
+      for (const chain of chains) {
+        for (const id of chain) {
+          if (placedIds.has(id)) continue;
+          placedIds.add(id);
+          results.push({ itemId: id, flow_x: x, flow_y: yIndex * Y_INTERVAL });
+          yIndex++;
+        }
       }
-      results.push(result);
+
+      // チェーンに含まれないアイテムを下に追加
+      const nonChainItems = group.filter((i) => !placedIds.has(i.id));
+      const sortedNonChain = sortItemsForChain(nonChainItems);
+      for (const item of sortedNonChain) {
+        results.push({ itemId: item.id, flow_x: x, flow_y: yIndex * Y_INTERVAL });
+        yIndex++;
+      }
+    } else {
+      // 依存関係なし: 期限順でソート+チェーン生成
+      const sorted = sortItemsForChain(group);
+      for (let i = 0; i < sorted.length; i++) {
+        const result: PlacementResult = {
+          itemId: sorted[i].id,
+          flow_x: x,
+          flow_y: i * Y_INTERVAL,
+        };
+        if (i > 0) {
+          result.chainFrom = sorted[i - 1].id;
+        }
+        results.push(result);
+      }
     }
 
     projectIndex++;

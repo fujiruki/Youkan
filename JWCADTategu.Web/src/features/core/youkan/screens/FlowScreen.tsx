@@ -22,6 +22,7 @@ import '@xyflow/react/dist/style.css';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
+import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
 import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
@@ -61,6 +62,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const unplacedListRef = useRef<UnplacedItemListHandle>(null);
   const [isAutoPlacing, setIsAutoPlacing] = useState(false);
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   // ドラッグ開始位置の記録（重ねてリンク用）
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
 
@@ -145,6 +147,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       source: dep.sourceItemId,
       target: dep.targetItemId,
       animated: true,
+      interactionWidth: 20,
       style: { stroke: '#6366f1', strokeWidth: 2 },
     }));
 
@@ -371,13 +374,41 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     [screenToFlowPosition, updateItemMeta, handleEdgeInsert]
   );
 
-  // 全て自動配置
+  // エッジ右クリックメニュー
+  const handleEdgeContextMenu = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.preventDefault();
+      setEdgeContextMenu({ x: event.clientX, y: event.clientY, edgeId: edge.id });
+    },
+    []
+  );
+
+  const handleEdgeContextMenuDelete = useCallback(
+    async (edgeId: string) => {
+      try {
+        await dependencyRepo.deleteDependency(edgeId);
+        setDependencies((prev) => prev.filter((d) => d.id !== edgeId));
+        setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+        showToast({ type: 'success', title: '接続削除', message: '接続を削除しました', duration: 2000 });
+      } catch (err) {
+        console.error('[FlowScreen] エッジ削除失敗:', err);
+        showToast({ type: 'error', title: '削除失敗', message: String(err), duration: 5000 });
+      }
+    },
+    [showToast, setEdges]
+  );
+
+  const closeEdgeContextMenu = useCallback(() => {
+    setEdgeContextMenu(null);
+  }, []);
+
+  // 全て自動配置（全アイテムをプロジェクトごとに集約再配置）
   const handleAutoPlace = useCallback(async () => {
-    if (unplacedItems.length === 0) return;
+    if (allItems.length === 0) return;
     setIsAutoPlacing(true);
 
     try {
-      const placements = calculateAutoPlacement(unplacedItems);
+      const placements = calculateAutoPlacement(allItems, dependencies);
 
       // チェーン（依存関係）を一括作成
       for (const p of placements) {
@@ -418,7 +449,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     } finally {
       setIsAutoPlacing(false);
     }
-  }, [unplacedItems, updateItemMeta, showToast, fitView]);
+  }, [allItems, dependencies, updateItemMeta, showToast, fitView]);
 
   // --- キーボードショートカット ---
   const createNodeBelow = useCallback(
@@ -613,11 +644,13 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         onNodesDelete={onNodesDelete}
         onEdgesDelete={onEdgesDelete}
         onSelectionChange={onSelectionChange}
+        onEdgeContextMenu={handleEdgeContextMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         fitView
         deleteKeyCode={null}
+        edgesFocusable
         multiSelectionKeyCode="Control"
         className="bg-slate-50"
       >
@@ -640,6 +673,15 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         />
       </ReactFlow>
       <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} />
+      {edgeContextMenu && (
+        <EdgeContextMenu
+          x={edgeContextMenu.x}
+          y={edgeContextMenu.y}
+          edgeId={edgeContextMenu.edgeId}
+          onDelete={handleEdgeContextMenuDelete}
+          onClose={closeEdgeContextMenu}
+        />
+      )}
     </div>
   );
 };
