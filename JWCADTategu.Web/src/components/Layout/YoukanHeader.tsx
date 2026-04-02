@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2 } from 'lucide-react';
+import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, GitBranch } from 'lucide-react';
 import { HealthCheck } from '../../features/core/youkan/components/Layout/HealthCheck';
 
 import { MenuDrawer } from './MenuDrawer';
@@ -32,7 +32,7 @@ interface Tenant {
 // type FilterMode = 'all' | 'personal' | 'company'; // [REMOVED] Use from types.ts
 
 interface YoukanHeaderProps {
-	currentView: 'youkan' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings' | 'archive' | 'trash';
+	currentView: 'youkan' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings' | 'archive' | 'trash' | 'flows';
 	onNavigateToToday: () => void;
 	onNavigateToDashboard: () => void;
 	onNavigateToHistory: () => void;
@@ -43,6 +43,7 @@ interface YoukanHeaderProps {
 	onNavigateToCalendar?: () => void;
 	onNavigateToCompanySettings?: () => void;
 	onNavigateToPersonalSettings?: () => void;
+	onNavigateToFlows?: () => void;
 	user?: AuthUser | null;
 	tenant?: Tenant | null;
 	joinedTenants?: Tenant[];
@@ -66,6 +67,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	onNavigateToCalendar,
 	onNavigateToCompanySettings,
 	onNavigateToPersonalSettings,
+	onNavigateToFlows,
 	user,
 	tenant,
 	joinedTenants = [],
@@ -174,6 +176,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 
 	// Check active states
 	const isDashboard = currentView === 'dashboard' || currentView === 'youkan';
+	const isFlows = currentView === 'flows';
 	const isProjects = currentView === 'projects';
 	const isCalendar = currentView === 'calendar' || currentView === 'planning';
 
@@ -328,6 +331,15 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 								<SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
 								<SubNavTab label="状況把握" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
 								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
+							</div>
+						</NavSection>
+
+						<Separator />
+
+						{/* フロー Section */}
+						<NavSection title="フロー" isActive={isFlows} icon={<GitBranch size={14} />}>
+							<div className="flex gap-1">
+								<SubNavTab label="フローチャート" isActive={isFlows} onClick={() => onNavigateToFlows?.()} />
 							</div>
 						</NavSection>
 

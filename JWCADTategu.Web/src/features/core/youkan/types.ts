@@ -182,6 +182,9 @@ export interface Item {
     created_by?: string;     // [NEW] Owner ID
     createdBy?: string;      // [NEW] Mapped Owner ID
 
+    // --- メタデータ（フローView等） ---
+    meta?: Record<string, any> | null;
+
     // Legacy / Door Props
     category?: string;
     thumbnail?: string; // Base64 or URL

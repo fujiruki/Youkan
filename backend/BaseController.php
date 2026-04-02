@@ -174,6 +174,13 @@ class BaseController {
             $item['delegation'] = json_decode($item['delegation'], true);
         }
 
+        // meta (JSON) - フローView等で使用
+        if (!empty($item['meta']) && is_string($item['meta'])) {
+            $item['meta'] = json_decode($item['meta'], true);
+        } elseif (!isset($item['meta'])) {
+            $item['meta'] = null;
+        }
+
         return $item;
     }
 

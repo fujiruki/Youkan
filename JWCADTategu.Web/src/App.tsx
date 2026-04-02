@@ -36,9 +36,10 @@ import { RegistrationScreen } from './pages/RegistrationScreen';
 import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
+import { FlowScreen } from './features/core/youkan/screens/FlowScreen'; // [NEW] フローチャートView
 import { db, Door } from './db/db';
 
-type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'youkan' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings';
+type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'youkan' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings' | 'flows';
 
 function App() {
 	const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -91,6 +92,8 @@ function App() {
 			setCurrentView('personalSettings');
 		} else if (matches('userlist')) {
 			setCurrentView('userlist');
+		} else if (matches('flows') || matches('flow')) {
+			setCurrentView('flows');
 		}
 	}, []);
 
@@ -393,7 +396,7 @@ const AppContent: React.FC<{
 					<UndoProvider>
 						<div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
 							<DebugBanner />
-							{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash') && (
+							{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today' || currentView === 'planning' || currentView === 'history' || currentView === 'customers' || currentView === 'personalSettings' || currentView === 'calendar' || currentView === 'projects' || currentView === 'archive' || currentView === 'trash' || currentView === 'flows') && (
 								<YoukanHeader
 									currentView={currentView}
 									onNavigateToToday={() => setCurrentView('today')}
@@ -406,6 +409,7 @@ const AppContent: React.FC<{
 									onNavigateToCalendar={() => setCurrentView('calendar')}
 									onNavigateToCompanySettings={() => setCurrentView('companySettings')}
 									onNavigateToPersonalSettings={() => setCurrentView('personalSettings')}
+									onNavigateToFlows={() => setCurrentView('flows')}
 									user={user}
 									tenant={tenant}
 									joinedTenants={mappedTenants}
@@ -513,6 +517,10 @@ const AppContent: React.FC<{
 
 								{currentView === 'personalSettings' && (
 									<PersonalSettingsScreen onBack={handleBackToDashboard} />
+								)}
+
+								{currentView === 'flows' && (
+									<FlowScreen activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined)} />
 								)}
 							</div>
 
