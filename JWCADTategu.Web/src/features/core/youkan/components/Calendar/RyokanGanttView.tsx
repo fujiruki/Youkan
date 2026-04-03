@@ -253,11 +253,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			activeProjectId: focusedProjectId,
 			allProjects: projects,
 			allItems: items,
-			showGroups: showGroups
+			showGroups: showGroups,
+			dependencies: visibleDependencies
 		});
 
 		return hierarchicalWrappers;
-	}, [items, projects, showGroups, focusedProjectId]);
+	}, [items, projects, showGroups, focusedProjectId, visibleDependencies]);
 
 	// Calculate detailed allocations using QuantityEngine
 	const allocationMap = useMemo(() => {
