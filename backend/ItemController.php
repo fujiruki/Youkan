@@ -11,12 +11,16 @@ class ItemController extends BaseController {
         if ($method === 'GET') {
             // Distinguish between "My Inbox" and "Project Items"
             $projectId = $_GET['project_id'] ?? null;
+            $scope = $_GET['scope'] ?? '';
             $type = $_GET['type'] ?? 'all'; // 'inbox', 'project', 'all' (legacy)
             $isRefresh = isset($_GET['refresh']) || isset($_GET['isRefresh']); // [NEW] Support refresh flag
 
             if ($id) {
                 // Single item retrieval - requires permission check
                 $this->show($id);
+            } elseif ($scope === 'aggregated' || $scope === 'personal' || $scope === 'company' || $scope === 'dashboard') {
+                // scope指定時はgetMyItemsで処理（project_idフィルタも内部で対応）
+                $this->getMyItems();
             } elseif ($projectId) {
                 // Project Scope (Shared)
                 $this->getProjectItems($projectId);

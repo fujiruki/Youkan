@@ -70,15 +70,22 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    try {
-      const [itemsRes, deps] = await Promise.all([
-        ApiClient.getAllItems({ scope: 'aggregated', ...(activeProjectId ? { project_id: activeProjectId } : {}) }),
-        dependencyRepo.getDependencies(),
-      ]);
-      setAllItems(itemsRes);
-      setDependencies(deps);
-    } catch (err) {
-      console.error('[FlowScreen] データ取得失敗:', err);
+    // 片方が失敗しても他方のデータは設定する
+    const [itemsResult, depsResult] = await Promise.allSettled([
+      ApiClient.getAllItems({ scope: 'aggregated', ...(activeProjectId ? { project_id: activeProjectId } : {}) }),
+      dependencyRepo.getDependencies(),
+    ]);
+
+    if (itemsResult.status === 'fulfilled') {
+      setAllItems(itemsResult.value);
+    } else {
+      console.error('[FlowScreen] アイテム取得失敗:', itemsResult.reason);
+    }
+
+    if (depsResult.status === 'fulfilled') {
+      setDependencies(depsResult.value);
+    } else {
+      console.error('[FlowScreen] 依存関係取得失敗:', depsResult.reason);
     }
   }, [activeProjectId]);
 
