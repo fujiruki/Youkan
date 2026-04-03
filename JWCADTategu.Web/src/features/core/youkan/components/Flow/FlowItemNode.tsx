@@ -16,7 +16,7 @@ const statusColors: Record<string, { bg: string; border: string; text: string }>
   focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
   pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
   waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
-  done: { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-800' },
+  done: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-400' },
 };
 
 const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
@@ -58,10 +58,11 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
 
   const highlightRing = nodeData.isHighlighted ? 'ring-2 ring-blue-400 ring-offset-1' : '';
   const selectedRing = selected ? 'ring-2 ring-indigo-500 ring-offset-1' : highlightRing;
+  const doneOpacity = item.status === 'done' ? 'opacity-50' : '';
 
   return (
     <div
-      className={`px-4 py-2 rounded-lg border-2 shadow-sm min-w-[140px] max-w-[220px] ${colors.bg} ${colors.border} ${selectedRing}`}
+      className={`px-4 py-2 rounded-lg border-2 shadow-sm min-w-[140px] max-w-[220px] ${colors.bg} ${colors.border} ${selectedRing} ${doneOpacity}`}
     >
       <Handle type="target" position={Position.Top} className="!bg-slate-400 !w-3 !h-3" />
       <div className="flex flex-col gap-1">

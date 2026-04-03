@@ -525,21 +525,41 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     try {
       const placements = calculateAutoPlacement(allItems, dependencies);
 
-      // チェーン（依存関係）を一括作成
+      // 既存の依存関係をセットに変換（重複チェック用）
+      const existingDepKeys = new Set(
+        dependencies.map((d) => `${d.sourceItemId}:${d.targetItemId}`)
+      );
+
+      // チェーン（依存関係）を一括作成（重複・循環はスキップ）
+      let createdCount = 0;
+      let skippedCount = 0;
       for (const p of placements) {
         if (p.chainFrom) {
+          const depKey = `${p.chainFrom}:${p.itemId}`;
+          if (existingDepKeys.has(depKey)) {
+            skippedCount++;
+            continue;
+          }
           try {
             const dep = await dependencyRepo.createDependency(p.chainFrom, p.itemId);
             setDependencies((prev) => [...prev, dep]);
+            existingDepKeys.add(depKey);
+            createdCount++;
           } catch {
-            // 重複や循環参照は無視
+            skippedCount++;
           }
         }
       }
 
-      // flow_x/flow_y を一括保存
+      // flow_x/flow_y を一括保存（個別エラーはスキップ）
+      let positionErrors = 0;
       for (const p of placements) {
-        await updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y });
+        try {
+          await updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y });
+        } catch (err) {
+          console.error(`[FlowScreen] 位置保存失敗 (${p.itemId}):`, err);
+          positionErrors++;
+        }
       }
 
       // ローカルステート更新
@@ -554,17 +574,22 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         })
       );
 
-      showToast({ type: 'success', title: '自動配置完了', message: `${placements.length}件を配置しました`, duration: 3000 });
+      const msg = `${placements.length}件を配置しました` +
+        (skippedCount > 0 ? `（${skippedCount}件の依存関係をスキップ）` : '') +
+        (positionErrors > 0 ? `（${positionErrors}件の位置保存エラー）` : '');
+      showToast({ type: 'success', title: '自動配置完了', message: msg, duration: 3000 });
 
       // fitView で全体表示
       setTimeout(() => fitView({ duration: 300 }), 100);
     } catch (err) {
       console.error('[FlowScreen] 自動配置失敗:', err);
       showToast({ type: 'error', title: '自動配置失敗', message: String(err), duration: 5000 });
+      // エラー後もデータを再取得して画面が空にならないようにする
+      await fetchData();
     } finally {
       setIsAutoPlacing(false);
     }
-  }, [allItems, dependencies, updateItemMeta, showToast, fitView]);
+  }, [allItems, dependencies, updateItemMeta, showToast, fitView, fetchData]);
 
   // --- キーボードショートカット ---
   const createNodeBelow = useCallback(
@@ -781,7 +806,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
               case 'focus': return '#6366f1';
               case 'pending': return '#f59e0b';
               case 'waiting': return '#f97316';
-              case 'done': return '#10b981';
+              case 'done': return '#9ca3af';
               default: return '#94a3b8';
             }
           }}
