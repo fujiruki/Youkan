@@ -8,6 +8,10 @@ export interface Toast {
     title: string;
     message?: string;
     duration?: number; // ms, default 5000
+    action?: {
+        label: string;
+        onClick: () => void;
+    };
 }
 
 interface ToastContainerProps {
@@ -52,6 +56,17 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
                                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                                         {toast.message}
                                     </p>
+                                )}
+                                {toast.action && (
+                                    <button
+                                        onClick={() => {
+                                            toast.action!.onClick();
+                                            onDismiss(toast.id);
+                                        }}
+                                        className="mt-1 text-xs font-bold text-blue-600 hover:text-blue-800 underline"
+                                    >
+                                        {toast.action.label}
+                                    </button>
                                 )}
                             </div>
                             <button

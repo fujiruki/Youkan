@@ -6,6 +6,7 @@ export interface FlowItemNodeData {
   item: Item;
   isEditing?: boolean;
   isNewNode?: boolean;
+  isHighlighted?: boolean;
   onTitleChange?: (itemId: string, newTitle: string) => void;
   onEditComplete?: (itemId: string) => void;
 }
@@ -55,7 +56,8 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
     [handleSubmit, item.title, item.id, nodeData]
   );
 
-  const selectedRing = selected ? 'ring-2 ring-indigo-500 ring-offset-1' : '';
+  const highlightRing = nodeData.isHighlighted ? 'ring-2 ring-blue-400 ring-offset-1' : '';
+  const selectedRing = selected ? 'ring-2 ring-indigo-500 ring-offset-1' : highlightRing;
 
   return (
     <div

@@ -39,9 +39,9 @@ const nodeTypes = {
 const dependencyRepo = new DependencyRepository();
 
 // ノードの重なり判定用閾値（ピクセル）
-const OVERLAP_THRESHOLD = 80;
+const OVERLAP_THRESHOLD = 40;
 // エッジ挿入判定用閾値（ピクセル）
-const EDGE_INSERT_THRESHOLD = 100;
+const EDGE_INSERT_THRESHOLD = 50;
 
 interface FlowScreenProps {
   activeProjectId?: string;
@@ -65,6 +65,9 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   // ドラッグ開始位置の記録（重ねてリンク用）
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // ドラッグ中ハイライト対象
+  const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
+  const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -120,6 +123,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
 
     const itemNodes: Node[] = placedItems.map((item) => {
       const mapping = childMap.get(item.id);
+      const isHighlighted = highlightNodeId === item.id;
       const baseNode: Node = {
         id: item.id,
         type: 'flowItem',
@@ -130,6 +134,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           item,
           isEditing: editingNodeId === item.id,
           isNewNode: newNodeId === item.id,
+          isHighlighted,
           onTitleChange: handleTitleChange,
           onEditComplete: handleEditComplete,
         },
@@ -142,19 +147,24 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       return baseNode;
     });
 
-    const newEdges: Edge[] = dependencies.map((dep) => ({
-      id: dep.id,
-      source: dep.sourceItemId,
-      target: dep.targetItemId,
-      animated: true,
-      interactionWidth: 20,
-      style: { stroke: '#6366f1', strokeWidth: 2 },
-    }));
+    const newEdges: Edge[] = dependencies.map((dep) => {
+      const isEdgeHighlighted = highlightEdgeId === dep.id;
+      return {
+        id: dep.id,
+        source: dep.sourceItemId,
+        target: dep.targetItemId,
+        animated: true,
+        interactionWidth: 20,
+        style: isEdgeHighlighted
+          ? { stroke: '#3b82f6', strokeWidth: 4 }
+          : { stroke: '#6366f1', strokeWidth: 2 },
+      };
+    });
 
     // グループノードが先、子ノードが後（描画順のため）
     setNodes([...groupNodes, ...itemNodes]);
     setEdges(newEdges);
-  }, [placedItems, dependencies, editingNodeId, newNodeId, handleTitleChange, handleEditComplete, setNodes, setEdges]);
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges]);
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
@@ -212,7 +222,31 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           );
         }
 
-        showToast({ type: 'success', title: 'エッジ挿入', message: 'フローに挿入しました', duration: 2000 });
+        const oldEdgeSource = nearest.edge.source;
+        const oldEdgeTarget = nearest.edge.target;
+        showToast({
+          type: 'success',
+          title: 'エッジ挿入',
+          message: 'フローに挿入しました',
+          duration: 3000,
+          action: {
+            label: '取り消し',
+            onClick: async () => {
+              try {
+                // 挿入した2本を削除し、元のエッジを復元
+                await dependencyRepo.deleteDependency(dep1.id);
+                await dependencyRepo.deleteDependency(dep2.id);
+                const restored = await dependencyRepo.createDependency(oldEdgeSource, oldEdgeTarget);
+                setDependencies((prev) => [
+                  ...prev.filter((d) => d.id !== dep1.id && d.id !== dep2.id),
+                  restored,
+                ]);
+              } catch (e) {
+                console.error('[FlowScreen] エッジ挿入取り消し失敗:', e);
+              }
+            },
+          },
+        });
         return true;
       } catch (err) {
         console.error('[FlowScreen] エッジ挿入失敗:', err);
@@ -227,6 +261,40 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
     dragStartPositions.current.set(node.id, { ...node.position });
   }, []);
+
+  // ドラッグ中: ハイライト候補の検出
+  const onNodeDrag: OnNodeDrag = useCallback(
+    (_event, draggedNode) => {
+      if (draggedNode.id.startsWith('group-')) return;
+
+      // ノード重なり候補の検出
+      const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
+      let foundNodeId: string | null = null;
+      for (const otherNode of allFlowNodes) {
+        const dx = draggedNode.position.x - otherNode.position.x;
+        const dy = draggedNode.position.y - otherNode.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < OVERLAP_THRESHOLD) {
+          foundNodeId = otherNode.id;
+          break;
+        }
+      }
+
+      // エッジ挿入候補の検出
+      let foundEdgeId: string | null = null;
+      if (!foundNodeId) {
+        const nodePositions = getNodePositions();
+        const nearest = findNearestEdge(draggedNode.position, edges, nodePositions, EDGE_INSERT_THRESHOLD);
+        if (nearest) {
+          foundEdgeId = nearest.edge.id;
+        }
+      }
+
+      setHighlightNodeId(foundNodeId);
+      setHighlightEdgeId(foundEdgeId);
+    },
+    [nodes, edges, getNodePositions]
+  );
 
   // ドラッグ完了時: 位置保存＋重ねてリンク判定
   const onNodeDragStop: OnNodeDrag = useCallback(
@@ -253,7 +321,29 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         try {
           const dep = await dependencyRepo.createDependency(overlappingNode.id, draggedNode.id);
           setDependencies((prev) => [...prev, dep]);
-          showToast({ type: 'success', title: 'リンク作成', message: `依存関係を追加しました`, duration: 2000 });
+          const sourceTitle = (overlappingNode.data as Record<string, unknown>)?.item
+            ? ((overlappingNode.data as Record<string, unknown>).item as Item).title
+            : overlappingNode.id;
+          const targetTitle = (draggedNode.data as Record<string, unknown>)?.item
+            ? ((draggedNode.data as Record<string, unknown>).item as Item).title
+            : draggedNode.id;
+          showToast({
+            type: 'success',
+            title: '接続作成',
+            message: `${sourceTitle} → ${targetTitle} を接続しました`,
+            duration: 3000,
+            action: {
+              label: '取り消し',
+              onClick: async () => {
+                try {
+                  await dependencyRepo.deleteDependency(dep.id);
+                  setDependencies((prev) => prev.filter((d) => d.id !== dep.id));
+                } catch (e) {
+                  console.error('[FlowScreen] 取り消し失敗:', e);
+                }
+              },
+            },
+          });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           if (msg.includes('400') || msg.toLowerCase().includes('circular')) {
@@ -280,6 +370,8 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       }
 
       dragStartPositions.current.delete(draggedNode.id);
+      setHighlightNodeId(null);
+      setHighlightEdgeId(null);
     },
     [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert]
   );
@@ -301,6 +393,29 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           )
         );
         setDependencies((prev) => [...prev, dep]);
+        // 接続元・接続先のタイトルを取得
+        const sourceItem = allItems.find((i) => i.id === connection.source);
+        const targetItem = allItems.find((i) => i.id === connection.target);
+        const srcName = sourceItem?.title || connection.source;
+        const tgtName = targetItem?.title || connection.target;
+        showToast({
+          type: 'success',
+          title: '接続作成',
+          message: `${srcName} → ${tgtName} を接続しました`,
+          duration: 3000,
+          action: {
+            label: '取り消し',
+            onClick: async () => {
+              try {
+                await dependencyRepo.deleteDependency(dep.id);
+                setDependencies((prev) => prev.filter((d) => d.id !== dep.id));
+                setEdges((eds) => eds.filter((e) => e.id !== dep.id));
+              } catch (e) {
+                console.error('[FlowScreen] 接続取り消し失敗:', e);
+              }
+            },
+          },
+        });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('400') || msg.toLowerCase().includes('circular')) {
@@ -310,7 +425,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         }
       }
     },
-    [setEdges, showToast]
+    [setEdges, showToast, allItems]
   );
 
   const onEdgesDelete: OnEdgesDelete = useCallback(
@@ -640,6 +755,7 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
         onEdgesDelete={onEdgesDelete}
