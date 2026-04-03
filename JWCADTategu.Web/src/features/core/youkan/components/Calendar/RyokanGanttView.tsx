@@ -383,7 +383,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 						transformedItems={transformedItems}
 						allDays={allDays}
 						colWidth={colWidth}
-						rowHeight={40}
+						rowHeight={28}
 						stickyColWidth={256}
 					/>
 
@@ -411,7 +411,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							return (
 								<div
 									key={item.id}
-									className="flex h-10 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
+									data-item-id={item.id}
+									className="flex h-7 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
 									onMouseEnter={() => setHoveredItemId(item.id)}
 									onMouseLeave={() => setHoveredItemId(null)}
 								>
@@ -474,7 +475,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 													{step && (
 														<div
 															className={cn(
-																"absolute w-5 h-5 rounded-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
+																"absolute w-4 h-4 rounded-sm flex items-center justify-center text-[8px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
 																"bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
 															)}
 															title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}

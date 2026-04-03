@@ -132,31 +132,38 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				container.scrollTo({ left: Math.max(0, horizontalScroll), behavior: 'smooth' });
 			}
 
-			// 縦方向: 今月が目安期間に含まれるアイテム群の中央を表示
-			const allItemRows = container.querySelectorAll('.flex.h-10.border-b');
-			if (allItemRows.length > 0) {
+			// 縦方向: 今月が目安期間（prep_date〜due_date）に含まれるアイテム群の中央を表示
+			const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+			const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+			const monthStartUnix = Math.floor(monthStart.getTime() / 1000);
+			const monthEndUnix = Math.floor(monthEnd.getTime() / 1000);
+
+			// 今月が目安期間に含まれるアイテムのIDを収集
+			const matchingItemIds = new Set<string>();
+			items.forEach(item => {
+				const prepUnix = item.prep_date ? (item.prep_date as number) : null;
+				const dueUnix = item.due_date ? Math.floor(new Date(item.due_date).getTime() / 1000) : null;
+				if (!prepUnix && !dueUnix) return;
+				// 期間: prep_date〜due_date（片方しかない場合はその日のみ）
+				const rangeStart = Math.min(...[prepUnix, dueUnix].filter((v): v is number => v !== null));
+				const rangeEnd = Math.max(...[prepUnix, dueUnix].filter((v): v is number => v !== null));
+				// 今月と期間が重なるか判定
+				if (rangeStart <= monthEndUnix && rangeEnd >= monthStartUnix) {
+					matchingItemIds.add(item.id);
+				}
+			});
+
+			if (matchingItemIds.size > 0) {
+				// DOM上の行要素を取得（data-item-id属性で特定）
 				const matchingRows: HTMLElement[] = [];
-				allItemRows.forEach((row) => {
-					// 行内の割当チップやマーカーから今月の日付を探す
-					const ganttCells = row.querySelectorAll(`[data-gantt-date]`);
-					let hasCurrentMonth = false;
-					ganttCells.forEach((cell) => {
-						const dateStr = cell.getAttribute('data-gantt-date');
-						if (!dateStr) return;
-						const [y, m] = dateStr.split('-').map(Number);
-						if (y === now.getFullYear() && m === now.getMonth() + 1) {
-							// セルに割当チップやマーカーがあるか確認
-							if (cell.querySelector('.bg-indigo-500, .bg-indigo-600, .bg-indigo-400, .bg-red-500')) {
-								hasCurrentMonth = true;
-							}
-						}
-					});
-					if (hasCurrentMonth) {
-						matchingRows.push(row as HTMLElement);
-					}
+				matchingItemIds.forEach(id => {
+					const row = container.querySelector(`[data-item-id="${id}"]`) as HTMLElement | null;
+					if (row) matchingRows.push(row);
 				});
 
 				if (matchingRows.length > 0) {
+					// offsetTopでソートして最初と最後の行を特定
+					matchingRows.sort((a, b) => a.offsetTop - b.offsetTop);
 					const firstRow = matchingRows[0];
 					const lastRow = matchingRows[matchingRows.length - 1];
 					const groupCenterY = (firstRow.offsetTop + lastRow.offsetTop + lastRow.offsetHeight) / 2;
@@ -168,7 +175,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			// Grid/Timeline: 従来のスクロール
 			scrollToDateElement(now);
 		}
-	}, [displayMode, scrollToDateElement]);
+	}, [displayMode, scrollToDateElement, items]);
 
 	useImperativeHandle(calendarRef, () => ({
 		scrollToMonth: (year: number, month: number) => {
