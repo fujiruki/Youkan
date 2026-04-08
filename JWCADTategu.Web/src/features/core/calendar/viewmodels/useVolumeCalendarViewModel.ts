@@ -44,7 +44,7 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 				ApiClient.request<Item[]>('GET', itemQuery),
 				ApiClient.request<Item[]>('GET', completedQuery).catch(() => [] as Item[]),
 				ApiClient.request<any[]>('GET', '/members'),
-				ApiClient.request<any[]>('GET', '/projects')
+				ApiClient.request<any[]>('GET', '/projects?scope=aggregated')
 			]);
 
 			setItems(fetchedItems);
