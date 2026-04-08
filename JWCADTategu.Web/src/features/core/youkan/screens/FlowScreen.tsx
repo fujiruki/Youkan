@@ -97,6 +97,29 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     fetchData();
   }, [fetchData]);
 
+  // 依存関係を持つアイテムIDのセット
+  const itemIdsWithDeps = useMemo(() => {
+    const ids = new Set<string>();
+    for (const dep of dependencies) {
+      ids.add(dep.sourceItemId);
+      ids.add(dep.targetItemId);
+    }
+    return ids;
+  }, [dependencies]);
+
+  // 依存関係ありでflow座標未設定のアイテムに自動座標を付与
+  const autoPlacedItems = useMemo(() => {
+    const needsAutoPlace = allItems.filter(
+      (item) =>
+        (item.meta?.flow_x == null || item.meta?.flow_y == null) &&
+        itemIdsWithDeps.has(item.id)
+    );
+    if (needsAutoPlace.length === 0) return [];
+
+    const placements = calculateAutoPlacement(needsAutoPlace, dependencies);
+    return placements;
+  }, [allItems, dependencies, itemIdsWithDeps]);
+
   const { placedItems, unplacedItems } = useMemo(() => {
     const placed: Item[] = [];
     const unplaced: Item[] = [];
@@ -104,11 +127,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       if (item.meta?.flow_x != null && item.meta?.flow_y != null) {
         placed.push(item);
       } else {
-        unplaced.push(item);
+        // プロジェクトフィルタ: currentProjectIdが指定されている場合はそのプロジェクトのアイテムのみ
+        if (currentProjectId) {
+          if (item.projectId === currentProjectId) {
+            unplaced.push(item);
+          }
+        } else {
+          unplaced.push(item);
+        }
       }
     }
     return { placedItems: placed, unplacedItems: unplaced };
-  }, [allItems]);
+  }, [allItems, currentProjectId]);
 
   const handleTitleChange = useCallback(async (itemId: string, newTitle: string) => {
     try {
@@ -180,6 +210,28 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     const newMeta = { ...currentMeta, ...metaUpdate };
     await ApiClient.updateItem(itemId, { meta: newMeta } as Partial<Item>);
   }, [allItems]);
+
+  // 依存関係ありでflow座標未設定のアイテムに自動座標を付与してAPI保存
+  useEffect(() => {
+    if (autoPlacedItems.length === 0) return;
+
+    for (const p of autoPlacedItems) {
+      updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y }).catch((err) => {
+        console.error(`[FlowScreen] 自動配置座標保存失敗 (${p.itemId}):`, err);
+      });
+    }
+
+    setAllItems((prev) =>
+      prev.map((item) => {
+        const placement = autoPlacedItems.find((p) => p.itemId === item.id);
+        if (!placement) return item;
+        return {
+          ...item,
+          meta: { ...(item.meta || {}), flow_x: placement.flow_x, flow_y: placement.flow_y },
+        };
+      })
+    );
+  }, [autoPlacedItems, updateItemMeta]);
 
   const onSelectionChange: OnSelectionChangeFunc = useCallback(({ nodes: selNodes, edges: selEdges }) => {
     setSelectedNodeIds(selNodes.map((n) => n.id));
@@ -824,6 +876,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           className="!bg-white/80 !border-slate-200"
         />
       </ReactFlow>
+      {allItems.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="text-center">
+            <p className="text-sm text-slate-400 font-medium">アイテムがありません</p>
+            <p className="text-xs text-slate-300 mt-1">ダブルクリックまたは右下の＋ボタンで追加</p>
+          </div>
+        </div>
+      )}
       <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} />
       <button
         onClick={handleAddButtonClick}

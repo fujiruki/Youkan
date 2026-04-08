@@ -266,11 +266,17 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 
 				{!isDone && !isTimeEditing && (
 					<span
-						className="text-[0.75em] whitespace-nowrap shrink-0 text-amber-600 dark:text-amber-400 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded px-[0.3em] transition-colors"
+						className={cn(
+							"text-[0.75em] whitespace-nowrap shrink-0 cursor-pointer rounded px-[0.3em] min-w-[1.5em] text-center transition-colors",
+							formatMinutes(item.estimatedMinutes)
+								? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+								: "text-slate-400 dark:text-slate-600 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+						)}
 						onClick={handleTimeEditStart}
+						onMouseUp={(e) => e.stopPropagation()}
 						title="目安時間を編集"
 					>
-						{formatMinutes(item.estimatedMinutes) || <span className="opacity-0 group-hover:opacity-40">--</span>}
+						{formatMinutes(item.estimatedMinutes) || '--'}
 					</span>
 				)}
 				{!isDone && isTimeEditing && (
