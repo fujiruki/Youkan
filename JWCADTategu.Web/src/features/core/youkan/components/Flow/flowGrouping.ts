@@ -1,19 +1,17 @@
 import type { Node } from '@xyflow/react';
 import type { Item } from '../../types';
 
-// プロジェクトグループ用の薄い背景色パレット
 export const PROJECT_COLORS = [
-  'rgba(99, 102, 241, 0.08)',   // indigo
-  'rgba(16, 185, 129, 0.08)',   // emerald
-  'rgba(245, 158, 11, 0.08)',   // amber
-  'rgba(239, 68, 68, 0.08)',    // red
-  'rgba(6, 182, 212, 0.08)',    // cyan
-  'rgba(168, 85, 247, 0.08)',   // purple
-  'rgba(236, 72, 153, 0.08)',   // pink
-  'rgba(34, 197, 94, 0.08)',    // green
+  'rgba(99, 102, 241, 0.08)',
+  'rgba(16, 185, 129, 0.08)',
+  'rgba(245, 158, 11, 0.08)',
+  'rgba(239, 68, 68, 0.08)',
+  'rgba(6, 182, 212, 0.08)',
+  'rgba(168, 85, 247, 0.08)',
+  'rgba(236, 72, 153, 0.08)',
+  'rgba(34, 197, 94, 0.08)',
 ];
 
-// プロジェクトグループの境界線色
 const PROJECT_BORDER_COLORS = [
   'rgba(99, 102, 241, 0.25)',
   'rgba(16, 185, 129, 0.25)',
@@ -25,26 +23,24 @@ const PROJECT_BORDER_COLORS = [
   'rgba(34, 197, 94, 0.25)',
 ];
 
-// ノードの推定サイズ（FlowItemNodeのmin-width/padding相当）
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 60;
-// グループのパディング
 const GROUP_PADDING = 40;
 const GROUP_HEADER_HEIGHT = 30;
 
-export interface ChildMapping {
-  itemId: string;
-  parentId: string;
-  relativePosition: { x: number; y: number };
-}
-
 export interface GroupBuildResult {
   groupNodes: Node[];
-  childMappings: ChildMapping[];
 }
 
-export function buildGroupNodes(placedItems: Item[]): GroupBuildResult {
-  // プロジェクトID別にアイテムをグループ化
+/**
+ * アイテムの絶対座標からグループノード（視覚的な背景枠のみ）を構築する。
+ * 子ノードにparentIdは設定しない。
+ * positionsMapが渡された場合はReactFlowのノード位置を使用する（ドラッグ後の再計算用）。
+ */
+export function buildGroupNodes(
+  placedItems: Item[],
+  positionsMap?: Map<string, { x: number; y: number }>,
+): GroupBuildResult {
   const projectGroups = new Map<string, { title: string; items: Item[] }>();
 
   for (const item of placedItems) {
@@ -61,15 +57,14 @@ export function buildGroupNodes(placedItems: Item[]): GroupBuildResult {
   }
 
   const groupNodes: Node[] = [];
-  const childMappings: ChildMapping[] = [];
   let colorIndex = 0;
 
   for (const [projectId, group] of projectGroups) {
-    // 子ノード群の境界矩形を計算
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const item of group.items) {
-      const x = item.meta!.flow_x as number;
-      const y = item.meta!.flow_y as number;
+      const pos = positionsMap?.get(item.id);
+      const x = pos ? pos.x : (item.meta!.flow_x as number);
+      const y = pos ? pos.y : (item.meta!.flow_y as number);
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x + NODE_WIDTH);
@@ -98,24 +93,13 @@ export function buildGroupNodes(placedItems: Item[]): GroupBuildResult {
         borderRadius: 12,
         padding: 0,
       },
-      draggable: true,
+      draggable: false,
       selectable: false,
       zIndex: -1,
     });
 
-    for (const item of group.items) {
-      childMappings.push({
-        itemId: item.id,
-        parentId: groupId,
-        relativePosition: {
-          x: (item.meta!.flow_x as number) - groupX,
-          y: (item.meta!.flow_y as number) - groupY,
-        },
-      });
-    }
-
     colorIndex++;
   }
 
-  return { groupNodes, childMappings };
+  return { groupNodes };
 }

@@ -28,10 +28,7 @@ describe('buildGroupNodes', () => {
 
     const result = buildGroupNodes(items);
 
-    // 2つのグループノードが生成される
     expect(result.groupNodes).toHaveLength(2);
-    // 3つの子ノード情報（parentIdとrelative position）が生成される
-    expect(result.childMappings).toHaveLength(3);
   });
 
   it('プロジェクトIDがないノードはグループ化しない', () => {
@@ -43,7 +40,6 @@ describe('buildGroupNodes', () => {
     const result = buildGroupNodes(items);
 
     expect(result.groupNodes).toHaveLength(0);
-    expect(result.childMappings).toHaveLength(0);
   });
 
   it('グループノードは子ノード群を囲む矩形になる', () => {
@@ -63,19 +59,21 @@ describe('buildGroupNodes', () => {
     expect(group.style?.height).toBeGreaterThan(300);
   });
 
-  it('子ノードの座標はグループノードからの相対座標に変換される', () => {
+  it('positionsMapを渡すとノード位置がそちらから取得される', () => {
     const items: Item[] = [
       makeItem({ id: 'a', projectId: 'p1', projectTitle: 'テスト', meta: { flow_x: 150, flow_y: 200 } }),
+      makeItem({ id: 'b', projectId: 'p1', projectTitle: 'テスト', meta: { flow_x: 250, flow_y: 300 } }),
     ];
+    const positionsMap = new Map([
+      ['a', { x: 500, y: 600 }],
+      ['b', { x: 700, y: 800 }],
+    ]);
 
-    const result = buildGroupNodes(items);
-    const child = result.childMappings[0];
-
-    // 相対座標 = 元の座標 - グループの位置
+    const result = buildGroupNodes(items, positionsMap);
     const group = result.groupNodes[0];
-    expect(child.relativePosition.x).toBe(150 - group.position.x);
-    expect(child.relativePosition.y).toBe(200 - group.position.y);
-    expect(child.parentId).toBe(group.id);
+
+    expect(group.position.x).toBeLessThan(500);
+    expect(group.position.y).toBeLessThan(600);
   });
 
   it('異なるプロジェクトには異なる背景色が割り当てられる', () => {

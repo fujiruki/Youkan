@@ -71,6 +71,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const [isAutoPlacing, setIsAutoPlacing] = useState(false);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const isDragging = useRef(false);
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
@@ -157,18 +158,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   }, []);
 
   useEffect(() => {
-    const { groupNodes, childMappings } = buildGroupNodes(placedItems);
-    const childMap = new Map(childMappings.map((c) => [c.itemId, c]));
+    if (isDragging.current) return;
+
+    const { groupNodes } = buildGroupNodes(placedItems);
 
     const itemNodes: Node[] = placedItems.map((item) => {
-      const mapping = childMap.get(item.id);
       const isHighlighted = highlightNodeId === item.id;
-      const baseNode: Node = {
+      return {
         id: item.id,
         type: 'flowItem',
-        position: mapping
-          ? mapping.relativePosition
-          : { x: item.meta!.flow_x, y: item.meta!.flow_y },
+        position: { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
         data: {
           item,
           isEditing: editingNodeId === item.id,
@@ -177,13 +176,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           onTitleChange: handleTitleChange,
           onEditComplete: handleEditComplete,
         },
-      };
-      if (mapping) {
-        baseNode.parentId = mapping.parentId;
-        baseNode.extent = 'parent' as const;
-        baseNode.expandParent = true;
-      }
-      return baseNode;
+      } satisfies Node;
     });
 
     const newEdges: Edge[] = dependencies.map((dep) => {
@@ -211,8 +204,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     await ApiClient.updateItem(itemId, { meta: newMeta } as Partial<Item>);
   }, [allItems]);
 
-  // 依存関係ありでflow座標未設定のアイテムに自動座標を付与してAPI保存
   useEffect(() => {
+    if (isDragging.current) return;
     if (autoPlacedItems.length === 0) return;
 
     for (const p of autoPlacedItems) {
@@ -311,6 +304,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   );
 
   const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
+    isDragging.current = true;
     dragStartPositions.current.set(node.id, { ...node.position });
   }, []);
 
@@ -413,8 +407,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       dragStartPositions.current.delete(draggedNode.id);
       setHighlightNodeId(null);
       setHighlightEdgeId(null);
+      isDragging.current = false;
+
+      // グループノードの位置・サイズを再計算
+      setNodes((currentNodes) => {
+        const positionsMap = new Map<string, { x: number; y: number }>();
+        for (const n of currentNodes) {
+          if (n.type === 'flowItem') {
+            positionsMap.set(n.id, { x: n.position.x, y: n.position.y });
+          }
+        }
+        const { groupNodes } = buildGroupNodes(placedItems, positionsMap);
+        const groupMap = new Map(groupNodes.map((g) => [g.id, g]));
+        return currentNodes.map((n) => {
+          const updated = groupMap.get(n.id);
+          return updated ? { ...n, position: updated.position, style: updated.style } : n;
+        });
+      });
     },
-    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert]
+    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert, placedItems]
   );
 
   const onConnect: OnConnect = useCallback(
