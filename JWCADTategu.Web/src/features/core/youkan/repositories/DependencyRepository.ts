@@ -13,7 +13,7 @@ export class DependencyRepository implements IDependencyRepository {
         const res = await ApiClient.request<{ dependency: Dependency }>('POST', '/dependencies', {
             source_item_id: sourceItemId,
             target_item_id: targetItemId,
-        });
+        }, true);
         return res.dependency;
     }
 

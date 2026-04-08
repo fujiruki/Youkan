@@ -343,6 +343,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     async (_event, draggedNode) => {
       if (draggedNode.id.startsWith('group-')) return;
 
+      isDragging.current = false;
+
       const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
       let overlappingNode: Node | undefined;
       let minDistance = OVERLAP_THRESHOLD;
@@ -404,7 +406,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           dragStartPositions.current.delete(draggedNode.id);
           setHighlightNodeId(null);
           setHighlightEdgeId(null);
-          isDragging.current = false;
           return;
         }
 
@@ -426,7 +427,6 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       dragStartPositions.current.delete(draggedNode.id);
       setHighlightNodeId(null);
       setHighlightEdgeId(null);
-      isDragging.current = false;
 
       // グループノードの位置・サイズを再計算
       setNodes((currentNodes) => {

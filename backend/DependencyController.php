@@ -135,7 +135,7 @@ class DependencyController extends BaseController {
         if ($itemId) {
             if (!empty($tenantIds)) {
                 $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
-                $sql = "SELECT * FROM item_dependencies WHERE (source_item_id = ? OR target_item_id = ?) AND tenant_id IN ($placeholders) ORDER BY created_at ASC";
+                $sql = "SELECT * FROM item_dependencies WHERE (source_item_id = ? OR target_item_id = ?) AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '') ORDER BY created_at ASC";
                 $params = array_merge([$itemId, $itemId], $tenantIds);
             } else {
                 $sql = "SELECT * FROM item_dependencies WHERE (source_item_id = ? OR target_item_id = ?) AND (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '') ORDER BY created_at ASC";
@@ -144,7 +144,7 @@ class DependencyController extends BaseController {
         } else {
             if (!empty($tenantIds)) {
                 $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
-                $sql = "SELECT * FROM item_dependencies WHERE tenant_id IN ($placeholders) ORDER BY created_at ASC";
+                $sql = "SELECT * FROM item_dependencies WHERE (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '') ORDER BY created_at ASC";
                 $params = $tenantIds;
             } else {
                 $sql = "SELECT * FROM item_dependencies WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '') ORDER BY created_at ASC";
@@ -174,7 +174,7 @@ class DependencyController extends BaseController {
 
         if (!empty($tenantIds)) {
             $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
-            $sql = "DELETE FROM item_dependencies WHERE id = ? AND tenant_id IN ($placeholders)";
+            $sql = "DELETE FROM item_dependencies WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '')";
             $params = array_merge([$id], $tenantIds);
         } else {
             $sql = "DELETE FROM item_dependencies WHERE id = ? AND (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '')";
