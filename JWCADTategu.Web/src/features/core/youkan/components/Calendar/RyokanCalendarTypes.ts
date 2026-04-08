@@ -49,4 +49,5 @@ export interface RyokanCalendarProps {
     onVisibleMonthChange?: (date: Date) => void; // Reports which month is currently in view
     onOpenDailySettings?: (date: Date) => void; // Opens DailyCapacityEditor for the given date
     showGroups?: boolean; // [NEW] Toggle project grouping in Gantt
+    forceScroll?: boolean; // 明示的ナビゲーション時にrange内でもスクロール強制
 }

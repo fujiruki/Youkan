@@ -20,6 +20,7 @@ interface DetailQuantityCalendarProps {
 	targetItemId?: string;
 	commitPeriod?: Date[];
 	focusDate?: Date | null; // [NEW] Allow external control of focus
+	forceScroll?: boolean;
 }
 
 export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
@@ -36,7 +37,8 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 	currentUserId,
 	targetItemId,
 	commitPeriod,
-	focusDate
+	focusDate,
+	forceScroll
 }) => {
 	// [NEW] Local Volume Only Toggle
 	const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
@@ -137,6 +139,7 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 
 					// Allow default RyokanCalendar behavior for dateClick (Show Breakdown)
 					disablePressureLines={true} // [NEW] Disable pressure lines in detail modal
+					forceScroll={forceScroll}
 				/>
 			</div>
 		</div>

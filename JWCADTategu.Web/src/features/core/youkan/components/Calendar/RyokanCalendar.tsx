@@ -46,7 +46,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	onUpdateItem, // [NEW]
 	onVisibleMonthChange, // [NEW Phase 24]
 	onOpenDailySettings, // [NEW Phase 24]
-	showGroups = true // [NEW]
+	showGroups = true, // [NEW]
+	forceScroll = false
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -204,11 +205,20 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	React.useEffect(() => {
 		const anchor = focusDate ? new Date(focusDate) : new Date(today);
 
-		// [NEW] Avoid resetting range if the new focusDate is already within the current range 
-		// AND we've already done the initial scroll. This prevents jumping on selection/click.
-		if (range && hasInitialScrolled) {
+		// セルクリック等の間接的なfocusDate変更ではrange内スクロールをスキップ。
+		// forceScroll=trueの場合（「今月を表示」等）はスキップせずスクロール実行。
+		if (range && hasInitialScrolled && !forceScroll) {
 			const fDate = new Date(anchor);
 			if (fDate >= range.start && fDate <= range.end) {
+				return;
+			}
+		}
+
+		// forceScroll時: range内でもスクロールを再実行するためフラグをリセット
+		if (forceScroll && range) {
+			const fDate = new Date(anchor);
+			if (fDate >= range.start && fDate <= range.end) {
+				setHasInitialScrolled(false);
 				return;
 			}
 		}
@@ -230,7 +240,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (range && (anchor < range.start || anchor > range.end)) {
 			setHasInitialScrolled(false);
 		}
-	}, [today.getTime(), focusDate?.getTime()]);
+	}, [today.getTime(), focusDate?.getTime(), forceScroll]);
 
 	// Update allDays when range changes
 	React.useEffect(() => {

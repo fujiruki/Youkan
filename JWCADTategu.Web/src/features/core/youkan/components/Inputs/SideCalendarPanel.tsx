@@ -45,6 +45,14 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         setManualFocusDate(null);
     }, [selectedDate, prepDate]);
 
+    // スクロール実行後にforceScrollをリセット（次のセルクリックでジャンプしないようにする）
+    React.useEffect(() => {
+        if (manualFocusDate) {
+            const timer = setTimeout(() => setManualFocusDate(null), 300);
+            return () => clearTimeout(timer);
+        }
+    }, [manualFocusDate]);
+
     return (
         <div className={cn(
             "flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/20 transition-colors duration-300 border-l-4 border-slate-100 dark:border-slate-800",
@@ -67,6 +75,7 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
                     targetItemId={currentItem?.id}
                     commitPeriod={commitPeriod}
                     focusDate={manualFocusDate} // [NEW] Pass manual focus
+                    forceScroll={!!manualFocusDate}
                 />
             </div>
 
