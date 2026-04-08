@@ -12,9 +12,10 @@ interface NewspaperBoardProps {
 	activeProject?: any | null; // From Dashboard
 	onOpenItem: (item: any) => void;
 	hideCompleted?: boolean;
+	onNavigateToFlow?: (projectId: string) => void;
 }
 
-export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false }) => {
+export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false, onNavigateToFlow }) => {
 	// const { joinedTenants } = useAuth(); // Unused for now
 	const items = useNewspaperItems(viewModel, activeProject, hideCompleted);
 
@@ -141,6 +142,10 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 									: String(projItem.id);
 								viewModel.throwIn(title, projItem.tenantId, projectId);
 							}}
+							onUpdateEstimatedMinutes={(itemId, minutes) => {
+								viewModel.updateItem(itemId, { estimatedMinutes: minutes });
+							}}
+							onNavigateToFlow={onNavigateToFlow}
 						/>
 					))}
 

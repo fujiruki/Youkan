@@ -45,6 +45,7 @@ function App() {
 	const [currentView, setCurrentView] = useState<ViewState>('dashboard');
 	const [activeProject, setActiveProject] = useState<LocalProject | null>(null);
 	const [activeDoor, setActiveDoor] = useState<Door | null>(null);
+	const [flowProjectId, setFlowProjectId] = useState<string | null>(null);
 
 	// [NEW] URL Router Effect (Run Once)
 	useEffect(() => {
@@ -94,6 +95,10 @@ function App() {
 			setCurrentView('userlist');
 		} else if (matches('flows') || matches('flow')) {
 			setCurrentView('flows');
+			const flowMatch = path.match(/\/flows\/([^/?]+)/);
+			if (flowMatch) {
+				setFlowProjectId(decodeURIComponent(flowMatch[1]));
+			}
 		}
 	}, []);
 
@@ -298,6 +303,11 @@ function App() {
 						setActiveProject={setActiveProject}
 						handleNavigateToDashboard={handleNavigateToDashboard}
 						handleClearProjectFocus={handleClearProjectFocus}
+						flowProjectId={flowProjectId}
+						onNavigateToFlow={(projectId) => {
+							setFlowProjectId(projectId);
+							setCurrentView('flows');
+						}}
 					/>
 				</AuthGuard>
 			</AuthProvider>
@@ -335,6 +345,8 @@ const AppContent: React.FC<{
 	setActiveProject: (p: LocalProject | null) => void;
 	handleNavigateToDashboard: () => void;
 	handleClearProjectFocus: () => void;
+	flowProjectId?: string | null;
+	onNavigateToFlow?: (projectId: string) => void;
 }> = ({
 	currentView,
 	setCurrentView,
@@ -352,6 +364,8 @@ const AppContent: React.FC<{
 	setActiveProject,
 	handleNavigateToDashboard,
 	handleClearProjectFocus,
+	flowProjectId,
+	onNavigateToFlow,
 }) => {
 		const { showToast, toasts, dismissToast } = useToast();
 		const { user, tenant, joinedTenants, switchTenant } = useAuth();
@@ -421,7 +435,7 @@ const AppContent: React.FC<{
 
 							<div className={`flex-1 overflow-hidden relative ${currentView === 'dashboard' ? 'bg-[#FDFDFD]' : ''}`}>
 								{(currentView === 'youkan' || currentView === 'dashboard' || currentView === 'today') && (
-									<DashboardScreen activeProject={activeProject} />
+									<DashboardScreen activeProject={activeProject} onNavigateToFlow={onNavigateToFlow} />
 								)}
 
 								{(currentView === 'projects' || currentView === 'projectList') && (
@@ -520,7 +534,10 @@ const AppContent: React.FC<{
 								)}
 
 								{currentView === 'flows' && (
-									<FlowScreen activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined)} />
+									<FlowScreen
+										activeProjectId={activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined)}
+										initialProjectId={flowProjectId}
+									/>
 								)}
 							</div>
 

@@ -2,14 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { NewspaperItemWrapper } from './useNewspaperItems';
-import { Folder, FolderOpen } from 'lucide-react';
+import { Folder, FolderOpen, GitBranch } from 'lucide-react';
+import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 
 interface NewspaperItemProps {
 	wrapper: NewspaperItemWrapper;
 	onClick: (item: Item) => void;
 	onContextMenu: (e: React.MouseEvent, itemId: string) => void;
 	onAddChild?: (item: Item, title: string) => void;
-	titleLimit?: number; // [NEW]
+	onUpdateEstimatedMinutes?: (itemId: string, minutes: number) => void;
+	onNavigateToFlow?: (projectId: string) => void;
+	titleLimit?: number;
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -69,12 +72,17 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 	onClick,
 	onContextMenu,
 	onAddChild,
+	onUpdateEstimatedMinutes,
+	onNavigateToFlow,
 	titleLimit
 }) => {
 	const { item, type, depth, project, displayDate, displayDateType } = wrapper;
 	const isHeader = type === 'header';
 	const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
 	const [inlineInputValue, setInlineInputValue] = useState('');
+	const [isTimeEditing, setIsTimeEditing] = useState(false);
+	const [timeInputValue, setTimeInputValue] = useState('');
+	const timeInputRef = useRef<HTMLInputElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	// Auto-focus when input opens
@@ -83,6 +91,37 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 			inputRef.current.focus();
 		}
 	}, [isInlineInputOpen]);
+
+	useEffect(() => {
+		if (isTimeEditing && timeInputRef.current) {
+			timeInputRef.current.focus();
+			timeInputRef.current.select();
+		}
+	}, [isTimeEditing]);
+
+	const handleTimeEditStart = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		e.preventDefault();
+		setTimeInputValue(formatMinutes(item.estimatedMinutes));
+		setIsTimeEditing(true);
+	};
+
+	const handleTimeEditConfirm = () => {
+		const trimmed = timeInputValue.trim();
+		if (trimmed === '') {
+			onUpdateEstimatedMinutes?.(item.id, 0);
+		} else {
+			const parsed = parseTimeInput(trimmed);
+			if (parsed !== null) {
+				onUpdateEstimatedMinutes?.(item.id, parsed);
+			}
+		}
+		setIsTimeEditing(false);
+	};
+
+	const handleTimeEditCancel = () => {
+		setIsTimeEditing(false);
+	};
 
 	const handleInlineSubmit = () => {
 		const trimmed = inlineInputValue.trim();
@@ -126,6 +165,18 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{item.title}</span>
+					{depth === 0 && onNavigateToFlow && item.id && (
+						<button
+							className="opacity-0 group-hover/header:opacity-60 hover:!opacity-100 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-all text-indigo-500 dark:text-indigo-400 shrink-0"
+							onClick={(e) => {
+								e.stopPropagation();
+								onNavigateToFlow(item.id);
+							}}
+							title="フローチャートで表示"
+						>
+							<GitBranch size="0.9em" />
+						</button>
+					)}
 					<button
 						className="opacity-60 hover:opacity-100 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400 shrink-0"
 						onClick={(e) => {
@@ -214,6 +265,37 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 					<StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />
 				</div>
 
+				{!isDone && !isTimeEditing && (
+					<span
+						className="text-[0.75em] whitespace-nowrap shrink-0 text-amber-600 dark:text-amber-400 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded px-[0.3em] transition-colors"
+						onMouseUp={handleTimeEditStart}
+						title="目安時間を編集"
+					>
+						{formatMinutes(item.estimatedMinutes) || <span className="opacity-0 group-hover:opacity-40">--</span>}
+					</span>
+				)}
+				{!isDone && isTimeEditing && (
+					<input
+						ref={timeInputRef}
+						type="text"
+						value={timeInputValue}
+						onChange={(e) => setTimeInputValue(e.target.value)}
+						onKeyDown={(e) => {
+							e.stopPropagation();
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								handleTimeEditConfirm();
+							} else if (e.key === 'Escape') {
+								handleTimeEditCancel();
+							}
+						}}
+						onMouseUp={(e) => e.stopPropagation()}
+						onClick={(e) => e.stopPropagation()}
+						onBlur={handleTimeEditConfirm}
+						placeholder="1h"
+						className="w-[3.5em] text-[0.8em] px-[0.2em] py-0 border border-amber-300 dark:border-amber-700 rounded bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 text-center shrink-0"
+					/>
+				)}
 				{displayDate && !isDone && (
 					<span className={cn(
 						"text-[0.8em] font-bold whitespace-nowrap shrink-0",

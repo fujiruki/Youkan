@@ -1,6 +1,7 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { Item } from '../../types';
+import { formatMinutes } from '../../logic/timeParser';
 
 export interface FlowItemNodeData {
   item: Item;
@@ -79,7 +80,14 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
         ) : (
           <span className={`text-xs font-bold ${colors.text} truncate`}>{item.title}</span>
         )}
-        <span className="text-[9px] text-slate-400 uppercase tracking-wider">{item.status}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-slate-400 uppercase tracking-wider">{item.status}</span>
+          {formatMinutes(item.estimatedMinutes) && (
+            <span className="text-[9px] bg-indigo-100 text-indigo-600 px-1 rounded font-mono">
+              {formatMinutes(item.estimatedMinutes)}
+            </span>
+          )}
+        </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !w-3 !h-3" />
     </div>

@@ -42,7 +42,7 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 	</div>
 );
 
-export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProject | null }) => {
+export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activeProject?: LocalProject | null; onNavigateToFlow?: (projectId: string) => void }) => {
 	const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'newspaper'>(() => {
 		const path = window.location.pathname.toLowerCase();
 		if (path.includes('panorama')) return 'panorama';
@@ -283,7 +283,7 @@ export const DashboardScreen = ({ activeProject }: { activeProject?: LocalProjec
 								/>
 							)}
 							{viewMode === 'newspaper' && (
-								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} />
+								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} onNavigateToFlow={onNavigateToFlow} />
 							)}
 							{viewMode === 'panorama' && (
 								<YoukanBoard

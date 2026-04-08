@@ -19,11 +19,13 @@ import {
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
 import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
+import { FlowProjectSelector } from '../components/Flow/FlowProjectSelector';
 import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
 import { DependencyRepository } from '../repositories/DependencyRepository';
@@ -38,17 +40,22 @@ const nodeTypes = {
 };
 const dependencyRepo = new DependencyRepository();
 
-// ノードの重なり判定用閾値（ピクセル）
 const OVERLAP_THRESHOLD = 40;
-// エッジ挿入判定用閾値（ピクセル）
 const EDGE_INSERT_THRESHOLD = 50;
 
 interface FlowScreenProps {
   activeProjectId?: string;
   onOpenItem?: (item: Item) => void;
+  initialProjectId?: string | null;
 }
 
-const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) => {
+interface FlowCanvasProps {
+  activeProjectId?: string;
+  onOpenItem?: (item: Item) => void;
+  currentProjectId?: string;
+}
+
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, currentProjectId }) => {
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -63,14 +70,11 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   const unplacedListRef = useRef<UnplacedItemListHandle>(null);
   const [isAutoPlacing, setIsAutoPlacing] = useState(false);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
-  // ドラッグ開始位置の記録（重ねてリンク用）
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
-  // ドラッグ中ハイライト対象
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    // 片方が失敗しても他方のデータは設定する
     const [itemsResult, depsResult] = await Promise.allSettled([
       ApiClient.getAllItems({ scope: 'aggregated', ...(activeProjectId ? { project_id: activeProjectId } : {}) }),
       dependencyRepo.getDependencies(),
@@ -106,7 +110,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     return { placedItems: placed, unplacedItems: unplaced };
   }, [allItems]);
 
-  // タイトル変更ハンドラ
   const handleTitleChange = useCallback(async (itemId: string, newTitle: string) => {
     try {
       await ApiClient.updateItem(itemId, { title: newTitle } as Partial<Item>);
@@ -123,7 +126,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     setNewNodeId(null);
   }, []);
 
-  // ノードとエッジの構築（グループ化含む）
   useEffect(() => {
     const { groupNodes, childMappings } = buildGroupNodes(placedItems);
     const childMap = new Map(childMappings.map((c) => [c.itemId, c]));
@@ -168,7 +170,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       };
     });
 
-    // グループノードが先、子ノードが後（描画順のため）
     setNodes([...groupNodes, ...itemNodes]);
     setEdges(newEdges);
   }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges]);
@@ -180,13 +181,11 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     await ApiClient.updateItem(itemId, { meta: newMeta } as Partial<Item>);
   }, [allItems]);
 
-  // 選択状態の追跡
-  const onSelectionChange: OnSelectionChangeFunc = useCallback(({ nodes, edges }) => {
-    setSelectedNodeIds(nodes.map((n) => n.id));
-    setSelectedEdgeIds(edges.map((e) => e.id));
+  const onSelectionChange: OnSelectionChangeFunc = useCallback(({ nodes: selNodes, edges: selEdges }) => {
+    setSelectedNodeIds(selNodes.map((n) => n.id));
+    setSelectedEdgeIds(selEdges.map((e) => e.id));
   }, []);
 
-  // ノード位置マップの取得（エッジ挿入検出用）
   const getNodePositions = useCallback(() => {
     const positions = new Map<string, { x: number; y: number }>();
     for (const node of nodes) {
@@ -197,7 +196,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     return positions;
   }, [nodes]);
 
-  // エッジ挿入処理
   const handleEdgeInsert = useCallback(
     async (itemId: string, position: { x: number; y: number }) => {
       const nodePositions = getNodePositions();
@@ -205,16 +203,13 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       if (!nearest) return false;
 
       try {
-        // 旧エッジを削除
         await dependencyRepo.deleteDependency(nearest.edge.id);
         setDependencies((prev) => prev.filter((d) => d.id !== nearest.edge.id));
 
-        // 新エッジ2本を作成: source→dropped, dropped→target
         const dep1 = await dependencyRepo.createDependency(nearest.edge.source, itemId);
         const dep2 = await dependencyRepo.createDependency(itemId, nearest.edge.target);
         setDependencies((prev) => [...prev, dep1, dep2]);
 
-        // ドロップ位置をエッジ中間点に設定
         const sourcePos = nodePositions.get(nearest.edge.source);
         const targetPos = nodePositions.get(nearest.edge.target);
         if (sourcePos && targetPos) {
@@ -240,7 +235,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
             label: '取り消し',
             onClick: async () => {
               try {
-                // 挿入した2本を削除し、元のエッジを復元
                 await dependencyRepo.deleteDependency(dep1.id);
                 await dependencyRepo.deleteDependency(dep2.id);
                 const restored = await dependencyRepo.createDependency(oldEdgeSource, oldEdgeTarget);
@@ -264,17 +258,14 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     [edges, getNodePositions, updateItemMeta, showToast]
   );
 
-  // ドラッグ開始時の位置記録
   const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
     dragStartPositions.current.set(node.id, { ...node.position });
   }, []);
 
-  // ドラッグ中: ハイライト候補の検出
   const onNodeDrag: OnNodeDrag = useCallback(
     (_event, draggedNode) => {
       if (draggedNode.id.startsWith('group-')) return;
 
-      // ノード重なり候補の検出
       const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
       let foundNodeId: string | null = null;
       for (const otherNode of allFlowNodes) {
@@ -287,7 +278,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         }
       }
 
-      // エッジ挿入候補の検出
       let foundEdgeId: string | null = null;
       if (!foundNodeId) {
         const nodePositions = getNodePositions();
@@ -303,17 +293,13 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     [nodes, edges, getNodePositions]
   );
 
-  // ドラッグ完了時: 位置保存＋重ねてリンク判定
   const onNodeDragStop: OnNodeDrag = useCallback(
     async (_event, draggedNode) => {
-      // グループノードは無視
       if (draggedNode.id.startsWith('group-')) return;
 
-      // 重ねてリンク判定
-      const allNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
+      const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
       let overlappingNode: Node | undefined;
-      for (const otherNode of allNodes) {
-        // 親ノードが同じ場合は相対座標で判定、そうでない場合はフロー座標で判定
+      for (const otherNode of allFlowNodes) {
         const dx = draggedNode.position.x - otherNode.position.x;
         const dy = draggedNode.position.y - otherNode.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -324,7 +310,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
       }
 
       if (overlappingNode) {
-        // リンク作成: overlappingNode → draggedNode（「AのあとB」）
         try {
           const dep = await dependencyRepo.createDependency(overlappingNode.id, draggedNode.id);
           setDependencies((prev) => [...prev, dep]);
@@ -358,7 +343,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           }
         }
 
-        // ドラッグしたノードを元の位置に戻す
         const startPos = dragStartPositions.current.get(draggedNode.id);
         if (startPos) {
           setNodes((nds) =>
@@ -368,10 +352,8 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           );
         }
       } else {
-        // エッジ挿入を試行
         const inserted = await handleEdgeInsert(draggedNode.id, draggedNode.position);
         if (!inserted) {
-          // 通常の位置保存
           await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
         }
       }
@@ -400,7 +382,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           )
         );
         setDependencies((prev) => [...prev, dep]);
-        // 接続元・接続先のタイトルを取得
         const sourceItem = allItems.find((i) => i.id === connection.source);
         const targetItem = allItems.find((i) => i.id === connection.target);
         const srcName = sourceItem?.title || connection.source;
@@ -479,7 +460,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
-      // エッジ挿入を試行
       const inserted = await handleEdgeInsert(itemId, position);
       if (inserted) return;
 
@@ -496,7 +476,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     [screenToFlowPosition, updateItemMeta, handleEdgeInsert]
   );
 
-  // エッジ右クリックメニュー
   const handleEdgeContextMenu = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       event.preventDefault();
@@ -524,7 +503,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     setEdgeContextMenu(null);
   }, []);
 
-  // 全て自動配置（全アイテムをプロジェクトごとに集約再配置）
   const handleAutoPlace = useCallback(async () => {
     if (allItems.length === 0) return;
     setIsAutoPlacing(true);
@@ -532,13 +510,10 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
     try {
       const placements = calculateAutoPlacement(allItems, dependencies);
 
-      // 既存の依存関係をセットに変換（重複チェック用）
       const existingDepKeys = new Set(
         dependencies.map((d) => `${d.sourceItemId}:${d.targetItemId}`)
       );
 
-      // チェーン（依存関係）を一括作成（重複・循環はスキップ）
-      let createdCount = 0;
       let skippedCount = 0;
       for (const p of placements) {
         if (p.chainFrom) {
@@ -551,14 +526,12 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
             const dep = await dependencyRepo.createDependency(p.chainFrom, p.itemId);
             setDependencies((prev) => [...prev, dep]);
             existingDepKeys.add(depKey);
-            createdCount++;
           } catch {
             skippedCount++;
           }
         }
       }
 
-      // flow_x/flow_y を一括保存（個別エラーはスキップ）
       let positionErrors = 0;
       for (const p of placements) {
         try {
@@ -569,7 +542,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         }
       }
 
-      // ローカルステート更新
       setAllItems((prev) =>
         prev.map((item) => {
           const placement = placements.find((p) => p.itemId === item.id);
@@ -586,19 +558,16 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         (positionErrors > 0 ? `（${positionErrors}件の位置保存エラー）` : '');
       showToast({ type: 'success', title: '自動配置完了', message: msg, duration: 3000 });
 
-      // fitView で全体表示
       setTimeout(() => fitView({ duration: 300 }), 100);
     } catch (err) {
       console.error('[FlowScreen] 自動配置失敗:', err);
       showToast({ type: 'error', title: '自動配置失敗', message: String(err), duration: 5000 });
-      // エラー後もデータを再取得して画面が空にならないようにする
       await fetchData();
     } finally {
       setIsAutoPlacing(false);
     }
   }, [allItems, dependencies, updateItemMeta, showToast, fitView, fetchData]);
 
-  // --- キーボードショートカット ---
   const createNodeBelow = useCallback(
     async (parentNodeId: string, offsetX = 0) => {
       const parentItem = allItems.find((i) => i.id === parentNodeId);
@@ -613,17 +582,13 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         const result = await ApiClient.createItem({
           title: '新規アイテム',
           status: 'inbox',
+          ...(currentProjectId ? { projectId: currentProjectId } : {}),
         } as Partial<Item>);
 
         const newItemId = result.id;
-
-        // 位置設定
         await ApiClient.updateItem(newItemId, { meta: { flow_x: newX, flow_y: newY } } as Partial<Item>);
-
-        // 依存関係作成
         const dep = await dependencyRepo.createDependency(parentNodeId, newItemId);
 
-        // ローカルステート更新
         const newItem: Item = {
           id: newItemId,
           title: '新規アイテム',
@@ -635,20 +600,101 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
           weight: 1,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          projectId: currentProjectId || undefined,
           meta: { flow_x: newX, flow_y: newY },
         };
 
         setAllItems((prev) => [...prev, newItem]);
         setDependencies((prev) => [...prev, dep]);
-
-        // 新規ノードのテキスト入力を開始
         setNewNodeId(newItemId);
       } catch (err) {
         console.error('[FlowScreen] ノード追加失敗:', err);
         showToast({ type: 'error', title: 'ノード追加失敗', message: String(err), duration: 5000 });
       }
     },
-    [allItems, showToast]
+    [allItems, showToast, currentProjectId]
+  );
+
+  // A-6: 空白エリアダブルクリックで新規タスク作成
+  const handlePaneDoubleClick = useCallback(
+    async (event: React.MouseEvent) => {
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      try {
+        const result = await ApiClient.createItem({
+          title: '新規アイテム',
+          status: 'inbox',
+          ...(currentProjectId ? { projectId: currentProjectId } : {}),
+        } as Partial<Item>);
+        const newItemId = result.id;
+        await ApiClient.updateItem(newItemId, { meta: { flow_x: position.x, flow_y: position.y } } as Partial<Item>);
+
+        const newItem: Item = {
+          id: newItemId,
+          title: '新規アイテム',
+          status: 'inbox',
+          focusOrder: 0,
+          isEngaged: false,
+          statusUpdatedAt: Date.now(),
+          interrupt: false,
+          weight: 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          projectId: currentProjectId || undefined,
+          meta: { flow_x: position.x, flow_y: position.y },
+        };
+        setAllItems((prev) => [...prev, newItem]);
+        setNewNodeId(newItemId);
+      } catch (err) {
+        console.error('[FlowScreen] ダブルクリック新規タスク作成失敗:', err);
+        showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
+      }
+    },
+    [screenToFlowPosition, currentProjectId, showToast]
+  );
+
+  // A-6: +ボタンで新規タスク作成
+  const handleAddButtonClick = useCallback(async () => {
+    try {
+      const result = await ApiClient.createItem({
+        title: '新規アイテム',
+        status: 'inbox',
+        ...(currentProjectId ? { projectId: currentProjectId } : {}),
+      } as Partial<Item>);
+      const newItemId = result.id;
+      await ApiClient.updateItem(newItemId, { meta: { flow_x: 100, flow_y: 100 } } as Partial<Item>);
+
+      const newItem: Item = {
+        id: newItemId,
+        title: '新規アイテム',
+        status: 'inbox',
+        focusOrder: 0,
+        isEngaged: false,
+        statusUpdatedAt: Date.now(),
+        interrupt: false,
+        weight: 1,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        projectId: currentProjectId || undefined,
+        meta: { flow_x: 100, flow_y: 100 },
+      };
+      setAllItems((prev) => [...prev, newItem]);
+      setNewNodeId(newItemId);
+    } catch (err) {
+      console.error('[FlowScreen] +ボタン新規タスク作成失敗:', err);
+      showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
+    }
+  }, [currentProjectId, showToast]);
+
+  // A-7: ノードダブルクリック → 詳細モーダル
+  const handleNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.id.startsWith('group-')) return;
+      if (onOpenItem) {
+        const item = allItems.find((i) => i.id === node.id);
+        if (item) onOpenItem(item);
+      }
+    },
+    [allItems, onOpenItem]
   );
 
   const handleKeyDown = useCallback(
@@ -675,7 +721,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         }
         case 'Delete':
         case 'Backspace': {
-          // エッジが選択されている場合
           if (selectedEdgeIds.length > 0) {
             event.preventDefault();
             for (const edgeId of selectedEdgeIds) {
@@ -689,7 +734,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
             }
             break;
           }
-          // ノードが選択されている場合: flow座標クリアで未配置に戻す
           if (selectedNode && !selectedNode.startsWith('group-')) {
             event.preventDefault();
             await updateItemMeta(selectedNode, { flow_x: null, flow_y: null });
@@ -706,7 +750,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         case 'Escape': {
           setEditingNodeId(null);
           setNewNodeId(null);
-          // ReactFlowの選択解除
           setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
           setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
           break;
@@ -745,7 +788,6 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         default: {
           if (event.ctrlKey && event.key === 'l') {
             event.preventDefault();
-            // 2つのノードが選択されていればリンク作成
             if (selectedNodeIds.length === 2) {
               try {
                 const dep = await dependencyRepo.createDependency(selectedNodeIds[0], selectedNodeIds[1]);
@@ -795,6 +837,8 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         onEdgeContextMenu={handleEdgeContextMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        onDoubleClick={handlePaneDoubleClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         nodeTypes={nodeTypes}
         fitView
         deleteKeyCode={null}
@@ -821,6 +865,13 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
         />
       </ReactFlow>
       <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} />
+      <button
+        onClick={handleAddButtonClick}
+        className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10"
+        title="新規タスク追加"
+      >
+        <Plus size={20} />
+      </button>
       {edgeContextMenu && (
         <EdgeContextMenu
           x={edgeContextMenu.x}
@@ -834,10 +885,171 @@ const FlowCanvas: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) 
   );
 };
 
-export const FlowScreen: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem }) => {
+// A-3: プロジェクト選択ヘッダー
+const FlowHeader: React.FC<{
+  projectTitle: string;
+  allProjects: { id: string; title: string }[];
+  onBack: () => void;
+  onSwitchProject: (projectId: string) => void;
+}> = ({ projectTitle, allProjects, onBack, onSwitchProject }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as HTMLElement)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <ReactFlowProvider>
-      <FlowCanvas activeProjectId={activeProjectId} onOpenItem={onOpenItem} />
-    </ReactFlowProvider>
+    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shrink-0">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+      >
+        <ArrowLeft size={16} />
+        <span>一覧</span>
+      </button>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="flex items-center gap-1 text-sm font-bold text-slate-700 hover:text-indigo-600 transition-colors"
+        >
+          <span>{projectTitle}</span>
+          <ChevronDown size={14} />
+        </button>
+        {isDropdownOpen && allProjects.length > 0 && (
+          <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-auto">
+            {allProjects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  onSwitchProject(p.id);
+                  setIsDropdownOpen(false);
+                }}
+                className="block w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 truncate"
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const FlowScreen: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem, initialProjectId }) => {
+  // A-2: プロジェクト選択ステート
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    if (initialProjectId !== undefined && initialProjectId !== null) return initialProjectId;
+    // A-4: URLからプロジェクトID取得
+    const path = window.location.pathname;
+    const match = path.match(/\/flows\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  });
+
+  const [selectorItems, setSelectorItems] = useState<Item[]>([]);
+  const [projectList, setProjectList] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    ApiClient.getAllItems({ scope: 'aggregated' }).then((items) => {
+      setSelectorItems(items);
+      const map = new Map<string, string>();
+      for (const item of items) {
+        if (item.projectId && !map.has(item.projectId)) {
+          map.set(item.projectId, item.projectTitle || item.projectId);
+        }
+      }
+      setProjectList(Array.from(map.entries()).map(([id, title]) => ({ id, title })));
+    }).catch((err) => {
+      console.error('[FlowScreen] プロジェクト一覧取得失敗:', err);
+    });
+  }, []);
+
+  // A-4: URL更新
+  const updateUrl = useCallback((projectId: string | null) => {
+    const basePath = import.meta.env.BASE_URL || '/contents/Youkan/';
+    const normalizedBase = basePath.endsWith('/') ? basePath : basePath + '/';
+    if (projectId) {
+      window.history.pushState({ view: 'flows', projectId }, '', `${normalizedBase}flows/${encodeURIComponent(projectId)}`);
+    } else {
+      window.history.pushState({ view: 'flows' }, '', `${normalizedBase}flows`);
+    }
+  }, []);
+
+  // A-4: ブラウザ戻る対応
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (state?.view === 'flows') {
+        setSelectedProjectId(state.projectId || null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleSelectProject = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+    updateUrl(projectId);
+  }, [updateUrl]);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedProjectId('__all__');
+    updateUrl('__all__');
+  }, [updateUrl]);
+
+  const handleBack = useCallback(() => {
+    setSelectedProjectId(null);
+    updateUrl(null);
+  }, [updateUrl]);
+
+  const handleSwitchProject = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+    updateUrl(projectId);
+  }, [updateUrl]);
+
+  // プロジェクト選択画面（A-1/A-2）
+  if (selectedProjectId === null) {
+    return (
+      <FlowProjectSelector
+        items={selectorItems}
+        onSelectProject={handleSelectProject}
+        onSelectAll={handleSelectAll}
+      />
+    );
+  }
+
+  const effectiveProjectId = selectedProjectId === '__all__'
+    ? activeProjectId
+    : selectedProjectId;
+
+  const currentProjectTitle = selectedProjectId === '__all__'
+    ? '全プロジェクト'
+    : projectList.find((p) => p.id === selectedProjectId)?.title || selectedProjectId;
+
+  return (
+    <div className="h-full w-full flex flex-col">
+      <FlowHeader
+        projectTitle={currentProjectTitle}
+        allProjects={projectList}
+        onBack={handleBack}
+        onSwitchProject={handleSwitchProject}
+      />
+      <div className="flex-1 overflow-hidden">
+        <ReactFlowProvider>
+          <FlowCanvas
+            activeProjectId={effectiveProjectId}
+            onOpenItem={onOpenItem}
+            currentProjectId={selectedProjectId === '__all__' ? undefined : selectedProjectId}
+          />
+        </ReactFlowProvider>
+      </div>
+    </div>
   );
 };
