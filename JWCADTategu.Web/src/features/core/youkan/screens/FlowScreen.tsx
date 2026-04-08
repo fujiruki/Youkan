@@ -345,13 +345,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
 
       const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
       let overlappingNode: Node | undefined;
+      let minDistance = OVERLAP_THRESHOLD;
       for (const otherNode of allFlowNodes) {
         const dx = draggedNode.position.x - otherNode.position.x;
         const dy = draggedNode.position.y - otherNode.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < OVERLAP_THRESHOLD) {
+        if (distance < minDistance) {
+          minDistance = distance;
           overlappingNode = otherNode;
-          break;
         }
       }
 
@@ -386,7 +387,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           const msg = err instanceof Error ? err.message : String(err);
           if (msg.includes('400') || msg.toLowerCase().includes('circular')) {
             showToast({ type: 'error', title: '循環参照エラー', message: '依存関係が循環するため接続できません', duration: 5000 });
+          } else if (msg.includes('409') || msg.toLowerCase().includes('already exists')) {
+            showToast({ type: 'error', title: '接続エラー', message: 'この依存関係は既に存在します', duration: 3000 });
+          } else {
+            showToast({ type: 'error', title: '接続エラー', message: msg, duration: 5000 });
           }
+
+          const startPos = dragStartPositions.current.get(draggedNode.id);
+          if (startPos) {
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === draggedNode.id ? { ...n, position: startPos } : n
+              )
+            );
+          }
+          dragStartPositions.current.delete(draggedNode.id);
+          setHighlightNodeId(null);
+          setHighlightEdgeId(null);
+          isDragging.current = false;
+          return;
         }
 
         const startPos = dragStartPositions.current.get(draggedNode.id);
