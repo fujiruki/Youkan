@@ -82,7 +82,7 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
         )}
         <div className="flex items-center gap-1">
           <span className="text-[9px] text-slate-400 uppercase tracking-wider">{item.status}</span>
-          {formatMinutes(item.estimatedMinutes) && (
+          {formatMinutes(item.estimatedMinutes) !== '' && (
             <span className="text-[9px] bg-indigo-100 text-indigo-600 px-1 rounded font-mono">
               {formatMinutes(item.estimatedMinutes)}
             </span>

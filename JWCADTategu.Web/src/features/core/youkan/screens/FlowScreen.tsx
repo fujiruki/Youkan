@@ -568,100 +568,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     }
   }, [allItems, dependencies, updateItemMeta, showToast, fitView, fetchData]);
 
-  const createNodeBelow = useCallback(
-    async (parentNodeId: string, offsetX = 0) => {
-      const parentItem = allItems.find((i) => i.id === parentNodeId);
-      if (!parentItem) return;
-
-      const parentX = (parentItem.meta?.flow_x as number) || 0;
-      const parentY = (parentItem.meta?.flow_y as number) || 0;
-      const newX = parentX + offsetX;
-      const newY = parentY + 120;
-
-      try {
-        const result = await ApiClient.createItem({
-          title: '新規アイテム',
-          status: 'inbox',
-          ...(currentProjectId ? { projectId: currentProjectId } : {}),
-        } as Partial<Item>);
-
-        const newItemId = result.id;
-        await ApiClient.updateItem(newItemId, { meta: { flow_x: newX, flow_y: newY } } as Partial<Item>);
-        const dep = await dependencyRepo.createDependency(parentNodeId, newItemId);
-
-        const newItem: Item = {
-          id: newItemId,
-          title: '新規アイテム',
-          status: 'inbox',
-          focusOrder: 0,
-          isEngaged: false,
-          statusUpdatedAt: Date.now(),
-          interrupt: false,
-          weight: 1,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          projectId: currentProjectId || undefined,
-          meta: { flow_x: newX, flow_y: newY },
-        };
-
-        setAllItems((prev) => [...prev, newItem]);
-        setDependencies((prev) => [...prev, dep]);
-        setNewNodeId(newItemId);
-      } catch (err) {
-        console.error('[FlowScreen] ノード追加失敗:', err);
-        showToast({ type: 'error', title: 'ノード追加失敗', message: String(err), duration: 5000 });
-      }
-    },
-    [allItems, showToast, currentProjectId]
-  );
-
-  // A-6: 空白エリアダブルクリックで新規タスク作成
-  const handlePaneDoubleClick = useCallback(
-    async (event: React.MouseEvent) => {
-      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      try {
-        const result = await ApiClient.createItem({
-          title: '新規アイテム',
-          status: 'inbox',
-          ...(currentProjectId ? { projectId: currentProjectId } : {}),
-        } as Partial<Item>);
-        const newItemId = result.id;
-        await ApiClient.updateItem(newItemId, { meta: { flow_x: position.x, flow_y: position.y } } as Partial<Item>);
-
-        const newItem: Item = {
-          id: newItemId,
-          title: '新規アイテム',
-          status: 'inbox',
-          focusOrder: 0,
-          isEngaged: false,
-          statusUpdatedAt: Date.now(),
-          interrupt: false,
-          weight: 1,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          projectId: currentProjectId || undefined,
-          meta: { flow_x: position.x, flow_y: position.y },
-        };
-        setAllItems((prev) => [...prev, newItem]);
-        setNewNodeId(newItemId);
-      } catch (err) {
-        console.error('[FlowScreen] ダブルクリック新規タスク作成失敗:', err);
-        showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
-      }
-    },
-    [screenToFlowPosition, currentProjectId, showToast]
-  );
-
-  // A-6: +ボタンで新規タスク作成
-  const handleAddButtonClick = useCallback(async () => {
-    try {
+  const createNewItem = useCallback(
+    async (flowX: number, flowY: number): Promise<string | null> => {
       const result = await ApiClient.createItem({
         title: '新規アイテム',
         status: 'inbox',
         ...(currentProjectId ? { projectId: currentProjectId } : {}),
       } as Partial<Item>);
       const newItemId = result.id;
-      await ApiClient.updateItem(newItemId, { meta: { flow_x: 100, flow_y: 100 } } as Partial<Item>);
+      await ApiClient.updateItem(newItemId, { meta: { flow_x: flowX, flow_y: flowY } } as Partial<Item>);
 
       const newItem: Item = {
         id: newItemId,
@@ -675,15 +590,60 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         createdAt: Date.now(),
         updatedAt: Date.now(),
         projectId: currentProjectId || undefined,
-        meta: { flow_x: 100, flow_y: 100 },
+        meta: { flow_x: flowX, flow_y: flowY },
       };
       setAllItems((prev) => [...prev, newItem]);
       setNewNodeId(newItemId);
+      return newItemId;
+    },
+    [currentProjectId]
+  );
+
+  const createNodeBelow = useCallback(
+    async (parentNodeId: string, offsetX = 0) => {
+      const parentItem = allItems.find((i) => i.id === parentNodeId);
+      if (!parentItem) return;
+
+      const parentX = (parentItem.meta?.flow_x as number) || 0;
+      const parentY = (parentItem.meta?.flow_y as number) || 0;
+
+      try {
+        const newItemId = await createNewItem(parentX + offsetX, parentY + 120);
+        if (newItemId) {
+          const dep = await dependencyRepo.createDependency(parentNodeId, newItemId);
+          setDependencies((prev) => [...prev, dep]);
+        }
+      } catch (err) {
+        console.error('[FlowScreen] ノード追加失敗:', err);
+        showToast({ type: 'error', title: 'ノード追加失敗', message: String(err), duration: 5000 });
+      }
+    },
+    [allItems, showToast, createNewItem]
+  );
+
+  // A-6: 空白エリアダブルクリックで新規タスク作成
+  const handlePaneDoubleClick = useCallback(
+    async (event: React.MouseEvent) => {
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      try {
+        await createNewItem(position.x, position.y);
+      } catch (err) {
+        console.error('[FlowScreen] ダブルクリック新規タスク作成失敗:', err);
+        showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
+      }
+    },
+    [screenToFlowPosition, createNewItem, showToast]
+  );
+
+  // A-6: +ボタンで新規タスク作成
+  const handleAddButtonClick = useCallback(async () => {
+    try {
+      await createNewItem(100, 100);
     } catch (err) {
       console.error('[FlowScreen] +ボタン新規タスク作成失敗:', err);
       showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
     }
-  }, [currentProjectId, showToast]);
+  }, [createNewItem, showToast]);
 
   // A-7: ノードダブルクリック → 詳細モーダル
   const handleNodeDoubleClick = useCallback(

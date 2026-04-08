@@ -101,7 +101,6 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 
 	const handleTimeEditStart = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		e.preventDefault();
 		setTimeInputValue(formatMinutes(item.estimatedMinutes));
 		setIsTimeEditing(true);
 	};
@@ -268,7 +267,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 				{!isDone && !isTimeEditing && (
 					<span
 						className="text-[0.75em] whitespace-nowrap shrink-0 text-amber-600 dark:text-amber-400 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded px-[0.3em] transition-colors"
-						onMouseUp={handleTimeEditStart}
+						onClick={handleTimeEditStart}
 						title="目安時間を編集"
 					>
 						{formatMinutes(item.estimatedMinutes) || <span className="opacity-0 group-hover:opacity-40">--</span>}
