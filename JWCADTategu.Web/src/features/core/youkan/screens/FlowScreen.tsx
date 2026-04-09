@@ -16,6 +16,7 @@ import {
   type OnNodesDelete,
   type OnEdgesDelete,
   type OnSelectionChangeFunc,
+  type OnNodesChange,
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -58,7 +59,7 @@ interface FlowCanvasProps {
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, currentProjectId }) => {
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [nodes, setNodes, _onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
@@ -73,6 +74,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const isDragging = useRef(false);
   const prevProjectRef = useRef<string | null>(null);
+  const shouldFitViewRef = useRef(false);
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
@@ -199,7 +201,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
 
     if (prevProjectRef.current !== currentProjectId) {
       prevProjectRef.current = currentProjectId ?? null;
-      setTimeout(() => fitView({ duration: 300, padding: 0.1 }), 100);
+      shouldFitViewRef.current = true;
     }
   }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges, currentProjectId, fitView]);
 
@@ -231,6 +233,17 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       })
     );
   }, [autoPlacedItems, updateItemMeta]);
+
+  const onNodesChange: OnNodesChange = useCallback((changes) => {
+    _onNodesChange(changes);
+    const hasDimensionChange = changes.some((c) => c.type === 'dimensions');
+    if (hasDimensionChange && shouldFitViewRef.current) {
+      shouldFitViewRef.current = false;
+      requestAnimationFrame(() => {
+        fitView({ duration: 300, padding: 0.1 });
+      });
+    }
+  }, [_onNodesChange, fitView]);
 
   const onSelectionChange: OnSelectionChangeFunc = useCallback(({ nodes: selNodes, edges: selEdges }) => {
     setSelectedNodeIds(selNodes.map((n) => n.id));
