@@ -72,6 +72,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const isDragging = useRef(false);
+  const prevProjectRef = useRef<string | null>(null);
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
 
@@ -195,7 +196,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
 
     setNodes([...groupNodes, ...itemNodes]);
     setEdges(newEdges);
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges]);
+
+    if (prevProjectRef.current !== currentProjectId) {
+      prevProjectRef.current = currentProjectId ?? null;
+      setTimeout(() => fitView({ duration: 300, padding: 0.1 }), 100);
+    }
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges, currentProjectId, fitView]);
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
