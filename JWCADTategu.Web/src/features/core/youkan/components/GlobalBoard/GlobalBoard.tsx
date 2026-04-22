@@ -29,6 +29,7 @@ import { ProjectCreationDialog } from '../Modal/ProjectCreationDialog';
 import { useAuth } from '../../../auth/providers/AuthProvider'; // [NEW]
 import { QuickInputWidget } from '../Inputs/QuickInputWidget'; // [NEW]
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
+import { useFilter } from '../../contexts/FilterContext';
 
 
 interface GlobalBoardProps {
@@ -63,32 +64,19 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const { joinedTenants } = useAuth(); // [RESTORED]
-	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null); // [NEW]
+	const { filterMode, setFilterMode } = useFilter();
 
 	// [FIX] Determine Focused Project
 	const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
 
-	// Default tenant selection based on filterMode
-	useEffect(() => {
-		if (vm.filterMode === 'company' && joinedTenants.length > 0) {
-			if (!selectedTenantId || !joinedTenants.find(t => t.id === selectedTenantId)) {
-				setSelectedTenantId(joinedTenants[0].id);
-			}
-		} else if (vm.filterMode === 'personal' || vm.filterMode === 'all') {
-			setSelectedTenantId(null);
-		} else if (typeof vm.filterMode === 'string' && joinedTenants.find(t => String(t.id) === vm.filterMode)) {
-			setSelectedTenantId(vm.filterMode);
-		}
-	}, [vm.filterMode, joinedTenants.length]); // Re-run when filter mode or list length changes
+	const selectedTenantId: string | null = (
+		typeof filterMode === 'string' &&
+		filterMode !== 'all' &&
+		filterMode !== 'personal' &&
+		filterMode !== 'company'
+	) ? filterMode : null;
 
-	// filterMode または selectedTenantId から QuickInputWidget のテナント文脈を計算
 	const quickInputProjectContext = useMemo(() => {
-		console.log('[DEBUG GB]', {
-			filterMode: vm.filterMode,
-			filterModeType: typeof vm.filterMode,
-			selectedTenantId,
-			joinedTenants: joinedTenants.map((t: any) => ({ id: t.id, idType: typeof t.id, name: t.name })),
-		});
 		if (focusedProject) {
 			return {
 				id: String(focusedProject.id),
@@ -97,16 +85,10 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 				tenantId: focusedProject.tenantId
 			};
 		}
-		const effectiveTenantId = selectedTenantId ||
-			(typeof vm.filterMode === 'string' &&
-			 vm.filterMode !== 'all' &&
-			 vm.filterMode !== 'personal' &&
-			 vm.filterMode !== 'company'
-				? vm.filterMode : null);
-		if (!effectiveTenantId) return null;
-		const tenant = joinedTenants.find((t: any) => String(t.id) === String(effectiveTenantId));
-		return tenant ? { title: (tenant as any).title || tenant.name, name: tenant.name, tenantId: effectiveTenantId } : null;
-	}, [focusedProject, selectedTenantId, vm.filterMode, joinedTenants]);
+		if (!selectedTenantId) return null;
+		const tenant = joinedTenants.find((t: any) => String(t.id) === selectedTenantId);
+		return tenant ? { title: tenant.title || tenant.name, name: tenant.title || tenant.name, tenantId: selectedTenantId } : null;
+	}, [focusedProject, selectedTenantId, joinedTenants]);
 
 	// --- help Guid Modal ---
 	const [showHelp, setShowHelp] = useState(false);
@@ -531,7 +513,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 										) : (
 											<select
 												value={selectedTenantId || ''}
-												onChange={(e) => setSelectedTenantId(e.target.value || null)}
+												onChange={(e) => setFilterMode((e.target.value || 'personal') as any)}
 												className="text-[10px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-amber-400 font-bold text-slate-600 dark:text-slate-300 h-[22px]"
 											>
 												<option value="">Personal</option>
