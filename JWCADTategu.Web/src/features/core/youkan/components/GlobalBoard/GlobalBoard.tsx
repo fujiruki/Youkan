@@ -83,6 +83,12 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 
 	// filterMode または selectedTenantId から QuickInputWidget のテナント文脈を計算
 	const quickInputProjectContext = useMemo(() => {
+		console.log('[DEBUG GB]', {
+			filterMode: vm.filterMode,
+			filterModeType: typeof vm.filterMode,
+			selectedTenantId,
+			joinedTenants: joinedTenants.map((t: any) => ({ id: t.id, idType: typeof t.id, name: t.name })),
+		});
 		if (focusedProject) {
 			return {
 				id: String(focusedProject.id),
