@@ -76,7 +76,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 			}
 		} else if (vm.filterMode === 'personal' || vm.filterMode === 'all') {
 			setSelectedTenantId(null);
-		} else if (typeof vm.filterMode === 'string' && joinedTenants.find(t => t.id === vm.filterMode)) {
+		} else if (typeof vm.filterMode === 'string' && joinedTenants.find(t => String(t.id) === vm.filterMode)) {
 			setSelectedTenantId(vm.filterMode);
 		}
 	}, [vm.filterMode, joinedTenants.length]); // Re-run when filter mode or list length changes
@@ -98,8 +98,8 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 			 vm.filterMode !== 'company'
 				? vm.filterMode : null);
 		if (!effectiveTenantId) return null;
-		const tenant = joinedTenants.find((t: any) => t.id === effectiveTenantId);
-		return tenant ? { title: tenant.name, name: tenant.name, tenantId: effectiveTenantId } : null;
+		const tenant = joinedTenants.find((t: any) => String(t.id) === String(effectiveTenantId));
+		return tenant ? { title: (tenant as any).title || tenant.name, name: tenant.name, tenantId: effectiveTenantId } : null;
 	}, [focusedProject, selectedTenantId, vm.filterMode, joinedTenants]);
 
 	// --- help Guid Modal ---
