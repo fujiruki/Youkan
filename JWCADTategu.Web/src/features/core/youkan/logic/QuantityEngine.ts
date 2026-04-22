@@ -186,7 +186,6 @@ export class QuantityEngine {
 
             // No specific capacity setting for this tenant.
             // Fall back to personal standard capacity.
-            console.log(`[QuantityEngine] Capacity Fallback Attempt: date=${dateKey}, target=${targetId} has no specific setting.`);
         }
 
         // --- Fallback Logic: Personal Standard Capacity (Molecule of Reality) ---

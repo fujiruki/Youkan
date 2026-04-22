@@ -68,15 +68,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	}, []);
 
 	// [REFACTORED] FilterContextから完了表示状態を取得
-	const { hideCompleted, setFilterMode: setGlobalFilterMode } = useFilter();
-
-	// [R-005] Newspaper View切替時にフィルタを「全て」にリセット
-	useEffect(() => {
-		if (viewMode === 'newspaper') {
-			setGlobalFilterMode('all');
-		}
-	}, [viewMode, setGlobalFilterMode]);
-
+	const { hideCompleted } = useFilter();
 
 	const vm = useYoukanViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 

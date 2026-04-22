@@ -6,6 +6,8 @@ import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../GlobalBoard/ContextMenu';
 import { useItemContextMenu } from '../../hooks/useItemContextMenu';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
+import { useFilter } from '../../contexts/FilterContext';
+import { useAuth } from '../../../auth/providers/AuthProvider';
 
 interface NewspaperBoardProps {
 	viewModel: any; // Type from hook return
@@ -16,7 +18,8 @@ interface NewspaperBoardProps {
 }
 
 export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false, onNavigateToFlow }) => {
-	// const { joinedTenants } = useAuth(); // Unused for now
+	const { filterMode } = useFilter();
+	const { joinedTenants } = useAuth();
 	const items = useNewspaperItems(viewModel, activeProject, hideCompleted);
 
 	// View State (Persisted)
@@ -58,7 +61,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 	// Design says: "Header area or first item".
 	// Implementation Plan: "Renders QuickInputWidget as the first item."
 	// BUT we have a hook returning items. We can just render it before the columns usually, or inside the columns?
-	// If inside columns, it flows. 
+	// If inside columns, it flows.
 	// Let's render it sticky top left or inside the flow.
 	// Inside flow logic: Newspaper Layout usually flows text.
 	// If we put it OUTSIDE the columns, it stays top.
@@ -66,6 +69,32 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 	// Let's float it? Or sticky header?
 	// The design mentioned: "Items sorted: QuickInput (virtual)"
 	// So it should be the very first element inside the columns.
+
+	const quickInputProjectContext = (() => {
+		if (activeProject) {
+			return {
+				id: activeProject.cloudId || String(activeProject.id),
+				title: activeProject.name,
+				name: activeProject.name,
+				tenantId: activeProject.tenantId
+			};
+		}
+		if (typeof filterMode === 'string' &&
+			filterMode !== 'all' &&
+			filterMode !== 'personal' &&
+			filterMode !== 'company') {
+			const tenant = joinedTenants.find((t: any) => String(t.id) === filterMode);
+			if (tenant) {
+				const displayName = (tenant as any).title || tenant.name;
+				return {
+					title: displayName,
+					name: displayName,
+					tenantId: filterMode as string
+				};
+			}
+		}
+		return null;
+	})();
 
 	return (
 		<div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
@@ -114,11 +143,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 					<div className="break-inside-avoid mb-[0.5em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
 						<QuickInputWidget
 							viewModel={viewModel}
-							projectContext={activeProject ? {
-								id: activeProject.cloudId || String(activeProject.id),
-								name: activeProject.name,
-								tenantId: activeProject.tenantId
-							} : null}
+							projectContext={quickInputProjectContext}
 							placeholder="Alt+D to add..."
 							autoFocus={false}
 							className="bg-transparent border-none p-0 shadow-none"
