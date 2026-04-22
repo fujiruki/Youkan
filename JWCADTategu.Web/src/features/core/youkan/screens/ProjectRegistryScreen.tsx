@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Building2, Archive, LayoutGrid, MoreVertical, Cale
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
+import { useViewMode } from '../contexts/ViewModeContext';
 import { getHierarchicalProjects } from '../logic/hierarchy';
 
 import { ContextMenu } from '../components/Common/ContextMenu';
@@ -27,7 +28,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 		setActiveScope
 	} = useProjectViewModel();
 
-	const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+	const { projectViewMode: viewMode } = useViewMode();
 	const { menuState: contextMenu, handleContextMenu, closeMenu, lastTargetId, setLastTargetId } = useItemContextMenu({
 		onDelete: (id) => trashProject(id)
 	});
@@ -117,18 +118,6 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 		}
 	}, [filterMode, setActiveScope]);
 
-	useEffect(() => {
-		const handleViewModeChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode === 'grid' || mode === 'list') {
-				setViewMode(mode);
-			}
-		};
-		window.addEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
-		return () => {
-			window.removeEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
-		};
-	}, []);
 
 	// [NEW] Confirmation Modal State
 	const [confirmDialog, setConfirmDialog] = useState<{

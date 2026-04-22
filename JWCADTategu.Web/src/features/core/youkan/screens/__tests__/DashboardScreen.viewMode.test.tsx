@@ -1,7 +1,9 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { DashboardScreen } from '../DashboardScreen';
 import { FilterProvider } from '../../contexts/FilterContext';
+import { ViewModeProvider, useViewMode } from '../../contexts/ViewModeContext';
 
 // 重量コンポーネントをスタブ化
 vi.mock('../../viewmodels/useYoukanViewModel', () => ({
@@ -118,13 +120,22 @@ vi.mock('../../../../../db/db', () => ({
     db: {},
 }));
 
-const YOUKAN_VIEW_MODE_CHANGE = 'youkan-view-mode-change';
+// ViewModeを外部から操作するためのヘルパーコンポーネント
+const ViewModeSwitcher = ({ mode }: { mode: string }) => {
+    const { setDashboardViewMode } = useViewMode();
+    return (
+        <button data-testid="switch-mode" onClick={() => setDashboardViewMode(mode as any)}>switch</button>
+    );
+};
 
-const renderDashboard = () =>
+const renderDashboard = (extraChildren?: React.ReactNode) =>
     render(
-        <FilterProvider>
-            <DashboardScreen />
-        </FilterProvider>
+        <ViewModeProvider>
+            <FilterProvider>
+                <DashboardScreen />
+                {extraChildren}
+            </FilterProvider>
+        </ViewModeProvider>
     );
 
 beforeEach(() => {
@@ -140,33 +151,27 @@ describe('DashboardScreen viewMode 切替', () => {
 
     it('panorama モード時に data-testid="panorama-layout" が出現する', async () => {
         localStorage.setItem('youkan_view_mode', 'stream');
-        renderDashboard();
+        renderDashboard(<ViewModeSwitcher mode="panorama" />);
         await act(async () => {
-            window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'panorama' } })
-            );
+            screen.getByTestId('switch-mode').click();
         });
         expect(screen.getByTestId('panorama-layout')).toBeInTheDocument();
     });
 
     it('overview モード時に data-testid="overview-layout" が出現する', async () => {
         localStorage.setItem('youkan_view_mode', 'stream');
-        renderDashboard();
+        renderDashboard(<ViewModeSwitcher mode="overview" />);
         await act(async () => {
-            window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'overview' } })
-            );
+            screen.getByTestId('switch-mode').click();
         });
         expect(screen.getByTestId('overview-layout')).toBeInTheDocument();
     });
 
     it('panorama モード時には stream-layout は表示されない', async () => {
         localStorage.setItem('youkan_view_mode', 'stream');
-        renderDashboard();
+        renderDashboard(<ViewModeSwitcher mode="panorama" />);
         await act(async () => {
-            window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'panorama' } })
-            );
+            screen.getByTestId('switch-mode').click();
         });
         expect(screen.queryByTestId('stream-layout')).not.toBeInTheDocument();
     });

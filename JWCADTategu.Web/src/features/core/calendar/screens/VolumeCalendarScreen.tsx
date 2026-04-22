@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useVolumeCalendarViewModel } from '../viewmodels/useVolumeCalendarViewModel';
-import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { YOUKAN_KEYS } from '../../session/youkanKeys';
 import { useFilter } from '../../youkan/contexts/FilterContext';
+import { useViewMode } from '../../youkan/contexts/ViewModeContext';
 import { RyokanCalendar } from '../../youkan/components/Calendar/RyokanCalendar';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
@@ -23,10 +24,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 }) => {
 	const auth = useAuth();
 	const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-	const [selectedDateForCapacity, setSelectedDateForCapacity] = useState<Date | null>(null); // [NEW] Track selected date for DailySettings
-	const [viewMode, setViewMode] = useState<'grid' | 'timeline' | 'gantt'>(() => {
-		return (localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) as any) || 'gantt';
-	});
+	const [selectedDateForCapacity, setSelectedDateForCapacity] = useState<Date | null>(null);
+	const { calendarViewMode: viewMode } = useViewMode();
 	const [showGanttGroups, setShowGanttGroups] = useState<boolean>(() => {
 		const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS);
 		return saved !== 'false';
@@ -36,16 +35,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	}, [showGanttGroups]);
 	const { filterMode } = useFilter();
 	const calendarRef = React.useRef<any>(null);
-
-	useEffect(() => {
-		const handleModeChange = (e: CustomEvent<{ mode: 'grid' | 'timeline' | 'gantt' }>) => {
-			if (e.detail?.mode) setViewMode(e.detail.mode);
-		};
-		window.addEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleModeChange as EventListener);
-		return () => {
-			window.removeEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleModeChange as EventListener);
-		};
-	}, []);
 
 	const {
 		currentDate, setCurrentDate,

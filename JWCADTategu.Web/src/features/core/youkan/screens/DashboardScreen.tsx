@@ -24,6 +24,7 @@ import { isValid } from 'date-fns';
 import { OverviewBoard } from '../components/OverviewBoard/OverviewBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
+import { useViewMode } from '../contexts/ViewModeContext';
 import { ApiClient } from '../../../../api/client';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
@@ -43,28 +44,15 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 );
 
 export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activeProject?: LocalProject | null; onNavigateToFlow?: (projectId: string) => void }) => {
-	const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'overview'>(() => {
+	const { dashboardViewMode: viewMode, setDashboardViewMode: setViewModeCtx } = useViewMode();
+
+	// URL パスからの初期ビューモード設定（初回マウント時のみ）
+	useEffect(() => {
 		const path = window.location.pathname.toLowerCase();
-		if (path.includes('panorama')) return 'panorama';
-		if (path.includes('calendar')) return 'calendar';
-		if (path.includes('overview')) return 'overview';
-		const saved = localStorage.getItem(YOUKAN_KEYS.VIEW_MODE);
-		return (saved === 'panorama' || saved === 'stream' || saved === 'calendar' || saved === 'overview') ? saved : 'stream';
-	});
-
-	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.VIEW_MODE, viewMode);
-	}, [viewMode]);
-
-	useEffect(() => {
-		const handleViewModeChange = (e: CustomEvent<{ mode: string }>) => {
-			const mode = e.detail?.mode;
-			if (mode === 'stream' || mode === 'panorama' || mode === 'overview' || mode === 'calendar') {
-				setViewMode(mode as any);
-			}
-		};
-		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
+		if (path.includes('panorama')) setViewModeCtx('panorama');
+		else if (path.includes('calendar')) setViewModeCtx('calendar');
+		else if (path.includes('overview')) setViewModeCtx('overview');
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// [REFACTORED] FilterContextから完了表示状態を取得
@@ -155,7 +143,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	});
 
 	const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'overview') => {
-		setViewMode(mode);
+		setViewModeCtx(mode);
 	};
 
 	const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;

@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { YoukanHeader } from './YoukanHeader';
 import { FilterProvider } from '../../features/core/youkan/contexts/FilterContext';
+import { ViewModeProvider } from '../../features/core/youkan/contexts/ViewModeContext';
 
 vi.mock('../../features/core/youkan/components/Layout/HealthCheck', () => ({
     HealthCheck: () => null
@@ -27,9 +28,11 @@ const defaultProps = {
 
 const renderHeader = (props = {}) =>
     render(
-        <FilterProvider>
-            <YoukanHeader {...defaultProps} {...props} />
-        </FilterProvider>
+        <ViewModeProvider>
+            <FilterProvider>
+                <YoukanHeader {...defaultProps} {...props} />
+            </FilterProvider>
+        </ViewModeProvider>
     );
 
 describe('YoukanHeader View名', () => {

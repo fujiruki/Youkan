@@ -14,6 +14,7 @@ import { CustomerList } from './features/plugins/customer'; // [RESTORED]
 
 import { UndoProvider } from './features/core/youkan/contexts/UndoContext';
 import { FilterProvider } from './features/core/youkan/contexts/FilterContext';
+import { ViewModeProvider } from './features/core/youkan/contexts/ViewModeContext';
 import { UndoToast } from './features/core/youkan/components/UI/UndoToast';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast/ToastContainer';
@@ -31,6 +32,7 @@ import { useProjectViewModel } from './features/core/youkan/viewmodels/useProjec
 // Auth Imports
 import { AuthProvider, useAuth } from './features/core/auth/providers/AuthProvider';
 import { YOUKAN_EVENTS } from './features/core/session/youkanKeys';
+import { migrateLocalStorage } from './features/core/session/migrateLocalStorage';
 import { LoginScreen } from './features/core/auth/screens/LoginScreen';
 import { RegistrationScreen } from './pages/RegistrationScreen';
 import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
@@ -38,6 +40,10 @@ import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
 import { FlowScreen } from './features/core/youkan/screens/FlowScreen'; // [NEW] フローチャートView
 import { db, Door } from './db/db';
+
+if (typeof window !== 'undefined') {
+	migrateLocalStorage();
+}
 
 type ViewState = 'dashboard' | 'projectList' | 'projects' | 'schedule' | 'editor' | 'catalog' | 'youkan' | 'today' | 'planning' | 'history' | 'archive' | 'trash' | 'settings' | 'customers' | 'manual' | 'userlist' | 'companySettings' | 'calendar' | 'personalSettings' | 'flows';
 
@@ -406,6 +412,7 @@ const AppContent: React.FC<{
 
 		return (
 			<>
+				<ViewModeProvider>
 				<FilterProvider>
 					<UndoProvider>
 						<div className="h-screen w-full bg-slate-900 text-slate-200 font-sans flex flex-col">
@@ -559,6 +566,7 @@ const AppContent: React.FC<{
 						</div>
 					</UndoProvider>
 				</FilterProvider>
+				</ViewModeProvider>
 				<ToastContainer toasts={toasts} onDismiss={dismissToast} />
 			</>
 		);
