@@ -29,3 +29,4 @@
 | 2026-04-10 | R-023 | ガントチャート右クリックメニュー統合（タイトル列・青バー対応）+ 全画面でDel削除統一（メニュー表示中） | 完了（2026-04-10デプロイ済み） | 03_画面設計.md §5/§7 |
 | 2026-04-10 | R-024 | 新規登録欄ショートカット変更（Shift+Enter→今日やる、Alt+Enter→登録+詳細表示、Alt+Enter空欄→前回アイテム詳細表示） | 完了（2026-04-10デプロイ済み） | 03_画面設計.md §2 |
 | 2026-04-10 | R-025 | フローチャートプロジェクト選択画面のフィルター修正（会社/個人/テナント別フィルターが機能するよう FilterContext を接続） | 完了（2026-04-10デプロイ済み） | 03_画面設計.md §7.6 |
+| 2026-04-22 | R-026 | 命名統一とコード基盤整理（GlobalBoard/YoukanBoard→PanoramaBoard、NewspaperBoard→OverviewBoard、viewMode値統一、filterUtils新設、ViewModeContext新設、localStorage マイグレーション） | 対応中（refactor/naming-unification ブランチ） | 03_画面設計.md, 05_技術設計.md, 06_変更履歴.md |

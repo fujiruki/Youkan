@@ -97,7 +97,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 	})();
 
 	return (
-		<div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+		<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
 			{/* Controls Header */}
 			<div className="flex-none relative z-20">

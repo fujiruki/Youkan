@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { YoukanHeader } from './YoukanHeader';
 import { FilterProvider } from '../../features/core/youkan/contexts/FilterContext';
@@ -46,5 +46,33 @@ describe('YoukanHeader View名', () => {
     it('旧名「全体一覧2」は表示されない', () => {
         renderHeader();
         expect(screen.queryByText('全体一覧2')).not.toBeInTheDocument();
+    });
+});
+
+describe('YoukanHeader CustomEvent', () => {
+    it('「状況把握」クリックで youkan:view_mode_change イベントが発火し detail.mode が truthy な string', () => {
+        renderHeader();
+        let capturedMode: unknown = undefined;
+        const handler = (e: Event) => {
+            capturedMode = (e as CustomEvent).detail?.mode;
+        };
+        window.addEventListener('youkan-view-mode-change', handler);
+        fireEvent.click(screen.getByText('状況把握'));
+        window.removeEventListener('youkan-view-mode-change', handler);
+        expect(typeof capturedMode).toBe('string');
+        expect(capturedMode).toBeTruthy();
+    });
+
+    it('「全体一覧」クリックで youkan:view_mode_change イベントが発火し detail.mode が truthy な string', () => {
+        renderHeader();
+        let capturedMode: unknown = undefined;
+        const handler = (e: Event) => {
+            capturedMode = (e as CustomEvent).detail?.mode;
+        };
+        window.addEventListener('youkan-view-mode-change', handler);
+        fireEvent.click(screen.getByText('全体一覧'));
+        window.removeEventListener('youkan-view-mode-change', handler);
+        expect(typeof capturedMode).toBe('string');
+        expect(capturedMode).toBeTruthy();
     });
 });

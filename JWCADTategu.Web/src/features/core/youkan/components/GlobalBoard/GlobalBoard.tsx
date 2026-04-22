@@ -394,7 +394,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 				capacityConfig={vm.capacityConfig}
 			/>
 
-			<div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
+			<div data-testid="panorama-layout" className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
 				{/* Header */}
 				{!hideHeader && (
 					<div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">

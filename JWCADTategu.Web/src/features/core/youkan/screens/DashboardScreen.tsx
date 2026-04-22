@@ -294,7 +294,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-y-auto pb-20">
+					<div data-testid="stream-layout" className="flex-1 overflow-y-auto pb-20">
 						<div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-8 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
 							{activeProject && (
 								<div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">
