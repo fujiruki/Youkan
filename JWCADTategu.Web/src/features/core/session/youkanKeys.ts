@@ -29,10 +29,10 @@ export const YOUKAN_KEYS = {
 	// === パノラマ設定 ===
 	PANORAMA_COLS: 'youkan_panorama_cols',
 
-	// === 新聞ボード設定 ===
-	NEWSPAPER_FONTSIZE: 'youkan_newspaper_fontsize',
-	NEWSPAPER_COLUMNS: 'youkan_newspaper_columns',
-	NEWSPAPER_TITLE_LIMIT: 'youkan_newspaper_title_limit',
+	// === 全体一覧設定 ===
+	OVERVIEW_FONTSIZE: 'youkan_overview_fontsize',
+	OVERVIEW_COLUMNS: 'youkan_overview_columns',
+	OVERVIEW_TITLE_LIMIT: 'youkan_overview_title_limit',
 } as const;
 
 /** カスタムイベント名 */

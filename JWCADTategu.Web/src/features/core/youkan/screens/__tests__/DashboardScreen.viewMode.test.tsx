@@ -50,12 +50,12 @@ vi.mock('../../viewmodels/useYoukanViewModel', () => ({
     }),
 }));
 
-vi.mock('../../components/GlobalBoard/GlobalBoard', () => ({
-    YoukanBoard: () => <div data-testid="panorama-layout" />,
+vi.mock('../../components/PanoramaBoard/PanoramaBoard', () => ({
+    PanoramaBoard: () => <div data-testid="panorama-layout" />,
 }));
 
-vi.mock('../../components/NewspaperBoard/NewspaperBoard', () => ({
-    NewspaperBoard: () => <div data-testid="overview-layout" />,
+vi.mock('../../components/OverviewBoard/OverviewBoard', () => ({
+    OverviewBoard: () => <div data-testid="overview-layout" />,
 }));
 
 vi.mock('../../components/Calendar/RyokanCalendar', () => ({
@@ -86,7 +86,7 @@ vi.mock('../../components/Modal/DecisionDetailModal', () => ({
     DecisionDetailModal: () => null,
 }));
 
-vi.mock('../../components/GlobalBoard/ContextMenu', () => ({
+vi.mock('../../components/PanoramaBoard/ContextMenu', () => ({
     ContextMenu: () => null,
 }));
 
@@ -143,18 +143,18 @@ describe('DashboardScreen viewMode 切替', () => {
         renderDashboard();
         await act(async () => {
             window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'board' } })
+                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'panorama' } })
             );
         });
         expect(screen.getByTestId('panorama-layout')).toBeInTheDocument();
     });
 
-    it('newspaper モード時に data-testid="overview-layout" が出現する', async () => {
+    it('overview モード時に data-testid="overview-layout" が出現する', async () => {
         localStorage.setItem('youkan_view_mode', 'stream');
         renderDashboard();
         await act(async () => {
             window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'newspaper' } })
+                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'overview' } })
             );
         });
         expect(screen.getByTestId('overview-layout')).toBeInTheDocument();
@@ -165,7 +165,7 @@ describe('DashboardScreen viewMode 切替', () => {
         renderDashboard();
         await act(async () => {
             window.dispatchEvent(
-                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'board' } })
+                new CustomEvent(YOUKAN_VIEW_MODE_CHANGE, { detail: { mode: 'panorama' } })
             );
         });
         expect(screen.queryByTestId('stream-layout')).not.toBeInTheDocument();

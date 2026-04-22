@@ -7,7 +7,7 @@ import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
-export interface NewspaperItemWrapper {
+export interface OverviewItemWrapper {
 	id: string;
 	type: 'item' | 'header';
 	item: Item;
@@ -20,7 +20,7 @@ export interface NewspaperItemWrapper {
 
 const dependencyRepo = new DependencyRepository();
 
-export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false): NewspaperItemWrapper[] => {
+export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
 		gdbPreparation,
@@ -60,7 +60,7 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 			dependencies
 		});
 
-		// 3. Add Newspaper-specific formatting (Dates)
+		// 3. Add Overview-specific formatting (Dates)
 		const getEnhancedDate = (item: Item) => {
 			const due = item.due_date ? new Date(item.due_date).getTime() : Infinity;
 			const prep = item.prep_date ? item.prep_date * 1000 : Infinity;
@@ -86,9 +86,9 @@ export const useNewspaperItems = (viewModel: YoukanViewModel, activeProject?: an
 				return {
 					...wrapper,
 					...dateInfo
-				} as NewspaperItemWrapper;
+				} as OverviewItemWrapper;
 			}
-			return wrapper as NewspaperItemWrapper;
+			return wrapper as OverviewItemWrapper;
 		});
 
 	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, dependencies]);

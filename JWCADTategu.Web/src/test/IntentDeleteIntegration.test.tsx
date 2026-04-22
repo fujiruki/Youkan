@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { YoukanBoard } from '../features/core/youkan/components/GlobalBoard/GlobalBoard';
+import { PanoramaBoard } from '../features/core/youkan/components/PanoramaBoard/PanoramaBoard';
 import { createMockItem } from './testUtils';
 import * as ViewModelHook from '../features/core/youkan/viewmodels/useYoukanViewModel';
 
@@ -53,7 +53,7 @@ describe('Intent Item Delete Integration', () => {
             error: null,
             refresh: vi.fn(),
 
-            // Other properties used by GlobalBoard
+            // Other properties used by PanoramaBoard
             todayCommits: [],
             todayCandidates: [],
             memos: [],
@@ -66,7 +66,7 @@ describe('Intent Item Delete Integration', () => {
 
         render(
             <BrowserRouter>
-                <YoukanBoard />
+                <PanoramaBoard />
             </BrowserRouter>
         );
 

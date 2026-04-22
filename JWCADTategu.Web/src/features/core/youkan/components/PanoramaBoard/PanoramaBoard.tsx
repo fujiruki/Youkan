@@ -32,7 +32,7 @@ import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 
 
-interface GlobalBoardProps {
+interface PanoramaBoardProps {
 	onClose?: () => void;
 	initialLayoutMode?: 'standard' | 'panorama';
 	projectId?: string;
@@ -42,7 +42,7 @@ interface GlobalBoardProps {
 	onShowGroupsChange?: (value: boolean) => void;
 }
 
-export const YoukanBoard: React.FC<GlobalBoardProps> = ({
+export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 	onClose,
 	initialLayoutMode,
 	projectId,
@@ -98,7 +98,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 		vm.refreshGdb(projectId);
 	}, [projectId, vm.refreshGdb]);
 
-	// --- Side Memo Logic in Global Board ---
+	// --- Side Memo Logic in PanoramaBoard ---
 	// Ideally this could be lifted to App level, but GDB is the main workspace.
 	// For now, let's include it here.
 

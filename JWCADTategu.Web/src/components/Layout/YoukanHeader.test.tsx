@@ -38,19 +38,14 @@ describe('YoukanHeader View名', () => {
         expect(screen.getByText('状況把握')).toBeInTheDocument();
     });
 
-    it('ダッシュボードセクションに「全体一覧」タブが表示される（旧「全体一覧2」）', () => {
+    it('ダッシュボードセクションに「全体一覧」タブが表示される', () => {
         renderHeader();
         expect(screen.getByText('全体一覧')).toBeInTheDocument();
-    });
-
-    it('旧名「全体一覧2」は表示されない', () => {
-        renderHeader();
-        expect(screen.queryByText('全体一覧2')).not.toBeInTheDocument();
     });
 });
 
 describe('YoukanHeader CustomEvent', () => {
-    it('「状況把握」クリックで youkan:view_mode_change イベントが発火し detail.mode が truthy な string', () => {
+    it('「状況把握」クリックで youkan-view-mode-change イベントが発火し detail.mode === "panorama"', () => {
         renderHeader();
         let capturedMode: unknown = undefined;
         const handler = (e: Event) => {
@@ -59,11 +54,10 @@ describe('YoukanHeader CustomEvent', () => {
         window.addEventListener('youkan-view-mode-change', handler);
         fireEvent.click(screen.getByText('状況把握'));
         window.removeEventListener('youkan-view-mode-change', handler);
-        expect(typeof capturedMode).toBe('string');
-        expect(capturedMode).toBeTruthy();
+        expect(capturedMode).toBe('panorama');
     });
 
-    it('「全体一覧」クリックで youkan:view_mode_change イベントが発火し detail.mode が truthy な string', () => {
+    it('「全体一覧」クリックで youkan-view-mode-change イベントが発火し detail.mode === "overview"', () => {
         renderHeader();
         let capturedMode: unknown = undefined;
         const handler = (e: Event) => {
@@ -72,7 +66,6 @@ describe('YoukanHeader CustomEvent', () => {
         window.addEventListener('youkan-view-mode-change', handler);
         fireEvent.click(screen.getByText('全体一覧'));
         window.removeEventListener('youkan-view-mode-change', handler);
-        expect(typeof capturedMode).toBe('string');
-        expect(capturedMode).toBeTruthy();
+        expect(capturedMode).toBe('overview');
     });
 });

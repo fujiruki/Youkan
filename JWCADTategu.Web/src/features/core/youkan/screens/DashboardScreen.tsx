@@ -12,16 +12,16 @@ import { SortableFocusQueue } from '../components/Dashboard/SortableFocusQueue';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
-import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { ContextMenu } from '../components/PanoramaBoard/ContextMenu';
 import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
-import { YoukanBoard } from '../components/GlobalBoard/GlobalBoard';
+import { PanoramaBoard } from '../components/PanoramaBoard/PanoramaBoard';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
 import { GanttHeader } from '../components/Calendar/GanttHeader';
 import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
-import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
+import { OverviewBoard } from '../components/OverviewBoard/OverviewBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
 import { ApiClient } from '../../../../api/client';
@@ -43,13 +43,13 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 );
 
 export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activeProject?: LocalProject | null; onNavigateToFlow?: (projectId: string) => void }) => {
-	const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'newspaper'>(() => {
+	const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'overview'>(() => {
 		const path = window.location.pathname.toLowerCase();
 		if (path.includes('panorama')) return 'panorama';
 		if (path.includes('calendar')) return 'calendar';
-		if (path.includes('newspaper')) return 'newspaper';
+		if (path.includes('overview')) return 'overview';
 		const saved = localStorage.getItem(YOUKAN_KEYS.VIEW_MODE);
-		return (saved === 'panorama' || saved === 'stream' || saved === 'calendar' || saved === 'newspaper') ? saved : 'stream';
+		return (saved === 'panorama' || saved === 'stream' || saved === 'calendar' || saved === 'overview') ? saved : 'stream';
 	});
 
 	useEffect(() => {
@@ -59,8 +59,8 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	useEffect(() => {
 		const handleViewModeChange = (e: CustomEvent<{ mode: string }>) => {
 			const mode = e.detail?.mode;
-			if (mode === 'stream' || mode === 'board' || mode === 'newspaper') {
-				setViewMode(mode === 'board' ? 'panorama' : mode as any);
+			if (mode === 'stream' || mode === 'panorama' || mode === 'overview' || mode === 'calendar') {
+				setViewMode(mode as any);
 			}
 		};
 		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
@@ -154,7 +154,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		onDelete: (id) => vm.deleteItem(id)
 	});
 
-	const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
+	const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'overview') => {
 		setViewMode(mode);
 	};
 
@@ -250,7 +250,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			)}
 
 			<div className="flex-1 min-h-0 flex flex-col relative">
-				{(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
+				{(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'overview') ? (
 					<div className="flex-1 flex flex-col overflow-hidden">
 						<div className="flex-1 overflow-hidden">
 							{viewMode === 'calendar' && (
@@ -276,11 +276,11 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									showGroups={showGanttGroups}
 								/>
 							)}
-							{viewMode === 'newspaper' && (
-								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} onNavigateToFlow={onNavigateToFlow} />
+							{viewMode === 'overview' && (
+								<OverviewBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} onNavigateToFlow={onNavigateToFlow} />
 							)}
 							{viewMode === 'panorama' && (
-								<YoukanBoard
+								<PanoramaBoard
 									initialLayoutMode="panorama"
 									onClose={() => handleViewModeChangeInternal('stream')}
 									projectId={activeProject?.cloudId}

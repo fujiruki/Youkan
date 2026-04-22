@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
-import { NewspaperItemWrapper } from './useNewspaperItems';
+import { OverviewItemWrapper } from './useOverviewItems';
 import { Folder, FolderOpen, GitBranch } from 'lucide-react';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 
-interface NewspaperItemProps {
-	wrapper: NewspaperItemWrapper;
+interface OverviewItemProps {
+	wrapper: OverviewItemWrapper;
 	onClick: (item: Item) => void;
 	onContextMenu: (e: React.MouseEvent, itemId: string) => void;
 	onAddChild?: (item: Item, title: string) => void;
@@ -67,7 +67,7 @@ const IndentLines = ({ depth }: { depth: number }) => {
 	);
 };
 
-export const NewspaperItem: React.FC<NewspaperItemProps> = ({
+export const OverviewItem: React.FC<OverviewItemProps> = ({
 	wrapper,
 	onClick,
 	onContextMenu,

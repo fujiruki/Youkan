@@ -26,7 +26,7 @@ import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
 import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
-import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { ContextMenu } from '../components/PanoramaBoard/ContextMenu';
 import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { FlowProjectSelector } from '../components/Flow/FlowProjectSelector';
 import { buildGroupNodes } from '../components/Flow/flowGrouping';

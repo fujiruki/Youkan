@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useNewspaperItems, NewspaperItemWrapper } from '../useNewspaperItems';
+import { useOverviewItems, OverviewItemWrapper } from '../useOverviewItems';
 import { Item, Project } from '../../../types';
 
 // Mock Data (Projects as Items)
@@ -26,11 +26,11 @@ const mockViewModel = {
     joinedTenants: [{ id: 't1', name: 'Company T', role: 'admin' }]
 };
 
-describe('useNewspaperItems', () => {
+describe('useOverviewItems', () => {
     it('should sort items correctly: No Project -> Company Project -> Personal Project', () => {
-        const { result } = renderHook(() => useNewspaperItems(mockViewModel as any));
+        const { result } = renderHook(() => useOverviewItems(mockViewModel as any));
 
-        const items: NewspaperItemWrapper[] = result.current;
+        const items: OverviewItemWrapper[] = result.current;
 
         // Expectation:
         // 1. Inbox Item 1 (No Project)
@@ -66,7 +66,7 @@ describe('useNewspaperItems', () => {
     });
 
     it('should generate virtual headers for projects with items', () => {
-        const { result } = renderHook(() => useNewspaperItems(mockViewModel as any));
+        const { result } = renderHook(() => useOverviewItems(mockViewModel as any));
         const headers = result.current.filter(i => i.type === 'header');
         expect(headers.length).toBe(2);
         expect(headers[0].project?.title).toBe('Company Project A');

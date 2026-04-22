@@ -9,7 +9,7 @@ import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList } from '../../logic/hierarchy';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { validateDependencyConstraint, calculateCascadeAdjustments } from '../../logic/dependencyConstraint';
-import { ContextMenu } from '../GlobalBoard/ContextMenu';
+import { ContextMenu } from '../PanoramaBoard/ContextMenu';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { useToast } from '../../../../../contexts/ToastContext';
 
