@@ -359,6 +359,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 										name: activeProject.title || activeProject.name || 'Untitled',
 										tenantId: activeProject.tenantId
 									} : (() => {
+										console.log('[DEBUG] filterMode=', filterMode, '/ joinedTenants=', joinedTenants.map((t:any)=>({id:t.id,type:typeof t.id,name:t.name})));
 										if (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal' && filterMode !== 'company') {
 											const ten = joinedTenants.find((ten: any) => String(ten.id) === String(filterMode));
 											if (ten) return { title: (ten as any).title || ten.name, name: ten.name, tenantId: String(filterMode) };
