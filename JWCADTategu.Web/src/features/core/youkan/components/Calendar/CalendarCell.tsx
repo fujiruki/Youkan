@@ -26,11 +26,14 @@ interface CalendarCellProps {
     targetItem?: Item;
     rowHeight?: number;
     completedCount?: number;
+    monthBoundaryTop?: boolean;
+    monthBoundaryBottom?: boolean;
+    monthBoundaryLeft?: boolean;
 }
 
 export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
-    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0
+    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -70,6 +73,9 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full group",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[80px] h-full border-r flex flex-col p-1 border-b border-slate-100 dark:border-slate-800",
                 volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`,
+                monthBoundaryTop ? "border-t-[3px] border-t-slate-500 dark:border-t-slate-400" : "",
+                monthBoundaryBottom ? "border-b-[3px] border-b-slate-500 dark:border-b-slate-400" : "",
+                monthBoundaryLeft ? "border-l-[3px] border-l-slate-500 dark:border-l-slate-400" : "",
                 isHoliday ? "bg-slate-100 dark:bg-slate-800/50" : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800",
 
                 // [FIX] Border Styles for Detail View

@@ -136,12 +136,19 @@ class CalendarController extends BaseController {
         // Fetch Logic using simple range
         // [FIX] Loosened filter to include items created by self but not yet assigned (Inbox)
         $tenantId = $params['tenantId'] ?? null;
+        $projectId = $params['projectId'] ?? null;
         $tenantClause = "";
         $sqlParams = [$targetUserId, $this->currentUserId];
 
         if ($tenantId) {
             $tenantClause = " AND (items.tenant_id = ? OR items.tenant_id IS NULL) ";
             $sqlParams[] = $tenantId;
+        }
+
+        // プロジェクトフォーカス時は、日付未設定アイテムも同プロジェクトなら取得対象に含める
+        $projectClause = "";
+        if ($projectId) {
+            $projectClause = " OR items.project_id = ?";
         }
 
         $sql = "
@@ -159,12 +166,16 @@ class CalendarController extends BaseController {
                     (items.due_date >= ? AND items.due_date <= ?)
                     OR
                     (items.prep_date >= ? AND items.prep_date <= ?)
+                    $projectClause
                 )
                 AND items.status NOT IN ('decision_rejected', 'archive', 'done')
                 AND items.is_project = 0
         ";
 
         array_push($sqlParams, $startDate, $endDate, $startDate, $endDate);
+        if ($projectId) {
+            $sqlParams[] = $projectId;
+        }
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($sqlParams);

@@ -4,10 +4,14 @@ import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
+import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList } from '../../logic/hierarchy';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { validateDependencyConstraint, calculateCascadeAdjustments } from '../../logic/dependencyConstraint';
+import { ContextMenu } from '../GlobalBoard/ContextMenu';
+import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
+import { useToast } from '../../../../../contexts/ToastContext';
 
 const isSameDate = (d1: Date, d2: Date) => {
 	return d1.getFullYear() === d2.getFullYear() &&
@@ -26,6 +30,7 @@ interface GanttViewProps {
 	projects: any[];
 	onJumpToDate?: (date: Date) => void;
 	onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void;
+	onDeleteItem?: (id: string) => Promise<void> | void;
 	renderItemTitle: (item: Item) => string;
 	// Context Props for QuantityEngine
 	capacityConfig?: CapacityConfig;
@@ -42,16 +47,21 @@ interface GanttViewProps {
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
-	onUpdateItem,
+	onUpdateItem, onDeleteItem,
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick
 }) => {
+	const { showToast } = useToast();
 	const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
 	const isSyncing = useRef(false);
 	const [dependencies, setDependencies] = useState<Dependency[]>([]);
 	const [constraintError, setConstraintError] = useState<string | null>(null);
+	const [editingTimeItemId, setEditingTimeItemId] = useState<string | null>(null);
+	const [timeInputValue, setTimeInputValue] = useState('');
+	const timeInputRef = useRef<HTMLInputElement>(null);
+	const [itemContextMenu, setItemContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
 
 	// scrollRefが渡された場合はそちらを優先する実効ref
 	const effectiveScrollRef = scrollRef || scrollContainerRef;
@@ -83,6 +93,54 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		currentX: number;
 		originalDate: Date;
 	} | null>(null);
+
+	useEffect(() => {
+		if (editingTimeItemId && timeInputRef.current) {
+			timeInputRef.current.focus();
+			timeInputRef.current.select();
+		}
+	}, [editingTimeItemId]);
+
+	const handleTimeEditConfirm = useCallback(async (itemId: string) => {
+		const minutes = parseTimeInput(timeInputValue);
+		if (minutes !== null) {
+			await onUpdateItem?.(itemId, { estimatedMinutes: minutes } as any);
+		}
+		setEditingTimeItemId(null);
+	}, [timeInputValue, onUpdateItem]);
+
+	const handleItemContextMenu = useCallback((e: React.MouseEvent, itemId: string) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setItemContextMenu({ x: e.clientX, y: e.clientY, itemId });
+	}, []);
+
+	const closeItemContextMenu = useCallback(() => setItemContextMenu(null), []);
+
+	const handleContextMenuDelete = useCallback(async (itemId: string) => {
+		try {
+			await onDeleteItem?.(itemId);
+			showToast({ type: 'success', title: '削除完了', message: 'アイテムを削除しました', duration: 3000 });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			showToast({ type: 'error', title: '削除失敗', message: msg, duration: 5000 });
+		}
+	}, [onDeleteItem, showToast]);
+
+	useEffect(() => {
+		if (!itemContextMenu) return;
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'Delete') {
+				e.preventDefault();
+				handleContextMenuDelete(itemContextMenu.itemId);
+				closeItemContextMenu();
+			} else if (e.key === 'Escape') {
+				closeItemContextMenu();
+			}
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [itemContextMenu, handleContextMenuDelete, closeItemContextMenu]);
 
 	// 依存関係制約チェック付きのドラッグ終了処理
 	const handleDragEnd = useCallback(async (itemId: string, daysDiff: number) => {
@@ -332,7 +390,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									data-gantt-date={normalizeDateKey(day)}
 									className={cn(
 										`flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
-										isFirst ? 'border-l border-l-slate-300' : ''
+										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : ''
 									)}
 									onClick={() => onDateClick?.(day)}
 								>
@@ -365,13 +423,15 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 						{allDays.map(date => {
 							const isSun = date.getDay() === 0;
 							const isSat = date.getDay() === 6;
+							const isFirstOfMonth = date.getDate() === 1;
 							return (
 								<div
 									key={`bg-${date.getTime()}`}
 									data-gantt-date={normalizeDateKey(date)}
 									className={cn(
 										"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50",
-										isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : ""
+										isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : "",
+										isFirstOfMonth ? "border-l-2 border-l-slate-300/80 dark:border-l-slate-600/80" : ""
 									)}
 								/>
 							);
@@ -418,9 +478,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									onMouseLeave={() => setHoveredItemId(null)}
 								>
 									{/* Sticky Title Column */}
-									<div className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+									<div
+										className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] gap-1"
+										onContextMenu={(e) => handleItemContextMenu(e, item.id)}
+									>
 										<div
-											className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center"
+											className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center min-w-0"
 											style={{ paddingLeft: `${depth * 16}px` }}
 											onClick={(e) => {
 												e.stopPropagation();
@@ -444,8 +507,43 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 												)}
 											</span>
 										</div>
-										{hoveredItemId === item.id && (
-											<button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors">
+										{/* 目安時間バッジ（インライン編集） */}
+										{editingTimeItemId === item.id ? (
+											<input
+												ref={timeInputRef}
+												type="text"
+												value={timeInputValue}
+												onChange={(e) => setTimeInputValue(e.target.value)}
+												onKeyDown={(e) => {
+													e.stopPropagation();
+													if (e.key === 'Enter') { e.preventDefault(); handleTimeEditConfirm(item.id); }
+													else if (e.key === 'Escape') setEditingTimeItemId(null);
+												}}
+												onBlur={() => handleTimeEditConfirm(item.id)}
+												onClick={(e) => e.stopPropagation()}
+												placeholder="1h"
+												className="w-10 text-[9px] px-1 py-0 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-center shrink-0"
+											/>
+										) : (
+											<span
+												className={cn(
+													"text-[9px] px-1 rounded font-mono cursor-pointer shrink-0",
+													formatMinutes(item.estimatedMinutes)
+														? "bg-amber-100 text-amber-600 hover:bg-amber-200"
+														: "text-slate-300 hover:text-slate-400"
+												)}
+												onClick={(e) => {
+													e.stopPropagation();
+													setTimeInputValue(formatMinutes(item.estimatedMinutes) || '');
+													setEditingTimeItemId(item.id);
+												}}
+												title="目安時間（クリックして編集）"
+											>
+												{formatMinutes(item.estimatedMinutes) || '--'}
+											</span>
+										)}
+										{hoveredItemId === item.id && editingTimeItemId !== item.id && (
+											<button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors shrink-0">
 												<ChevronRight size={14} />
 											</button>
 										)}
@@ -469,8 +567,15 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 													data-gantt-date={normalizeDateKey(date)}
 													className={cn(
 														"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
-														isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : ""
+														isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : "",
+														!prepDateObj && onUpdateItem ? "cursor-pointer hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20" : ""
 													)}
+													onClick={() => {
+														if (!prepDateObj && onUpdateItem) {
+															const unix = Math.floor(date.getTime() / 1000);
+															onUpdateItem(item.id, { prep_date: unix } as any);
+														}
+													}}
 												>
 													{/* Real Allocation Chip (Blue) */}
 													{step && (
@@ -480,6 +585,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 																"bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
 															)}
 															title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
+															onContextMenu={(e) => handleItemContextMenu(e, item.id)}
 														>
 															{step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''}
 														</div>
@@ -524,7 +630,23 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					</div>
 				</div>
 			</div>
-			{/* 依存関係制約エラートースト */}
+			{itemContextMenu && (
+			<ContextMenu
+				x={itemContextMenu.x}
+				y={itemContextMenu.y}
+				itemId={itemContextMenu.itemId}
+				onClose={closeItemContextMenu}
+				actions={buildItemContextMenuActions(itemContextMenu.itemId, {
+					onOpenDetail: (id) => { onItemClick?.(items.find(i => i.id === id)!); closeItemContextMenu(); },
+					onMakeProject: async (id) => { await onUpdateItem?.(id, { isProject: true } as any); closeItemContextMenu(); },
+					onResolveYes: async (id) => { await onUpdateItem?.(id, { status: 'focus' } as any); closeItemContextMenu(); },
+					onMarkDone: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
+					onResolveNo: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
+					onDelete: (id) => { handleContextMenuDelete(id); closeItemContextMenu(); },
+				})}
+			/>
+		)}
+		{/* 依存関係制約エラートースト */}
 		{constraintError && (
 			<div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-bold animate-in fade-in slide-in-from-bottom-4 duration-300">
 				{constraintError}
@@ -610,7 +732,7 @@ const GanttDependencyArrows: React.FC<{
 
 	return (
 		<svg
-			className="absolute top-0 left-0 pointer-events-none z-[5]"
+			className="absolute top-0 left-0 pointer-events-none z-[15]"
 			width={maxX}
 			height={maxY}
 			style={{ overflow: 'visible' }}
@@ -624,7 +746,7 @@ const GanttDependencyArrows: React.FC<{
 					refY="3"
 					orient="auto"
 				>
-					<polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+					<polygon points="0 0, 8 3, 0 6" fill="#6366f1" />
 				</marker>
 			</defs>
 			{arrows.map(({ key, x1, y1, x2, y2 }) => {
@@ -637,10 +759,10 @@ const GanttDependencyArrows: React.FC<{
 							? `M ${x1} ${y1} L ${x2} ${y2}`
 							: path
 						}
-						stroke="#94a3b8"
+						stroke="#6366f1"
 						strokeWidth="1.5"
 						fill="none"
-						opacity="0.6"
+						opacity="0.75"
 						markerEnd="url(#gantt-dep-arrowhead)"
 					/>
 				);

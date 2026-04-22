@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Briefcase, CornerDownLeft } from 'lucide-react';
 import { Item } from '../../types';
 
@@ -44,6 +44,9 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
     const [title, setTitle] = useState('');
     const [lastAddedId, setLastAddedId] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const viewModelRef = useRef(viewModel);
+
+    useEffect(() => { viewModelRef.current = viewModel; }, [viewModel]);
 
     // Auto Focus
     useEffect(() => {
@@ -52,38 +55,44 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
         }
     }, [autoFocus]);
 
-    // [NEW] asFocus: true = Ctrl+Enter (focus), false = Enter (inbox)
-    const handleSubmit = async (e: React.FormEvent, asFocus: boolean = false) => {
+    const findItemById = useCallback((id: string) => {
+        const vm = viewModelRef.current;
+        const allItems = [
+            ...(vm.gdbActive || []),
+            ...(vm.gdbPreparation || []),
+            ...(vm.gdbIntent || []),
+            ...(vm.todayCandidates || []),
+            ...(vm.todayCommits || []),
+        ];
+        return allItems.find((i: any) => i.id === id) || null;
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent, asFocus: boolean = false): Promise<string | null> => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim()) return null;
 
         try {
-            // Use Explicit Context if available
-            // Note: viewModel.throwIn logic: (title, tenantId, projectId, initialStatus)
-            // If projectContext is null, we pass undefined/null to indicate "Inbox/Personal"
-
             const pId = projectContext?.id || null;
             const tId = projectContext?.tenantId || null;
             const initialStatus = asFocus ? 'focus' : 'inbox';
-
-            // console.log('[QuickInput] Submitting:', { title, tId, pId, initialStatus });
 
             const newId = await viewModel.throwIn(title, tId, pId, initialStatus);
 
             if (newId) {
                 setLastAddedId(newId);
-                // We could show a toast here, but ViewModel usually handles it or UI feedback is enough
             }
+            setTitle('');
+            return newId;
         } catch (error) {
             console.error('[QuickInput] Failed to add item:', error);
+            setTitle('');
+            return null;
         }
-
-        setTitle('');
     };
 
     const handleKeyDown = async (e: React.KeyboardEvent) => {
-        // [NEW] Ctrl+Enter = Submit as Focus (今すぐやる)
-        if (e.ctrlKey && e.key === 'Enter') {
+        // Shift+Enter = 今日やる（focus）で登録
+        if (e.shiftKey && e.key === 'Enter') {
             e.preventDefault();
             if (title.trim()) {
                 await handleSubmit(e as any, true);
@@ -91,49 +100,47 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
             return;
         }
 
-        // Alt + D Shortcut
+        // Alt+Enter = 登録して詳細モーダルを開く / 空なら前回登録アイテムを開く
+        if (e.altKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (title.trim()) {
+                const newId = await handleSubmit(e as any, false);
+                if (newId) {
+                    setTimeout(() => {
+                        const item = findItemById(newId);
+                        if (item) {
+                            onOpenItem(item);
+                        } else {
+                            onRequestFallbackOpen?.();
+                        }
+                    }, 200);
+                }
+            } else {
+                if (lastAddedId) {
+                    const item = findItemById(lastAddedId);
+                    if (item) {
+                        onOpenItem(item);
+                    } else {
+                        onRequestFallbackOpen?.();
+                    }
+                } else {
+                    onRequestFallbackOpen?.();
+                }
+            }
+            return;
+        }
+
+        // Alt+D = 前回登録アイテムを開く（後方互換）
         if (e.altKey && e.key.toLowerCase() === 'd') {
             e.preventDefault();
-
-            // console.log('[QuickInput] Alt+D Triggered. LastAdded:', lastAddedId);
-
-            // Priority 1: Locally created item in this session
             if (lastAddedId) {
-                // We need to fetch the item object. 
-                // Since `throwIn` returns ID, and ViewModel updates state, we try to find it in ViewModel's lists?
-                // The widget doesn't have access to the lists directly via active props usually (it receives VM).
-                // But VM state is usually accessible via VM hook result used in parent. 
-                // Wait, this components receives `viewModel` which is the RESULT of the hook? 
-                // Yes, usually passed as `vm`.
-
-                // We need a way to get the item object. 
-                // Hack: We can iterate known lists in VM if exposed, OR request parent to find it.
-                // Better Design: `onOpenItem` expects an Item object.
-                // Let's assume the parent can find it if we pass ID?
-                // Or we can try to find it in `vm.gdbActive` etc if available.
-                // Let's try to find it from the VM's exposed methods or data if possible.
-                // Actually, `viewModel` passed from parent has `gdbActive` etc.
-
-                const allItems = [
-                    ...(viewModel.gdbActive || []),
-                    ...(viewModel.gdbPreparation || []),
-                    ...(viewModel.gdbIntent || []),
-                    ...(viewModel.todayCandidates || []),
-                    ...(viewModel.todayCommits || [])
-                ];
-
-                const item = allItems.find((i: any) => i.id === lastAddedId);
+                const item = findItemById(lastAddedId);
                 if (item) {
                     onOpenItem(item);
                     return;
                 }
             }
-
-            // Priority 2: Fallback to Parent's "Last Interacted"
-            if (onRequestFallbackOpen) {
-                console.log('[QuickInput] Falling back to parent RequestFallbackOpen');
-                onRequestFallbackOpen();
-            }
+            onRequestFallbackOpen?.();
         }
     };
 

@@ -6,6 +6,7 @@ interface ContextMenuAction {
     onClick: () => void;
     danger?: boolean;
     icon?: React.ReactNode;
+    shortcut?: string; // キーボードショートカット（例: 'd', 'Delete'）
 }
 
 interface ContextMenuProps {
@@ -57,15 +58,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, itemId, onClose,
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Delete') {
-                // If generic actions, finding one with "Delete" label might be fragile.
-                // But legacy onDelete relies on this. 
-                // Let's support legacy behavior for now.
-                if (onDelete) {
+            if (actions) {
+                const action = actions.find(a => a.shortcut === e.key || a.shortcut === e.key.toLowerCase());
+                if (action) {
                     e.preventDefault();
-                    onDelete(itemId);
+                    action.onClick();
                     onClose();
                 }
+            } else if (e.key === 'Delete' && onDelete) {
+                e.preventDefault();
+                onDelete(itemId);
+                onClose();
             }
         };
 
@@ -82,7 +85,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, itemId, onClose,
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [onClose, onDelete, itemId]);
+    }, [onClose, onDelete, itemId, actions]);
 
     return (
         <div

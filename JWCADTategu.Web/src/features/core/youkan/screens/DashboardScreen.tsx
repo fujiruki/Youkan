@@ -274,6 +274,8 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									filterMode={filterMode}
 									hideHeader={true}
 									onItemClick={(item) => setSelectedItem(item)}
+									onUpdateItem={updateItem as any}
+									onDeleteItem={deleteItem}
 									onVisibleMonthChange={(date: Date) => {
 										if (isValid(date) && (date.getMonth() !== visibleMonth.getMonth() || date.getFullYear() !== visibleMonth.getFullYear())) {
 											setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1));
@@ -453,6 +455,9 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 						},
 						onResolveYes: async (id) => {
 							await vm.resolveDecision(id, 'yes');
+						},
+						onMarkDone: async (id) => {
+							await vm.updateItem(id, { status: 'done' });
 						},
 						onResolveNo: async (id) => {
 							await vm.resolveDecision(id, 'no', 'history');

@@ -183,7 +183,8 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 							onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'waiting' }); }
 						},
 						{
-							label: '完了 (Done)',
+							label: '完了にする (d)',
+							shortcut: 'd',
 							onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'done' }); }
 						},
 						{ separator: true },

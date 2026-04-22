@@ -196,6 +196,7 @@ export const YoukanRepository = {
 			await ApiClient.trashItem(id);
 		} catch (e) {
 			console.warn('Failed to trashItem via API:', e);
+			throw e;
 		}
 	},
 

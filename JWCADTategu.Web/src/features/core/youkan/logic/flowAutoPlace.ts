@@ -44,55 +44,92 @@ export interface PlacementResult {
   chainFrom?: string; // 前のアイテムID（依存関係作成用）
 }
 
-const X_OFFSET = 300;
+const X_INTERVAL = 250;
 const Y_INTERVAL = 150;
+// プロジェクト間オフセット（DAG全体の幅を確保するための余裕）
+const PROJECT_X_OFFSET = 1000;
 
-// 同一プロジェクト内の依存関係からチェーン（トポロジカル順）を構築
-const buildDependencyChains = (
-  projectItemIds: Set<string>,
+// Longest Path Layeringアルゴリズムでレイヤーを計算
+const computeLayers = (
+  itemIds: Set<string>,
   deps: Dependency[]
-): string[][] => {
-  // プロジェクト内の依存関係のみ抽出
+): Map<string, number> => {
   const internalDeps = deps.filter(
-    (d) => projectItemIds.has(d.sourceItemId) && projectItemIds.has(d.targetItemId)
+    (d) => itemIds.has(d.sourceItemId) && itemIds.has(d.targetItemId)
   );
-  if (internalDeps.length === 0) return [];
 
-  // 隣接リストと入次数
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, number>();
-  const nodesInDeps = new Set<string>();
-
+  // 各ノードの先行ノード（predecessors）を収集
+  const predecessors = new Map<string, string[]>();
+  for (const id of itemIds) {
+    predecessors.set(id, []);
+  }
   for (const dep of internalDeps) {
-    nodesInDeps.add(dep.sourceItemId);
-    nodesInDeps.add(dep.targetItemId);
-    const targets = outgoing.get(dep.sourceItemId) || [];
-    targets.push(dep.targetItemId);
-    outgoing.set(dep.sourceItemId, targets);
-    incoming.set(dep.targetItemId, (incoming.get(dep.targetItemId) || 0) + 1);
-    if (!incoming.has(dep.sourceItemId)) incoming.set(dep.sourceItemId, 0);
+    const preds = predecessors.get(dep.targetItemId) || [];
+    preds.push(dep.sourceItemId);
+    predecessors.set(dep.targetItemId, preds);
   }
 
-  // ルートノード（入次数0）ごとにチェーンをたどる
-  const roots = [...nodesInDeps].filter((id) => (incoming.get(id) || 0) === 0);
-  const visited = new Set<string>();
-  const chains: string[][] = [];
+  // メモ化再帰でlayer計算
+  const layers = new Map<string, number>();
+  const computing = new Set<string>();
 
-  for (const root of roots) {
-    const chain: string[] = [];
-    let current: string | undefined = root;
-    while (current && !visited.has(current)) {
-      visited.add(current);
-      chain.push(current);
-      const nexts: string[] = outgoing.get(current) || [];
-      current = nexts.find((n: string) => !visited.has(n));
+  const getLayer = (id: string): number => {
+    if (layers.has(id)) return layers.get(id)!;
+    if (computing.has(id)) {
+      layers.set(id, 0);
+      return 0; // 循環依存ガード
     }
-    if (chain.length > 0) chains.push(chain);
+    computing.add(id);
+    const preds = predecessors.get(id) || [];
+    const layer = preds.length === 0
+      ? 0
+      : Math.max(...preds.map(getLayer)) + 1;
+    computing.delete(id);
+    layers.set(id, layer);
+    return layer;
+  };
+
+  for (const id of itemIds) {
+    getLayer(id);
   }
 
-  // 長いチェーンを先に
-  chains.sort((a, b) => b.length - a.length);
-  return chains;
+  return layers;
+};
+
+// DAGのレイアウトをLongest Path Layeringで計算し、座標を返す
+const layoutDAG = (
+  items: Item[],
+  deps: Dependency[],
+  xBaseOffset: number
+): PlacementResult[] => {
+  const itemIds = new Set(items.map((i) => i.id));
+  const layers = computeLayers(itemIds, deps);
+
+  // レイヤーごとにアイテムをグループ化（期限順でソート）
+  const layerGroups = new Map<number, Item[]>();
+  for (const item of items) {
+    const layer = layers.get(item.id) ?? 0;
+    const group = layerGroups.get(layer) || [];
+    group.push(item);
+    layerGroups.set(layer, group);
+  }
+
+  // 同一レイヤー内を期限順にソート
+  for (const [layer, group] of layerGroups) {
+    layerGroups.set(layer, sortItemsForChain(group));
+  }
+
+  const results: PlacementResult[] = [];
+  for (const [layer, group] of layerGroups) {
+    const x = xBaseOffset + layer * X_INTERVAL;
+    const layerSize = group.length;
+    for (let i = 0; i < layerSize; i++) {
+      const y = (i - (layerSize - 1) / 2) * Y_INTERVAL;
+      results.push({ itemId: group[i].id, flow_x: x, flow_y: y });
+    }
+  }
+
+  return results;
 };
 
 // アイテム群の自動配置座標＋チェーン情報を計算
@@ -119,64 +156,22 @@ export const calculateAutoPlacement = (
 
   const results: PlacementResult[] = [];
   let projectIndex = 0;
-  const hasDeps = existingDeps.length > 0;
 
-  // プロジェクトごとに配置
+  // プロジェクトごとにDAGレイアウト
   for (const [, group] of projectGroups) {
-    const x = projectIndex * X_OFFSET;
-    const itemIds = new Set(group.map((i) => i.id));
-
-    if (hasDeps) {
-      // 既存依存関係のチェーン順で配置
-      const chains = buildDependencyChains(itemIds, existingDeps);
-      const placedIds = new Set<string>();
-      let yIndex = 0;
-
-      // チェーンに含まれるアイテムをチェーン順に配置
-      for (const chain of chains) {
-        for (const id of chain) {
-          if (placedIds.has(id)) continue;
-          placedIds.add(id);
-          results.push({ itemId: id, flow_x: x, flow_y: yIndex * Y_INTERVAL });
-          yIndex++;
-        }
-      }
-
-      // チェーンに含まれないアイテムを下に追加
-      const nonChainItems = group.filter((i) => !placedIds.has(i.id));
-      const sortedNonChain = sortItemsForChain(nonChainItems);
-      for (const item of sortedNonChain) {
-        results.push({ itemId: item.id, flow_x: x, flow_y: yIndex * Y_INTERVAL });
-        yIndex++;
-      }
-    } else {
-      // 依存関係なし: 期限順でソート+チェーン生成
-      const sorted = sortItemsForChain(group);
-      for (let i = 0; i < sorted.length; i++) {
-        const result: PlacementResult = {
-          itemId: sorted[i].id,
-          flow_x: x,
-          flow_y: i * Y_INTERVAL,
-        };
-        if (i > 0) {
-          result.chainFrom = sorted[i - 1].id;
-        }
-        results.push(result);
-      }
-    }
-
+    const xBase = projectIndex * PROJECT_X_OFFSET;
+    const placed = layoutDAG(group, existingDeps, xBase);
+    results.push(...placed);
     projectIndex++;
   }
 
-  // 未所属アイテムは最右列にフラットに配置（チェーンなし）
+  // 未所属アイテムは最右列にフラットに配置
   const sorted = sortItemsForChain(unassigned);
-  const unassignedX = projectIndex * X_OFFSET;
-  for (let i = 0; i < sorted.length; i++) {
-    results.push({
-      itemId: sorted[i].id,
-      flow_x: unassignedX,
-      flow_y: i * Y_INTERVAL,
-    });
+  const unassignedX = projectIndex * PROJECT_X_OFFSET;
+  const unassignedSize = sorted.length;
+  for (let i = 0; i < unassignedSize; i++) {
+    const y = (i - (unassignedSize - 1) / 2) * Y_INTERVAL;
+    results.push({ itemId: sorted[i].id, flow_x: unassignedX, flow_y: y });
   }
 
   return results;
@@ -208,11 +203,13 @@ export const findNearestEdge = (
   dropPosition: { x: number; y: number },
   edges: EdgeLike[],
   nodePositions: Map<string, { x: number; y: number }>,
-  threshold: number
+  threshold: number,
+  excludeNodeId?: string
 ): NearestEdgeResult | null => {
   let nearest: NearestEdgeResult | null = null;
 
   for (const edge of edges) {
+    if (excludeNodeId && (edge.source === excludeNodeId || edge.target === excludeNodeId)) continue;
     const sourcePos = nodePositions.get(edge.source);
     const targetPos = nodePositions.get(edge.target);
     if (!sourcePos || !targetPos) continue;

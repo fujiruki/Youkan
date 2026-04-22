@@ -608,11 +608,17 @@ class ItemController extends BaseController {
         try {
             $effectiveTenantId = null; // Default to Private
             if ($parentId) {
-                $parentStmt = $this->pdo->prepare("SELECT tenant_id FROM items WHERE id = ?");
+                // [FIX] 親から tenant_id と project_id を両方継承
+                // project_id 未継承だと子は「プロジェクト外の孤児」扱いになりガント/カレンダーから消える
+                $parentStmt = $this->pdo->prepare("SELECT tenant_id, project_id, is_project FROM items WHERE id = ?");
                 $parentStmt->execute([$parentId]);
                 $parent = $parentStmt->fetch(PDO::FETCH_ASSOC);
                 if ($parent) {
                     $effectiveTenantId = $parent['tenant_id']; // Inherit from parent
+                    // 親がプロジェクト自身なら親ID、そうでなければ親の project_id を継承
+                    if (empty($data['projectId'])) {
+                        $data['projectId'] = $parent['is_project'] ? $parentId : $parent['project_id'];
+                    }
                 }
             } else if (!empty($data['projectId'])) {
                 $projStmt = $this->pdo->prepare("SELECT tenant_id, client_name, site_name FROM items WHERE id = ?");

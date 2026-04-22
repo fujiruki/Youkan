@@ -44,6 +44,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	onDateClick,
 	disablePressureLines = false,
 	onUpdateItem, // [NEW]
+	onDeleteItem,
 	onVisibleMonthChange, // [NEW Phase 24]
 	onOpenDailySettings, // [NEW Phase 24]
 	showGroups = true, // [NEW]
@@ -665,6 +666,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						}}
 						renderItemTitle={renderItemTitle}
 						onUpdateItem={onUpdateItem}
+						onDeleteItem={onDeleteItem}
 						// Context Props
 						capacityConfig={capacityConfig}
 						currentUserId={currentUserId}

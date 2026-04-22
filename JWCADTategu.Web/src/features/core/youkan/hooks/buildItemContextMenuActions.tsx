@@ -6,12 +6,14 @@ export interface ContextMenuAction {
 	onClick: () => void;
 	danger?: boolean;
 	icon?: React.ReactNode;
+	shortcut?: string;
 }
 
 export interface ItemContextMenuCallbacks {
 	onOpenDetail: (id: string) => void;
 	onMakeProject: (id: string) => void;
 	onResolveYes: (id: string) => void;
+	onMarkDone?: (id: string) => void;
 	onResolveNo: (id: string) => void;
 	onDelete: (id: string) => void;
 }
@@ -36,16 +38,23 @@ export function buildItemContextMenuActions(
 			icon: <CheckCircle2 size={14} className="text-green-500" />,
 			onClick: () => callbacks.onResolveYes(itemId),
 		},
+		...(callbacks.onMarkDone ? [{
+			label: '完了にする (d)',
+			icon: <CheckCircle2 size={14} className="text-slate-600" />,
+			onClick: () => callbacks.onMarkDone!(itemId),
+			shortcut: 'd',
+		}] : []),
 		{
 			label: '断る (Rejected)',
 			icon: <AlertCircle size={14} className="text-amber-500" />,
 			onClick: () => callbacks.onResolveNo(itemId),
 		},
 		{
-			label: '完全削除 (Delete)',
+			label: '完全削除 (Del)',
 			icon: <Trash2 size={14} />,
 			danger: true,
 			onClick: () => callbacks.onDelete(itemId),
+			shortcut: 'Delete',
 		},
 	];
 }

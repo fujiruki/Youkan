@@ -1,7 +1,7 @@
-import { memo, useState, useRef, useEffect, useCallback } from 'react';
+import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { Item } from '../../types';
-import { formatMinutes } from '../../logic/timeParser';
+import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 
 export interface FlowItemNodeData {
   item: Item;
@@ -10,6 +10,9 @@ export interface FlowItemNodeData {
   isHighlighted?: boolean;
   onTitleChange?: (itemId: string, newTitle: string) => void;
   onEditComplete?: (itemId: string) => void;
+  onEstimatedMinutesChange?: (itemId: string, minutes: number) => void;
+  onStartEditing?: (itemId: string) => void;
+  onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
 }
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -28,6 +31,9 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = nodeData.isEditing || nodeData.isNewNode;
+  const [isTimeEditing, setIsTimeEditing] = useState(false);
+  const [timeInputValue, setTimeInputValue] = useState('');
+  const timeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -35,6 +41,31 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    if (isTimeEditing && timeInputRef.current) {
+      timeInputRef.current.focus();
+      timeInputRef.current.select();
+    }
+  }, [isTimeEditing]);
+
+  const handleTimeEditStart = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTimeInputValue(formatMinutes(item.estimatedMinutes) || '');
+    setIsTimeEditing(true);
+  }, [item.estimatedMinutes]);
+
+  const handleTimeEditConfirm = useCallback(() => {
+    const minutes = parseTimeInput(timeInputValue);
+    if (minutes !== null && minutes !== item.estimatedMinutes) {
+      nodeData.onEstimatedMinutesChange?.(item.id, minutes);
+    }
+    setIsTimeEditing(false);
+  }, [timeInputValue, item.estimatedMinutes, item.id, nodeData]);
+
+  const handleTimeEditCancel = useCallback(() => {
+    setIsTimeEditing(false);
+  }, []);
 
   const handleSubmit = useCallback(() => {
     const trimmed = editValue.trim();
@@ -63,10 +94,11 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
 
   return (
     <div
-      className={`px-4 py-2 rounded-lg border-2 shadow-sm min-w-[140px] max-w-[220px] ${colors.bg} ${colors.border} ${selectedRing} ${doneOpacity}`}
+      className={`px-4 py-px rounded-lg border-2 shadow-sm min-w-[140px] max-w-[220px] ${colors.bg} ${colors.border} ${selectedRing} ${doneOpacity}`}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); nodeData.onContextMenu?.(e, item.id); }}
     >
       <Handle type="target" position={Position.Top} className="!bg-slate-400 !w-3 !h-3" />
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[2px]">
         {isEditing ? (
           <input
             ref={inputRef}
@@ -78,13 +110,44 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
             className={`text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
           />
         ) : (
-          <span className={`text-xs font-bold ${colors.text} truncate`}>{item.title}</span>
+          <span
+            className={`text-xs font-bold ${colors.text} truncate`}
+            onClick={(e) => {
+              if (selected) {
+                e.stopPropagation();
+                nodeData.onStartEditing?.(item.id);
+              }
+            }}
+          >
+            {item.title}
+          </span>
         )}
         <div className="flex items-center gap-1">
           <span className="text-[9px] text-slate-400 uppercase tracking-wider">{item.status}</span>
-          {formatMinutes(item.estimatedMinutes) !== '' && (
-            <span className="text-[9px] bg-indigo-100 text-indigo-600 px-1 rounded font-mono">
-              {formatMinutes(item.estimatedMinutes)}
+          {isTimeEditing ? (
+            <input
+              ref={timeInputRef}
+              type="text"
+              value={timeInputValue}
+              onChange={(e) => setTimeInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') { e.preventDefault(); handleTimeEditConfirm(); }
+                else if (e.key === 'Escape') { handleTimeEditCancel(); }
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onBlur={handleTimeEditConfirm}
+              placeholder="1h"
+              className="w-[3.5em] text-[9px] px-[0.2em] py-0 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-center"
+            />
+          ) : (
+            <span
+              className={`text-[9px] px-1 rounded font-mono cursor-pointer ${formatMinutes(item.estimatedMinutes) ? 'bg-amber-100 text-amber-600' : 'text-slate-300 hover:text-slate-400'}`}
+              onClick={handleTimeEditStart}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {formatMinutes(item.estimatedMinutes) || '--'}
             </span>
           )}
         </div>

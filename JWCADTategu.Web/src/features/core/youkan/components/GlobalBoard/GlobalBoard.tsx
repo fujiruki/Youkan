@@ -76,6 +76,8 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 			}
 		} else if (vm.filterMode === 'personal' || vm.filterMode === 'all') {
 			setSelectedTenantId(null);
+		} else if (typeof vm.filterMode === 'string' && joinedTenants.find(t => t.id === vm.filterMode)) {
+			setSelectedTenantId(vm.filterMode);
 		}
 	}, [vm.filterMode, joinedTenants.length]); // Re-run when filter mode or list length changes
 

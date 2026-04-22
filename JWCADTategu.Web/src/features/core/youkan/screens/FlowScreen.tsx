@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -26,6 +26,8 @@ import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
 import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
+import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { FlowProjectSelector } from '../components/Flow/FlowProjectSelector';
 import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
@@ -34,6 +36,8 @@ import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint } from '
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
+import { useFilter } from '../contexts/FilterContext';
+import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 
 const nodeTypes = {
   flowItem: FlowItemNode,
@@ -51,12 +55,11 @@ interface FlowScreenProps {
 }
 
 interface FlowCanvasProps {
-  activeProjectId?: string;
   onOpenItem?: (item: Item) => void;
   currentProjectId?: string;
 }
 
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, currentProjectId }) => {
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId }) => {
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
   const [nodes, setNodes, _onNodesChange] = useNodesState<Node>([]);
@@ -70,6 +73,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const unplacedListRef = useRef<UnplacedItemListHandle>(null);
   const [isAutoPlacing, setIsAutoPlacing] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const isDragging = useRef(false);
@@ -77,10 +81,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const shouldFitViewRef = useRef(false);
   const [highlightNodeId, setHighlightNodeId] = useState<string | null>(null);
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   const fetchData = useCallback(async () => {
     const [itemsResult, depsResult] = await Promise.allSettled([
-      ApiClient.getAllItems({ scope: 'aggregated', ...(activeProjectId ? { project_id: activeProjectId } : {}) }),
+      ApiClient.getAllItems({ scope: 'aggregated', ...(currentProjectId ? { project_id: currentProjectId } : {}) }),
       dependencyRepo.getDependencies(),
     ]);
 
@@ -95,11 +101,30 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     } else {
       console.error('[FlowScreen] 依存関係取得失敗:', depsResult.reason);
     }
-  }, [activeProjectId]);
+  }, [currentProjectId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleItemContextMenu = useCallback((e: React.MouseEvent, itemId: string) => {
+    e.preventDefault();
+    setNodeContextMenu({ x: e.clientX, y: e.clientY, itemId });
+  }, []);
+
+  const closeNodeContextMenu = useCallback(() => setNodeContextMenu(null), []);
+
+  const handleDeleteItem = useCallback(async (itemId: string) => {
+    try {
+      await ApiClient.deleteItem(itemId);
+      setAllItems(prev => prev.filter(i => i.id !== itemId));
+      setDependencies(prev => prev.filter(d => d.sourceItemId !== itemId && d.targetItemId !== itemId));
+      showToast({ type: 'success', title: '削除完了', message: 'アイテムを削除しました', duration: 3000 });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast({ type: 'error', title: '削除失敗', message: msg, duration: 5000 });
+    }
+  }, [showToast]);
 
   // 依存関係を持つアイテムIDのセット
   const itemIdsWithDeps = useMemo(() => {
@@ -129,7 +154,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     const unplaced: Item[] = [];
     for (const item of allItems) {
       if (item.meta?.flow_x != null && item.meta?.flow_y != null) {
-        placed.push(item);
+        if (!currentProjectId || item.projectId === currentProjectId) {
+          placed.push(item);
+        }
       } else {
         // プロジェクトフィルタ: currentProjectIdが指定されている場合はそのプロジェクトのアイテムのみ
         if (currentProjectId) {
@@ -160,6 +187,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     setNewNodeId(null);
   }, []);
 
+  const handleStartEditing = useCallback((itemId: string) => {
+    setEditingNodeId(itemId);
+  }, []);
+
+  const handleEstimatedMinutesChange = useCallback(async (itemId: string, minutes: number) => {
+    try {
+      await ApiClient.updateItem(itemId, { estimatedMinutes: minutes } as Partial<Item>);
+      setAllItems((prev) =>
+        prev.map((item) => (item.id === itemId ? { ...item, estimatedMinutes: minutes } : item))
+      );
+    } catch (err) {
+      console.error('[FlowScreen] 目安時間更新失敗:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isDragging.current) return;
 
@@ -178,6 +220,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           isHighlighted,
           onTitleChange: handleTitleChange,
           onEditComplete: handleEditComplete,
+          onEstimatedMinutesChange: handleEstimatedMinutesChange,
+          onStartEditing: handleStartEditing,
+          onContextMenu: handleItemContextMenu,
         },
       } satisfies Node;
     });
@@ -203,7 +248,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       prevProjectRef.current = currentProjectId ?? null;
       shouldFitViewRef.current = true;
     }
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, setNodes, setEdges, currentProjectId, fitView]);
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
@@ -263,19 +308,26 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
   const handleEdgeInsert = useCallback(
     async (itemId: string, position: { x: number; y: number }) => {
       const nodePositions = getNodePositions();
-      const nearest = findNearestEdge(position, edges, nodePositions, EDGE_INSERT_THRESHOLD);
+      const nearest = findNearestEdge(position, edges, nodePositions, EDGE_INSERT_THRESHOLD, itemId);
       if (!nearest) return false;
 
+      const oldEdgeId = nearest.edge.id;
+      const oldEdgeSource = nearest.edge.source;
+      const oldEdgeTarget = nearest.edge.target;
+
+      let dep1: Dependency | null = null;
+      let dep2: Dependency | null = null;
       try {
-        await dependencyRepo.deleteDependency(nearest.edge.id);
-        setDependencies((prev) => prev.filter((d) => d.id !== nearest.edge.id));
+        dep1 = await dependencyRepo.createDependency(oldEdgeSource, itemId);
+        dep2 = await dependencyRepo.createDependency(itemId, oldEdgeTarget);
+        await dependencyRepo.deleteDependency(oldEdgeId);
+        setDependencies((prev) => [
+          ...prev.filter((d) => d.id !== oldEdgeId),
+          dep1!, dep2!,
+        ]);
 
-        const dep1 = await dependencyRepo.createDependency(nearest.edge.source, itemId);
-        const dep2 = await dependencyRepo.createDependency(itemId, nearest.edge.target);
-        setDependencies((prev) => [...prev, dep1, dep2]);
-
-        const sourcePos = nodePositions.get(nearest.edge.source);
-        const targetPos = nodePositions.get(nearest.edge.target);
+        const sourcePos = nodePositions.get(oldEdgeSource);
+        const targetPos = nodePositions.get(oldEdgeTarget);
         if (sourcePos && targetPos) {
           const mid = calculateEdgeMidpoint(sourcePos, targetPos);
           await updateItemMeta(itemId, { flow_x: mid.x, flow_y: mid.y });
@@ -288,81 +340,95 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           );
         }
 
-        const oldEdgeSource = nearest.edge.source;
-        const oldEdgeTarget = nearest.edge.target;
         showToast({
           type: 'success',
           title: 'エッジ挿入',
           message: 'フローに挿入しました',
           duration: 3000,
-          action: {
-            label: '取り消し',
-            onClick: async () => {
-              try {
-                await dependencyRepo.deleteDependency(dep1.id);
-                await dependencyRepo.deleteDependency(dep2.id);
-                const restored = await dependencyRepo.createDependency(oldEdgeSource, oldEdgeTarget);
-                setDependencies((prev) => [
-                  ...prev.filter((d) => d.id !== dep1.id && d.id !== dep2.id),
-                  restored,
-                ]);
-              } catch (e) {
-                console.error('[FlowScreen] エッジ挿入取り消し失敗:', e);
-              }
-            },
-          },
         });
         return true;
       } catch (err) {
+        if (dep1) dependencyRepo.deleteDependency(dep1.id).catch(() => {});
+        if (dep2) dependencyRepo.deleteDependency(dep2.id).catch(() => {});
         console.error('[FlowScreen] エッジ挿入失敗:', err);
         showToast({ type: 'error', title: 'エッジ挿入失敗', message: String(err), duration: 5000 });
         return false;
       }
     },
-    [edges, getNodePositions, updateItemMeta, showToast]
+    [edges, getNodePositions, updateItemMeta, showToast, setDependencies, setAllItems]
   );
 
-  const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
+  const onNodeDragStart: OnNodeDrag = useCallback((_event, _node, nodes) => {
     isDragging.current = true;
-    dragStartPositions.current.set(node.id, { ...node.position });
+    for (const n of nodes) {
+      dragStartPositions.current.set(n.id, { ...n.position });
+    }
   }, []);
 
   const onNodeDrag: OnNodeDrag = useCallback(
-    (_event, draggedNode) => {
+    (_event, draggedNode, selectedNodes) => {
       if (draggedNode.id.startsWith('group-')) return;
+      isDragging.current = true;
+
+      if (selectedNodes.length > 1) return;
+
+      const pos = draggedNode.position;
 
       const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
-      let foundNodeId: string | null = null;
-      for (const otherNode of allFlowNodes) {
-        const dx = draggedNode.position.x - otherNode.position.x;
-        const dy = draggedNode.position.y - otherNode.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < OVERLAP_THRESHOLD) {
-          foundNodeId = otherNode.id;
-          break;
-        }
+      const overlap = allFlowNodes.find((n) =>
+        Math.hypot(pos.x - n.position.x, pos.y - n.position.y) < OVERLAP_THRESHOLD
+      );
+
+      if (overlap) {
+        setHighlightNodeId(overlap.id);
+        setHighlightEdgeId(null);
+        return;
       }
 
-      let foundEdgeId: string | null = null;
-      if (!foundNodeId) {
-        const nodePositions = getNodePositions();
-        const nearest = findNearestEdge(draggedNode.position, edges, nodePositions, EDGE_INSERT_THRESHOLD);
-        if (nearest) {
-          foundEdgeId = nearest.edge.id;
-        }
-      }
-
-      setHighlightNodeId(foundNodeId);
-      setHighlightEdgeId(foundEdgeId);
+      const nodePositions = getNodePositions();
+      const nearest = findNearestEdge(pos, edges, nodePositions, EDGE_INSERT_THRESHOLD, draggedNode.id);
+      setHighlightEdgeId(nearest?.edge.id ?? null);
+      setHighlightNodeId(null);
     },
     [nodes, edges, getNodePositions]
   );
 
   const onNodeDragStop: OnNodeDrag = useCallback(
-    async (_event, draggedNode) => {
+    async (_event, draggedNode, selectedNodes) => {
       if (draggedNode.id.startsWith('group-')) return;
 
       isDragging.current = false;
+
+      // 複数選択まとめ移動: 全ノードの位置を保存（オーバーラップ/エッジ挿入はスキップ）
+      if (selectedNodes.length > 1) {
+        const validNodes = selectedNodes.filter(n => !n.id.startsWith('group-'));
+        for (const node of validNodes) {
+          await updateItemMeta(node.id, { flow_x: node.position.x, flow_y: node.position.y });
+        }
+        setAllItems(prev =>
+          prev.map(item => {
+            const moved = validNodes.find(n => n.id === item.id);
+            if (!moved) return item;
+            return { ...item, meta: { ...(item.meta || {}), flow_x: moved.position.x, flow_y: moved.position.y } };
+          })
+        );
+        dragStartPositions.current.clear();
+        setHighlightNodeId(null);
+        setHighlightEdgeId(null);
+        setNodes((currentNodes) => {
+          const positionsMap = new Map<string, { x: number; y: number }>();
+          for (const n of currentNodes) {
+            if (n.type === 'flowItem') positionsMap.set(n.id, { x: n.position.x, y: n.position.y });
+          }
+          const { groupNodes } = buildGroupNodes(placedItems, positionsMap);
+          const groupMap = new Map(groupNodes.map((g) => [g.id, g]));
+          return currentNodes.map((n) => {
+            const updated = groupMap.get(n.id);
+            return updated ? { ...n, position: updated.position, style: updated.style } : n;
+          });
+        });
+        return;
+      }
 
       const allFlowNodes = nodes.filter((n) => n.type === 'flowItem' && n.id !== draggedNode.id);
       let overlappingNode: Node | undefined;
@@ -440,6 +506,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         const inserted = await handleEdgeInsert(draggedNode.id, draggedNode.position);
         if (!inserted) {
           await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
+          setAllItems(prev =>
+            prev.map(item =>
+              item.id === draggedNode.id
+                ? { ...item, meta: { ...(item.meta || {}), flow_x: draggedNode.position.x, flow_y: draggedNode.position.y } }
+                : item
+            )
+          );
         }
       }
 
@@ -463,7 +536,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         });
       });
     },
-    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert, placedItems]
+    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert, placedItems, setAllItems]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -722,6 +795,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
     [allItems, showToast, createNewItem]
   );
 
+  const handleOpenItemInternal = useCallback((item: Item) => {
+    if (onOpenItem) {
+      onOpenItem(item);
+    } else {
+      setSelectedItem(item);
+    }
+  }, [onOpenItem]);
+
   // A-6: 空白エリアダブルクリックで新規タスク作成
   const handlePaneDoubleClick = useCallback(
     async (event: React.MouseEvent) => {
@@ -748,19 +829,24 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
 
   // A-7: ノードダブルクリック → 詳細モーダル
   const handleNodeDoubleClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
+      event.stopPropagation();
       if (node.id.startsWith('group-')) return;
-      if (onOpenItem) {
-        const item = allItems.find((i) => i.id === node.id);
-        if (item) onOpenItem(item);
-      }
+      const item = allItems.find((i) => i.id === node.id);
+      if (item) handleOpenItemInternal(item);
     },
-    [allItems, onOpenItem]
+    [allItems, handleOpenItemInternal]
   );
 
   const handleKeyDown = useCallback(
     async (event: KeyboardEvent) => {
       if (shouldIgnoreKeyEvent(event)) return;
+
+      // ヘルプモーダルが開いている場合はEscapeで閉じる
+      if (isHelpOpen && event.key === 'Escape') {
+        setIsHelpOpen(false);
+        return;
+      }
 
       const selectedNode = selectedNodeIds[0];
 
@@ -782,6 +868,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         }
         case 'Delete':
         case 'Backspace': {
+          if (nodeContextMenu) {
+            event.preventDefault();
+            handleDeleteItem(nodeContextMenu.itemId);
+            closeNodeContextMenu();
+            break;
+          }
           if (selectedEdgeIds.length > 0) {
             event.preventDefault();
             for (const edgeId of selectedEdgeIds) {
@@ -797,14 +889,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           }
           if (selectedNode && !selectedNode.startsWith('group-')) {
             event.preventDefault();
-            await updateItemMeta(selectedNode, { flow_x: null, flow_y: null });
-            setAllItems((prev) =>
-              prev.map((item) =>
-                item.id === selectedNode
-                  ? { ...item, meta: { ...(item.meta || {}), flow_x: null, flow_y: null } }
-                  : item
-              )
-            );
+            await handleDeleteItem(selectedNode);
           }
           break;
         }
@@ -817,9 +902,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         }
         case ' ': {
           event.preventDefault();
-          if (selectedNode && onOpenItem) {
+          if (selectedNode) {
             const item = allItems.find((i) => i.id === selectedNode);
-            if (item) onOpenItem(item);
+            if (item) handleOpenItemInternal(item);
           }
           break;
         }
@@ -870,7 +955,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         }
       }
     },
-    [selectedNodeIds, selectedEdgeIds, allItems, edges, createNodeBelow, updateItemMeta, fitView, onOpenItem, showToast, setNodes, setEdges]
+    [selectedNodeIds, selectedEdgeIds, allItems, edges, createNodeBelow, updateItemMeta, fitView, handleOpenItemInternal, showToast, setNodes, setEdges, isHelpOpen, setIsHelpOpen, handleDeleteItem, nodeContextMenu, closeNodeContextMenu]
   );
 
   useEffect(() => {
@@ -903,8 +988,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
         nodeTypes={nodeTypes}
         fitView
         deleteKeyCode={null}
+        zoomOnDoubleClick={false}
+        selectionKeyCode="Shift"
+        multiSelectionKeyCode="Shift"
         edgesFocusable
-        multiSelectionKeyCode="Control"
         className="bg-slate-50"
       >
         <Controls className="!bg-white !border-slate-200 !shadow-lg" />
@@ -933,7 +1020,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           </div>
         </div>
       )}
-      <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} />
+      <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} onContextMenu={handleItemContextMenu} />
       <button
         onClick={handleAddButtonClick}
         className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10"
@@ -941,6 +1028,77 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
       >
         <Plus size={20} />
       </button>
+      <button
+        onClick={() => setIsHelpOpen(true)}
+        className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10"
+        title="操作ガイド"
+      >
+        <span className="text-sm font-bold">?</span>
+        <span>ヘルプ</span>
+      </button>
+      {isHelpOpen && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setIsHelpOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-800">フロー操作ガイド</h2>
+              <button
+                onClick={() => setIsHelpOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-3">
+              <section>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">マウス操作</h3>
+                <table className="w-full text-xs text-slate-700">
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      ['ノードをドラッグ', '位置を移動して保存'],
+                      ['サイドリストからドラッグ', 'キャンバスに配置'],
+                      ['ノードをダブルクリック', '詳細モーダルを開く'],
+                      ['ハンドル（●）をドラッグ', '依存関係（矢印）を追加'],
+                      ['エッジを右クリック', '依存関係を削除'],
+                      ['目安時間をクリック', 'インライン編集（1h / 30m / 90）'],
+                    ].map(([op, desc]) => (
+                      <tr key={op}>
+                        <td className="py-1.5 pr-3 font-medium text-slate-600 whitespace-nowrap">{op}</td>
+                        <td className="py-1.5 text-slate-500">{desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+              <section>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">キーボード</h3>
+                <table className="w-full text-xs text-slate-700">
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      ['Enter', '選択ノードの次に新規タスク追加'],
+                      ['Tab', '選択ノードの右下に新規タスク追加（分岐）'],
+                      ['F2', '選択ノードのタイトル編集'],
+                      ['Delete', 'アイテムを削除'],
+                      ['↑ ↓ ← →', '依存関係を辿ってノード移動'],
+                      ['Home', '全ノードを画面にフィット'],
+                    ].map(([key, desc]) => (
+                      <tr key={key}>
+                        <td className="py-1.5 pr-3 font-mono font-medium text-indigo-600 whitespace-nowrap">{key}</td>
+                        <td className="py-1.5 text-slate-500">{desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
       {edgeContextMenu && (
         <EdgeContextMenu
           x={edgeContextMenu.x}
@@ -948,6 +1106,58 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ activeProjectId, onOpenItem, cu
           edgeId={edgeContextMenu.edgeId}
           onDelete={handleEdgeContextMenuDelete}
           onClose={closeEdgeContextMenu}
+        />
+      )}
+      {nodeContextMenu && (
+        <ContextMenu
+          x={nodeContextMenu.x}
+          y={nodeContextMenu.y}
+          itemId={nodeContextMenu.itemId}
+          onClose={closeNodeContextMenu}
+          actions={buildItemContextMenuActions(nodeContextMenu.itemId, {
+            onOpenDetail: (id) => {
+              const item = allItems.find(i => i.id === id);
+              if (item) handleOpenItemInternal(item);
+              closeNodeContextMenu();
+            },
+            onMakeProject: async (id) => {
+              await ApiClient.updateItem(id, { isProject: true });
+              setAllItems(prev => prev.map(i => i.id === id ? { ...i, isProject: true } : i));
+            },
+            onResolveYes: async (id) => {
+              await ApiClient.resolveDecision(id, 'yes');
+              await fetchData();
+            },
+            onMarkDone: async (id) => {
+              await ApiClient.updateItem(id, { status: 'done' });
+              setAllItems(prev => prev.map(i => i.id === id ? { ...i, status: 'done' } : i));
+            },
+            onResolveNo: async (id) => {
+              await ApiClient.resolveDecision(id, 'no', 'history');
+              await fetchData();
+            },
+            onDelete: (id) => { handleDeleteItem(id); },
+          })}
+        />
+      )}
+      {selectedItem && (
+        <DecisionDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onDecision={async (id, decision) => {
+            await ApiClient.resolveDecision(id, decision === 'yes' ? 'yes' : 'no');
+            setSelectedItem(null);
+            await fetchData();
+          }}
+          onDelete={async (id) => {
+            await handleDeleteItem(id);
+            setSelectedItem(null);
+          }}
+          onUpdate={async (id, updates) => {
+            await ApiClient.updateItem(id, updates);
+            setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+            setSelectedItem(prev => prev?.id === id ? { ...prev, ...updates } : prev);
+          }}
         />
       )}
     </div>
@@ -1012,7 +1222,9 @@ const FlowHeader: React.FC<{
   );
 };
 
-export const FlowScreen: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenItem, initialProjectId }) => {
+export const FlowScreen: React.FC<FlowScreenProps> = ({ onOpenItem, initialProjectId }) => {
+  const { filterMode } = useFilter();
+
   // A-2: プロジェクト選択ステート
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
     if (initialProjectId !== undefined && initialProjectId !== null) return initialProjectId;
@@ -1083,20 +1295,23 @@ export const FlowScreen: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenI
     updateUrl(projectId);
   }, [updateUrl]);
 
+  const filteredSelectorItems = useMemo(() => {
+    if (filterMode === 'all') return selectorItems;
+    if (filterMode === 'personal') return selectorItems.filter(i => !i.tenantId);
+    if (filterMode === 'company') return selectorItems.filter(i => !!i.tenantId);
+    return selectorItems.filter(i => i.tenantId === filterMode);
+  }, [selectorItems, filterMode]);
+
   // プロジェクト選択画面（A-1/A-2）
   if (selectedProjectId === null) {
     return (
       <FlowProjectSelector
-        items={selectorItems}
+        items={filteredSelectorItems}
         onSelectProject={handleSelectProject}
         onSelectAll={handleSelectAll}
       />
     );
   }
-
-  const effectiveProjectId = selectedProjectId === '__all__'
-    ? activeProjectId
-    : selectedProjectId;
 
   const currentProjectTitle = selectedProjectId === '__all__'
     ? '全プロジェクト'
@@ -1113,7 +1328,6 @@ export const FlowScreen: React.FC<FlowScreenProps> = ({ activeProjectId, onOpenI
       <div className="flex-1 overflow-hidden">
         <ReactFlowProvider>
           <FlowCanvas
-            activeProjectId={effectiveProjectId}
             onOpenItem={onOpenItem}
             currentProjectId={selectedProjectId === '__all__' ? undefined : selectedProjectId}
           />

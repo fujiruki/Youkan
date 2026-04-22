@@ -58,29 +58,41 @@ describe('sortItemsForChain', () => {
 });
 
 describe('calculateAutoPlacement', () => {
-  it('プロジェクトごとにX軸をオフセットして縦に配置する', () => {
+  // X_INTERVAL=250, Y_INTERVAL=150, PROJECT_X_OFFSET=1000
+
+  it('依存関係なし: 同一プロジェクトのアイテムはLayer0にY中央揃えで配置する', () => {
     const items = [
       makeItem({ id: 'a1', projectId: 'p1', due_date: '2026-01-01' }),
       makeItem({ id: 'a2', projectId: 'p1', due_date: '2026-02-01' }),
+    ];
+    const result = calculateAutoPlacement(items);
+
+    // 2アイテム、Layer0 → x=0, Y中央揃え: (0-0.5)*150=-75, (1-0.5)*150=+75
+    const a1 = result.find((r) => r.itemId === 'a1')!;
+    const a2 = result.find((r) => r.itemId === 'a2')!;
+
+    expect(a1.flow_x).toBe(0);
+    expect(a1.flow_y).toBe(-75);
+    expect(a2.flow_x).toBe(0);
+    expect(a2.flow_y).toBe(75);
+  });
+
+  it('プロジェクトごとにX軸をPROJECT_X_OFFSETでオフセットする', () => {
+    const items = [
+      makeItem({ id: 'a1', projectId: 'p1', due_date: '2026-01-01' }),
       makeItem({ id: 'b1', projectId: 'p2', due_date: '2026-01-15' }),
     ];
     const result = calculateAutoPlacement(items);
 
-    // p1が最初のプロジェクト → x=0, p2 → x=300
     const a1 = result.find((r) => r.itemId === 'a1')!;
-    const a2 = result.find((r) => r.itemId === 'a2')!;
     const b1 = result.find((r) => r.itemId === 'b1')!;
 
+    // p1がx=0, p2がx=1000
     expect(a1.flow_x).toBe(0);
-    expect(a1.flow_y).toBe(0);
-    expect(a2.flow_x).toBe(0);
-    expect(a2.flow_y).toBe(150);
-
-    expect(b1.flow_x).toBe(300);
-    expect(b1.flow_y).toBe(0);
+    expect(b1.flow_x).toBe(1000);
   });
 
-  it('プロジェクト未所属のアイテムは最右列にフラットに配置される', () => {
+  it('プロジェクト未所属のアイテムは最右列（PROJECT_X_OFFSET単位）にフラットに配置される', () => {
     const items = [
       makeItem({ id: 'a', projectId: 'p1', due_date: '2026-01-01' }),
       makeItem({ id: 'x', projectId: null, createdAt: 100 }),
@@ -91,14 +103,15 @@ describe('calculateAutoPlacement', () => {
     const x = result.find((r) => r.itemId === 'x')!;
     const y = result.find((r) => r.itemId === 'y')!;
 
-    // p1はx=0、未所属は最右列（p1の次のオフセット = 300）
-    expect(x.flow_x).toBe(300);
-    expect(x.flow_y).toBe(0);
-    expect(y.flow_x).toBe(300);
-    expect(y.flow_y).toBe(150);
+    // p1はx=0、未所属は最右列（PROJECT_X_OFFSET=1000）
+    expect(x.flow_x).toBe(1000);
+    expect(y.flow_x).toBe(1000);
+    // 2アイテムY中央揃え
+    expect(x.flow_y).toBe(-75);
+    expect(y.flow_y).toBe(75);
   });
 
-  it('チェーン情報を生成する（同一プロジェクト内で順番にA→B→C）', () => {
+  it('依存関係なし: chainFromは生成しない', () => {
     const items = [
       makeItem({ id: 'a', projectId: 'p1', due_date: '2026-01-01' }),
       makeItem({ id: 'b', projectId: 'p1', due_date: '2026-02-01' }),
@@ -106,14 +119,10 @@ describe('calculateAutoPlacement', () => {
     ];
     const result = calculateAutoPlacement(items);
     const chains = result.filter((r) => r.chainFrom != null);
-
-    // a→b, b→c のチェーン
-    expect(chains).toHaveLength(2);
-    expect(chains[0]).toEqual(expect.objectContaining({ itemId: 'b', chainFrom: 'a' }));
-    expect(chains[1]).toEqual(expect.objectContaining({ itemId: 'c', chainFrom: 'b' }));
+    expect(chains).toHaveLength(0);
   });
 
-  it('プロジェクト未所属アイテムはチェーンを生成しない', () => {
+  it('プロジェクト未所属アイテムはchainFromを生成しない', () => {
     const items = [
       makeItem({ id: 'x', projectId: null, createdAt: 100 }),
       makeItem({ id: 'y', projectId: null, createdAt: 200 }),
@@ -123,7 +132,7 @@ describe('calculateAutoPlacement', () => {
     expect(chains).toHaveLength(0);
   });
 
-  it('既存依存関係がある場合、チェーン順で配置しノンチェーンは下に追加', () => {
+  it('既存依存関係がある場合: b→c はX方向に展開する（Longest Path Layering）', () => {
     const deps = [
       { id: 'd1', sourceItemId: 'b', targetItemId: 'c', createdAt: 0 },
     ];
@@ -134,55 +143,52 @@ describe('calculateAutoPlacement', () => {
     ];
     const result = calculateAutoPlacement(items, deps);
 
-    // b→c のチェーンが先、aはチェーン外なのでその下
     const bResult = result.find((r) => r.itemId === 'b')!;
     const cResult = result.find((r) => r.itemId === 'c')!;
     const aResult = result.find((r) => r.itemId === 'a')!;
 
+    // b: Layer0 (x=0), c: Layer1 (x=250)
     expect(bResult.flow_x).toBe(0);
-    expect(bResult.flow_y).toBe(0);
-    expect(cResult.flow_x).toBe(0);
-    expect(cResult.flow_y).toBe(150);
-    // aはチェーン外、b→cの下に配置
+    expect(cResult.flow_x).toBe(250);
+    // a: Layer0 (x=0, bと同レイヤー)
     expect(aResult.flow_x).toBe(0);
-    expect(aResult.flow_y).toBe(300);
-    // 既存チェーンのchainFromは生成しない（既にある）
+    // chainFromは生成しない
     expect(cResult.chainFrom).toBeUndefined();
     expect(aResult.chainFrom).toBeUndefined();
   });
 
-  it('複数チェーンがあるプロジェクトでは最長チェーンから順に配置', () => {
+  it('A→B, A→C, B→D, C→D の分岐合流をX方向に正しく展開する', () => {
     const deps = [
-      { id: 'd1', sourceItemId: 'a', targetItemId: 'b', createdAt: 0 },
-      { id: 'd2', sourceItemId: 'b', targetItemId: 'c', createdAt: 0 },
-      { id: 'd3', sourceItemId: 'x', targetItemId: 'y', createdAt: 0 },
+      { id: 'd1', sourceItemId: 'A', targetItemId: 'B', createdAt: 0 },
+      { id: 'd2', sourceItemId: 'A', targetItemId: 'C', createdAt: 0 },
+      { id: 'd3', sourceItemId: 'B', targetItemId: 'D', createdAt: 0 },
+      { id: 'd4', sourceItemId: 'C', targetItemId: 'D', createdAt: 0 },
     ];
     const items = [
-      makeItem({ id: 'a', projectId: 'p1', createdAt: 100 }),
-      makeItem({ id: 'b', projectId: 'p1', createdAt: 200 }),
-      makeItem({ id: 'c', projectId: 'p1', createdAt: 300 }),
-      makeItem({ id: 'x', projectId: 'p1', createdAt: 400 }),
-      makeItem({ id: 'y', projectId: 'p1', createdAt: 500 }),
-      makeItem({ id: 'z', projectId: 'p1', createdAt: 600 }),
+      makeItem({ id: 'A', projectId: 'p1', createdAt: 100 }),
+      makeItem({ id: 'B', projectId: 'p1', createdAt: 200 }),
+      makeItem({ id: 'C', projectId: 'p1', createdAt: 300 }),
+      makeItem({ id: 'D', projectId: 'p1', createdAt: 400 }),
     ];
     const result = calculateAutoPlacement(items, deps);
 
-    // a→b→c（長さ3）が先、x→y（長さ2）が続く、zはチェーン外
-    const aR = result.find((r) => r.itemId === 'a')!;
-    const bR = result.find((r) => r.itemId === 'b')!;
-    const cR = result.find((r) => r.itemId === 'c')!;
-    const xR = result.find((r) => r.itemId === 'x')!;
-    const yR = result.find((r) => r.itemId === 'y')!;
-    const zR = result.find((r) => r.itemId === 'z')!;
+    const aR = result.find((r) => r.itemId === 'A')!;
+    const bR = result.find((r) => r.itemId === 'B')!;
+    const cR = result.find((r) => r.itemId === 'C')!;
+    const dR = result.find((r) => r.itemId === 'D')!;
 
-    // 全て同一プロジェクトなのでx=0
+    // A: Layer0(x=0), B/C: Layer1(x=250), D: Layer2(x=500)
     expect(aR.flow_x).toBe(0);
+    expect(bR.flow_x).toBe(250);
+    expect(cR.flow_x).toBe(250);
+    expect(dR.flow_x).toBe(500);
+
+    // A: Layer0, 1アイテム → y=0
     expect(aR.flow_y).toBe(0);
-    expect(bR.flow_y).toBe(150);
-    expect(cR.flow_y).toBe(300);
-    expect(xR.flow_y).toBe(450);
-    expect(yR.flow_y).toBe(600);
-    expect(zR.flow_y).toBe(750);
+    // B/C: Layer1, 2アイテム → y=-75, +75
+    expect(Math.abs(bR.flow_y - cR.flow_y)).toBe(150);
+    // D: Layer2, 1アイテム → y=0
+    expect(dR.flow_y).toBe(0);
   });
 
   it('クロスプロジェクトの依存関係はプロジェクト集約に影響しない', () => {

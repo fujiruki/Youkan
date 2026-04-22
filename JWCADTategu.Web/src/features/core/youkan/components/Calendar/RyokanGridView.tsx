@@ -91,6 +91,17 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                         const metric = metrics.get(dateKey);
                         const isToday = isSameDate(date, today);
                         const isFirst = date.getDate() === 1;
+                        // 隣接セル（前週・次週・前日）が別月かどうかで境界を判定する
+                        const prevWeek = new Date(date); prevWeek.setDate(date.getDate() - 7);
+                        const nextWeek = new Date(date); nextWeek.setDate(date.getDate() + 7);
+                        const prevDay = new Date(date); prevDay.setDate(date.getDate() - 1);
+                        const monthBoundaryTop =
+                            prevWeek.getMonth() !== date.getMonth() || prevWeek.getFullYear() !== date.getFullYear();
+                        const monthBoundaryBottom =
+                            nextWeek.getMonth() !== date.getMonth() || nextWeek.getFullYear() !== date.getFullYear();
+                        const monthBoundaryLeft =
+                            date.getDay() !== 0 &&
+                            (prevDay.getMonth() !== date.getMonth() || prevDay.getFullYear() !== date.getFullYear());
                         const intensity = heatMap.get(dateKey) || 0;
 
                         const isS = selectedDate ? isSameDate(date, selectedDate) : false;
@@ -125,6 +136,9 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 targetItem={targetItem}
                                 rowHeight={rowHeight}
                                 completedCount={completedByDate?.get(dateKey)?.length || 0}
+                                monthBoundaryTop={monthBoundaryTop}
+                                monthBoundaryBottom={monthBoundaryBottom}
+                                monthBoundaryLeft={monthBoundaryLeft}
                             />
                         );
                     })}

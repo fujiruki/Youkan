@@ -546,6 +546,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			if (itemToDelete?.isProject) {
 				await refreshContextMetadata(); // [NEW] Refresh project list if it's a project
 			}
+			refreshAll();
 		} catch (e) {
 			console.error('Trash item failed', e);
 			refreshAll();

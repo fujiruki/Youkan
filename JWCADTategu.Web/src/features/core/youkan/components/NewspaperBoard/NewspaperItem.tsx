@@ -152,7 +152,7 @@ export const NewspaperItem: React.FC<NewspaperItemProps> = ({
 					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
 				)}
 					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem`, paddingRight: '4px', paddingTop: '0', paddingBottom: '0', margin: '0' }}
-					onClick={() => onClick(item)}
+					onClick={() => onClick((project || item) as Item)}
 					onContextMenu={(e) => {
 						e.preventDefault();
 						onContextMenu(e, item.id);

@@ -5,6 +5,7 @@ interface UnplacedItemListProps {
   items: Item[];
   onAutoPlace?: () => void;
   isAutoPlacing?: boolean;
+  onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
 }
 
 export interface UnplacedItemListHandle {
@@ -12,7 +13,7 @@ export interface UnplacedItemListHandle {
 }
 
 const UnplacedItemListComponent = forwardRef<UnplacedItemListHandle, UnplacedItemListProps>(
-  ({ items, onAutoPlace, isAutoPlacing }, ref) => {
+  ({ items, onAutoPlace, isAutoPlacing, onContextMenu }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
@@ -50,7 +51,8 @@ const UnplacedItemListComponent = forwardRef<UnplacedItemListHandle, UnplacedIte
               key={item.id}
               draggable
               onDragStart={(e) => onDragStart(e, item.id)}
-              className="px-3 py-2 bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-grab active:cursor-grabbing border border-slate-200 hover:border-indigo-300 transition-colors"
+              onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, item.id); }}
+              className="px-3 py-px bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-grab active:cursor-grabbing border border-slate-200 hover:border-indigo-300 transition-colors"
             >
               <span className="text-xs font-semibold text-slate-700 truncate block">{item.title}</span>
               <span className="text-[9px] text-slate-400 uppercase">{item.status}</span>
