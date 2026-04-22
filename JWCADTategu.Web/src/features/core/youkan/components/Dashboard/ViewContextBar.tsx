@@ -1,5 +1,6 @@
 import React from 'react';
 import { FilterMode, Perspective } from '../../types';
+import { isCompanyContext as checkCompanyContext } from '../../logic/filterUtils';
 import { User, Building2, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 interface ViewContextBarProps {
@@ -83,7 +84,7 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 		return null;
 	};
 
-	const isCompanyContext = filterMode === 'company' || (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal');
+	const isCompanyContext = checkCompanyContext(filterMode);
 
 	return (
 		<div className="shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-1.5 flex items-center justify-start gap-3 z-30">

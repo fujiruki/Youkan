@@ -3,11 +3,12 @@ import { useOverviewItems } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
 import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
-import { ContextMenu } from '../PanoramaBoard/ContextMenu';
+import { ContextMenu } from '../Common/ContextMenu';
 import { useItemContextMenu } from '../../hooks/useItemContextMenu';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 import { useAuth } from '../../../auth/providers/AuthProvider';
+import { getSelectedTenantId } from '../../logic/filterUtils';
 
 interface OverviewBoardProps {
 	viewModel: any; // Type from hook return
@@ -79,17 +80,15 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 				tenantId: activeProject.tenantId
 			};
 		}
-		if (typeof filterMode === 'string' &&
-			filterMode !== 'all' &&
-			filterMode !== 'personal' &&
-			filterMode !== 'company') {
-			const tenant = joinedTenants.find((t: any) => String(t.id) === filterMode);
+		const tenantId = getSelectedTenantId(filterMode);
+		if (tenantId) {
+			const tenant = joinedTenants.find((t: any) => String(t.id) === tenantId);
 			if (tenant) {
 				const displayName = (tenant as any).title || tenant.name;
 				return {
 					title: displayName,
 					name: displayName,
-					tenantId: filterMode as string
+					tenantId
 				};
 			}
 		}

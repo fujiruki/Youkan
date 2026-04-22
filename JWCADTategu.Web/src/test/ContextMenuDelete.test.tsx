@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ContextMenu } from '../features/core/youkan/components/PanoramaBoard/ContextMenu';
+import { ContextMenu } from '../features/core/youkan/components/Common/ContextMenu';
 import { vi, describe, it, expect } from 'vitest';
 
 describe('ContextMenu Delete Shortcut', () => {

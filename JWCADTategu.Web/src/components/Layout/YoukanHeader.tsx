@@ -8,6 +8,7 @@ import { MotivatorWhisper } from '../../features/core/youkan/components/Layout/M
 import { ViewContextBar } from '../../features/core/youkan/components/Dashboard/ViewContextBar';
 import { calculatePerspective } from '../../features/core/youkan/logic/perspective';
 import { FilterMode } from '../../features/core/youkan/types';
+import { isCompanyContext as checkCompanyContext } from '../../features/core/youkan/logic/filterUtils';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 
@@ -143,7 +144,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	}, [capacity]);
 
 	const isCompanyAccount = user?.accountType === 'tenant';
-	const isCompanyContext = filterMode === 'company' || (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal');
+	const isCompanyContext = checkCompanyContext(filterMode);
 	const { perspective, perspectiveLabel } = calculatePerspective(
 		isCompanyContext,
 		filterMode as any

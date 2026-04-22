@@ -21,7 +21,7 @@ import { AlertCircle, BookOpen, X, LayoutGrid, List } from 'lucide-react';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
-import { ContextMenu } from './ContextMenu';
+import { ContextMenu } from '../Common/ContextMenu';
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 import { useToast } from '../../../../../contexts/ToastContext';
@@ -30,6 +30,7 @@ import { useAuth } from '../../../auth/providers/AuthProvider'; // [NEW]
 import { QuickInputWidget } from '../Inputs/QuickInputWidget'; // [NEW]
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
+import { isCompanyContext as checkCompanyContext, getSelectedTenantId } from '../../logic/filterUtils';
 
 
 interface PanoramaBoardProps {
@@ -69,12 +70,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 	// [FIX] Determine Focused Project
 	const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
 
-	const selectedTenantId: string | null = (
-		typeof filterMode === 'string' &&
-		filterMode !== 'all' &&
-		filterMode !== 'personal' &&
-		filterMode !== 'company'
-	) ? filterMode : null;
+	const selectedTenantId = getSelectedTenantId(filterMode);
 
 	const quickInputProjectContext = useMemo(() => {
 		if (focusedProject) {
@@ -303,15 +299,14 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 				isOpen={showProjectDialog}
 				onClose={() => setShowProjectDialog(false)}
 				activeScope={
-					// [FIX] Derive activeScope from filterMode: tenantId string or 'company' -> company scope
-					(focusedProject?.tenantId || selectedTenantId || vm.filterMode === 'company' || (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal'))
+					(focusedProject?.tenantId || selectedTenantId || checkCompanyContext(vm.filterMode))
 						? 'company' : 'personal'
 				}
 				tenants={joinedTenants}
 				defaultTenantId={
 					focusedProject?.tenantId
 					|| selectedTenantId
-					|| (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal' && vm.filterMode !== 'company' ? vm.filterMode : undefined)
+					|| getSelectedTenantId(vm.filterMode)
 					|| undefined
 				}
 				onCreate={async (project: any, defaultTasks: any[]) => {

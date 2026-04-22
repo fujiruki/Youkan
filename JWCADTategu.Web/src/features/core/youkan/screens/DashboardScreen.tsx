@@ -12,7 +12,7 @@ import { SortableFocusQueue } from '../components/Dashboard/SortableFocusQueue';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
-import { ContextMenu } from '../components/PanoramaBoard/ContextMenu';
+import { ContextMenu } from '../components/Common/ContextMenu';
 import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { PanoramaBoard } from '../components/PanoramaBoard/PanoramaBoard';

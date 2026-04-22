@@ -7,7 +7,7 @@ import { YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
 import { getHierarchicalProjects } from '../logic/hierarchy';
 
-import { ContextMenu } from '../components/PanoramaBoard/ContextMenu';
+import { ContextMenu } from '../components/Common/ContextMenu';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../types';
