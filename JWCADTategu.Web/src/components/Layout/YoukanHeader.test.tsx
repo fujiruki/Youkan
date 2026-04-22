@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { YoukanHeader } from './YoukanHeader';
 import { FilterProvider } from '../../features/core/youkan/contexts/FilterContext';
+import { ViewModeProvider } from '../../features/core/youkan/contexts/ViewModeContext';
 
 vi.mock('../../features/core/youkan/components/Layout/HealthCheck', () => ({
     HealthCheck: () => null
@@ -27,9 +28,11 @@ const defaultProps = {
 
 const renderHeader = (props = {}) =>
     render(
-        <FilterProvider>
-            <YoukanHeader {...defaultProps} {...props} />
-        </FilterProvider>
+        <ViewModeProvider>
+            <FilterProvider>
+                <YoukanHeader {...defaultProps} {...props} />
+            </FilterProvider>
+        </ViewModeProvider>
     );
 
 describe('YoukanHeader View名', () => {
@@ -38,13 +41,34 @@ describe('YoukanHeader View名', () => {
         expect(screen.getByText('状況把握')).toBeInTheDocument();
     });
 
-    it('ダッシュボードセクションに「全体一覧」タブが表示される（旧「全体一覧2」）', () => {
+    it('ダッシュボードセクションに「全体一覧」タブが表示される', () => {
         renderHeader();
         expect(screen.getByText('全体一覧')).toBeInTheDocument();
     });
+});
 
-    it('旧名「全体一覧2」は表示されない', () => {
+describe('YoukanHeader CustomEvent', () => {
+    it('「状況把握」クリックで youkan-view-mode-change イベントが発火し detail.mode === "panorama"', () => {
         renderHeader();
-        expect(screen.queryByText('全体一覧2')).not.toBeInTheDocument();
+        let capturedMode: unknown = undefined;
+        const handler = (e: Event) => {
+            capturedMode = (e as CustomEvent).detail?.mode;
+        };
+        window.addEventListener('youkan-view-mode-change', handler);
+        fireEvent.click(screen.getByText('状況把握'));
+        window.removeEventListener('youkan-view-mode-change', handler);
+        expect(capturedMode).toBe('panorama');
+    });
+
+    it('「全体一覧」クリックで youkan-view-mode-change イベントが発火し detail.mode === "overview"', () => {
+        renderHeader();
+        let capturedMode: unknown = undefined;
+        const handler = (e: Event) => {
+            capturedMode = (e as CustomEvent).detail?.mode;
+        };
+        window.addEventListener('youkan-view-mode-change', handler);
+        fireEvent.click(screen.getByText('全体一覧'));
+        window.removeEventListener('youkan-view-mode-change', handler);
+        expect(capturedMode).toBe('overview');
     });
 });

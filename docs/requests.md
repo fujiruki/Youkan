@@ -26,3 +26,9 @@
 
 - **【中】** ガントチャートでマイ期限が依存順位の影響でずれた場合の処理
   - 「依存のせいで入れれません。これ以降のアイテムの納期をずらす？それともアイテムの納期移動をキャンセルする？」と問うダイアログ
+
+- **【低】** コード内 GDB 用語の刷新（R-026完了後の別タスク）
+  - 現状: `viewmodels/` 配下の `gdbActive`, `gdbIntent`, `gdbPreparation`, `gdbLog`, `refreshGdb`, `ghostGdbCount` 等の GDB 用語が内部変数名に残存
+  - 要望: `src/features/core/youkan/viewmodels/useYoukanViewModel.ts` の上記変数名を「状況把握ボード」に沿った命名（PanoramaBoard系）に改める
+  - バックエンド `backend/GdbController.php` の整理も併せて検討
+  - 注意: `repositories/` 層にも波及するため、R-026（命名統一）とは独立した大仕事。別R番号で別ブランチ対応する

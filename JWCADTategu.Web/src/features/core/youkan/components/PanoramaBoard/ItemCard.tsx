@@ -167,7 +167,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                                 </div>
                             )}
 
-                            {/* [FIX] Standardized Status Badges (Matching NewspaperItem) */}
+                            {/* [FIX] Standardized Status Badges (Matching OverviewItem) */}
                             {item.status === 'pending' && (
                                 <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 whitespace-nowrap">保留</span>
                             )}

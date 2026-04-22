@@ -12,18 +12,19 @@ import { SortableFocusQueue } from '../components/Dashboard/SortableFocusQueue';
 import { QuickInputWidget } from '../components/Inputs/QuickInputWidget';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
-import { ContextMenu } from '../components/GlobalBoard/ContextMenu';
+import { ContextMenu } from '../components/Common/ContextMenu';
 import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
-import { YoukanBoard } from '../components/GlobalBoard/GlobalBoard';
+import { PanoramaBoard } from '../components/PanoramaBoard/PanoramaBoard';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
 import { GanttHeader } from '../components/Calendar/GanttHeader';
 import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
-import { NewspaperBoard } from '../components/NewspaperBoard/NewspaperBoard';
+import { OverviewBoard } from '../components/OverviewBoard/OverviewBoard';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
+import { useViewMode } from '../contexts/ViewModeContext';
 import { ApiClient } from '../../../../api/client';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
@@ -43,28 +44,15 @@ const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: stri
 );
 
 export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activeProject?: LocalProject | null; onNavigateToFlow?: (projectId: string) => void }) => {
-	const [viewMode, setViewMode] = useState<'stream' | 'panorama' | 'calendar' | 'newspaper'>(() => {
+	const { dashboardViewMode: viewMode, setDashboardViewMode: setViewModeCtx } = useViewMode();
+
+	// URL パスからの初期ビューモード設定（初回マウント時のみ）
+	useEffect(() => {
 		const path = window.location.pathname.toLowerCase();
-		if (path.includes('panorama')) return 'panorama';
-		if (path.includes('calendar')) return 'calendar';
-		if (path.includes('newspaper')) return 'newspaper';
-		const saved = localStorage.getItem(YOUKAN_KEYS.VIEW_MODE);
-		return (saved === 'panorama' || saved === 'stream' || saved === 'calendar' || saved === 'newspaper') ? saved : 'stream';
-	});
-
-	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.VIEW_MODE, viewMode);
-	}, [viewMode]);
-
-	useEffect(() => {
-		const handleViewModeChange = (e: CustomEvent<{ mode: string }>) => {
-			const mode = e.detail?.mode;
-			if (mode === 'stream' || mode === 'board' || mode === 'newspaper') {
-				setViewMode(mode === 'board' ? 'panorama' : mode as any);
-			}
-		};
-		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
-		return () => window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
+		if (path.includes('panorama')) setViewModeCtx('panorama');
+		else if (path.includes('calendar')) setViewModeCtx('calendar');
+		else if (path.includes('overview')) setViewModeCtx('overview');
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// [REFACTORED] FilterContextから完了表示状態を取得
@@ -154,8 +142,8 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		onDelete: (id) => vm.deleteItem(id)
 	});
 
-	const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'newspaper') => {
-		setViewMode(mode);
+	const handleViewModeChangeInternal = (mode: 'stream' | 'panorama' | 'calendar' | 'overview') => {
+		setViewModeCtx(mode);
 	};
 
 	const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
@@ -250,7 +238,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			)}
 
 			<div className="flex-1 min-h-0 flex flex-col relative">
-				{(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'newspaper') ? (
+				{(viewMode === 'calendar' || viewMode === 'panorama' || viewMode === 'overview') ? (
 					<div className="flex-1 flex flex-col overflow-hidden">
 						<div className="flex-1 overflow-hidden">
 							{viewMode === 'calendar' && (
@@ -276,11 +264,11 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									showGroups={showGanttGroups}
 								/>
 							)}
-							{viewMode === 'newspaper' && (
-								<NewspaperBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} onNavigateToFlow={onNavigateToFlow} />
+							{viewMode === 'overview' && (
+								<OverviewBoard viewModel={filteredVM as any} activeProject={activeProject} onOpenItem={setSelectedItem} hideCompleted={hideCompleted} onNavigateToFlow={onNavigateToFlow} />
 							)}
 							{viewMode === 'panorama' && (
-								<YoukanBoard
+								<PanoramaBoard
 									initialLayoutMode="panorama"
 									onClose={() => handleViewModeChangeInternal('stream')}
 									projectId={activeProject?.cloudId}
@@ -294,7 +282,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-y-auto pb-20">
+					<div data-testid="stream-layout" className="flex-1 overflow-y-auto pb-20">
 						<div className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-8 px-4 md:px-6 rounded-b-[2.5rem] shadow-sm mb-8 relative border-b border-indigo-100/30">
 							{activeProject && (
 								<div className="absolute top-0 left-0 right-0 py-1.5 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 text-white text-[9px] font-bold text-center uppercase tracking-[0.2em] rounded-t-none shadow-md overflow-hidden">

@@ -8,8 +8,10 @@ import { MotivatorWhisper } from '../../features/core/youkan/components/Layout/M
 import { ViewContextBar } from '../../features/core/youkan/components/Dashboard/ViewContextBar';
 import { calculatePerspective } from '../../features/core/youkan/logic/perspective';
 import { FilterMode } from '../../features/core/youkan/types';
+import { isCompanyContext as checkCompanyContext } from '../../features/core/youkan/logic/filterUtils';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
+import { useViewMode } from '../../features/core/youkan/contexts/ViewModeContext';
 
 
 // Basic types needed for props
@@ -79,23 +81,9 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const { filterMode, setFilterMode, hideCompleted, toggleCompleted } = useFilter();
+	const { dashboardViewMode, setDashboardViewMode, projectViewMode, setProjectViewMode, calendarViewMode, setCalendarViewMode } = useViewMode();
 
 	const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
-
-	// Dashboard用のビューモード状態
-	const [dashboardViewMode, setDashboardViewMode] = useState(() =>
-		localStorage.getItem(YOUKAN_KEYS.VIEW_MODE) || 'stream'
-	);
-
-	// プロジェクト画面用のビューモード状態
-	const [projectViewMode, setProjectViewMode] = useState(() =>
-		localStorage.getItem(YOUKAN_KEYS.PROJECT_VIEW_MODE) || 'grid'
-	);
-
-	// カレンダー画面用のビューモード状態
-	const [calendarViewMode, setCalendarViewMode] = useState(() =>
-		localStorage.getItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE) || 'gantt'
-	);
 
 	// [REFACTORED] テナント切替時のフィルタモード自動設定（Context経由）
 	useEffect(() => {
@@ -108,12 +96,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 
 	// Persist filter mode (localStorage同期はFilterContextが担当)
 
-	// Listen for updates from screens
 	useEffect(() => {
-		const handleViewModeChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode) setDashboardViewMode(mode);
-		};
 		const handleCapacityUpdate = (e: any) => {
 			if (e.detail) {
 				setCapacity({
@@ -122,28 +105,14 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				});
 			}
 		};
-		const handleProjectViewModeChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode) setProjectViewMode(mode);
-		};
-		const handleCalendarViewModeChange = (e: any) => {
-			const mode = e.detail?.mode;
-			if (mode) setCalendarViewMode(mode);
-		};
-		window.addEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 		window.addEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
-		window.addEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
-		window.addEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
 		return () => {
-			window.removeEventListener(YOUKAN_EVENTS.VIEW_MODE_CHANGE, handleViewModeChange as EventListener);
 			window.removeEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
-			window.removeEventListener(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, handleProjectViewModeChange as EventListener);
-			window.removeEventListener(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, handleCalendarViewModeChange as EventListener);
 		};
 	}, [capacity]);
 
 	const isCompanyAccount = user?.accountType === 'tenant';
-	const isCompanyContext = filterMode === 'company' || (typeof filterMode === 'string' && filterMode !== 'all' && filterMode !== 'personal');
+	const isCompanyContext = checkCompanyContext(filterMode);
 	const { perspective, perspectiveLabel } = calculatePerspective(
 		isCompanyContext,
 		filterMode as any
@@ -157,21 +126,15 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	};
 
 	const handleDashboardViewChange = (mode: string) => {
-		setDashboardViewMode(mode);
-		localStorage.setItem(YOUKAN_KEYS.VIEW_MODE, mode);
-		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.VIEW_MODE_CHANGE, { detail: { mode } }));
+		setDashboardViewMode(mode as any);
 	};
 
 	const handleProjectViewChange = (mode: string) => {
-		setProjectViewMode(mode);
-		localStorage.setItem(YOUKAN_KEYS.PROJECT_VIEW_MODE, mode);
-		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.PROJECT_VIEW_MODE_CHANGE, { detail: { mode } }));
+		setProjectViewMode(mode as any);
 	};
 
 	const handleCalendarViewChange = (mode: string) => {
-		setCalendarViewMode(mode);
-		localStorage.setItem(YOUKAN_KEYS.CALENDAR_VIEW_MODE, mode);
-		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.CALENDAR_VIEW_MODE_CHANGE, { detail: { mode } }));
+		setCalendarViewMode(mode as any);
 	};
 
 	// Check active states
@@ -329,8 +292,8 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 						<NavSection title="ダッシュボード" isActive={isDashboard} icon={<LayoutDashboard size={14} />}>
 							<div className="flex gap-1">
 								<SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
-								<SubNavTab label="状況把握" isActive={isDashboard && dashboardViewMode === 'board'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('board'); }} />
-								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'newspaper'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('newspaper'); }} />
+								<SubNavTab label="状況把握" isActive={isDashboard && dashboardViewMode === 'panorama'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('panorama'); }} />
+								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'overview'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('overview'); }} />
 							</div>
 						</NavSection>
 

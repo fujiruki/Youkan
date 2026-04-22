@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { YoukanBoard } from '../features/core/youkan/components/GlobalBoard/GlobalBoard';
+import { PanoramaBoard } from '../features/core/youkan/components/PanoramaBoard/PanoramaBoard';
 import { YoukanRepository } from '../features/core/youkan/repositories/YoukanRepository';
 
 // Mock Dependencies
-vi.mock('../features/core/youkan/components/GlobalBoard/BucketColumn', () => ({
+vi.mock('../features/core/youkan/components/PanoramaBoard/BucketColumn', () => ({
     BucketColumn: ({ title, items, footer }: any) => (
         <div data-testid="bucket-column">
             <h2>{title}</h2>
@@ -51,7 +51,7 @@ describe('Inbox Throw In Interaction (Real ViewModel)', () => {
     });
 
     it.skip('テキストボックスに入力してEnterを押すと、リストに即座に表示される (Optimistic Update)', async () => {
-        render(<YoukanBoard />);
+        render(<PanoramaBoard />);
 
         // Wait for initial load (100ms delay in mock) to finish to avoid race condition overwriting optimistic update
         await new Promise(resolve => setTimeout(resolve, 200));

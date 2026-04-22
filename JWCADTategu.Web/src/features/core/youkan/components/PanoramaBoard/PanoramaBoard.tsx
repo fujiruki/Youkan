@@ -21,7 +21,7 @@ import { AlertCircle, BookOpen, X, LayoutGrid, List } from 'lucide-react';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { HelpGuideModal } from '../Modal/HelpGuideModal';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
-import { ContextMenu } from './ContextMenu';
+import { ContextMenu } from '../Common/ContextMenu';
 import { SideMemoPanel } from '../SideMemo/SideMemoPanel';
 import { Item } from '../../types';
 import { useToast } from '../../../../../contexts/ToastContext';
@@ -30,9 +30,10 @@ import { useAuth } from '../../../auth/providers/AuthProvider'; // [NEW]
 import { QuickInputWidget } from '../Inputs/QuickInputWidget'; // [NEW]
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
+import { isCompanyContext as checkCompanyContext, getSelectedTenantId } from '../../logic/filterUtils';
 
 
-interface GlobalBoardProps {
+interface PanoramaBoardProps {
 	onClose?: () => void;
 	initialLayoutMode?: 'standard' | 'panorama';
 	projectId?: string;
@@ -42,7 +43,7 @@ interface GlobalBoardProps {
 	onShowGroupsChange?: (value: boolean) => void;
 }
 
-export const YoukanBoard: React.FC<GlobalBoardProps> = ({
+export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 	onClose,
 	initialLayoutMode,
 	projectId,
@@ -69,12 +70,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 	// [FIX] Determine Focused Project
 	const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
 
-	const selectedTenantId: string | null = (
-		typeof filterMode === 'string' &&
-		filterMode !== 'all' &&
-		filterMode !== 'personal' &&
-		filterMode !== 'company'
-	) ? filterMode : null;
+	const selectedTenantId = getSelectedTenantId(filterMode);
 
 	const quickInputProjectContext = useMemo(() => {
 		if (focusedProject) {
@@ -98,7 +94,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 		vm.refreshGdb(projectId);
 	}, [projectId, vm.refreshGdb]);
 
-	// --- Side Memo Logic in Global Board ---
+	// --- Side Memo Logic in PanoramaBoard ---
 	// Ideally this could be lifted to App level, but GDB is the main workspace.
 	// For now, let's include it here.
 
@@ -303,15 +299,14 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 				isOpen={showProjectDialog}
 				onClose={() => setShowProjectDialog(false)}
 				activeScope={
-					// [FIX] Derive activeScope from filterMode: tenantId string or 'company' -> company scope
-					(focusedProject?.tenantId || selectedTenantId || vm.filterMode === 'company' || (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal'))
+					(focusedProject?.tenantId || selectedTenantId || checkCompanyContext(vm.filterMode))
 						? 'company' : 'personal'
 				}
 				tenants={joinedTenants}
 				defaultTenantId={
 					focusedProject?.tenantId
 					|| selectedTenantId
-					|| (typeof vm.filterMode === 'string' && vm.filterMode !== 'all' && vm.filterMode !== 'personal' && vm.filterMode !== 'company' ? vm.filterMode : undefined)
+					|| getSelectedTenantId(vm.filterMode)
 					|| undefined
 				}
 				onCreate={async (project: any, defaultTasks: any[]) => {
@@ -394,7 +389,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 				capacityConfig={vm.capacityConfig}
 			/>
 
-			<div className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
+			<div data-testid="panorama-layout" className="h-full w-full bg-slate-100 dark:bg-slate-800 flex flex-col relative overflow-y-auto overflow-x-hidden">
 				{/* Header */}
 				{!hideHeader && (
 					<div className="flex-none flex items-center justify-between px-3 md:px-6 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-white/10 shrink-0 z-10 gap-1 md:gap-2">

@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
 
 /**
- * YoukanBoard（GlobalBoard）のshowGroups切替テスト
+ * PanoramaBoard のshowGroups切替テスト
  * panoramaモード（状況把握）で「プロジェクト別」「一覧」切替が機能する。
  */
 
-// GlobalBoardPropsの型テスト: showGroupsとonShowGroupsChangeが存在する
-describe('GlobalBoardProps型定義', () => {
+// PanoramaBoardPropsの型テスト: showGroupsとonShowGroupsChangeが存在する
+describe('PanoramaBoardProps型定義', () => {
   it('showGroupsプロパティが定義されている', async () => {
     // 動的importで型チェックを兼ねる
-    const mod = await import('../GlobalBoard');
-    expect(mod.YoukanBoard).toBeDefined();
+    const mod = await import('../PanoramaBoard');
+    expect(mod.PanoramaBoard).toBeDefined();
   });
 });
 

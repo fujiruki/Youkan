@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNewspaperItems } from './useNewspaperItems';
-import { NewspaperItem } from './NewspaperItem';
+import { useOverviewItems } from './useOverviewItems';
+import { OverviewItem } from './OverviewItem';
 import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
-import { ContextMenu } from '../GlobalBoard/ContextMenu';
+import { ContextMenu } from '../Common/ContextMenu';
 import { useItemContextMenu } from '../../hooks/useItemContextMenu';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 import { useAuth } from '../../../auth/providers/AuthProvider';
+import { getSelectedTenantId } from '../../logic/filterUtils';
 
-interface NewspaperBoardProps {
+interface OverviewBoardProps {
 	viewModel: any; // Type from hook return
 	activeProject?: any | null; // From Dashboard
 	onOpenItem: (item: any) => void;
@@ -17,36 +18,36 @@ interface NewspaperBoardProps {
 	onNavigateToFlow?: (projectId: string) => void;
 }
 
-export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false, onNavigateToFlow }) => {
+export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false, onNavigateToFlow }) => {
 	const { filterMode } = useFilter();
 	const { joinedTenants } = useAuth();
-	const items = useNewspaperItems(viewModel, activeProject, hideCompleted);
+	const items = useOverviewItems(viewModel, activeProject, hideCompleted);
 
 	// View State (Persisted)
 	const [fontSize, setFontSize] = useState<number>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.NEWSPAPER_FONTSIZE);
+		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_FONTSIZE);
 		return saved ? parseInt(saved) : 11;
 	});
 	const [columnCount, setColumnCount] = useState<number>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.NEWSPAPER_COLUMNS);
+		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_COLUMNS);
 		return saved ? parseInt(saved) : 3;
 	});
 	// [NEW] Title Character Limit Setting
 	const [titleLimit, setTitleLimit] = useState<number>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.NEWSPAPER_TITLE_LIMIT);
+		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_TITLE_LIMIT);
 		return saved ? parseInt(saved) : 20;
 	});
 
 	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.NEWSPAPER_FONTSIZE, fontSize.toString());
+		localStorage.setItem(YOUKAN_KEYS.OVERVIEW_FONTSIZE, fontSize.toString());
 	}, [fontSize]);
 
 	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.NEWSPAPER_COLUMNS, columnCount.toString());
+		localStorage.setItem(YOUKAN_KEYS.OVERVIEW_COLUMNS, columnCount.toString());
 	}, [columnCount]);
 
 	useEffect(() => {
-		localStorage.setItem(YOUKAN_KEYS.NEWSPAPER_TITLE_LIMIT, titleLimit.toString());
+		localStorage.setItem(YOUKAN_KEYS.OVERVIEW_TITLE_LIMIT, titleLimit.toString());
 	}, [titleLimit]);
 
 	// Context Menu State
@@ -55,7 +56,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 		onDelete: (id) => viewModel.deleteItem(stripId(id))
 	});
 
-	// [REMOVED] overridesProjectContext and quickInputKey - replaced by inline input in NewspaperItem
+	// [REMOVED] overridesProjectContext and quickInputKey - replaced by inline input in OverviewItem
 
 	// Quick Input: Needs to be integrated into the layout or floating?
 	// Design says: "Header area or first item".
@@ -79,17 +80,15 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 				tenantId: activeProject.tenantId
 			};
 		}
-		if (typeof filterMode === 'string' &&
-			filterMode !== 'all' &&
-			filterMode !== 'personal' &&
-			filterMode !== 'company') {
-			const tenant = joinedTenants.find((t: any) => String(t.id) === filterMode);
+		const tenantId = getSelectedTenantId(filterMode);
+		if (tenantId) {
+			const tenant = joinedTenants.find((t: any) => String(t.id) === tenantId);
 			if (tenant) {
 				const displayName = (tenant as any).title || tenant.name;
 				return {
 					title: displayName,
 					name: displayName,
-					tenantId: filterMode as string
+					tenantId
 				};
 			}
 		}
@@ -97,7 +96,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 	})();
 
 	return (
-		<div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+		<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
 			{/* Controls Header */}
 			<div className="flex-none relative z-20">
@@ -153,7 +152,7 @@ export const NewspaperBoard: React.FC<NewspaperBoardProps> = ({ viewModel, activ
 					</div>
 
 					{items.map(wrapper => (
-						<NewspaperItem
+						<OverviewItem
 							key={wrapper.id}
 							wrapper={wrapper}
 							titleLimit={titleLimit}
