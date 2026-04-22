@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
 	DndContext,
 	DragOverlay,
@@ -80,6 +80,27 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 			setSelectedTenantId(vm.filterMode);
 		}
 	}, [vm.filterMode, joinedTenants.length]); // Re-run when filter mode or list length changes
+
+	// filterMode または selectedTenantId から QuickInputWidget のテナント文脈を計算
+	const quickInputProjectContext = useMemo(() => {
+		if (focusedProject) {
+			return {
+				id: String(focusedProject.id),
+				title: focusedProject.title,
+				name: focusedProject.title,
+				tenantId: focusedProject.tenantId
+			};
+		}
+		const effectiveTenantId = selectedTenantId ||
+			(typeof vm.filterMode === 'string' &&
+			 vm.filterMode !== 'all' &&
+			 vm.filterMode !== 'personal' &&
+			 vm.filterMode !== 'company'
+				? vm.filterMode : null);
+		if (!effectiveTenantId) return null;
+		const tenant = joinedTenants.find((t: any) => t.id === effectiveTenantId);
+		return tenant ? { title: tenant.name, name: tenant.name, tenantId: effectiveTenantId } : null;
+	}, [focusedProject, selectedTenantId, vm.filterMode, joinedTenants]);
 
 	// --- help Guid Modal ---
 	const [showHelp, setShowHelp] = useState(false);
@@ -518,16 +539,7 @@ export const YoukanBoard: React.FC<GlobalBoardProps> = ({
 										<QuickInputWidget
 											className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700"
 											viewModel={vm}
-											projectContext={focusedProject ? {
-												id: String(focusedProject.id),
-												title: focusedProject.title,
-												name: focusedProject.title,
-												tenantId: focusedProject.tenantId
-											} : selectedTenantId ? {
-												title: joinedTenants.find((t: any) => t.id === selectedTenantId)?.name || 'Unknown',
-												name: joinedTenants.find((t: any) => t.id === selectedTenantId)?.name || 'Unknown',
-												tenantId: selectedTenantId
-											} : null}
+											projectContext={quickInputProjectContext}
 											onRequestFallbackOpen={() => {
 												if (lastTargetId) {
 													const item = findItem(lastTargetId);
