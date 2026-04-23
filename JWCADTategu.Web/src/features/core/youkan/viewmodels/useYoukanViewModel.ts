@@ -550,6 +550,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		} catch (e) {
 			console.error('Trash item failed', e);
 			refreshAll();
+			throw e;
 		}
 	};
 

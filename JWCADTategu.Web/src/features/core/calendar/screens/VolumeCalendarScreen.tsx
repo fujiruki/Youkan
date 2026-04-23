@@ -164,6 +164,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					}}
 					hideHeader={true}
 					showGroups={showGanttGroups}
+					onDeleteItem={handleDelete}
 				/>
 			</div>
 

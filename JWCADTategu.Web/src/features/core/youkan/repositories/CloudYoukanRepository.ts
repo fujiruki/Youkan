@@ -96,7 +96,12 @@ export const CloudYoukanRepository = {
 	},
 
 	trashItem: async (id: string) => {
-		await ApiClient.trashItem(id);
+		try {
+			await ApiClient.trashItem(id);
+		} catch (e) {
+			console.warn('Failed to trashItem via CloudYoukanRepository:', e);
+			throw e;
+		}
 	},
 
 	restoreItem: async (id: string) => {
