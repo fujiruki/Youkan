@@ -120,7 +120,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const handleContextMenuDelete = useCallback(async (itemId: string) => {
 		try {
 			await onDeleteItem?.(itemId);
-			showToast({ type: 'success', title: '削除完了', message: 'アイテムを削除しました', duration: 3000 });
+			showToast({ type: 'success', title: 'ゴミ箱へ移動', message: 'アイテムをゴミ箱へ移動しました', duration: 3000 });
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			showToast({ type: 'error', title: '削除失敗', message: msg, duration: 5000 });
