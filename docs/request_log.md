@@ -30,3 +30,4 @@
 | 2026-04-10 | R-024 | 新規登録欄ショートカット変更（Shift+Enter→今日やる、Alt+Enter→登録+詳細表示、Alt+Enter空欄→前回アイテム詳細表示） | 完了（2026-04-10デプロイ済み） | 03_画面設計.md §2 |
 | 2026-04-10 | R-025 | フローチャートプロジェクト選択画面のフィルター修正（会社/個人/テナント別フィルターが機能するよう FilterContext を接続） | 完了（2026-04-10デプロイ済み） | 03_画面設計.md §7.6 |
 | 2026-04-22 | R-026 | 命名統一とコード基盤整理（GlobalBoard/YoukanBoard→PanoramaBoard、NewspaperBoard→OverviewBoard、viewMode値統一、filterUtils新設、ViewModeContext新設、localStorage マイグレーション） | 対応中（refactor/naming-unification ブランチ） | 03_画面設計.md, 05_技術設計.md, 06_変更履歴.md |
+| 2026-04-27 | R-027 | 親→子孫カスケード機能（MVVM準拠）: テナント/プロジェクト変更時に子孫 tenant_id を連動、archive/trash/restore/delete を is_project 不問でカスケード、移動先テナント権限チェック（joinedTenants 外で 403）、API応答に affectedDescendantIds を追加、ViewModel に楽観的UI更新＋部分リフレッシュ＋ロールバックの3段サイクルを実装 | 対応中（feature/R-027-cascade ブランチ） | 02_機能仕様.md, 05_技術設計.md, 06_変更履歴.md |

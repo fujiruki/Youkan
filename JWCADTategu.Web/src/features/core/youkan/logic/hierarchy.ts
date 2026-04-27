@@ -180,6 +180,29 @@ const sortWithDependencies = (
 	return result;
 };
 
+/**
+ * 指定したルートIDの全子孫IDを返す（BFS。循環参照は visited で防止）。
+ * parent_id または project_id でルートIDと一致するアイテムを子孫とみなす。
+ */
+export const collectDescendantIds = (allItems: Item[], rootId: string): string[] => {
+	const result: string[] = [];
+	const visited = new Set<string>();
+	const queue: string[] = [rootId];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		const children = allItems.filter(item => {
+			if (visited.has(item.id)) return false;
+			return item.parentId === current || item.projectId === current;
+		});
+		for (const child of children) {
+			visited.add(child.id);
+			result.push(child.id);
+			queue.push(child.id);
+		}
+	}
+	return result;
+};
+
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
 	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false, dependencies = [] } = options;
 

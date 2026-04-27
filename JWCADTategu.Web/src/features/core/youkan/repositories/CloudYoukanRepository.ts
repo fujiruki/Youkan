@@ -92,12 +92,12 @@ export const CloudYoukanRepository = {
 	},
 
 	archiveItem: async (id: string) => {
-		await ApiClient.archiveItem(id);
+		return await ApiClient.archiveItem(id);
 	},
 
 	trashItem: async (id: string) => {
 		try {
-			await ApiClient.trashItem(id);
+			return await ApiClient.trashItem(id);
 		} catch (e) {
 			console.warn('Failed to trashItem via CloudYoukanRepository:', e);
 			throw e;
@@ -105,11 +105,11 @@ export const CloudYoukanRepository = {
 	},
 
 	restoreItem: async (id: string) => {
-		await ApiClient.restoreItem(id);
+		return await ApiClient.restoreItem(id);
 	},
 
 	destroyItem: async (id: string) => {
-		await ApiClient.destroyItem(id);
+		return await ApiClient.destroyItem(id);
 	},
 
 	getArchivedItems: async (projectId?: string) => {
@@ -147,9 +147,13 @@ export const CloudYoukanRepository = {
 
 	moveMemoToInbox: async (id: string) => ApiClient.moveMemoToInbox(id),
 
+	fetchItemsByIds: async (ids: string[]): Promise<JudgableItem[]> => {
+		return await ApiClient.fetchItemsByIds(ids);
+	},
+
 	// Generic Update
 	updateItem: async (id: string, updates: Partial<JudgableItem>) => {
-		await ApiClient.updateItem(id, updates);
+		return await ApiClient.updateItem(id, updates);
 	},
 
 	createItem: async (item: Partial<JudgableItem>) => {

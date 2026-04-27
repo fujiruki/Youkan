@@ -11,7 +11,10 @@ import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
 import { sanitizeItems } from '../logic/sanitizeItems';
+import { collectDescendantIds } from '../logic/hierarchy';
 import { useFilter } from '../contexts/FilterContext';
+
+type TenantSnapshot = { id: string; tenantId: string | null | undefined }[];
 
 const getUseCloud = () => {
 	// Enforce Cloud Mode by default (User Request)
@@ -311,6 +314,74 @@ export const useYoukanViewModel = (projectId?: string) => {
 		]);
 	}, [refreshGdb, refreshToday, refreshMemos, refreshMembers, refreshCapacityConfig, refreshContextMetadata, projectId]);
 
+	/**
+	 * 指定IDのアイテムだけ再フェッチして state を部分更新する。
+	 * refreshAll より軽量で、子孫の確定同期に使用。
+	 */
+	const refreshItems = useCallback(async (ids: string[]) => {
+		if (!ids.length) return;
+		try {
+			const repo = getRepository() as any;
+			if (!repo.fetchItemsByIds) {
+				await refreshAll();
+				return;
+			}
+			const fresh: Item[] = await repo.fetchItemsByIds(ids);
+			const updateState = (prev: Item[]) =>
+				prev.map(it => fresh.find((f: Item) => f.id === it.id) ?? it);
+			setGdbActiveRaw(updateState);
+			setGdbPreparationRaw(updateState);
+			setGdbIntentRaw(updateState);
+			setGdbLogRaw(updateState);
+			setAllProjectsRaw(updateState);
+		} catch (e) {
+			console.error('refreshItems failed, falling back to refreshAll', e);
+			await refreshAll();
+		}
+	}, [refreshAll]);
+
+	/**
+	 * 親のテナント変更時、子孫の local state を即時楽観更新する。
+	 * 戻り値は rollback 用 snapshot。
+	 */
+	const optimisticCascadeTenant = useCallback((rootId: string, newTenantId: string | null | undefined): TenantSnapshot => {
+		const all = [
+			...gdbActiveRaw, ...gdbPreparationRaw, ...gdbIntentRaw, ...gdbLogRaw, ...allProjectsRaw
+		];
+		const descendantIds = collectDescendantIds(all, rootId);
+		const snapshot: TenantSnapshot = all
+			.filter(i => descendantIds.includes(i.id))
+			.map(i => ({ id: i.id, tenantId: i.tenantId }));
+
+		if (descendantIds.length > 1000) {
+			console.warn('[ViewModel] 子孫数が多い（>1000件）ため楽観更新をスキップし、確定同期のみ行います');
+			return snapshot;
+		}
+
+		const updateState = (prev: Item[]) =>
+			prev.map(it => descendantIds.includes(it.id) ? { ...it, tenantId: newTenantId ?? undefined } : it);
+		setGdbActiveRaw(updateState);
+		setGdbPreparationRaw(updateState);
+		setGdbIntentRaw(updateState);
+		setGdbLogRaw(updateState);
+		setAllProjectsRaw(updateState);
+
+		return snapshot;
+	}, [gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbLogRaw, allProjectsRaw]);
+
+	const restoreSnapshot = useCallback((snapshot: TenantSnapshot) => {
+		const restoreState = (prev: Item[]) =>
+			prev.map(it => {
+				const snap = snapshot.find(s => s.id === it.id);
+				return snap ? { ...it, tenantId: snap.tenantId ?? undefined } : it;
+			});
+		setGdbActiveRaw(restoreState);
+		setGdbPreparationRaw(restoreState);
+		setGdbIntentRaw(restoreState);
+		setGdbLogRaw(restoreState);
+		setAllProjectsRaw(restoreState);
+	}, []);
+
 	// Initial Load & Global Refresh Listener
 	useEffect(() => {
 		refreshAll();
@@ -508,7 +579,10 @@ export const useYoukanViewModel = (projectId?: string) => {
 		});
 
 		try {
-			await getRepository().archiveItem(targetId);
+			const result = await getRepository().archiveItem(targetId);
+			if ((result as any)?.affectedDescendantIds?.length) {
+				await refreshItems((result as any).affectedDescendantIds);
+			}
 		} catch (e) {
 			console.error('Archive failed', e);
 			refreshAll();
@@ -542,9 +616,12 @@ export const useYoukanViewModel = (projectId?: string) => {
 		if (executionItem?.id === String(id) || executionItem?.id === String(targetId)) setExecutionItemRaw(null);
 
 		try {
-			await getRepository().trashItem(targetId); // [Changed] Use trash instead of delete
+			const result = await getRepository().trashItem(targetId);
+			if ((result as any)?.affectedDescendantIds?.length) {
+				await refreshItems((result as any).affectedDescendantIds);
+			}
 			if (itemToDelete?.isProject) {
-				await refreshContextMetadata(); // [NEW] Refresh project list if it's a project
+				await refreshContextMetadata();
 			}
 			refreshAll();
 		} catch (e) {
@@ -555,12 +632,11 @@ export const useYoukanViewModel = (projectId?: string) => {
 	};
 
 	const restoreItem = async (id: string) => {
-		// Optimistic: Hard to know where it goes back to without previous state.
-		// Usually goes to Inbox.
-		// We can wait for refresh or try to add to Inbox?
-		// Let's just refresh for now as it's from distinct screen usually.
 		try {
-			await getRepository().restoreItem(id);
+			const result = await getRepository().restoreItem(id);
+			if ((result as any)?.affectedDescendantIds?.length) {
+				await refreshItems((result as any).affectedDescendantIds);
+			}
 			refreshAll();
 		} catch (e) {
 			console.error('Restore failed', e);
@@ -1042,13 +1118,24 @@ export const useYoukanViewModel = (projectId?: string) => {
 		if ('tenantId' in apiUpdates && !apiUpdates.tenantId) apiUpdates.tenantId = null;
 		if ('assignedTo' in apiUpdates && !apiUpdates.assignedTo) apiUpdates.assignedTo = null;
 
+		const willCascade = ('tenantId' in updates) || ('projectId' in updates);
+		let cascadeSnapshot: TenantSnapshot | undefined;
+		if (willCascade) {
+			const newTenantId = 'tenantId' in updates ? (updates.tenantId ?? null) : null;
+			cascadeSnapshot = optimisticCascadeTenant(targetId, newTenantId);
+		}
+
 		try {
-			await getRepository().updateItem(targetId, apiUpdates);
-			if ('isProject' in updates) {
+			const result = await getRepository().updateItem(targetId, apiUpdates);
+			if (result?.affectedDescendantIds?.length) {
+				await refreshItems(result.affectedDescendantIds);
+			}
+			if ('isProject' in updates || willCascade) {
 				await refreshContextMetadata();
 			}
 		} catch (e) {
 			console.error('Failed to update item:', e);
+			if (cascadeSnapshot) restoreSnapshot(cascadeSnapshot);
 		}
 	};
 
@@ -1364,6 +1451,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 		// Actions
 		refreshAll,
+		refreshItems,
 		refreshGdb,
 		refreshToday,
 		refreshMembers,

@@ -167,7 +167,7 @@ export const YoukanRepository = {
 	},
 
 	// 7. Archive & Trash
-	async archiveItem(id: string): Promise<void> {
+	async archiveItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
 		if (id.startsWith('door-')) {
 			const doorId = parseInt(id.replace('door-', ''), 10);
 			if (!isNaN(doorId)) {
@@ -175,45 +175,51 @@ export const YoukanRepository = {
 					judgmentStatus: 'archive' as any,
 					updatedAt: new Date()
 				});
-				return;
+				return { success: true, affectedDescendantIds: [] };
 			}
 		}
 
 		try {
-			await ApiClient.archiveItem(id);
+			return await ApiClient.archiveItem(id);
 		} catch (e) {
 			console.warn('Failed to archiveItem via API:', e);
+			return { success: false, affectedDescendantIds: [] };
 		}
 	},
 
-	async trashItem(id: string): Promise<void> {
-		// [Hybrid] Legacy doors: Hard delete? Or implement local trash?
-		// Legacy doors usually just use deleteItem.
+	async trashItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
 		if (id.startsWith('door-')) {
-			return this.deleteItem(id); // Legacy behavior
+			await this.deleteItem(id);
+			return { success: true, affectedDescendantIds: [] };
 		}
 		try {
-			await ApiClient.trashItem(id);
+			return await ApiClient.trashItem(id);
 		} catch (e) {
 			console.warn('Failed to trashItem via API:', e);
 			throw e;
 		}
 	},
 
-	async restoreItem(id: string): Promise<void> {
+	async restoreItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
 		try {
-			await ApiClient.restoreItem(id);
+			return await ApiClient.restoreItem(id);
 		} catch (e) {
 			console.warn('Failed to restoreItem via API:', e);
+			return { success: false, affectedDescendantIds: [] };
 		}
 	},
 
-	async destroyItem(id: string): Promise<void> {
+	async destroyItem(id: string): Promise<{ success: boolean; deletedDescendantIds?: string[] }> {
 		try {
-			await ApiClient.destroyItem(id);
+			return await ApiClient.destroyItem(id);
 		} catch (e) {
 			console.warn('Failed to destroyItem via API:', e);
+			return { success: false, deletedDescendantIds: [] };
 		}
+	},
+
+	async fetchItemsByIds(ids: string[]): Promise<Item[]> {
+		return await ApiClient.fetchItemsByIds(ids);
 	},
 
 	async getArchivedItems(projectId?: string): Promise<Item[]> {
@@ -547,12 +553,11 @@ export const YoukanRepository = {
 	},
 
 	// Generic Update (For flexibility)
-	async updateItem(id: string, data: Partial<Item>) {
+	async updateItem(id: string, data: Partial<Item>): Promise<{ success: boolean; affectedDescendantIds?: string[] } | undefined> {
 		// [Hybrid] Handle Local Project ID
 		if (id.startsWith('project-')) {
 			const projectId = parseInt(id.replace('project-', ''), 10);
 			if (!isNaN(projectId)) {
-				// Map Item fields to Project fields
 				const updates: any = {};
 				if (data.status) updates.judgmentStatus = data.status;
 				if (data.title) updates.name = data.title;
@@ -560,7 +565,7 @@ export const YoukanRepository = {
 				updates.updatedAt = new Date();
 
 				await db.projects.update(projectId, updates);
-				return;
+				return { success: true, affectedDescendantIds: [] };
 			}
 		}
 
@@ -575,7 +580,7 @@ export const YoukanRepository = {
 			updates.updatedAt = Date.now();
 
 			await db.deliverables.update(deliverableId, updates);
-			return;
+			return { success: true, affectedDescendantIds: [] };
 		}
 
 		// [Legacy] Handle Local Door ID
@@ -587,11 +592,11 @@ export const YoukanRepository = {
 				if (data.title) updates.name = data.title;
 				if (data.prep_date !== undefined) updates.prep_date = data.prep_date;
 				if (data.estimatedMinutes !== undefined) updates.estimatedWorkMinutes = data.estimatedMinutes;
-				if (data.work_days !== undefined) updates.manHours = data.work_days; // [FIX] Added mapping (manHours)
+				if (data.work_days !== undefined) updates.manHours = data.work_days;
 
-				updates.updatedAt = new Date(); // Legacy might expect Date object.
+				updates.updatedAt = new Date();
 				await db.doors.update(doorId, updates);
-				return;
+				return { success: true, affectedDescendantIds: [] };
 			}
 		}
 
