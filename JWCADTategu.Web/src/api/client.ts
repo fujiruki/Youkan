@@ -141,20 +141,33 @@ export class ApiClient {
 		return this.request<JudgableItem[]>('GET', `/items${query}`);
 	}
 
-	public static async archiveItem(id: string): Promise<{ success: boolean }> {
-		return this.request<{ success: boolean }>('POST', `/items/${id}/archive`);
+	public static async archiveItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
+		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('POST', `/items/${id}/archive`);
 	}
 
-	public static async trashItem(id: string): Promise<{ success: boolean }> {
-		return this.request<{ success: boolean }>('POST', `/items/${id}/trash`);
+	public static async trashItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
+		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('POST', `/items/${id}/trash`);
 	}
 
-	public static async restoreItem(id: string): Promise<{ success: boolean }> {
-		return this.request<{ success: boolean }>('POST', `/items/${id}/restore`);
+	public static async restoreItem(id: string): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
+		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('POST', `/items/${id}/restore`);
 	}
 
-	public static async destroyItem(id: string): Promise<{ success: boolean }> {
-		return this.request<{ success: boolean }>('POST', `/items/${id}/destroy`);
+	public static async destroyItem(id: string): Promise<{ success: boolean; deletedDescendantIds?: string[] }> {
+		return this.request<{ success: boolean; deletedDescendantIds?: string[] }>('POST', `/items/${id}/destroy`);
+	}
+
+	/**
+	 * 指定IDのアイテムを個別取得してバッチとして返す（Promise.all による並列実行）
+	 */
+	public static async fetchItemsByIds(ids: string[]): Promise<JudgableItem[]> {
+		if (!ids.length) return [];
+		const results = await Promise.all(
+			ids.map(id =>
+				this.request<JudgableItem>('GET', `/items/${id}`).catch(() => null)
+			)
+		);
+		return results.filter((item): item is JudgableItem => item !== null);
 	}
 
 	public static async createItem(item: Partial<JudgableItem>): Promise<{ id: string; success: boolean }> {
@@ -162,9 +175,9 @@ export class ApiClient {
 		return this.request<{ id: string; success: boolean }>('POST', '/items', item);
 	}
 
-	public static async updateItem(id: string, updates: Partial<JudgableItem>): Promise<{ success: boolean }> {
+	public static async updateItem(id: string, updates: Partial<JudgableItem>): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
 		console.log(`[ApiClient] Updating item ${id}:`, updates);
-		return this.request<{ success: boolean }>('PUT', `/items/${id}`, updates);
+		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('PUT', `/items/${id}`, updates);
 	}
 
 	public static async deleteItem(id: string): Promise<{ success: boolean }> {
