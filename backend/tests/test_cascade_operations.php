@@ -108,6 +108,12 @@ function makeController($pdo, $userId, $tenantId, $joinedTenants) {
             $ref->setAccessible(true);
             $ref->invoke($this, $id);
         }
+
+        public function callShow($id) {
+            $ref = new ReflectionMethod('ItemController', 'show');
+            $ref->setAccessible(true);
+            $ref->invoke($this, $id);
+        }
     };
     return $ctrl;
 }
@@ -417,6 +423,52 @@ $c11after = fetchItem($pdo, $r11cId);
 assert_equal('rollBack が実行された', $rollbackOk, true);
 assert_equal('P11.tenant_id = tenantA（ロールバック）', $p11after['tenant_id'], $testTenantA);
 assert_equal('C11.tenant_id = tenantA（ロールバック）', $c11after['tenant_id'], $testTenantA);
+
+// ============================================================
+// テスト12: カスケード移動後の show() が joinedTenants 経由で取得できる
+// ============================================================
+echo "\n=== テスト12: カスケード移動後の show() が 200 で取得できる ===\n";
+cleanupItems($pdo, $testUserA);
+$r12pId = 'cas_t12_p';
+$r12cId = 'cas_t12_c';
+// P: 個人モード（tenant_id=null）で作成した子アイテム
+$now12 = time();
+// 親（プロジェクト）を tenantA で作成
+$pdo->prepare("INSERT INTO items (id, title, status, tenant_id, created_by, assigned_to, is_project, parent_id, project_id, created_at, updated_at)
+               VALUES (?, ?, 'inbox', ?, ?, ?, 1, NULL, NULL, ?, ?)")
+    ->execute([$r12pId, 'Project P12', $testTenantA, $testUserA, $testUserA, $now12, $now12]);
+// 子（タスク）を tenantA で作成
+$pdo->prepare("INSERT INTO items (id, title, status, tenant_id, created_by, assigned_to, is_project, parent_id, project_id, created_at, updated_at)
+               VALUES (?, ?, 'inbox', ?, ?, ?, 0, NULL, ?, ?, ?)")
+    ->execute([$r12cId, 'Item I12', $testTenantA, $testUserA, $testUserA, $r12pId, $now12, $now12]);
+
+// P を tenantB にカスケード移動（子 I12 も tenantB になる）
+$ctrlMove = makeController($pdo, $testUserA, $testTenantA, [$testTenantA, $testTenantB]);
+$ctrlMove->setMockInput(['tenantId' => $testTenantB]);
+$ctrlMove->callUpdate($r12pId);
+$moveResp = $ctrlMove->getLastResponse();
+assert_equal('移動成功 success=true', $moveResp['success'] ?? null, true);
+
+// I12 が tenantB に移動済みであることを直接DBで確認
+$i12db = fetchItem($pdo, $r12cId);
+assert_equal('I12.tenant_id = tenantB（カスケード確認）', $i12db['tenant_id'], $testTenantB);
+
+// show() を currentTenantId=tenantA で呼ぶ → joinedTenants=[tenantA,tenantB] なので 200 になる
+$ctrlShow = makeController($pdo, $testUserA, $testTenantA, [$testTenantA, $testTenantB]);
+$showOk = false;
+try {
+    $ctrlShow->callShow($r12cId);
+    $showResp = $ctrlShow->getLastResponse();
+    if ($showResp !== null) $showOk = true;
+} catch (Exception $e) {
+    // 404 や 403 が来たら $showOk は false のまま
+}
+assert_equal('カスケード移動後に子アイテムを show() できる（404にならない）', $showOk, true);
+
+// show() が正しい id を返すこと
+if ($showOk) {
+    assert_equal('show() レスポンスの id が正しい', $ctrlShow->getLastResponse()['id'] ?? null, $r12cId);
+}
 
 // ============================================================
 // クリーンアップ

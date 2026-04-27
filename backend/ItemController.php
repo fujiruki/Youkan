@@ -520,22 +520,28 @@ class ItemController extends BaseController {
     }
 
     private function show($id) {
-        // [Security Rule] Check visibility
+        // [Security Rule] joinedTenants ベースの権限フィルター（update() と同パターン）
+        $tenantIds = $this->joinedTenants;
+        if (empty($tenantIds)) $tenantIds = [$this->currentTenantId];
+        if (!in_array($this->currentTenantId, $tenantIds)) $tenantIds[] = $this->currentTenantId;
+        $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+
         $sql = "
             SELECT items.*, parent.title as parent_title, proj.title as real_project_title
-            FROM items 
+            FROM items
             LEFT JOIN items parent ON items.parent_id = parent.id
             LEFT JOIN items proj ON items.project_id = proj.id
-            WHERE items.id = ? AND items.tenant_id = ? 
+            WHERE items.id = ?
+            AND (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.created_by = ?)
             AND (
-                items.project_id IS NOT NULL -- Public Project Item
-                OR items.created_by = ?          -- My Item
-                OR items.assigned_to = ?         -- Assigned to Me
+                items.project_id IS NOT NULL
+                OR items.created_by = ?
+                OR items.assigned_to = ?
             )
-            AND items.deleted_at IS NULL -- Do not show deleted items via direct access
+            AND items.deleted_at IS NULL
         ";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$id, $this->currentTenantId, $this->currentUserId, $this->currentUserId]);
+        $stmt->execute(array_merge([$id], $tenantIds, [$this->currentUserId, $this->currentUserId, $this->currentUserId]));
         $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$item) {
