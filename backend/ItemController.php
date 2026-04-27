@@ -383,19 +383,11 @@ class ItemController extends BaseController {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute(array_merge($params, [$id]));
 
-            // 3. Recursive Cascade for Projects
-            // IF this item IS a project, update all items BELONGING to it or its sub-projects.
-            if ($existing['is_project']) {
-                $descendantIds = $this->getAllDescendantIds($id);
-                if (!empty($descendantIds)) {
-                    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
-                    $cascadeSql = "UPDATE items SET $updates, updated_at = " . time() . " WHERE id IN ($placeholders)";
-                    $this->pdo->prepare($cascadeSql)->execute(array_merge($params, $descendantIds));
-                }
-            }
+            // R-027: is_project 条件撤廃。親子関係があれば常にカスケード
+            $affectedDescendantIds = $this->cascadeStatusToDescendants($id, $updates, $params);
 
             $this->pdo->commit();
-            $this->sendJSON(['success' => true]);
+            $this->sendJSON(['success' => true, 'affectedDescendantIds' => $affectedDescendantIds]);
 
         } catch (PDOException $e) {
             $this->pdo->rollBack();
@@ -789,7 +781,16 @@ class ItemController extends BaseController {
         }
 
         $data = $this->getInput();
-        
+
+        // R-027: 移動先テナント権限チェック（直接指定）
+        if (array_key_exists('tenantId', $data)) {
+            $newTenantId = $data['tenantId'];
+            if (!is_null($newTenantId) && $newTenantId !== '' && !in_array($newTenantId, $this->joinedTenants)) {
+                $this->sendError(403, 'Access Denied: Target tenant not joined');
+                return;
+            }
+        }
+
         // Safety: Do not allow clearing title via update
         if (array_key_exists('title', $data)) {
             $newTitle = $data['title'];
@@ -806,9 +807,14 @@ class ItemController extends BaseController {
                 $projStmt = $this->pdo->prepare("SELECT tenant_id, assigned_to FROM items WHERE id = ?");
                 $projStmt->execute([$newProjectId]);
                 $targetProj = $projStmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if ($targetProj) {
                     $targetTenantId = $targetProj['tenant_id'];
+                    // R-027: 二重防御 - プロジェクト移動で自動セットされるtenant_idも確認
+                    if (!is_null($targetTenantId) && $targetTenantId !== '' && !in_array($targetTenantId, $this->joinedTenants)) {
+                        $this->sendError(403, 'Access Denied: Target tenant not joined');
+                        return;
+                    }
                     if (!isset($data['assignedTo'])) {
                         $currentAssignee = $this->getItemAssignee($id);
                         $currentEmail = $this->getAssigneeEmail($currentAssignee);
@@ -835,38 +841,53 @@ class ItemController extends BaseController {
 
         // 2. Main Update using BaseController helper
         $allowedFields = [
-            'title', 'status', 'memo', 'due_date', 'is_boosted', 'boosted_date', 
-            'prep_date', 'parent_id', 'is_project', 'project_category', 
-            'estimated_minutes', 'assigned_to', 'project_id', 'project_type', 
-            'client_name', 'gross_profit_target', 'tenant_id', 'is_archived', 
+            'title', 'status', 'memo', 'due_date', 'is_boosted', 'boosted_date',
+            'prep_date', 'parent_id', 'is_project', 'project_category',
+            'estimated_minutes', 'assigned_to', 'project_id', 'project_type',
+            'client_name', 'gross_profit_target', 'tenant_id', 'is_archived',
             'deleted_at', 'focus_order', 'is_intent', 'due_status', 'delegation',
             'work_days',
             'meta'
         ];
 
-        $result = $this->updateEntity('items', $id, $allowedFields);
+        $this->pdo->beginTransaction();
+        try {
+            $result = $this->updateEntity('items', $id, $allowedFields);
 
-        // 3. [Hook] Extra logic for status updates
-        if (isset($data['status'])) {
-            $this->pdo->prepare("UPDATE items SET status_updated_at = ? WHERE id = ?")
-                ->execute([time(), $id]);
-            if ($data['status'] === 'done') {
-                $this->pdo->prepare("UPDATE items SET is_intent = 0, completed_at = ? WHERE id = ?")
+            // 3. [Hook] Extra logic for status updates
+            if (isset($data['status'])) {
+                $this->pdo->prepare("UPDATE items SET status_updated_at = ? WHERE id = ?")
                     ->execute([time(), $id]);
-            } else {
-                // done以外に戻した場合、completed_atをNULLにリセット
-                $this->pdo->prepare("UPDATE items SET completed_at = NULL WHERE id = ?")
-                    ->execute([$id]);
+                if ($data['status'] === 'done') {
+                    $this->pdo->prepare("UPDATE items SET is_intent = 0, completed_at = ? WHERE id = ?")
+                        ->execute([time(), $id]);
+                } else {
+                    $this->pdo->prepare("UPDATE items SET completed_at = NULL WHERE id = ?")
+                        ->execute([$id]);
+                }
             }
+
+            // 4. [Hook] Sync Manufacturing Data
+            ManufacturingSyncService::syncItem($this->pdo, $id, $data);
+
+            // 5. [Hook] 依存関係に基づく自動日程調整（カスケード）
+            $this->cascadeDependencyDates($id, $data, $preCascadeDates);
+
+            // R-027: テナント or プロジェクト変更時に子孫の tenant_id をカスケード
+            $affectedDescendantIds = [];
+            $tenantChanged = array_key_exists('tenantId', $data) && $data['tenantId'] !== $existing['tenant_id'];
+            $projectChanged = array_key_exists('projectId', $data) && $data['projectId'] !== $existing['project_id'];
+            if ($tenantChanged || $projectChanged) {
+                $newTenantId = array_key_exists('tenantId', $data) ? $data['tenantId'] : $existing['tenant_id'];
+                $affectedDescendantIds = $this->cascadeTenantToDescendants($id, $newTenantId);
+            }
+
+            $this->pdo->commit();
+            $this->sendJSON(['success' => true, 'affectedDescendantIds' => $affectedDescendantIds]);
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            $this->sendError(500, 'Update failed: ' . $e->getMessage());
         }
-
-        // 4. [Hook] Sync Manufacturing Data
-        ManufacturingSyncService::syncItem($this->pdo, $id, $data);
-
-        // 5. [Hook] 依存関係に基づく自動日程調整（カスケード）
-        $this->cascadeDependencyDates($id, $data, $preCascadeDates);
-
-        $this->sendJSON(['success' => true]);
     }
 
     // --- Automated Assignment Helpers ---
@@ -967,18 +988,11 @@ class ItemController extends BaseController {
             $stmt = $this->pdo->prepare("DELETE FROM items WHERE id = ?");
             $stmt->execute([$id]);
 
-            // 2. Cascade Delete if it's a Project
-            if ($existing['is_project']) {
-                $descendantIds = $this->getAllDescendantIds($id);
-                if (!empty($descendantIds)) {
-                    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
-                    $cStmt = $this->pdo->prepare("DELETE FROM items WHERE id IN ($placeholders)");
-                    $cStmt->execute($descendantIds);
-                }
-            }
+            // R-027: is_project 条件撤廃。親子関係があれば常に物理削除カスケード
+            $deletedDescendantIds = $this->cascadeDeleteDescendants($id);
 
             $this->pdo->commit();
-            $this->sendJSON(['success' => true]);
+            $this->sendJSON(['success' => true, 'deletedDescendantIds' => $deletedDescendantIds]);
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             $this->sendError(500, 'Delete Failed: ' . $e->getMessage());
@@ -993,9 +1007,7 @@ class ItemController extends BaseController {
 
         while (!empty($stack)) {
             $parentId = array_pop($stack);
-            
-            // Find all items where parent_id = ? OR project_id = ?
-            // We use both to ensure sub-tasks and project-linked items are caught
+
             $stmt = $this->pdo->prepare("SELECT id FROM items WHERE parent_id = ? OR project_id = ?");
             $stmt->execute([$parentId, $parentId]);
             $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -1008,6 +1020,36 @@ class ItemController extends BaseController {
                 }
             }
         }
+        return $descendantIds;
+    }
+
+    // R-027: 子孫の tenant_id を一括更新する
+    private function cascadeTenantToDescendants(string $rootId, ?string $newTenantId): array {
+        $descendantIds = $this->getAllDescendantIds($rootId);
+        if (empty($descendantIds)) return [];
+        $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+        $sql = "UPDATE items SET tenant_id = ?, updated_at = ? WHERE id IN ($placeholders)";
+        $this->pdo->prepare($sql)->execute(array_merge([$newTenantId, time()], $descendantIds));
+        return $descendantIds;
+    }
+
+    // R-027: 子孫の状態フィールドを一括更新する（archive/trash/restore で共用）
+    private function cascadeStatusToDescendants(string $rootId, string $updatesSql, array $updateParams): array {
+        $descendantIds = $this->getAllDescendantIds($rootId);
+        if (empty($descendantIds)) return [];
+        $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+        $sql = "UPDATE items SET $updatesSql, updated_at = " . time() . " WHERE id IN ($placeholders)";
+        $this->pdo->prepare($sql)->execute(array_merge($updateParams, $descendantIds));
+        return $descendantIds;
+    }
+
+    // R-027: 子孫を物理削除する
+    private function cascadeDeleteDescendants(string $rootId): array {
+        $descendantIds = $this->getAllDescendantIds($rootId);
+        if (empty($descendantIds)) return [];
+        $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+        $sql = "DELETE FROM items WHERE id IN ($placeholders)";
+        $this->pdo->prepare($sql)->execute($descendantIds);
         return $descendantIds;
     }
 
