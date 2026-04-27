@@ -22,7 +22,7 @@ describe('buildItemContextMenuActions', () => {
 			'プロジェクト化',
 			'今日やる (Done Today)',
 			'断る (Rejected)',
-			'完全削除 (Delete)',
+			'ゴミ箱 (Del)',
 		]);
 	});
 
@@ -30,7 +30,7 @@ describe('buildItemContextMenuActions', () => {
 		const actions = buildItemContextMenuActions('item-1', defaultCallbacks);
 		const dangerItems = actions.filter(a => a.danger);
 		expect(dangerItems).toHaveLength(1);
-		expect(dangerItems[0].label).toBe('完全削除 (Delete)');
+		expect(dangerItems[0].label).toBe('ゴミ箱 (Del)');
 	});
 
 	it('各アクションが対応するコールバックを呼ぶ', () => {
@@ -55,7 +55,7 @@ describe('buildItemContextMenuActions', () => {
 		actions[3].onClick(); // 断る
 		expect(callbacks.onResolveNo).toHaveBeenCalledWith('item-42');
 
-		actions[4].onClick(); // 完全削除
+		actions[4].onClick(); // ゴミ箱
 		expect(callbacks.onDelete).toHaveBeenCalledWith('item-42');
 	});
 

@@ -67,11 +67,12 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
 	const handleDelete = async (id: string) => {
 		try {
-			await ApiClient.deleteItem(id);
+			await ApiClient.trashItem(id);
 			setSelectedItem(null);
 			await refresh();
 		} catch (e) {
 			console.error('Delete failed', e);
+			throw e;
 		}
 	};
 

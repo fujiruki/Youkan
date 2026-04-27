@@ -50,7 +50,7 @@ export function buildItemContextMenuActions(
 			onClick: () => callbacks.onResolveNo(itemId),
 		},
 		{
-			label: '完全削除 (Del)',
+			label: 'ゴミ箱 (Del)',
 			icon: <Trash2 size={14} />,
 			danger: true,
 			onClick: () => callbacks.onDelete(itemId),
