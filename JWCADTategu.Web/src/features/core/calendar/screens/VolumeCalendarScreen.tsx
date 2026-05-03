@@ -129,12 +129,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
 					}}
 					onGoToCurrentMonth={() => {
-						console.log('[GoToMonth] 2. handler invoked', { currentDate, calendarRef: !!calendarRef.current });
 						setCurrentDate(new Date());
 						setTimeout(() => {
-							console.log('[GoToMonth] 3. setTimeout callback, calendarRef:', !!calendarRef.current);
-							const result = calendarRef.current?.scrollToToday();
-							console.log('[GoToMonth] 4. scrollToToday returned', result);
+							calendarRef.current?.scrollToToday();
 						}, 0);
 					}}
 					onOpenDailySettings={() => calendarRef.current?.openDailySettings(selectedDateForCapacity || new Date())}

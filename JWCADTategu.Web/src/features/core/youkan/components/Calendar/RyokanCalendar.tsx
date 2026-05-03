@@ -109,74 +109,70 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 
 	// [R-007] 今月を中央にスクロール（横: 月全体を中央、縦: 関連アイテム群を中央）
 	const scrollToCurrentMonthCenter = useCallback(() => {
-		console.log('[GoToMonth] 8. scrollToCurrentMonthCenter start', { displayMode, container: !!scrollContainerRef.current });
 		if (!scrollContainerRef.current) return;
 		const container = scrollContainerRef.current;
 		const now = new Date();
 
 		if (displayMode === 'gantt') {
-			// 横方向: 今月の1日〜末日の中央をビューポート中央に
+			// 横スクロール量計算
 			const monthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
 			const monthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 			const firstKey = normalizeDateKey(monthFirstDay);
 			const lastKey = normalizeDateKey(monthLastDay);
 
+			let horizontalScroll: number | undefined;
 			const firstEl = container.querySelector(`[data-gantt-date="${firstKey}"]`);
-			const lastEl = container.querySelector(`[data-gantt-date="${lastKey}"]`);
-
-			console.log('[GoToMonth] 9. about to scroll horizontal', { firstEl: !!firstEl, lastEl: !!lastEl, firstKey, lastKey });
 			if (firstEl) {
 				const containerRect = container.getBoundingClientRect();
 				const firstRect = firstEl.getBoundingClientRect();
+				const lastEl = container.querySelector(`[data-gantt-date="${lastKey}"]`);
 				const lastRect = lastEl ? lastEl.getBoundingClientRect() : firstRect;
-
 				const monthCenterX = (firstRect.left + lastRect.right) / 2;
 				const viewportCenterX = containerRect.left + containerRect.width / 2;
-				const horizontalScroll = container.scrollLeft + (monthCenterX - viewportCenterX);
-				console.log('[GoToMonth] 9b. scrolling horizontal', { horizontalScroll: Math.max(0, horizontalScroll), monthCenterX, viewportCenterX });
-				container.scrollTo({ left: Math.max(0, horizontalScroll), behavior: 'smooth' });
+				horizontalScroll = Math.max(0, container.scrollLeft + (monthCenterX - viewportCenterX));
 			}
 
-			// 縦方向: 今月が目安期間（prep_date〜due_date）に含まれるアイテム群の中央を表示
+			// 縦スクロール量計算
 			const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 			const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 			const monthStartUnix = Math.floor(monthStart.getTime() / 1000);
 			const monthEndUnix = Math.floor(monthEnd.getTime() / 1000);
 
-			// 今月が目安期間に含まれるアイテムのIDを収集
 			const matchingItemIds = new Set<string>();
 			items.forEach(item => {
 				const prepUnix = item.prep_date ? (item.prep_date as number) : null;
 				const dueUnix = item.due_date ? Math.floor(new Date(item.due_date).getTime() / 1000) : null;
 				if (!prepUnix && !dueUnix) return;
-				// 期間: prep_date〜due_date（片方しかない場合はその日のみ）
 				const rangeStart = Math.min(...[prepUnix, dueUnix].filter((v): v is number => v !== null));
 				const rangeEnd = Math.max(...[prepUnix, dueUnix].filter((v): v is number => v !== null));
-				// 今月と期間が重なるか判定
 				if (rangeStart <= monthEndUnix && rangeEnd >= monthStartUnix) {
 					matchingItemIds.add(item.id);
 				}
 			});
 
-			console.log('[GoToMonth] 10. about to scroll vertical', { matchingItemIds: matchingItemIds.size });
+			let verticalScroll: number | undefined;
 			if (matchingItemIds.size > 0) {
-				// DOM上の行要素を取得（data-item-id属性で特定）
 				const matchingRows: HTMLElement[] = [];
 				matchingItemIds.forEach(id => {
 					const row = container.querySelector(`[data-item-id="${id}"]`) as HTMLElement | null;
 					if (row) matchingRows.push(row);
 				});
-
 				if (matchingRows.length > 0) {
-					// offsetTopでソートして最初と最後の行を特定
 					matchingRows.sort((a, b) => a.offsetTop - b.offsetTop);
 					const firstRow = matchingRows[0];
 					const lastRow = matchingRows[matchingRows.length - 1];
 					const groupCenterY = (firstRow.offsetTop + lastRow.offsetTop + lastRow.offsetHeight) / 2;
-					const verticalScroll = groupCenterY - container.clientHeight / 2;
-					console.log('[GoToMonth] 10b. scrolling vertical', { verticalScroll: Math.max(0, verticalScroll), matchingRows: matchingRows.length });
-					container.scrollTo({ top: Math.max(0, verticalScroll), behavior: 'smooth' });
+					verticalScroll = Math.max(0, groupCenterY - container.clientHeight / 2);
 				}
+			}
+
+			// 横と縦を1回の scrollTo で統合（Chrome の smooth 連続呼出キャンセル回避）
+			if (horizontalScroll !== undefined || verticalScroll !== undefined) {
+				container.scrollTo({
+					left: horizontalScroll ?? container.scrollLeft,
+					top: verticalScroll ?? container.scrollTop,
+					behavior: 'smooth'
+				});
 			}
 		} else {
 			// Grid/Timeline: 従来のスクロール
@@ -191,19 +187,14 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		},
 		scrollToToday: () => {
 			// [R-007] 「今月を表示」は今月全体を中央にスクロール
-			console.log('[GoToMonth] 5. scrollToToday called', { range });
 			const now = new Date();
 			const monthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
 			// rangeが今月を含まない場合はrangeを拡張してから再試行
 			if (range && (monthFirstDay < range.start || monthFirstDay > range.end)) {
-				console.log('[GoToMonth] 6a. setting pendingScrollTarget', now);
 				setPendingScrollTarget(now);
-			} else {
-				console.log('[GoToMonth] 6b. range matches, no pending target', { range, monthFirstDay });
 			}
 			// DOMの更新後にスクロール実行
 			requestAnimationFrame(() => {
-				console.log('[GoToMonth] 7. RAF, calling scrollToCurrentMonthCenter');
 				scrollToCurrentMonthCenter();
 			});
 		},
