@@ -130,7 +130,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					}}
 					onGoToCurrentMonth={() => {
 						setCurrentDate(new Date());
-						calendarRef.current?.scrollToToday();
+						setTimeout(() => {
+							calendarRef.current?.scrollToToday();
+						}, 0);
 					}}
 					onOpenDailySettings={() => calendarRef.current?.openDailySettings(selectedDateForCapacity || new Date())}
 					rowHeight={24}

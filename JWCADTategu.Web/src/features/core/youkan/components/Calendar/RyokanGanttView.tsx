@@ -390,7 +390,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									key={i}
 									data-gantt-date={normalizeDateKey(day)}
 									className={cn(
-										`flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
+										`relative flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
 										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : '',
 										isToday && 'border-l border-r border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/20'
 									)}
