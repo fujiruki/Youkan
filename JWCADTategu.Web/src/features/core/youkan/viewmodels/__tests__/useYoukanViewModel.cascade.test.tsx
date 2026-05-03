@@ -193,7 +193,7 @@ describe('useYoukanViewModel - カスケード楽観更新', () => {
 		expect(rolledBack?.tenantId).toBe(originalTenantId);
 	});
 
-	it('archiveItem(parentId) → API成功後 affectedDescendantIds で fetchItemsByIds が呼ばれる', async () => {
+	it('archiveItem(parentId) → API成功後 affectedDescendantIds の fetchItemsByIds は呼ばれない（楽観更新に変更）', async () => {
 		vi.mocked(CloudYoukanRepository.archiveItem).mockResolvedValue({
 			success: true,
 			affectedDescendantIds: ['child-1', 'child-2'],
@@ -207,6 +207,62 @@ describe('useYoukanViewModel - カスケード楽観更新', () => {
 			await result.current.archiveItem('parent-1');
 		});
 
-		expect(mockedRepo().fetchItemsByIds).toHaveBeenCalledWith(['child-1', 'child-2']);
+		expect(mockedRepo().fetchItemsByIds).not.toHaveBeenCalled();
+	});
+
+	it('archiveItem 成功後、子孫の isArchived が即座に true になる', async () => {
+		vi.mocked(CloudYoukanRepository.archiveItem).mockResolvedValue({
+			success: true,
+			affectedDescendantIds: ['child-1', 'child-2', 'grandchild-1'],
+		});
+
+		const { result } = renderHook(() => useYoukanViewModel());
+		await waitForLoad();
+
+		await act(async () => {
+			await result.current.archiveItem('parent-1');
+		});
+
+		const allActive = result.current.gdbActive;
+		expect(allActive.find(i => i.id === 'child-1')?.isArchived).toBe(true);
+		expect(allActive.find(i => i.id === 'child-2')?.isArchived).toBe(true);
+		expect(allActive.find(i => i.id === 'grandchild-1')?.isArchived).toBe(true);
+	});
+
+	it('deleteItem（trashItem）成功後、子孫の deletedAt がセットされる', async () => {
+		vi.mocked(CloudYoukanRepository.trashItem).mockResolvedValue({
+			success: true,
+			affectedDescendantIds: ['child-1', 'child-2', 'grandchild-1'],
+		});
+
+		const { result } = renderHook(() => useYoukanViewModel());
+		await waitForLoad();
+
+		await act(async () => {
+			await result.current.deleteItem('parent-1');
+		});
+
+		const allActive = result.current.gdbActive;
+		expect(allActive.find(i => i.id === 'child-1')?.deletedAt).toBeGreaterThan(0);
+		expect(allActive.find(i => i.id === 'child-2')?.deletedAt).toBeGreaterThan(0);
+		expect(allActive.find(i => i.id === 'grandchild-1')?.deletedAt).toBeGreaterThan(0);
+	});
+
+	it('destroyItem 成功後、deletedDescendantIds のアイテムが local state から消える', async () => {
+		vi.mocked(CloudYoukanRepository.destroyItem).mockResolvedValue({
+			success: true,
+			deletedDescendantIds: ['child-1', 'grandchild-1'],
+		});
+
+		const { result } = renderHook(() => useYoukanViewModel());
+		await waitForLoad();
+
+		await act(async () => {
+			await result.current.destroyItem('parent-1');
+		});
+
+		const allActive = result.current.gdbActive;
+		expect(allActive.find(i => i.id === 'child-1')).toBeUndefined();
+		expect(allActive.find(i => i.id === 'grandchild-1')).toBeUndefined();
 	});
 });

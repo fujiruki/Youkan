@@ -217,7 +217,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							onClick: () => { viewModel.archiveItem(stripId(contextMenu.targetId!)); }
 						},
 						{
-							label: '削除',
+							label: 'ゴミ箱 (Del)',
 							danger: true,
 							onClick: () => { viewModel.deleteItem(stripId(contextMenu.targetId!)); }
 						}

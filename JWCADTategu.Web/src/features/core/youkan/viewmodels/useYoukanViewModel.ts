@@ -382,6 +382,48 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setAllProjectsRaw(restoreState);
 	}, []);
 
+	/**
+	 * 指定ID群の local state を楽観的にアーカイブ済みにマーク
+	 */
+	const optimisticArchiveItems = useCallback((ids: string[]) => {
+		if (!ids.length) return;
+		const update = (prev: Item[]) =>
+			prev.map(it => ids.includes(it.id) ? { ...it, isArchived: true } : it);
+		setGdbActiveRaw(update);
+		setGdbPreparationRaw(update);
+		setGdbIntentRaw(update);
+		setGdbLogRaw(update);
+		setAllProjectsRaw(update);
+	}, []);
+
+	/**
+	 * 指定ID群の local state を楽観的にゴミ箱送りにマーク（deletedAt セット）
+	 */
+	const optimisticTrashItems = useCallback((ids: string[]) => {
+		if (!ids.length) return;
+		const now = Date.now();
+		const update = (prev: Item[]) =>
+			prev.map(it => ids.includes(it.id) ? { ...it, deletedAt: now } : it);
+		setGdbActiveRaw(update);
+		setGdbPreparationRaw(update);
+		setGdbIntentRaw(update);
+		setGdbLogRaw(update);
+		setAllProjectsRaw(update);
+	}, []);
+
+	/**
+	 * 指定ID群を local state から完全削除（物理削除用）
+	 */
+	const optimisticRemoveItems = useCallback((ids: string[]) => {
+		if (!ids.length) return;
+		const update = (prev: Item[]) => prev.filter(it => !ids.includes(it.id));
+		setGdbActiveRaw(update);
+		setGdbPreparationRaw(update);
+		setGdbIntentRaw(update);
+		setGdbLogRaw(update);
+		setAllProjectsRaw(update);
+	}, []);
+
 	// Initial Load & Global Refresh Listener
 	useEffect(() => {
 		refreshAll();
@@ -581,7 +623,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		try {
 			const result = await getRepository().archiveItem(targetId);
 			if ((result as any)?.affectedDescendantIds?.length) {
-				await refreshItems((result as any).affectedDescendantIds);
+				optimisticArchiveItems((result as any).affectedDescendantIds);
 			}
 		} catch (e) {
 			console.error('Archive failed', e);
@@ -618,12 +660,11 @@ export const useYoukanViewModel = (projectId?: string) => {
 		try {
 			const result = await getRepository().trashItem(targetId);
 			if ((result as any)?.affectedDescendantIds?.length) {
-				await refreshItems((result as any).affectedDescendantIds);
+				optimisticTrashItems((result as any).affectedDescendantIds);
 			}
 			if (itemToDelete?.isProject) {
 				await refreshContextMetadata();
 			}
-			refreshAll();
 		} catch (e) {
 			console.error('Trash item failed', e);
 			refreshAll();
@@ -645,8 +686,10 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	const destroyItem = async (id: string) => {
 		try {
-			await getRepository().destroyItem(id);
-			// No local state update needed if called from Trash Screen (separate state)
+			const result = await getRepository().destroyItem(id);
+			if ((result as any)?.deletedDescendantIds?.length) {
+				optimisticRemoveItems((result as any).deletedDescendantIds);
+			}
 		} catch (e) {
 			console.error('Destroy failed', e);
 		}

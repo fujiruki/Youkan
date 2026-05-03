@@ -222,18 +222,18 @@ export const YoukanRepository = {
 		return await ApiClient.fetchItemsByIds(ids);
 	},
 
-	async getArchivedItems(projectId?: string): Promise<Item[]> {
+	async getArchivedItems(projectId?: string, scope?: string): Promise<Item[]> {
 		try {
-			return await ApiClient.getAllItems({ project_id: projectId, show_archived: true });
+			return await ApiClient.getAllItems({ project_id: projectId, show_archived: true, scope: scope as any });
 		} catch (e) {
 			console.error('Failed to getArchivedItems:', e);
 			return [];
 		}
 	},
 
-	async getTrashedItems(projectId?: string): Promise<Item[]> {
+	async getTrashedItems(projectId?: string, scope?: string): Promise<Item[]> {
 		try {
-			return await ApiClient.getAllItems({ project_id: projectId, show_trash: true });
+			return await ApiClient.getAllItems({ project_id: projectId, show_trash: true, scope: scope as any });
 		} catch (e) {
 			console.error('Failed to getTrashedItems:', e);
 			return [];

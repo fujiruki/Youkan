@@ -27,8 +27,8 @@ export const ArchiveTrashScreen: React.FC<ArchiveTrashScreenProps> = ({ mode, on
             // mode to filter
             const repo = (await import('../repositories/CloudYoukanRepository')).CloudYoukanRepository;
             const data = mode === 'archive'
-                ? await repo.getArchivedItems()
-                : await repo.getTrashedItems();
+                ? await repo.getArchivedItems(undefined, 'aggregated')
+                : await repo.getTrashedItems(undefined, 'aggregated');
             setItems(data);
         } catch (e) {
             console.error('Failed to load items', e);

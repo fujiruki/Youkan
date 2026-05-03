@@ -112,12 +112,12 @@ export const CloudYoukanRepository = {
 		return await ApiClient.destroyItem(id);
 	},
 
-	getArchivedItems: async (projectId?: string) => {
-		return await ApiClient.getAllItems({ project_id: projectId, show_archived: true });
+	getArchivedItems: async (projectId?: string, scope?: string) => {
+		return await ApiClient.getAllItems({ project_id: projectId, show_archived: true, scope: scope as any });
 	},
 
-	getTrashedItems: async (projectId?: string) => {
-		return await ApiClient.getAllItems({ project_id: projectId, show_trash: true });
+	getTrashedItems: async (projectId?: string, scope?: string) => {
+		return await ApiClient.getAllItems({ project_id: projectId, show_trash: true, scope: scope as any });
 	},
 
 	// Decisions
