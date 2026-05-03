@@ -76,7 +76,10 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
                 {/* Quick Shortcuts */}
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={onGoToCurrentMonth}
+                        onClick={() => {
+                            console.log('[GoToMonth] 1. button clicked', { isCurrentMonth, disabled: isCurrentMonth });
+                            onGoToCurrentMonth?.();
+                        }}
                         className={cn(
                             "group flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black rounded-xl border transition-all duration-300",
                             isCurrentMonth

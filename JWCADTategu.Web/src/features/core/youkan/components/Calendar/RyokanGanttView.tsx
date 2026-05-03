@@ -264,6 +264,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 	// Scroll to date logic
 	const scrollToDate = (date: Date) => {
+		console.log('[GoToMonth] gantt scrollToDate called', { date });
 		if (!effectiveScrollRef.current) return;
 
 		// Find index of date in allDays
