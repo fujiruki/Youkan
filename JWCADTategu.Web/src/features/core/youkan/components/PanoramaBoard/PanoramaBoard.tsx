@@ -57,6 +57,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 		gdbActive,
 		gdbPreparation,
 		gdbIntent,
+		gdbSomeday,
 		gdbLog,
 		ghostGdbCount,
 		ghostTodayCount,
@@ -148,10 +149,11 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 
 	// --- Find Container Helper ---
 	const findContainer = (id: string) => {
-		if (['active', 'waiting', 'pending', 'log', 'life', 'history'].includes(id)) return id;
+		if (['active', 'waiting', 'pending', 'someday', 'log', 'life', 'history'].includes(id)) return id;
 		if (gdbActive.find(i => i.id === id)) return 'active';
 		if (gdbPreparation.find(i => i.id === id)) return 'waiting';
 		if (gdbIntent.find(i => i.id === id)) return 'pending';
+		if (gdbSomeday.find(i => i.id === id)) return 'someday';
 		if (gdbLog.find(i => i.id === id)) return 'log';
 		return null;
 	};
@@ -187,13 +189,12 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 
 		// Board Drop Logic
 		if (overContainerId === 'waiting') {
-			// Move to Waiting. Using Generic Update or Delegate?
-			// "Waiting" usually implies delegation or external dependency.
-			// If just dragging, maybe we need a "reason"?
-			// For now, simple move:
 			await vm.updateItem(activeItemId, { status: 'waiting', waitingReason: 'Moved from board' });
 			vm.refreshAll();
 		} else if (overContainerId === 'pending') {
+			await vm.updateItem(activeItemId, { status: 'pending' });
+			vm.refreshAll();
+		} else if (overContainerId === 'someday') {
 			await vm.moveToSomeday(activeItemId);
 		} else if (overContainerId === 'life') {
 			await vm.resolveDecision(activeItemId, 'no', 'life');
@@ -211,7 +212,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 
 	// --- Find Active Item Helper ---
 	const findItem = (id: string) => {
-		return [...gdbActive, ...gdbPreparation, ...gdbLog].find(i => i.id === id);
+		return [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...gdbLog].find(i => i.id === id);
 	};
 	const activeItem = activeId ? findItem(activeId) : null;
 
@@ -588,7 +589,31 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 							</div>
 						</section>
 
-						{/* 4. Log (The "History") */}
+						{/* 4. Someday Shelf (いつかやる) */}
+						<section className={layoutMode === 'panorama'
+							? "mb-4 break-inside-avoid bg-purple-50/50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800"
+							: "opacity-80"
+						}>
+							<div>
+								<BucketColumn
+									id="someday"
+									title="【💭 いつかやる (Someday)】"
+									items={gdbSomeday}
+									description="自分で寝かせると決めたもの。期限なし・キャパ除外。"
+									className={layoutMode === 'panorama' ? "p-2" : "w-full bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-200 dark:border-purple-800 p-0"}
+									emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">いつかやるなし</div>}
+									onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
+									onContextMenu={handleContextMenu}
+									isCompact={layoutMode === 'panorama'}
+									rowHeight={rowHeight}
+									onCreateSubTask={vm.createSubTask}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
+								/>
+							</div>
+						</section>
+
+						{/* 5. Log (The "History") */}
 						<section className={layoutMode === 'panorama'
 							? "mb-4 break-inside-avoid bg-slate-200/50 dark:bg-slate-800/30 rounded-lg border border-slate-300/50 dark:border-slate-700"
 							: "opacity-60 hover:opacity-100 transition-opacity pb-20"

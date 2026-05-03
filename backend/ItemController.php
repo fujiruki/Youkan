@@ -496,7 +496,7 @@ class ItemController extends BaseController {
             FROM items
             WHERE tenant_id = ? 
             AND (assigned_to = ? OR (assigned_to IS NULL AND created_by = ?))
-            AND status != 'done' -- Only active items
+            AND status NOT IN ('done', 'someday') -- Only active items; R-028: someday はキャパシティ除外
             AND is_archived = 0 AND deleted_at IS NULL -- Only active, non-archived, non-deleted items
         ";
         

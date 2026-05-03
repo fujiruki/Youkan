@@ -21,7 +21,8 @@ interface OverviewBoardProps {
 export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeProject, onOpenItem, hideCompleted = false, onNavigateToFlow }) => {
 	const { filterMode } = useFilter();
 	const { joinedTenants } = useAuth();
-	const items = useOverviewItems(viewModel, activeProject, hideCompleted);
+	const [showSomeday, setShowSomeday] = useState(false);
+	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday);
 
 	// View State (Persisted)
 	const [fontSize, setFontSize] = useState<number>(() => {
@@ -107,6 +108,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					onChangeFontSize={setFontSize}
 					onChangeColumnCount={setColumnCount}
 					onChangeTitleLimit={setTitleLimit}
+					showSomeday={showSomeday}
+					onChangeShowSomeday={setShowSomeday}
 				/>
 			</div>
 
@@ -199,8 +202,12 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							onClick: () => { viewModel.setEngaged(stripId(contextMenu.targetId!), true); }
 						},
 						{
-							label: '保留 (Pending)',
+							label: '保留（外的要因待ち）(Pending)',
 							onClick: () => { viewModel.updateItem(stripId(contextMenu.targetId!), { status: 'pending' }); }
+						},
+						{
+							label: '💭 いつかやる (Someday)',
+							onClick: () => { viewModel.moveToSomeday(stripId(contextMenu.targetId!)); }
 						},
 						{
 							label: '待機 (Waiting)',

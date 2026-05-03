@@ -166,3 +166,109 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
         });
     });
 });
+
+describe('QuantityEngine Someday除外 (R-028)', () => {
+    const monday = new Date('2026-02-09T12:00:00');
+    const tuesday = new Date('2026-02-10T12:00:00');
+    const mondayKey = monday.toDateString(); // normalizeDateKey と同じキー形式
+
+    const mockConfig: CapacityConfig = {
+        defaultDailyMinutes: 480,
+        holidays: [],
+        exceptions: {}
+    };
+
+    const baseContext: QuantityContext = {
+        items: [],
+        members: [],
+        capacityConfig: mockConfig,
+        filterMode: 'all',
+        currentUser: {
+            id: 'test-user',
+            isCompanyAccount: false,
+            joinedTenants: []
+        },
+        tenantProfiles: new Map()
+    };
+
+    const makeItem = (id: string, status: any, prepDate?: string): any => ({
+        id,
+        title: `Item ${id}`,
+        status,
+        focusOrder: 0,
+        isEngaged: false,
+        statusUpdatedAt: 0,
+        interrupt: false,
+        weight: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+        estimatedMinutes: 60,
+        prep_date: prepDate ? Math.floor(new Date(prepDate).getTime() / 1000) : undefined
+    });
+
+    it('someday アイテムはボリューム計算に含まれない', () => {
+        const somedayItem = makeItem('s1', 'someday', '2026-02-09');
+        const focusItem = makeItem('f1', 'focus', '2026-02-09');
+
+        const ctxWithSomeday: QuantityContext = {
+            ...baseContext,
+            items: [somedayItem, focusItem]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday], ctxWithSomeday);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        // focusItem(60分) のみカウント。somedayItem は除外
+        expect(metric!.volumeMinutes).toBe(60);
+    });
+
+    it('someday のみの場合、ボリュームは0', () => {
+        const somedayItem = makeItem('s1', 'someday', '2026-02-09');
+
+        const ctxOnlySomeday: QuantityContext = {
+            ...baseContext,
+            items: [somedayItem]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday], ctxOnlySomeday);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        expect(metric!.volumeMinutes).toBe(0);
+        expect(metric!.contributingItems).toHaveLength(0);
+    });
+
+    it('inbox/pending/focus は集計対象', () => {
+        const items = [
+            makeItem('i1', 'inbox', '2026-02-09'),
+            makeItem('p1', 'pending', '2026-02-09'),
+            makeItem('f1', 'focus', '2026-02-09'),
+        ];
+
+        const ctx: QuantityContext = { ...baseContext, items };
+        const metrics = QuantityEngine.calculateMetrics([monday], ctx);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        expect(metric!.volumeMinutes).toBe(180); // 3 items × 60分
+    });
+
+    it('someday アイテムは contributing items に含まれない', () => {
+        const somedayItem = makeItem('s1', 'someday', '2026-02-09');
+        const focusItem = makeItem('f1', 'focus', '2026-02-09');
+
+        const ctx: QuantityContext = {
+            ...baseContext,
+            items: [somedayItem, focusItem]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday, tuesday], ctx);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        const contributingIds = metric!.contributingItems.map(i => i.id);
+        expect(contributingIds).not.toContain('s1');
+        expect(contributingIds).toContain('f1');
+    });
+});

@@ -40,6 +40,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	const [gdbActiveRaw, setGdbActiveRaw] = useState<Item[]>([]);
 	const [gdbPreparationRaw, setGdbPreparationRaw] = useState<Item[]>([]);
 	const [gdbIntentRaw, setGdbIntentRaw] = useState<Item[]>([]);
+	const [gdbSomedayRaw, setGdbSomedayRaw] = useState<Item[]>([]);
 	const [gdbLogRaw, setGdbLogRaw] = useState<Item[]>([]);
 
 	const [todayCandidatesRaw, setTodayCandidatesRaw] = useState<Item[]>([]);
@@ -104,6 +105,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	const gdbActive = useMemo(() => filterItems(gdbActiveRaw), [filterItems, gdbActiveRaw]);
 	const gdbPreparation = useMemo(() => filterItems(gdbPreparationRaw), [filterItems, gdbPreparationRaw]);
 	const gdbIntent = useMemo(() => filterItems(gdbIntentRaw), [filterItems, gdbIntentRaw]);
+	const gdbSomeday = useMemo(() => filterItems(gdbSomedayRaw), [filterItems, gdbSomedayRaw]);
 	const gdbLog = useMemo(() => filterItems(gdbLogRaw), [filterItems, gdbLogRaw]);
 
 	const todayCandidates = useMemo(() => filterItems(todayCandidatesRaw), [filterItems, todayCandidatesRaw]);
@@ -115,9 +117,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 	}, [filterItems, executionItemRaw]);
 
 	const ghostGdbCount = useMemo(() =>
-		(gdbActiveRaw.length + gdbPreparationRaw.length + gdbIntentRaw.length) -
-		(gdbActive.length + gdbPreparation.length + gdbIntent.length),
-		[gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbActive, gdbPreparation, gdbIntent]
+		(gdbActiveRaw.length + gdbPreparationRaw.length + gdbIntentRaw.length + gdbSomedayRaw.length) -
+		(gdbActive.length + gdbPreparation.length + gdbIntent.length + gdbSomeday.length),
+		[gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbActive, gdbPreparation, gdbIntent, gdbSomeday]
 	);
 
 	const ghostTodayCount = useMemo(() =>
@@ -140,14 +142,19 @@ export const useYoukanViewModel = (projectId?: string) => {
 			console.log('[ViewModel] Fetched GDB Shelf:', shelf, 'scope:', scope, 'for project:', projectId);
 			if (!shelf) throw new Error('Shelf is null');
 
+			const activeRaw = (Array.isArray(shelf.active) ? shelf.active : []).filter(Boolean);
 			setGdbActiveRaw(
-				(Array.isArray(shelf.active) ? shelf.active : [])
-					.filter(Boolean)
-					.filter(i => i.status !== 'focus')
+				activeRaw
+					.filter(i => i.status !== 'focus' && i.status !== 'someday')
 					.sort(compareFocusItems)
 			);
+			const intentRaw = (Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean);
+			setGdbIntentRaw(intentRaw.filter(i => i.status !== 'someday').sort(compareFocusItems));
+			setGdbSomedayRaw([
+				...activeRaw.filter(i => i.status === 'someday'),
+				...intentRaw.filter(i => i.status === 'someday'),
+			].sort(compareFocusItems));
 			setGdbPreparationRaw((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean).sort(compareFocusItems));
-			setGdbIntentRaw((Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean).sort(compareFocusItems));
 			setGdbLogRaw((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
 		} catch (e) {
 			console.error('Failed to fetch GDB:', e);
@@ -332,6 +339,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			setGdbActiveRaw(updateState);
 			setGdbPreparationRaw(updateState);
 			setGdbIntentRaw(updateState);
+			setGdbSomedayRaw(updateState);
 			setGdbLogRaw(updateState);
 			setAllProjectsRaw(updateState);
 		} catch (e) {
@@ -346,7 +354,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	 */
 	const optimisticCascadeTenant = useCallback((rootId: string, newTenantId: string | null | undefined): TenantSnapshot => {
 		const all = [
-			...gdbActiveRaw, ...gdbPreparationRaw, ...gdbIntentRaw, ...gdbLogRaw, ...allProjectsRaw
+			...gdbActiveRaw, ...gdbPreparationRaw, ...gdbIntentRaw, ...gdbSomedayRaw, ...gdbLogRaw, ...allProjectsRaw
 		];
 		const descendantIds = collectDescendantIds(all, rootId);
 		const snapshot: TenantSnapshot = all
@@ -363,11 +371,12 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(updateState);
 		setGdbPreparationRaw(updateState);
 		setGdbIntentRaw(updateState);
+		setGdbSomedayRaw(updateState);
 		setGdbLogRaw(updateState);
 		setAllProjectsRaw(updateState);
 
 		return snapshot;
-	}, [gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbLogRaw, allProjectsRaw]);
+	}, [gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbLogRaw, allProjectsRaw]);
 
 	const restoreSnapshot = useCallback((snapshot: TenantSnapshot) => {
 		const restoreState = (prev: Item[]) =>
@@ -378,6 +387,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(restoreState);
 		setGdbPreparationRaw(restoreState);
 		setGdbIntentRaw(restoreState);
+		setGdbSomedayRaw(restoreState);
 		setGdbLogRaw(restoreState);
 		setAllProjectsRaw(restoreState);
 	}, []);
@@ -392,6 +402,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
+		setGdbSomedayRaw(update);
 		setGdbLogRaw(update);
 		setAllProjectsRaw(update);
 	}, []);
@@ -407,6 +418,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
+		setGdbSomedayRaw(update);
 		setGdbLogRaw(update);
 		setAllProjectsRaw(update);
 	}, []);
@@ -420,6 +432,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
+		setGdbSomedayRaw(update);
 		setGdbLogRaw(update);
 		setAllProjectsRaw(update);
 	}, []);
@@ -606,6 +619,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(prev => filter(prev));
 		setGdbPreparationRaw(prev => filter(prev));
 		setGdbIntentRaw(prev => filter(prev));
+		setGdbSomedayRaw(prev => filter(prev));
 		setGdbLogRaw(prev => filter(prev)); // [FIX] NewspaperView反映漏れ
 		setAllProjectsRaw(prev => filter(prev)); // [FIX] プロジェクト一覧反映
 		setTodayCandidatesRaw(prev => filter(prev));
@@ -634,7 +648,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
 		const targetId = id.replace('virtual-header-', '');
 		// Find item to save for undo
-		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits, ...allProjects];
+		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
 		const itemToDelete = allItems.find(i => String(i.id) === String(id) || String(i.id) === String(targetId));
 
 		if (itemToDelete) {
@@ -652,6 +666,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setGdbActiveRaw(prev => filter(prev));
 		setGdbPreparationRaw(prev => filter(prev));
 		setGdbIntentRaw(prev => filter(prev));
+		setGdbSomedayRaw(prev => filter(prev));
 		setTodayCandidatesRaw(prev => filter(prev));
 		setTodayCommitsRaw(prev => filter(prev));
 		setAllProjectsRaw(prev => filter(prev)); // [NEW] Ensure projects are also removed
@@ -997,31 +1012,30 @@ export const useYoukanViewModel = (projectId?: string) => {
 		}
 	};
 
-	// [NEW] Move to Someday (Intent) -> PENDING
+	// [NEW] Move to Someday (いつかやる)
 	const moveToSomeday = async (id: string) => {
-		// Optimistic: Remove from Active/Prep, Add to Intent
-		const allItems = [...gdbActive, ...gdbPreparation];
+		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent];
 		const item = allItems.find(i => i.id === id);
 
 		if (item) {
-			const updatedItem = { ...item, status: 'pending' as const };
+			const updatedItem = { ...item, status: 'someday' as const };
 
 			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
 			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
-			setGdbIntentRaw(prev => [updatedItem, ...prev]);
+			setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
+			setGdbSomedayRaw(prev => [updatedItem, ...prev]);
 
-			// [Undo] Register Action
 			addUndoAction({
-				type: 'decision', // treat as decision
+				type: 'decision',
 				id,
 				previousStatus: item.status as any,
-				description: '保留(Pending)へ移動しました'
+				description: 'いつかやる(Someday)へ移動しました'
 			});
 
 			try {
-				await getRepository().updateItem(id, { status: 'pending' });
+				await getRepository().updateItem(id, { status: 'someday' });
 			} catch (e) {
-				console.error('Move to Pending failed', e);
+				console.error('Move to Someday failed', e);
 				refreshGdb();
 			}
 		}
@@ -1036,7 +1050,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		} as Partial<Item>;
 
 		// [FIX] List Movement Logic
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
+		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
 		const target = allLocal.find(i => i.id === id);
 
 		if (target) {
@@ -1046,6 +1060,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
 			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
 			setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
+			setGdbSomedayRaw(prev => prev.filter(i => i.id !== id));
 			setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
 			setTodayCommitsRaw(prev => prev.filter(i => i.id !== id));
 
@@ -1112,7 +1127,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		}
 
 		// [FIX] Lists Selection & Movement Logic
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits];
+		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
 		const target = allLocal.find(i => i.id === id);
 
 		if (target) {
@@ -1127,12 +1142,14 @@ export const useYoukanViewModel = (projectId?: string) => {
 				setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
 				setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
 				setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
+				setGdbSomedayRaw(prev => prev.filter(i => i.id !== id));
 				setTodayCandidatesRaw(prev => prev.filter(i => i.id !== id));
 				setTodayCommitsRaw(prev => prev.filter(i => i.id !== id));
 
 				// Add to NEW
 				if (newStatus === 'inbox') setGdbActiveRaw(prev => [updatedItem, ...prev]);
-				else if (newStatus === 'pending') setGdbActiveRaw(prev => [updatedItem, ...prev]);
+				else if (newStatus === 'pending') setGdbIntentRaw(prev => [updatedItem, ...prev]);
+				else if (newStatus === 'someday') setGdbSomedayRaw(prev => [updatedItem, ...prev]);
 				else if (newStatus === 'focus') {
 					setTodayCandidatesRaw(prev => [updatedItem, ...prev]);
 				}
@@ -1144,6 +1161,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 				setGdbActiveRaw(prev => updateList(prev));
 				setGdbPreparationRaw(prev => updateList(prev));
 				setGdbIntentRaw(prev => updateList(prev));
+				setGdbSomedayRaw(prev => updateList(prev));
 			}
 
 			// Update Execution Item if active
@@ -1227,6 +1245,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 		return {
 			items: [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits],
+			// someday アイテムは意図的に除外（キャパシティ計算対象外）
 			members,
 			capacityConfig,
 			// filterMode removed: QuantityEngine no longer needs it
@@ -1292,7 +1311,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		if (!title.trim()) return;
 
 		// [NEW] Locate parent to inherit projectId correctly
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits, ...allProjects];
+		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
 		const parentItem = allLocal.find(i => i.id === parentId);
 
 		// Uses the same create logic but with parentId
@@ -1469,6 +1488,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		gdbActive,
 		gdbPreparation,
 		gdbIntent,
+		gdbSomeday,
 		gdbLog,
 		todayCandidates,
 		todayCommits,

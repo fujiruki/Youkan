@@ -1,7 +1,7 @@
 import { EstimationSettings } from '../../plugins/tategu/domain/EstimationSettings';
 import { DxfLayerConfig } from '../../plugins/tategu/domain/DxfConfig';
 
-export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'done';
+export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'someday' | 'done';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 export type FilterMode = 'all' | 'company' | 'personal' | (string & {}); // string = tenantId
@@ -115,7 +115,7 @@ export interface Item {
     title: string;           // 表示名
 
     // --- Youkan Core Properties ---
-    status: JudgmentStatus;  // Strict 5 Statuses: inbox|waiting|ready|pending|done
+    status: JudgmentStatus;  // Strict 6 Statuses: inbox|waiting|focus|pending|someday|done
     flags?: ItemFlags;       // [NEW] Attributes (is_today_commit, is_executing, etc)
 
     // [Youkan] Judgment Fields

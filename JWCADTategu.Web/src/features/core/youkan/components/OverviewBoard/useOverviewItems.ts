@@ -20,11 +20,12 @@ export interface OverviewItemWrapper {
 
 const dependencyRepo = new DependencyRepository();
 
-export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false): OverviewItemWrapper[] => {
+export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
 		gdbPreparation,
 		gdbIntent,
+		gdbSomeday,
 		gdbLog,
 		allProjects: viewModelProjects,
 		todayCandidates,
@@ -39,11 +40,12 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 	}, []);
 
 	return useMemo(() => {
-		// 1. Gather all tasks from ALL zones
+		// 1. Gather all tasks from ALL zones（someday はデフォルト除外）
 		const allItemsRaw = [
 			...(gdbActive || []),
 			...(gdbPreparation || []),
 			...(gdbIntent || []),
+			...(showSomeday ? (gdbSomeday || []) : []),
 			...(todayCandidates || []),
 			...(todayCommits || []),
 			...(executionItem ? [executionItem] : []),
@@ -91,5 +93,5 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			return wrapper as OverviewItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, dependencies]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday, dependencies]);
 };

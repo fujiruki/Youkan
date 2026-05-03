@@ -107,11 +107,13 @@ export class QuantityEngine {
 
         // Filtering is done upstream by ViewModel.
         // QuantityEngine receives pre-filtered items and processes all of them.
+        // someday アイテムはキャパシティ計算から除外する
+        const baseItems = items.filter(item => item.status !== 'someday');
         const relevantItems = focusedProjectId
-            ? items.filter(item => item.projectId === focusedProjectId)
+            ? baseItems.filter(item => item.projectId === focusedProjectId)
             : focusedTenantId
-                ? items.filter(item => item.tenantId === focusedTenantId)
-                : items;
+                ? baseItems.filter(item => item.tenantId === focusedTenantId)
+                : baseItems;
 
         relevantItems.forEach(item => {
             const endDate = safeParseDate(item.prep_date || item.due_date);
