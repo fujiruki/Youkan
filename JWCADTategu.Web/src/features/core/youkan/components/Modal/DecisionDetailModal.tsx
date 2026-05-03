@@ -96,7 +96,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 			setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
 			// setSubTasks([]);
 		}
-	}, [item?.id, item?.title, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
+	}, [item?.id, item?.title, item?.isProject, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
 
 	React.useEffect(() => {
 		if (!item) return;
@@ -862,7 +862,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 						</div>
 
 						{/* Subtasks Section - [FIX] Only show if item is a project */}
-						{item.isProject && (
+						{(isProject || item.isProject) && (
 							<div className="flex-1 min-h-0 pt-2 pb-10">
 								<SubtaskListWidget
 									parentId={item.id}
@@ -974,7 +974,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 										onClick={() => onDelete(item.id)}
 										className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2"
 									>
-										<Trash2 size={12} /> 完全に削除
+										<Trash2 size={12} /> ゴミ箱
 									</button>
 								</motion.div>
 							)}
