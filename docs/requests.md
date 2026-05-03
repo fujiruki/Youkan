@@ -32,3 +32,11 @@
   - 要望: `src/features/core/youkan/viewmodels/useYoukanViewModel.ts` の上記変数名を「状況把握ボード」に沿った命名（PanoramaBoard系）に改める
   - バックエンド `backend/GdbController.php` の整理も併せて検討
   - 注意: `repositories/` 層にも波及するため、R-026（命名統一）とは独立した大仕事。別R番号で別ブランチ対応する
+
+- **【高】R-028** 「いつかやる」（someday）状態の追加
+  - 会議録: `secretary/notes/2026-05-04-会議-いつかやる状態の追加.md`
+  - 要望: `JudgmentStatus` に `'someday'` を追加し5値→6値に。Inbox出口・キャパシティ計算除外・夢リストとして静かに存在
+  - pending（外的要因待ち）と someday（自発的延期）を文言・色・アイコンで厳密差別化
+  - ガント・カレンダーは非表示（期限なきもの）、パノラマに専用バケット追加
+  - 既存遺物 `judgmentStatus.someday` をメイン status に統合
+  - **→ R-028 として request_log.md に移記済み（2026-05-04）**
