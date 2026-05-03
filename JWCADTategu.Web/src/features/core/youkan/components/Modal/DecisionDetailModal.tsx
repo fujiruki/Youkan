@@ -84,7 +84,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 			setNote(item.memo || '');
 			setDueStatus(item.dueStatus || (item.due_date ? 'confirmed' : 'waiting_external'));
 			setDueDate(item.due_date || '');
-			// [FIX] Use safeFormat instead of direct Date parse + toISOString to prevent RangeError
 			setPrepDate(item.prep_date ? safeFormat(item.prep_date * 1000, 'yyyy-MM-dd', '') : '');
 			setWorkDays(item.work_days ?? 1);
 			setIsWorkDaysDirty(false);
@@ -94,9 +93,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 			setLocalTenantId(item.tenantId || '');
 			setLocalProjectId(item.projectId || '');
 			setLocalAssignedTo(item.assignedTo || (item as any).assigned_to || '');
-			// setSubTasks([]);
 		}
-	}, [item?.id, item?.title, item?.isProject, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
+	}, [item?.id, item?.title, item?.tenantId, item?.projectId, item?.assignedTo, allProjects.length, joinedTenants.length]);
+
+	// props の isProject が true になった時のみ同期（false 方向への巻き戻しを防ぐ）
+	React.useEffect(() => {
+		if (item?.isProject === true) {
+			setIsProject(true);
+		}
+	}, [item?.isProject]);
 
 	React.useEffect(() => {
 		if (!item) return;
