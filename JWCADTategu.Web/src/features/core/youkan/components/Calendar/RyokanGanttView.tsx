@@ -370,7 +370,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			{/* Header */}
 			<div
 				ref={headerContainerRef}
-				className="flex-none overflow-x-hidden border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 z-20"
+				className="flex-none overflow-x-scroll border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 z-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 			>
 				<div className="flex">
 					{/* Sticky Corner */}
@@ -384,13 +384,15 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const isSun = day.getDay() === 0;
 							const isSat = day.getDay() === 6;
 							const isFirst = day.getDate() === 1;
+							const isToday = isSameDate(day, _today);
 							return (
 								<div
 									key={i}
 									data-gantt-date={normalizeDateKey(day)}
 									className={cn(
 										`flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
-										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : ''
+										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : '',
+										isToday && 'border-l border-r border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/20'
 									)}
 									onClick={() => onDateClick?.(day)}
 								>
@@ -402,7 +404,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									<span className={`text-[9px] font-mono leading-none ${isSun ? 'text-red-400 font-bold' : isSat ? 'text-blue-400' : 'text-slate-400'}`}>
 										{['日', '月', '火', '水', '木', '金', '土'][day.getDay()]}
 									</span>
-									<span className={`text-[10px] font-bold leading-none mt-1 ${isSun ? 'text-red-500' : isSat ? 'text-blue-500' : 'text-slate-600 dark:text-slate-400'}`}>
+									<span className={`text-[10px] font-bold leading-none mt-1 ${isSun ? 'text-red-500' : isSat ? 'text-blue-500' : isToday ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
 										{day.getDate()}
 									</span>
 								</div>
@@ -424,13 +426,16 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const isSun = date.getDay() === 0;
 							const isSat = date.getDay() === 6;
 							const isFirstOfMonth = date.getDate() === 1;
+							const isToday = isSameDate(date, _today);
 							return (
 								<div
 									key={`bg-${date.getTime()}`}
 									data-gantt-date={normalizeDateKey(date)}
 									className={cn(
 										"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50",
-										isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : "",
+										isToday
+											? "bg-amber-50/40 dark:bg-amber-900/20"
+											: isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : "",
 										isFirstOfMonth ? "border-l-2 border-l-slate-300/80 dark:border-l-slate-600/80" : ""
 									)}
 								/>
@@ -556,6 +561,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											const isSat = date.getDay() === 6;
 											const isPrep = prepDateObj && isSameDate(date, prepDateObj);
 											const isDue = dueDateObj && isSameDate(date, dueDateObj);
+											const isTodayCell = isSameDate(date, _today);
 
 											// Real Allocation Logic
 											const allocationSteps = allocationMap.get(item.id);
@@ -567,7 +573,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 													data-gantt-date={normalizeDateKey(date)}
 													className={cn(
 														"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
-														isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : "",
+														isTodayCell
+															? "bg-amber-50/40 dark:bg-amber-900/20"
+															: isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : "",
 														!prepDateObj && onUpdateItem ? "cursor-pointer hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20" : ""
 													)}
 													onClick={() => {
