@@ -1,6 +1,15 @@
 import { Item } from '../types';
 import { startOfDay, isBefore, isSameDay } from 'date-fns';
 
+export const STATUS_META = {
+    inbox: { label: 'Inbox', icon: 'Inbox', color: 'slate' },
+    focus: { label: '集中', icon: 'Target', color: 'indigo' },
+    waiting: { label: '待ち（外的要因）', icon: 'Hourglass', color: 'amber' },
+    pending: { label: '保留（外的要因待ち）', icon: 'Pause', color: 'amber' },
+    someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'purple' },
+    done: { label: '完了', icon: 'CheckCircle', color: 'green' },
+} as const;
+
 /**
  * Determines if an item is a candidate for "Today's Work".
  * @param item - The item to check

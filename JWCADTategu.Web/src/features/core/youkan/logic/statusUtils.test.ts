@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Item, JudgmentStatus } from '../types';
-import { isTodayCandidate, isOverdue } from './statusUtils';
+import { isTodayCandidate, isOverdue, STATUS_META } from './statusUtils';
 
 // Mock helper
 const createItem = (status: JudgmentStatus, overrides: Partial<Item> = {}): Item => ({
@@ -72,6 +72,33 @@ describe('Status Utils (Haruki Model)', () => {
             const todayString = '2026-01-25';
             const item = createItem('focus', { due_date: '2026-01-24' });
             expect(isOverdue(item, todayString)).toBe(true);
+        });
+    });
+});
+
+describe('STATUS_META (R-028)', () => {
+    it('someday メタデータが定義されている', () => {
+        expect(STATUS_META.someday).toBeDefined();
+        expect(STATUS_META.someday.color).toBe('purple');
+        expect(STATUS_META.someday.label).toContain('いつかやる');
+    });
+
+    it('pending と someday は異なる色を持つ', () => {
+        expect(STATUS_META.pending.color).not.toBe(STATUS_META.someday.color);
+        expect(STATUS_META.someday.color).toBe('purple');
+        expect(STATUS_META.pending.color).toBe('amber');
+    });
+
+    it('pending と someday のラベルが区別されている', () => {
+        expect(STATUS_META.pending.label).not.toBe(STATUS_META.someday.label);
+        expect(STATUS_META.pending.label).toContain('外的要因');
+        expect(STATUS_META.someday.label).toContain('自分で');
+    });
+
+    it('全ステータスが網羅されている', () => {
+        const statuses: JudgmentStatus[] = ['inbox', 'focus', 'waiting', 'pending', 'someday', 'done'];
+        statuses.forEach(s => {
+            expect(STATUS_META[s]).toBeDefined();
         });
     });
 });

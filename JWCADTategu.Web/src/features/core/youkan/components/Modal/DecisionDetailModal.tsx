@@ -951,13 +951,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 									</button>
 
 									<button
-										onClick={() => {
-											onDecision(item.id, 'no', 'someday');
+										onClick={async () => {
+											if (onUpdate) await onUpdate(item.id, { status: 'someday' as any });
+											else await ApiClient.updateItem(item.id, { status: 'someday' });
 											setIsMenuOpen(false);
+											handleClose();
 										}}
-										className="w-full text-left px-3 py-2 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded flex items-center gap-2"
+										className="w-full text-left px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded flex items-center gap-2"
 									>
-										<span className="w-2 h-2 rounded-full bg-amber-400" /> いつかやる (Someday)
+										<span className="w-2 h-2 rounded-full bg-purple-400" /> 💭 いつかやる (Someday)
 									</button>
 
 									<div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
@@ -985,6 +987,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							)}
 						</AnimatePresence>
 					</div>
+
+					{/* Someday Button */}
+					<button
+						onClick={async () => {
+							if (onUpdate) await onUpdate(item.id, { status: 'someday' as any });
+							else await ApiClient.updateItem(item.id, { status: 'someday' });
+							onClose();
+						}}
+						className="flex items-center gap-2 px-4 py-2 rounded-lg border border-purple-200 dark:border-purple-700 text-purple-500 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all font-bold text-xs"
+						title="いつかやる（自分で寝かせる）"
+					>
+						<span className="text-base leading-none">💭</span>
+						いつかやる
+					</button>
 
 					{/* Hold Button */}
 					<button

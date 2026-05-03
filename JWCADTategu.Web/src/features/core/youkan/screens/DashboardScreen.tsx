@@ -157,7 +157,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			...pendingItems,
 			...waitingItems,
 			...(gdbLog || [])
-		].filter(item => item != null);
+		].filter(item => item != null && item.status !== 'someday');
 	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
 
 
