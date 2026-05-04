@@ -40,3 +40,9 @@
   - ガント・カレンダーは非表示（期限なきもの）、パノラマに専用バケット追加
   - 既存遺物 `judgmentStatus.someday` をメイン status に統合
   - **→ R-028 として request_log.md に移記済み（2026-05-04）**
+
+- **【高】R-029** 3バグ複合修正（R-028デプロイ後の不具合）
+  - 修正1: 登録と集中（stream）画面でプロジェクトアイテム（is_project=1）が Inbox/Pending/Waiting に混在表示される
+  - 修正2: パノラマの「💭 いつかやる」バケットが空のまま（`getGdbShelf` レスポンスに `someday` キーが無いため）
+  - 修正3: 3階層以上プロジェクトフォーカス時に孫アイテムが表示されない（`BaseController::getProjectDescendantIds()` の WITH RECURSIVE 初期行で `parent_id` を評価していないため）
+  - **→ R-029 として request_log.md に移記済み（2026-05-04）**
