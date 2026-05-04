@@ -59,6 +59,7 @@ export const CloudYoukanRepository = {
 			active: allItems.filter(i => i.status === 'inbox' || i.status === 'focus'),
 			preparation: allItems.filter(i => i.status === 'waiting'),
 			intent: allItems.filter(i => i.status === 'pending'),
+			someday: allItems.filter(i => i.status === 'someday'), // R-029: Someday バケット
 			log: allItems.filter(i => i.status === 'done')
 		};
 	},

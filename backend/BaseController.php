@@ -105,18 +105,19 @@ class BaseController {
      */
     protected function getProjectDescendantIds($projectId) {
         // SQLite Recursive Query to get tree
+        // R-029: 初期行に parent_id = ? を追加し、3階層以上の子孫を正しく取得
         $sql = "
             WITH RECURSIVE project_tree AS (
-                SELECT id FROM items WHERE id = ? OR project_id = ?
+                SELECT id FROM items WHERE id = ? OR project_id = ? OR parent_id = ?
                 UNION ALL
                 SELECT i.id FROM items i
                 JOIN project_tree pt ON i.parent_id = pt.id OR i.project_id = pt.id
             )
             SELECT id FROM project_tree
         ";
-        
+
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$projectId, $projectId]);
+        $stmt->execute([$projectId, $projectId, $projectId]);
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         // Ensure source ID is included
