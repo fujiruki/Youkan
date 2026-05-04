@@ -370,18 +370,19 @@ export const YoukanRepository = {
 				...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || !i.status)
 			],
 			// Waiting: 'waiting' + Legacy 'decision_hold' + Legacy 'scheduled'
-			// (Note: 'ready' with date should strictly be in Calendar/Future, but if here, put in waiting or active? 
-			//  Haruki says Future is separate. But 'scheduled' legacy was mostly "Future".
-			//  Let's Mapping 'waiting' items here.)
 			preparation: [
 				...(apiShelf.preparation || []),
 				// Legacy checks require casting if JudgmentStatus is strict
 				...localItems.filter(i => (i.status as any) === 'waiting' || (i.status as any) === 'decision_hold')
 			],
-			// Pending: 'pending' + Legacy 'someday'/'intent'
+			// Pending: 'pending' + Legacy 'intent'
 			intent: [
 				...(apiShelf.intent || []),
-				...localItems.filter(i => (i.status as any) === 'pending' || (i.status as any) === 'someday' || (i.status as any) === 'intent')
+				...localItems.filter(i => (i.status as any) === 'pending' || (i.status as any) === 'intent')
+			],
+			// R-029: Someday バケット
+			someday: [
+				...localItems.filter(i => (i.status as any) === 'someday')
 			],
 			// Log
 			log: [
@@ -394,6 +395,7 @@ export const YoukanRepository = {
 		mergedShelf.active.sort(sortFn);
 		mergedShelf.preparation.sort(sortFn);
 		mergedShelf.intent.sort(sortFn);
+		mergedShelf.someday.sort(sortFn);
 		mergedShelf.log.sort(sortFn);
 
 		return mergedShelf;

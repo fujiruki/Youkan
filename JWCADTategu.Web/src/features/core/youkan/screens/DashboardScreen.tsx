@@ -61,9 +61,9 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	const vm = useYoukanViewModel(activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : undefined));
 
 	const {
-		gdbActive: inboxItems,
-		gdbIntent: pendingItems,
-		gdbPreparation: waitingItems,
+		gdbActive: rawInboxItems,
+		gdbIntent: rawPendingItems,
+		gdbPreparation: rawWaitingItems,
 		todayCandidates,
 		todayCommits,
 		gdbLog,
@@ -86,6 +86,11 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		capacityConfig,
 		allProjects
 	} = vm;
+
+	// R-029: stream モードではプロジェクト（isProject=true）を非表示
+	const inboxItems = useMemo(() => rawInboxItems.filter(i => i.isProject !== true), [rawInboxItems]);
+	const pendingItems = useMemo(() => rawPendingItems.filter(i => i.isProject !== true), [rawPendingItems]);
+	const waitingItems = useMemo(() => rawWaitingItems.filter(i => i.isProject !== true), [rawWaitingItems]);
 
 	// [REFINED] All filtering (including filterMode) is now handled declaratively in ViewModel.
 

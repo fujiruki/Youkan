@@ -150,10 +150,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 			);
 			const intentRaw = (Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean);
 			setGdbIntentRaw(intentRaw.filter(i => i.status !== 'someday').sort(compareFocusItems));
-			setGdbSomedayRaw([
-				...activeRaw.filter(i => i.status === 'someday'),
-				...intentRaw.filter(i => i.status === 'someday'),
-			].sort(compareFocusItems));
+			// R-029: shelf.someday から直接セット
+			const somedayRaw = (Array.isArray(shelf.someday) ? shelf.someday : []).filter(Boolean);
+			setGdbSomedayRaw(somedayRaw.sort(compareFocusItems));
 			setGdbPreparationRaw((Array.isArray(shelf.preparation) ? shelf.preparation : []).filter(Boolean).sort(compareFocusItems));
 			setGdbLogRaw((Array.isArray(shelf.log) ? shelf.log : []).filter(Boolean));
 		} catch (e) {

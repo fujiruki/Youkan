@@ -206,6 +206,7 @@ export interface GdbShelf {
     active: Item[];
     preparation: Item[];
     intent: Item[]; // [NEW]
+    someday?: Item[]; // R-029: Someday バケット
     log: Item[];
 }
 export interface SideMemo {
