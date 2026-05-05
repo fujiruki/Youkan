@@ -10,13 +10,9 @@ export interface HierarchyOptions {
 	dependencies?: Dependency[];
 }
 
-export interface HierarchicalWrapper {
-	id: string;
-	type: 'item' | 'header';
-	item: Item;
-	project?: Item | null;
-	depth: number;
-}
+export type HierarchicalWrapper =
+	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number }
+	| { id: string; type: 'header'; projectId: string; projectTitle: string; project: Item; depth: number };
 
 /**
  * Normalizes IDs for robust comparison.
@@ -309,7 +305,8 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 				result.push({
 					id: `header-${proj.id}`,
 					type: 'header',
-					item: { ...proj, id: `virtual-header-${proj.id}` },
+					projectId: String(proj.id),
+					projectTitle: String(proj.title || (proj as any).name || ''),
 					project: proj,
 					depth
 				});
@@ -329,7 +326,8 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 			result.push({
 				id: `header-${activeProj.id}`,
 				type: 'header',
-				item: { ...activeProj, id: `virtual-header-${activeProj.id}` },
+				projectId: String(activeProj.id),
+				projectTitle: String(activeProj.title || (activeProj as any).name || ''),
 				project: activeProj,
 				depth: 0
 			});
@@ -342,7 +340,7 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 
 	// showGroups=false（一覧モード）では全アイテムを期限ベースで再ソート（依存関係考慮）
 	if (!showGroups) {
-		const itemsOnly = result.filter(w => w.type === 'item');
+		const itemsOnly = result.filter((w): w is Extract<HierarchicalWrapper, { type: 'item' }> => w.type === 'item');
 		const headers = result.filter(w => w.type === 'header');
 		const sortedItems = sortWithDependencies(
 			itemsOnly.map(w => w.item),

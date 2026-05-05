@@ -456,7 +456,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// 1. Decision (Yes/No/Hold)
 	const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Optimistic Update: Remove from Active immediate
 		setGdbActiveRaw(prev => prev.filter(i => i.id !== id && i.id !== targetId));
 
@@ -521,7 +521,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// 2. Commit to Today
 	const commitToToday = async (id: string) => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Guard: Client-side check for UI feedback (Strict 2 item limit)
 		if (todayCommits.length >= 2) {
 			setError('今日はもう手一杯です（最大2件）');
@@ -560,7 +560,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	};
 
 	const completeItem = async (id: string) => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Optimistic: Calculate next state based on current closure (safe in this hook)
 		const nextList = todayCommits.filter(i => i.id !== id);
 		setTodayCommitsRaw(nextList);
@@ -612,7 +612,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// 4. Archive, Trash, Restore
 	const archiveItem = async (id: string) => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Optimistic: Remove from all active lists
 		const filter = (list: Item[]) => list.filter(i => i.id !== id && i.id !== targetId);
 		setGdbActiveRaw(prev => filter(prev));
@@ -645,7 +645,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	};
 
 	const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Find item to save for undo
 		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
 		const itemToDelete = allItems.find(i => String(i.id) === String(id) || String(i.id) === String(targetId));
@@ -710,7 +710,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	};
 
 	const returnToInbox = async (id: string, _currentStatus: string = 'focus') => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Optimistically remove from today
 		const nextList = todayCommits.filter(i => i.id !== id && i.id !== targetId);
 		setTodayCommitsRaw(nextList);
@@ -746,7 +746,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// [NEW] Flexibility: Prioritize (Wait -> Active)
 	const prioritizeTask = async (id: string) => {
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 		// Optimistic: Move to top of todayCommits
 		setTodayCommitsRaw(prev => {
 			const target = prev.find(i => i.id === id);
@@ -1169,7 +1169,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			}
 		}
 
-		const targetId = id.replace('virtual-header-', '');
+		const targetId = id;
 
 		// [FIX] Sanitize payload
 		const { projectTitle, tenantName, ...apiUpdates } = updates as any;

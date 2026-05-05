@@ -64,9 +64,14 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                 allItems: visibleItems,
                 allProjects,
                 showGroups: true,
-            }).map(w => ({ item: w.item, depth: w.depth, type: w.type }));
+            }).map(w => {
+                if (w.type === 'header') {
+                    return { item: w.project as Item, depth: w.depth, type: w.type as 'header', projectTitle: w.projectTitle, projectId: w.projectId };
+                }
+                return { item: w.item, depth: w.depth, type: w.type as 'item', projectTitle: undefined, projectId: undefined };
+            });
         }
-        return sortItemsHierarchically(visibleItems).map(x => ({ ...x, type: 'item' as const }));
+        return sortItemsHierarchically(visibleItems).map(x => ({ ...x, type: 'item' as const, projectTitle: undefined, projectId: undefined }));
     }, [visibleItems, showGroups, allProjects]);
 
     return (
@@ -125,7 +130,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                             items={sortedHierarchy.filter(x => x.type !== 'header').map(x => x.item.id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {sortedHierarchy.map(({ item, depth, type }) => {
+                            {sortedHierarchy.map(({ item, depth, type, projectTitle }) => {
                                 if (type === 'header') {
                                     return (
                                         <div
@@ -133,7 +138,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                                             className="px-2 py-1 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 mt-1 first:mt-0"
                                             style={{ paddingLeft: `${depth * 12 + 8}px` }}
                                         >
-                                            {item.title || (item as any).name || 'Untitled'}
+                                            {projectTitle || item.title || (item as any).name || 'Untitled'}
                                         </div>
                                     );
                                 }

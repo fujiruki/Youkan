@@ -76,8 +76,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	onNavigateToFlow,
 	titleLimit
 }) => {
-	const { item, type, depth, project, displayDate, displayDateType } = wrapper;
-	const isHeader = type === 'header';
+	const isHeader = wrapper.type === 'header';
 	const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
 	const [inlineInputValue, setInlineInputValue] = useState('');
 	const [isTimeEditing, setIsTimeEditing] = useState(false);
@@ -99,33 +98,10 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 		}
 	}, [isTimeEditing]);
 
-	const handleTimeEditStart = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		setTimeInputValue(formatMinutes(item.estimatedMinutes));
-		setIsTimeEditing(true);
-	};
-
-	const handleTimeEditConfirm = () => {
-		const trimmed = timeInputValue.trim();
-		if (trimmed === '') {
-			onUpdateEstimatedMinutes?.(item.id, 0);
-		} else {
-			const parsed = parseTimeInput(trimmed);
-			if (parsed !== null) {
-				onUpdateEstimatedMinutes?.(item.id, parsed);
-			}
-		}
-		setIsTimeEditing(false);
-	};
-
-	const handleTimeEditCancel = () => {
-		setIsTimeEditing(false);
-	};
-
 	const handleInlineSubmit = () => {
 		const trimmed = inlineInputValue.trim();
-		const targetProject = project || item;
 		if (trimmed && onAddChild) {
+			const targetProject = wrapper.project;
 			onAddChild(targetProject as any, trimmed);
 		}
 		setInlineInputValue('');
@@ -138,6 +114,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	};
 
 	if (isHeader) {
+		const { depth, project, projectId, projectTitle } = wrapper;
 		return (
 			<div
 				className="mb-[2px] break-inside-avoid group/header relative"
@@ -152,10 +129,10 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
 				)}
 					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem`, paddingRight: '4px', paddingTop: '0', paddingBottom: '0', margin: '0' }}
-					onClick={() => onClick((project || item) as Item)}
+					onClick={() => onClick(project as Item)}
 					onContextMenu={(e) => {
 						e.preventDefault();
-						onContextMenu(e, item.id);
+						onContextMenu(e, projectId);
 					}}
 				>
 					{depth > 0 ? (
@@ -163,13 +140,13 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					) : (
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
-					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{item.title}</span>
-					{depth === 0 && onNavigateToFlow && item.id && (
+					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
+					{depth === 0 && onNavigateToFlow && projectId && (
 						<button
 							className="opacity-0 group-hover/header:opacity-60 hover:!opacity-100 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-all text-indigo-500 dark:text-indigo-400 shrink-0"
 							onClick={(e) => {
 								e.stopPropagation();
-								onNavigateToFlow(item.id);
+								onNavigateToFlow(projectId);
 							}}
 							title="フローチャートで表示"
 						>
@@ -220,8 +197,31 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 		);
 	}
 
-
+	const { item, depth, displayDate, displayDateType } = wrapper;
 	const isDone = (item.status as string) === 'done' || (item.status as string) === 'completed' || (item.status as string) === 'log';
+
+	const handleTimeEditStart = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setTimeInputValue(formatMinutes(item.estimatedMinutes));
+		setIsTimeEditing(true);
+	};
+
+	const handleTimeEditConfirm = () => {
+		const trimmed = timeInputValue.trim();
+		if (trimmed === '') {
+			onUpdateEstimatedMinutes?.(item.id, 0);
+		} else {
+			const parsed = parseTimeInput(trimmed);
+			if (parsed !== null) {
+				onUpdateEstimatedMinutes?.(item.id, parsed);
+			}
+		}
+		setIsTimeEditing(false);
+	};
+
+	const handleTimeEditCancel = () => {
+		setIsTimeEditing(false);
+	};
 
 	return (
 		<div

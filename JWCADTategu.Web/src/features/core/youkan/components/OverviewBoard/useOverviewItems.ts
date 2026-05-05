@@ -7,16 +7,9 @@ import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
-export interface OverviewItemWrapper {
-	id: string;
-	type: 'item' | 'header';
-	item: Item;
-	project?: Item | null; // Projects are Items in ViewModel
-	depth: number;
-	// [NEW] Enhanced date info
-	displayDate?: string | null;     // format: 'M/d'
-	displayDateType?: 'due' | 'prep' | null;
-}
+export type OverviewItemWrapper =
+	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null }
+	| { id: string; type: 'header'; projectId: string; projectTitle: string; project: Item; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null };
 
 const dependencyRepo = new DependencyRepository();
 
