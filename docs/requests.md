@@ -46,3 +46,10 @@
   - 修正2: パノラマの「💭 いつかやる」バケットが空のまま（`getGdbShelf` レスポンスに `someday` キーが無いため）
   - 修正3: 3階層以上プロジェクトフォーカス時に孫アイテムが表示されない（`BaseController::getProjectDescendantIds()` の WITH RECURSIVE 初期行で `parent_id` を評価していないため）
   - **→ R-029 として request_log.md に移記済み（2026-05-04）**
+
+- **【高】R-030** 階層ラッパー型分離・virtual-header- 概念の根本撤廃
+  - 発端: 全体一覧で「フローチャートで表示」を押すと、プロジェクト名のところに `virtual-header-{realId}` という生IDが表示される
+  - 根本原因: `hierarchy.ts` でヘッダーWrapperに `item: { ...proj, id: 'virtual-header-${proj.id}' }` という偽装IDを持たせていたことで、12箇所で `.replace('virtual-header-', '')` を直書きする散在コードが生まれ、剥がし忘れがフロー画面のコア機能崩壊（プロジェクトフィルタ・新規作成・依存関係）を引き起こした
+  - 解決策: `HierarchicalWrapper` を discriminated union 化し、ヘッダー型は `item: Item` を持たず `projectId` / `projectTitle` / `project` フィールドで情報を保持。React key は既存の `wrapper.id`（`header-${proj.id}` 形式）を使うため衝突なし
+  - 副次効果: `OverviewItem.tsx` の `onNavigateToFlow` バグ（偽装IDがフロー画面に伝搬していた）が型分離により自動解消
+  - **→ R-030 として request_log.md に移記済み（2026-05-05）**
