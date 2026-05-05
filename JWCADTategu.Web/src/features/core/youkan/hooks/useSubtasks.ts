@@ -32,9 +32,8 @@ export const useSubtasks = (parentId: string, defaultProjectId?: string, default
     const addSubtask = async (title: string, initialData?: Partial<Item>) => {
         if (!title.trim() || !parentId) return;
 
-        // 防御的ストリップ: virtual-header- プレフィックスが混入しても DB に漏らさない
-        const cleanParentId = parentId.replace(/^virtual-header-/, '');
-        const cleanProjectId = defaultProjectId ? defaultProjectId.replace(/^virtual-header-/, '') : null;
+        const cleanParentId = parentId;
+        const cleanProjectId = defaultProjectId || null;
 
         // Optimistic Update
         const tempId = 'temp-' + Date.now();

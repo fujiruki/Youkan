@@ -6,7 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
-import { buildHierarchicalList } from '../../logic/hierarchy';
+import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { validateDependencyConstraint, calculateCascadeAdjustments } from '../../logic/dependencyConstraint';
 import { ContextMenu } from '../Common/ContextMenu';
@@ -456,7 +456,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					<div className="relative z-10">
 						{transformedItems.map(wrapper => {
 							if (wrapper.type === 'header') {
-								const groupTitle = wrapper.item.title || (wrapper.item as any).name || `Project (${wrapper.item.id})`;
 								return (
 									<div
 										key={wrapper.id}
@@ -464,7 +463,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 										style={{ paddingLeft: `${wrapper.depth * 16 + 16}px` }}
 									>
 										{wrapper.depth > 0 && <span className="text-slate-400 mr-2">└</span>}
-										{groupTitle}
+										{wrapper.projectTitle || `Project (${wrapper.projectId})`}
 									</div>
 								);
 							}
@@ -669,7 +668,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
  */
 const GanttDependencyArrows: React.FC<{
 	dependencies: Dependency[];
-	transformedItems: { id: string; type: string; item: Item }[];
+	transformedItems: HierarchicalWrapper[];
 	allDays: Date[];
 	colWidth: number;
 	rowHeight: number;
@@ -711,8 +710,10 @@ const GanttDependencyArrows: React.FC<{
 
 	const arrows = useMemo(() => {
 		return dependencies.map(dep => {
-			const sourceItem = transformedItems.find(w => w.type === 'item' && w.item.id === dep.sourceItemId)?.item;
-			const targetItem = transformedItems.find(w => w.type === 'item' && w.item.id === dep.targetItemId)?.item;
+			const sourceWrapper = transformedItems.find(w => w.type === 'item' && w.item.id === dep.sourceItemId);
+			const targetWrapper = transformedItems.find(w => w.type === 'item' && w.item.id === dep.targetItemId);
+			const sourceItem = sourceWrapper?.type === 'item' ? sourceWrapper.item : undefined;
+			const targetItem = targetWrapper?.type === 'item' ? targetWrapper.item : undefined;
 			if (!sourceItem || !targetItem) return null;
 
 			const sourceRow = itemRowIndex.get(dep.sourceItemId);
