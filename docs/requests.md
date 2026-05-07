@@ -47,6 +47,12 @@
   - 修正3: 3階層以上プロジェクトフォーカス時に孫アイテムが表示されない（`BaseController::getProjectDescendantIds()` の WITH RECURSIVE 初期行で `parent_id` を評価していないため）
   - **→ R-029 として request_log.md に移記済み（2026-05-04）**
 
+- **【高】R-031** ForAI機能＋タスク読み上げ機能（目玉機能復活）
+  - F-19: 現フィルタで表示中のアイテムを markdown 形式に変換し、クリップボードコピーまたは md ダウンロードできる ForAI機能
+  - F-20: Web Speech API（無料）で優先順位順にタスクを読み上げる。歌詞型スクロール、一時停止/再生/10秒戻る
+  - 過去仕様書: `docs/SPEC/archives/ForAI機能.md`, `読み上げ機能.md`, `20260202_Youkanの概要と用語.md`
+  - **→ R-031 として request_log.md に移記済み（2026-05-07）**
+
 - **【高】R-030** 階層ラッパー型分離・virtual-header- 概念の根本撤廃
   - 発端: 全体一覧で「フローチャートで表示」を押すと、プロジェクト名のところに `virtual-header-{realId}` という生IDが表示される
   - 根本原因: `hierarchy.ts` でヘッダーWrapperに `item: { ...proj, id: 'virtual-header-${proj.id}' }` という偽装IDを持たせていたことで、12箇所で `.replace('virtual-header-', '')` を直書きする散在コードが生まれ、剥がし忘れがフロー画面のコア機能崩壊（プロジェクトフィルタ・新規作成・依存関係）を引き起こした
