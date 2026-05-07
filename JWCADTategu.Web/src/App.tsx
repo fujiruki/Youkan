@@ -39,6 +39,7 @@ import { LogoutScreen } from './features/core/auth/screens/LogoutScreen';
 
 import { VolumeCalendarScreen } from './features/core/calendar/screens/VolumeCalendarScreen'; // [NEW]
 import { FlowScreen } from './features/core/youkan/screens/FlowScreen'; // [NEW] フローチャートView
+import { SpeechFloatingButton } from './features/core/youkan/components/Speech/SpeechFloatingButton';
 import { db, Door } from './db/db';
 
 if (typeof window !== 'undefined') {
@@ -549,6 +550,9 @@ const AppContent: React.FC<{
 							</div>
 
 							<UndoToast />
+
+							{/* R-031: スマホフローティング読み上げボタン (Agent-Speech) */}
+							<SpeechFloatingButton />
 
 							{isProjectModalOpen && (
 								<ProjectCreationDialog

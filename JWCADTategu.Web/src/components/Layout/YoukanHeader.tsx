@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, LayoutDashboard, FolderKanban, CalendarDays, User, Settings, Plus, Building2, GitBranch } from 'lucide-react';
 import { HealthCheck } from '../../features/core/youkan/components/Layout/HealthCheck';
+import { SpeechButton } from '../../features/core/youkan/components/Speech/SpeechButton';
+import { SpeechView } from '../../features/core/youkan/components/Speech/SpeechView';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 
 import { MenuDrawer } from './MenuDrawer';
 import { MotivatorWhisper } from '../../features/core/youkan/components/Layout/MotivatorWhisper';
@@ -12,6 +15,8 @@ import { isCompanyContext as checkCompanyContext } from '../../features/core/you
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
 import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 import { useViewMode } from '../../features/core/youkan/contexts/ViewModeContext';
+import { ForAiButton } from '../../features/core/youkan/components/ForAi/ForAiButton';
+import { ForAiModal } from '../../features/core/youkan/components/ForAi/ForAiModal';
 
 
 // Basic types needed for props
@@ -80,6 +85,9 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	activeProject // [NEW] Read active project
 }) => {
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [isForAiOpen, setIsForAiOpen] = useState(false);
+	const [isSpeechOpen, setIsSpeechOpen] = useState(false);
+	const isMobile = useIsMobile();
 	const { filterMode, setFilterMode, hideCompleted, toggleCompleted } = useFilter();
 	const { dashboardViewMode, setDashboardViewMode, projectViewMode, setProjectViewMode, calendarViewMode, setCalendarViewMode } = useViewMode();
 
@@ -169,7 +177,11 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				tenant={tenant}
 				joinedTenants={joinedTenants}
 				onSwitchTenant={onSwitchTenant}
+				onOpenForAi={() => { setIsForAiOpen(true); setMenuOpen(false); }}
 			/>
+			<ForAiModal isOpen={isForAiOpen} onClose={() => setIsForAiOpen(false)} />
+			{/* R-031: SpeechView (Agent-Speech) */}
+			<SpeechView isOpen={isSpeechOpen} onClose={() => setIsSpeechOpen(false)} />
 
 			{/* 層1: グローバルバー (Global Bar) - Flexboxレイアウト */}
 			<div className="bg-slate-900 px-4 py-1.5 flex items-center justify-between border-b border-slate-700/50 w-full z-40 relative h-10 gap-4">
@@ -258,6 +270,14 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 
 				{/* Right: User & Setting */}
 				<div className="flex items-center gap-2 shrink-0">
+					{/* R-031: ForAI button (Agent-ForAI) */}
+					{!isMobile && (
+						<ForAiButton onClick={() => setIsForAiOpen(true)} />
+					)}
+					{/* R-031: Speech button (Agent-Speech) */}
+					{!isMobile && (
+						<SpeechButton variant="header" onClick={() => setIsSpeechOpen(true)} />
+					)}
 					<button
 						onClick={onNavigateToSettings}
 						className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"

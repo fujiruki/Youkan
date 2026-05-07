@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2 } from 'lucide-react';
+import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2, Sparkles } from 'lucide-react';
 
 interface AuthUser {
 	id: string;
@@ -25,7 +25,7 @@ export interface MenuDrawerProps {
 	onNavigateToCustomers?: () => void;
 	onNavigateToPlanning?: () => void;
 	onNavigateToManual?: () => void;
-	onNavigateToLP?: () => void; // [NEW] Link to landing page
+	onNavigateToLP?: () => void;
 	onNavigateToCalendar?: () => void;
 	onLogout: () => void;
 	userName?: string;
@@ -35,6 +35,7 @@ export interface MenuDrawerProps {
 	onNavigateToPersonalSettings?: () => void;
 	joinedTenants?: Tenant[];
 	onSwitchTenant?: (tenantId: string | null) => void;
+	onOpenForAi?: () => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -52,7 +53,8 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 	onNavigateToCompanySettings,
 	onNavigateToPersonalSettings,
 	joinedTenants = [],
-	onSwitchTenant
+	onSwitchTenant,
+	onOpenForAi,
 }) => {
 	if (!isOpen) return null;
 
@@ -184,6 +186,13 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 
 					{/* Tools Section */}
 					<MenuSection title="ツール">
+						{onOpenForAi && (
+							<MenuItem
+								icon={<Sparkles size={18} />}
+								label="AIへ状況を渡す"
+								onClick={onOpenForAi}
+							/>
+						)}
 						<MenuItem
 							icon={<Briefcase size={18} />}
 							label="アーカイブ (Archives)"

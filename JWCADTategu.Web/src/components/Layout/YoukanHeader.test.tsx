@@ -16,6 +16,15 @@ vi.mock('../../features/core/youkan/components/Layout/MotivatorWhisper', () => (
 vi.mock('../../features/core/youkan/components/Dashboard/ViewContextBar', () => ({
     ViewContextBar: () => null
 }));
+vi.mock('../../features/core/youkan/components/ForAi/ForAiModal', () => ({
+    ForAiModal: () => null
+}));
+vi.mock('../../features/core/youkan/components/Speech/SpeechView', () => ({
+    SpeechView: () => null
+}));
+vi.mock('../../features/core/youkan/components/Speech/SpeechButton', () => ({
+    SpeechButton: () => null
+}));
 
 const defaultProps = {
     currentView: 'dashboard' as const,
