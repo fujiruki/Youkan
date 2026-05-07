@@ -1,6 +1,38 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// モック: SpeechSynthesisUtterance
+if (typeof SpeechSynthesisUtterance === 'undefined') {
+	class SpeechSynthesisUtteranceMock {
+		text: string;
+		lang: string = 'ja-JP';
+		rate: number = 1;
+		pitch: number = 1;
+		volume: number = 1;
+		onstart: ((e: Event) => void) | null = null;
+		onend: ((e: Event) => void) | null = null;
+		onerror: ((e: Event) => void) | null = null;
+		constructor(text: string) { this.text = text; }
+	}
+	(global as any).SpeechSynthesisUtterance = SpeechSynthesisUtteranceMock;
+}
+
+// モック: speechSynthesis（未定義の場合）
+if (typeof window.speechSynthesis === 'undefined') {
+	Object.defineProperty(window, 'speechSynthesis', {
+		writable: true,
+		value: {
+			speak: vi.fn(),
+			pause: vi.fn(),
+			resume: vi.fn(),
+			cancel: vi.fn(),
+			speaking: false,
+			pending: false,
+			paused: false,
+		},
+	});
+}
+
 // モック: ResizeObserver
 global.ResizeObserver = class {
 	observe() { }
