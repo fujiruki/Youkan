@@ -15,7 +15,7 @@ export const SpeechFloatingButton: React.FC = () => {
       <div className="fixed bottom-20 right-4 z-50">
         <SpeechButton variant="floating" onClick={() => setIsOpen(true)} />
       </div>
-      <SpeechView isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      {isOpen && <SpeechView isOpen={true} onClose={() => setIsOpen(false)} />}
     </>
   );
 };

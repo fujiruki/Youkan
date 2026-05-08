@@ -179,9 +179,9 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				onSwitchTenant={onSwitchTenant}
 				onOpenForAi={() => { setIsForAiOpen(true); setMenuOpen(false); }}
 			/>
-			<ForAiModal isOpen={isForAiOpen} onClose={() => setIsForAiOpen(false)} />
+			{isForAiOpen && <ForAiModal isOpen={true} onClose={() => setIsForAiOpen(false)} />}
 			{/* R-031: SpeechView (Agent-Speech) */}
-			<SpeechView isOpen={isSpeechOpen} onClose={() => setIsSpeechOpen(false)} />
+			{isSpeechOpen && <SpeechView isOpen={true} onClose={() => setIsSpeechOpen(false)} />}
 
 			{/* 層1: グローバルバー (Global Bar) - Flexboxレイアウト */}
 			<div className="bg-slate-900 px-4 py-1.5 flex items-center justify-between border-b border-slate-700/50 w-full z-40 relative h-10 gap-4">
