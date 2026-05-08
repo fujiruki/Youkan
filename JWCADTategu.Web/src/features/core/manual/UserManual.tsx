@@ -9,7 +9,7 @@ export const UserManual: React.FC = () => {
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-8 text-white shadow-lg">
                     <h2 className="text-3xl font-bold mb-4">Just Be With Out Stress</h2>
                     <p className="text-lg leading-relaxed opacity-90">
-                        「Tategu Design Studio」は、建具屋の、建具屋による、建具屋のための生産管理システムです。<br />
+                        「Youkan」は、判断疲れを減らし、タスク・スケジュール・進捗を一気通貫で管理できる業務OSです。<br />
                         見積から製作、そして施工まで。日々の業務におけるストレスを最小限にし、
                         「作る喜び」に集中できる環境を提供することを目指しています。
                     </p>

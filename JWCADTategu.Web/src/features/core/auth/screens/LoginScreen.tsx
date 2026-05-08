@@ -33,7 +33,7 @@ export const LoginScreen: React.FC = () => {
                             おかえりなさい
                         </h1>
                         <p className="text-slate-500 text-sm">
-                            Tategu Design Studioにログイン
+                            Youkanにログイン
                         </p>
                     </div>
 
@@ -160,7 +160,7 @@ export const LoginScreen: React.FC = () => {
             </div>
 
             <div className="fixed bottom-4 text-center w-full text-slate-400 text-xs">
-                &copy; 2026 Tategu Design Studio. All rights reserved.
+                &copy; 2026 Youkan. All rights reserved.
             </div>
         </div>
     );
