@@ -14,8 +14,17 @@ type Props = {
   onClose: () => void;
 };
 
-const speechText = (item: SpeechItem): string => {
-  const proj = item.projectTitle || 'Inbox';
+/**
+ * 読み上げ文言を生成する。
+ * - projectTitle が無い（= Inbox 相当）場合: タイトルだけ
+ * - 直前のアイテムと同じ projectTitle の場合: タイトルだけ（連続するプロジェクト名を冗長にしない）
+ * - それ以外: 「{プロジェクト名} の {タイトル}」
+ */
+const speechText = (item: SpeechItem, prevItem?: SpeechItem): string => {
+  const proj = item.projectTitle;
+  if (!proj || (prevItem && prevItem.projectTitle === proj)) {
+    return item.title;
+  }
   return `${proj} の ${item.title}`;
 };
 
@@ -45,12 +54,13 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
   const playAtIndex = useCallback((index: number) => {
     if (index < 0 || index >= speechItems.length) return;
     setCurrentIndex(index);
-    speak(speechText(speechItems[index]), () => {
+    const prevItem = index > 0 ? speechItems[index - 1] : undefined;
+    speak(speechText(speechItems[index], prevItem), () => {
       setCurrentIndex(prev => {
         if (prev === null) return null;
         const next = prev + 1;
         if (next < speechItems.length) {
-          speak(speechText(speechItems[next]), undefined);
+          speak(speechText(speechItems[next], speechItems[prev]), undefined);
           return next;
         }
         return null;
