@@ -18,7 +18,7 @@ import { SideMemoWidget } from '../components/SideMemo/SideMemoWidget';
 import { PanoramaBoard } from '../components/PanoramaBoard/PanoramaBoard';
 import { FocusCard } from '../components/Dashboard/FocusCard';
 import { RyokanCalendar, RyokanCalendarHandle } from '../components/Calendar/RyokanCalendar';
-import { GanttHeader } from '../components/Calendar/GanttHeader';
+import { CalendarHeader } from '../components/Calendar/CalendarHeader';
 import { Project as LocalProject } from '../../../../db/db';
 import { isValid } from 'date-fns';
 import { OverviewBoard } from '../components/OverviewBoard/OverviewBoard';
@@ -211,7 +211,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	return (
 		<div className="h-full bg-slate-50 dark:bg-slate-900 flex flex-col overflow-hidden relative">
 			{viewMode === 'calendar' && (
-				<GanttHeader
+				<CalendarHeader
 					visibleDate={visibleMonth}
 					onPrevMonth={() => {
 						const prev = new Date(visibleMonth);

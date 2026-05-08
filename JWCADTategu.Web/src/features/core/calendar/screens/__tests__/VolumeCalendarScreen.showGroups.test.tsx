@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
  * VolumeCalendarScreenのshowGroups切替テスト
- * GanttHeaderの「プロジェクト別/一覧」ボタンで切り替えた値が
+ * CalendarHeaderの「プロジェクト別/一覧」ボタンで切り替えた値が
  * RyokanCalendarに正しく伝わることを検証する。
  */
 
@@ -47,10 +47,10 @@ describe('VolumeCalendarScreen showGroups切替', () => {
         expect(localStorage.getItem(STORAGE_KEY)).toBe('true');
     });
 
-    it('GanttHeaderとRyokanCalendarに同じshowGroups値が渡されるべき', () => {
+    it('CalendarHeaderとRyokanCalendarに同じshowGroups値が渡されるべき', () => {
         // このテストは統合テストの意図を示す
         // VolumeCalendarScreenでshowGanttGroupsが一つのstateで管理され、
-        // GanttHeaderのshowGroupsとRyokanCalendarのshowGroupsの両方に渡される
+        // CalendarHeaderのshowGroupsとRyokanCalendarのshowGroupsの両方に渡される
         const showGanttGroups = false;
         const ganttHeaderProps = { showGroups: showGanttGroups };
         const ryokanCalendarProps = { showGroups: showGanttGroups };

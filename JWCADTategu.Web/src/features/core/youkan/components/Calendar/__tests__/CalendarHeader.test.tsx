@@ -2,13 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import '@testing-library/jest-dom';
-import { GanttHeader } from '../GanttHeader';
+import { CalendarHeader } from '../CalendarHeader';
 
-describe('GanttHeader Component', () => {
+describe('CalendarHeader Component', () => {
 	it('should show correct year and month based on visibleDate', () => {
 		const date = new Date(2026, 1, 15); // February 2026
 		render(
-			<GanttHeader
+			<CalendarHeader
 				visibleDate={date}
 				onPrevMonth={() => { }}
 				onNextMonth={() => { }}
@@ -29,7 +29,7 @@ describe('GanttHeader Component', () => {
 		const onPrevMonth = vi.fn();
 		const onNextMonth = vi.fn();
 		render(
-			<GanttHeader
+			<CalendarHeader
 				visibleDate={new Date()}
 				onPrevMonth={onPrevMonth}
 				onNextMonth={onNextMonth}
@@ -55,7 +55,7 @@ describe('GanttHeader Component', () => {
 	it('should disable "今月を表示" button when visibleDate is current month', () => {
 		const date = new Date();
 		render(
-			<GanttHeader
+			<CalendarHeader
 				visibleDate={date}
 				onPrevMonth={() => { }}
 				onNextMonth={() => { }}
@@ -75,7 +75,7 @@ describe('GanttHeader Component', () => {
 	it('should call onOpenDailySettings when 日次設定 button is clicked', () => {
 		const onOpenSettings = vi.fn();
 		render(
-			<GanttHeader
+			<CalendarHeader
 				visibleDate={new Date(2023, 0, 1)}
 				onPrevMonth={() => { }}
 				onNextMonth={() => { }}

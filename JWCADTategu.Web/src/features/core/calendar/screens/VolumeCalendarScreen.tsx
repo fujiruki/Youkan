@@ -9,7 +9,7 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetailModal';
 import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
-import { GanttHeader } from '../../youkan/components/Calendar/GanttHeader';
+import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
 import { isValid } from 'date-fns';
 
 interface Props {
@@ -114,9 +114,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
 	return (
 		<div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-			{/* Header Section (Unified GanttHeader) - [FIX] Show only in Gantt mode */}
-			{viewMode === 'gantt' && (
-				<GanttHeader
+			{/* Header Section (Unified CalendarHeader) - gantt: 全機能, grid: 月切替＋今月＋日次設定のみ */}
+			{(viewMode === 'gantt' || viewMode === 'grid') && (
+				<CalendarHeader
+					variant={viewMode === 'gantt' ? 'gantt' : 'grid'}
 					visibleDate={currentDate}
 					onPrevMonth={() => {
 						handlePrevMonth();

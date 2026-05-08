@@ -3,7 +3,7 @@ import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
 
-interface GanttHeaderProps {
+interface CalendarHeaderProps {
     /** 現在表示中の年月 (スクロール連動) */
     visibleDate: Date;
     /** 前月へスクロール */
@@ -20,9 +20,11 @@ interface GanttHeaderProps {
     /** グループ表示の切替 */
     showGroups: boolean;
     onShowGroupsChange: (value: boolean) => void;
+    /** ビュー種別（gantt: 全機能 / grid: 月切替＋今月＋日次設定のみ） */
+    variant?: 'gantt' | 'grid';
 }
 
-export const GanttHeader: React.FC<GanttHeaderProps> = ({
+export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     visibleDate: _visibleDate,
     onPrevMonth,
     onNextMonth,
@@ -31,8 +33,10 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
     rowHeight,
     onRowHeightChange,
     showGroups,
-    onShowGroupsChange
+    onShowGroupsChange,
+    variant = 'gantt'
 }) => {
+    const isGantt = variant === 'gantt';
     const today = new Date();
     // Safety check for invalid dates to prevent "Invalid time value" crash
     const visibleDate = isValid(_visibleDate) ? _visibleDate : today;
@@ -95,48 +99,52 @@ export const GanttHeader: React.FC<GanttHeaderProps> = ({
 
             {/* Right Section: Display Controls */}
             <div className="flex items-center gap-6">
-                {/* View Mode Switcher */}
-                <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                    <button
-                        onClick={() => onShowGroupsChange(true)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
-                            showGroups
-                                ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
-                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                        )}
-                    >
-                        <LayoutGrid size={14} strokeWidth={2.5} />
-                        プロジェクト別
-                    </button>
-                    <button
-                        onClick={() => onShowGroupsChange(false)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
-                            !showGroups
-                                ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
-                                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                        )}
-                    >
-                        <List size={14} strokeWidth={2.5} />
-                        一覧
-                    </button>
-                </div>
+                {/* View Mode Switcher (gantt only) */}
+                {isGantt && (
+                    <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <button
+                            onClick={() => onShowGroupsChange(true)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
+                                showGroups
+                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            <LayoutGrid size={14} strokeWidth={2.5} />
+                            プロジェクト別
+                        </button>
+                        <button
+                            onClick={() => onShowGroupsChange(false)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 text-[11px] font-black",
+                                !showGroups
+                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            <List size={14} strokeWidth={2.5} />
+                            一覧
+                        </button>
+                    </div>
+                )}
 
                 <div className="flex items-center gap-4">
-                    {/* Density Slider */}
-                    <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">密度</span>
-                        <input
-                            type="range"
-                            min="12"
-                            max="32"
-                            value={rowHeight}
-                            onChange={(e) => onRowHeightChange(parseInt(e.target.value))}
-                            className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
-                        />
-                        <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{rowHeight}</span>
-                    </div>
+                    {/* Density Slider (gantt only) */}
+                    {isGantt && (
+                        <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">密度</span>
+                            <input
+                                type="range"
+                                min="12"
+                                max="32"
+                                value={rowHeight}
+                                onChange={(e) => onRowHeightChange(parseInt(e.target.value))}
+                                className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                            />
+                            <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{rowHeight}</span>
+                        </div>
+                    )}
 
                     {/* Daily Settings Button */}
                     <button

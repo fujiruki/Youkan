@@ -64,8 +64,8 @@ vi.mock('../../components/Calendar/RyokanCalendar', () => ({
     RyokanCalendar: () => <div data-testid="calendar-layout" />,
 }));
 
-vi.mock('../../components/Calendar/GanttHeader', () => ({
-    GanttHeader: () => <div data-testid="gantt-header" />,
+vi.mock('../../components/Calendar/CalendarHeader', () => ({
+    CalendarHeader: () => <div data-testid="calendar-header" />,
 }));
 
 vi.mock('../../components/Dashboard/SmartItemRow', () => ({
