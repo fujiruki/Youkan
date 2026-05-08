@@ -53,19 +53,23 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const playAtIndex = useCallback((index: number) => {
     if (index < 0 || index >= speechItems.length) return;
-    setCurrentIndex(index);
-    const prevItem = index > 0 ? speechItems[index - 1] : undefined;
-    speak(speechText(speechItems[index], prevItem), () => {
-      setCurrentIndex(prev => {
-        if (prev === null) return null;
-        const next = prev + 1;
+
+    // 次のアイテムへ再帰的にチェーン再生（停止ボタンが押されるまで継続）
+    const playFrom = (i: number) => {
+      if (i < 0 || i >= speechItems.length) return;
+      setCurrentIndex(i);
+      const prevItem = i > 0 ? speechItems[i - 1] : undefined;
+      speak(speechText(speechItems[i], prevItem), () => {
+        const next = i + 1;
         if (next < speechItems.length) {
-          speak(speechText(speechItems[next], speechItems[prev]), undefined);
-          return next;
+          playFrom(next);
+        } else {
+          setCurrentIndex(null);
         }
-        return null;
       });
-    });
+    };
+
+    playFrom(index);
   }, [speechItems, speak]);
 
   const handlePlay = () => {
@@ -153,7 +157,6 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="max-w-lg mx-auto space-y-2">
           {speechItems.map((item, index) => {
             const isActive = currentIndex === index;
-            const isDone = currentIndex !== null && index < currentIndex;
             return (
               <div
                 key={item.id}
@@ -161,8 +164,6 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
                 className={`px-4 py-3 rounded-lg transition-all duration-300 cursor-pointer ${
                   isActive
                     ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                    : isDone
-                    ? 'text-slate-500 opacity-50'
                     : 'text-slate-300 hover:bg-slate-800'
                 }`}
                 onClick={() => playAtIndex(index)}
