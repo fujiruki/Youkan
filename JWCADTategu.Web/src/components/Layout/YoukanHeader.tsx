@@ -17,6 +17,7 @@ import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 import { useViewMode } from '../../features/core/youkan/contexts/ViewModeContext';
 import { ForAiButton } from '../../features/core/youkan/components/ForAi/ForAiButton';
 import { ForAiModal } from '../../features/core/youkan/components/ForAi/ForAiModal';
+import { MobileFilterButton } from '../../features/core/youkan/components/Filter/MobileFilterButton';
 
 
 // Basic types needed for props
@@ -278,6 +279,8 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 					{!isMobile && (
 						<SpeechButton variant="header" onClick={() => setIsSpeechOpen(true)} />
 					)}
+					{/* R-033: スマホ用フィルターボタン */}
+					{isMobile && <MobileFilterButton />}
 					<button
 						onClick={onNavigateToSettings}
 						className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
