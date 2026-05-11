@@ -2,6 +2,7 @@ import React from 'react';
 import { FilterMode, Perspective } from '../../types';
 import { isCompanyContext as checkCompanyContext } from '../../logic/filterUtils';
 import { User, Building2, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 interface ViewContextBarProps {
 	filterMode: FilterMode;
@@ -36,6 +37,7 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 	showCompleted,
 	onToggleCompleted
 }) => {
+	const isMobile = useIsMobile();
 	const tenantCount = joinedTenants.length;
 	const [showTenantDropdown, setShowTenantDropdown] = React.useState(false);
 
@@ -137,10 +139,12 @@ export const ViewContextBar: React.FC<ViewContextBarProps> = ({
 				</div>
 			</div>
 
-			{/* Middle: Filter Buttons */}
-			<div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar">
-				{renderTenantButtons()}
-			</div>
+			{/* Middle: Filter Buttons (スマホでは非表示 → ヘッダーの MobileFilterButton を使用) */}
+			{!isMobile && (
+				<div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto no-scrollbar">
+					{renderTenantButtons()}
+				</div>
+			)}
 
 			<div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
 

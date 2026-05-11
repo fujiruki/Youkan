@@ -1,6 +1,8 @@
 ﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, PauseCircle, CheckCircle2, Folder, CalendarDays, CalendarClock, ChevronDown, Building2, User } from 'lucide-react';
+import { useIsMobile } from '@/hooks/useMediaQuery';
+import { MobileBottomSheet } from '../Common/MobileBottomSheet';
 import { Item, Member, FilterMode, CapacityConfig } from '../../../youkan/types';
 import { cn } from '../../../../../lib/utils';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
@@ -170,6 +172,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	}, [allocationDetails]);
 
 	const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+	const isMobile = useIsMobile();
 
 	// [NEW] Active Menu for Header Dropdowns -> Removed in favor of YoukanDropdown internal state
 	// const [activeMenu, setActiveMenu] = React.useState<'tenant' | 'project' | null>(null);
@@ -904,15 +907,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							<span>その他...</span>
 						</button>
 
-						<AnimatePresence>
-							{isMenuOpen && (
-								<motion.div
-									initial={{ opacity: 0, scale: 0.95, y: -10 }}
-									animate={{ opacity: 1, scale: 1, y: -120 }} // Pop UPWARDS
-									exit={{ opacity: 0, scale: 0.95, y: -10 }}
-									className="absolute right-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-900 shadow-2xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 z-50 overflow-hidden origin-bottom-right"
-								>
-									<div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">場所・状態の変更</div>
+						{isMobile ? (
+							<MobileBottomSheet isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} title="操作メニュー">
+								<div className="flex flex-col py-2">
 									{!isProject ? (
 										<button
 											onClick={async () => {
@@ -920,9 +917,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 												setIsMenuOpen(false);
 												if (onUpdate) await onUpdate(item.id, { isProject: true });
 											}}
-											className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
+											className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-blue-600 dark:text-blue-400"
 										>
-											<Folder size={14} /> プロジェクトに変換
+											<Folder size={14} />
+											<span className="text-sm font-bold">プロジェクトに変換</span>
 										</button>
 									) : (
 										<button
@@ -931,13 +929,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 												setIsMenuOpen(false);
 												if (onUpdate) await onUpdate(item.id, { isProject: false });
 											}}
-											className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-2"
+											className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
 										>
-											<Folder size={14} /> プロジェクト解除
+											<Folder size={14} />
+											<span className="text-sm font-bold">プロジェクト解除</span>
 										</button>
 									)}
-
-									{/* Complete Action */}
 									<button
 										onClick={async () => {
 											if (onUpdate) await onUpdate(item.id, { status: 'done' });
@@ -945,11 +942,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 											setIsMenuOpen(false);
 											handleClose();
 										}}
-										className="w-full text-left px-3 py-2 text-xs font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex items-center gap-2"
+										className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-green-600 dark:text-green-400"
 									>
-										<CheckCircle2 size={14} /> 完了 (Complete)
+										<CheckCircle2 size={14} />
+										<span className="text-sm font-bold">完了 (Complete)</span>
 									</button>
-
 									<button
 										onClick={async () => {
 											if (onUpdate) await onUpdate(item.id, { status: 'someday' as any });
@@ -957,14 +954,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 											setIsMenuOpen(false);
 											handleClose();
 										}}
-										className="w-full text-left px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded flex items-center gap-2"
+										className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-purple-600 dark:text-purple-400"
 									>
-										<span className="w-2 h-2 rounded-full bg-purple-400" /> 💭 いつかやる (Someday)
+										<span className="w-2 h-2 rounded-full bg-purple-400" />
+										<span className="text-sm font-bold">💭 いつかやる (Someday)</span>
 									</button>
-
-									<div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
-
-									{/* Archive Action */}
 									<button
 										onClick={async () => {
 											if (onUpdate) await onUpdate(item.id, { isArchived: true });
@@ -972,20 +966,97 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 											setIsMenuOpen(false);
 											handleClose();
 										}}
-										className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-2"
+										className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
 									>
-										<div className="w-3 h-3 border-2 border-slate-400 rounded-sm" /> アーカイブ
+										<div className="w-3 h-3 border-2 border-slate-400 rounded-sm" />
+										<span className="text-sm font-bold">アーカイブ</span>
 									</button>
-
 									<button
 										onClick={() => onDelete(item.id)}
-										className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2"
+										className="text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-red-500"
 									>
-										<Trash2 size={12} /> ゴミ箱
+										<Trash2 size={12} />
+										<span className="text-sm font-bold">ゴミ箱</span>
 									</button>
-								</motion.div>
-							)}
-						</AnimatePresence>
+								</div>
+							</MobileBottomSheet>
+						) : (
+							<AnimatePresence>
+								{isMenuOpen && (
+									<motion.div
+										initial={{ opacity: 0, scale: 0.95, y: -10 }}
+										animate={{ opacity: 1, scale: 1, y: -120 }}
+										exit={{ opacity: 0, scale: 0.95, y: -10 }}
+										className="absolute right-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-900 shadow-2xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 z-50 overflow-hidden origin-bottom-right"
+									>
+										<div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">場所・状態の変更</div>
+										{!isProject ? (
+											<button
+												onClick={async () => {
+													setIsProject(true);
+													setIsMenuOpen(false);
+													if (onUpdate) await onUpdate(item.id, { isProject: true });
+												}}
+												className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
+											>
+												<Folder size={14} /> プロジェクトに変換
+											</button>
+										) : (
+											<button
+												onClick={async () => {
+													setIsProject(false);
+													setIsMenuOpen(false);
+													if (onUpdate) await onUpdate(item.id, { isProject: false });
+												}}
+												className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-2"
+											>
+												<Folder size={14} /> プロジェクト解除
+											</button>
+										)}
+										<button
+											onClick={async () => {
+												if (onUpdate) await onUpdate(item.id, { status: 'done' });
+												else await ApiClient.updateItem(item.id, { status: 'done' });
+												setIsMenuOpen(false);
+												handleClose();
+											}}
+											className="w-full text-left px-3 py-2 text-xs font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex items-center gap-2"
+										>
+											<CheckCircle2 size={14} /> 完了 (Complete)
+										</button>
+										<button
+											onClick={async () => {
+												if (onUpdate) await onUpdate(item.id, { status: 'someday' as any });
+												else await ApiClient.updateItem(item.id, { status: 'someday' });
+												setIsMenuOpen(false);
+												handleClose();
+											}}
+											className="w-full text-left px-3 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded flex items-center gap-2"
+										>
+											<span className="w-2 h-2 rounded-full bg-purple-400" /> 💭 いつかやる (Someday)
+										</button>
+										<div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+										<button
+											onClick={async () => {
+												if (onUpdate) await onUpdate(item.id, { isArchived: true });
+												else await ApiClient.updateItem(item.id, { isArchived: true });
+												setIsMenuOpen(false);
+												handleClose();
+											}}
+											className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-2"
+										>
+											<div className="w-3 h-3 border-2 border-slate-400 rounded-sm" /> アーカイブ
+										</button>
+										<button
+											onClick={() => onDelete(item.id)}
+											className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded flex items-center gap-2"
+										>
+											<Trash2 size={12} /> ゴミ箱
+										</button>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						)}
 					</div>
 
 					{/* Someday Button */}
