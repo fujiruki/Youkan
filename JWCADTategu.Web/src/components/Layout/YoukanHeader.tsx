@@ -95,7 +95,13 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
 
 	// [REFACTORED] テナント切替時のフィルタモード自動設定（Context経由）
+	// 初回マウント時は FilterContext の初期値 ('all') を尊重するためスキップ
+	const isFilterFirstMount = React.useRef(true);
 	useEffect(() => {
+		if (isFilterFirstMount.current) {
+			isFilterFirstMount.current = false;
+			return;
+		}
 		if (tenant?.id) {
 			setFilterMode(tenant.id as FilterMode);
 		} else {

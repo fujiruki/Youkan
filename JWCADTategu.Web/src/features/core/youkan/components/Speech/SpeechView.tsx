@@ -5,7 +5,10 @@ import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { useFilter } from '../../contexts/FilterContext';
 import { useAuth } from '@/features/core/auth/providers/AuthProvider';
 import { getPerspectiveLabel } from '../../logic/perspectiveLabel';
+import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import type { Item } from '../../types';
+
+const LONG_PRESS_DELAY = 500; // ms
 
 type SpeechItem = Item & { groupLabel: string };
 
@@ -36,6 +39,11 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // 長押し → 詳細モーダル
+  const [detailItem, setDetailItem] = useState<Item | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const isLongPressedRef = useRef(false);
 
   const perspectiveLabel = getPerspectiveLabel(filterMode, joinedTenants);
 
@@ -157,16 +165,43 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="max-w-lg mx-auto space-y-2">
           {speechItems.map((item, index) => {
             const isActive = currentIndex === index;
+            const handlePointerDown = () => {
+              isLongPressedRef.current = false;
+              longPressTimerRef.current = window.setTimeout(() => {
+                isLongPressedRef.current = true;
+                // 読み上げ中なら一時停止
+                if (isSpeaking && !isPaused) pause();
+                setDetailItem(item);
+              }, LONG_PRESS_DELAY);
+            };
+            const handlePointerCancel = () => {
+              if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            };
+            const handleClick = () => {
+              if (isLongPressedRef.current) {
+                isLongPressedRef.current = false;
+                return; // 長押し成立後の click は無効化
+              }
+              playAtIndex(index);
+            };
             return (
               <div
                 key={item.id}
                 ref={el => { itemRefs.current[index] = el; }}
-                className={`px-4 py-3 rounded-lg transition-all duration-300 cursor-pointer ${
+                className={`px-4 py-3 rounded-lg transition-all duration-300 cursor-pointer select-none ${
                   isActive
                     ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
                     : 'text-slate-300 hover:bg-slate-800'
                 }`}
-                onClick={() => playAtIndex(index)}
+                onClick={handleClick}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerCancel}
+                onPointerLeave={handlePointerCancel}
+                onPointerCancel={handlePointerCancel}
+                style={{ touchAction: 'manipulation' }}
               >
                 <div className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isActive ? 'text-indigo-200' : 'text-slate-500'}`}>
                   {item.groupLabel}
@@ -240,6 +275,24 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
           <Square size={20} />
         </button>
       </div>
+
+      {/* 長押しで開く詳細モーダル（遅延マウントで API過剰呼出を回避） */}
+      {detailItem && (
+        <DecisionDetailModal
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+          onDecision={() => setDetailItem(null)}
+          onDelete={async (id) => {
+            await vm.deleteItem?.(id);
+            setDetailItem(null);
+          }}
+          onUpdate={async (id, updates) => {
+            await vm.updateItem?.(id, updates);
+          }}
+          allProjects={vm.allProjects || []}
+          joinedTenants={joinedTenants as any}
+        />
+      )}
     </div>
   );
 };

@@ -16,19 +16,17 @@ const FilterContext = createContext<FilterContextType | undefined>(undefined);
 
 // ---------- Provider ----------
 export const FilterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [filterMode, setFilterModeState] = useState<FilterMode>(() => {
-        const saved = localStorage.getItem(YOUKAN_KEYS.FILTER_MODE);
-        return (saved as FilterMode) || 'all';
-    });
+    // filterMode はセッション単位（ブラウザを開くたびに常に 'all' で始める）
+    // localStorage には保存しない（前回値の引き継ぎなし）
+    const [filterMode, setFilterModeState] = useState<FilterMode>('all');
 
     const [hideCompleted, setHideCompletedState] = useState(() => {
         return localStorage.getItem(YOUKAN_KEYS.HIDE_COMPLETED) === 'true';
     });
 
-    // localStorage永続化
+    // filterMode は localStorage 非永続化（毎セッション 'all' から開始）
     const setFilterMode = useCallback((mode: FilterMode) => {
         setFilterModeState(mode);
-        localStorage.setItem(YOUKAN_KEYS.FILTER_MODE, mode);
     }, []);
 
     const setHideCompleted = useCallback((hide: boolean) => {
