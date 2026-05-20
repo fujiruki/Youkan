@@ -146,8 +146,11 @@ export const QuickInputWidget: React.FC<QuickInputWidgetProps> = ({
 
     return (
         <form onSubmit={handleSubmit} className={`relative group ${className}`}>
-            {/* Context Badge */}
+            {/* Context Badge ＋ ショートカットヒント */}
             <div className="absolute -top-5 right-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium select-none" title="Enter: Inboxへ / Shift+Enter: 今日やる / Alt+Enter: 詳細を開く">
+                    <kbd className="font-mono">⏎</kbd> Inbox / <kbd className="font-mono">⇧⏎</kbd> 今日やる
+                </span>
                 {projectContext ? (
                     <span className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 animate-in slide-in-from-bottom-1">
                         <Briefcase size={10} />

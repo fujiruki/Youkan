@@ -322,6 +322,25 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		onDecision(item.id, decision, note, updates);
 	};
 
+	// Shift+Enter で「今日やる」相当のアクション発火（input/textarea/contentEditable 内では無視）
+	React.useEffect(() => {
+		if (!item) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (!(e.shiftKey && e.key === 'Enter')) return;
+			const target = e.target as HTMLElement | null;
+			if (target && (
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.isContentEditable
+			)) return;
+			e.preventDefault();
+			handleDecisionWithSave('yes');
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [item?.id]);
+
 	if (!item) return null;
 
 	return (
