@@ -5,6 +5,8 @@ import { safeParseDate, normalizeDateKey } from './dateUtils';
 export interface QuantityMetric {
     date: Date;
     volumeMinutes: number;
+    /** R-035: volumeMinutes のうち status=done のアイテム由来の合計（進捗棒グラフの完了部分の分子） */
+    completedVolumeMinutes: number;
     capacityMinutes: number;
     ratio: number; // volume / capacity
     intensity: number; // 0-100 visual density
@@ -56,7 +58,7 @@ export class QuantityEngine {
     ): Map<string, QuantityMetric> {
         const metricsMap = new Map<string, QuantityMetric>();
         // Ensure current user is consistently evaluated from context
-        const { volumeMap, contributorsMap } = this.calculateVolume(context);
+        const { volumeMap, completedVolumeMap, contributorsMap } = this.calculateVolume(context);
         const { focusedTenantId } = context;
 
         days.forEach((date, i) => {
@@ -68,6 +70,7 @@ export class QuantityEngine {
 
             // Step 2: Get Volume
             const volume = volumeMap.get(dateKey) || 0;
+            const completedVolume = completedVolumeMap.get(dateKey) || 0;
 
             // Step 3: Get Capacity
             // [DEBUG] Check date validity before calling capacity logic
@@ -83,6 +86,7 @@ export class QuantityEngine {
             metricsMap.set(dateKey, {
                 date,
                 volumeMinutes: volume,
+                completedVolumeMinutes: completedVolume,
                 capacityMinutes: capacity,
                 ratio,
                 intensity: this.getIntensity(ratio),
@@ -99,10 +103,12 @@ export class QuantityEngine {
      */
     private static calculateVolume(context: QuantityContext): {
         volumeMap: Map<string, number>,
+        completedVolumeMap: Map<string, number>,
         contributorsMap: Map<string, Item[]>
     } {
         const { items, focusedTenantId, focusedProjectId } = context;
         const volumeMap = new Map<string, number>();
+        const completedVolumeMap = new Map<string, number>();
         const contributorsMap = new Map<string, Item[]>();
 
         // Filtering is done upstream by ViewModel.
@@ -120,6 +126,8 @@ export class QuantityEngine {
             if (endDate) {
                 const totalMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
                 const { steps } = this.allocateBackwardsCore(endDate, totalMinutes, context, item.tenantId);
+                // R-035: done アイテムは「完了済み量感」として別途集計し、進捗棒グラフの完了部分へ反映する
+                const isDone = (item.status as string) === 'done';
 
                 // [NEW] Visual Engagement Point: Always register item on its primary deadline date for UI Chip visibility
                 const startKey = normalizeDateKey(endDate);
@@ -131,6 +139,9 @@ export class QuantityEngine {
                 steps.forEach(step => {
                     const key = normalizeDateKey(step.date);
                     volumeMap.set(key, (volumeMap.get(key) || 0) + step.allocatedMinutes);
+                    if (isDone) {
+                        completedVolumeMap.set(key, (completedVolumeMap.get(key) || 0) + step.allocatedMinutes);
+                    }
 
                     if (!contributorsMap.has(key)) contributorsMap.set(key, []);
                     if (!contributorsMap.get(key)?.some(i => i.id === item.id)) {
@@ -140,7 +151,7 @@ export class QuantityEngine {
             }
         });
 
-        return { volumeMap, contributorsMap };
+        return { volumeMap, completedVolumeMap, contributorsMap };
     }
 
     /**

@@ -14,6 +14,7 @@ import { SideCalendarPanel } from '../Inputs/SideCalendarPanel';
 import { QuantityEngine } from '../../logic/QuantityEngine';
 import { SubtaskListWidget } from '../Widgets/SubtaskListWidget';
 import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 
 interface DecisionDetailModalProps {
@@ -514,7 +515,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								/>
 							) : (
 								<h2
-									className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 -ml-1 transition-colors"
+									className={cn(
+										"text-2xl md:text-3xl font-bold leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 -ml-1 transition-colors",
+										isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-800 dark:text-white"
+									)}
 									onClick={() => setIsEditingTitle(true)}
 								>
 									{item.title}

@@ -7,6 +7,7 @@ import { useAuth } from '@/features/core/auth/providers/AuthProvider';
 import { getPerspectiveLabel } from '../../logic/perspectiveLabel';
 import { DecisionDetailModal } from '../Modal/DecisionDetailModal';
 import type { Item } from '../../types';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 const LONG_PRESS_DELAY = 500; // ms
 
@@ -207,7 +208,7 @@ export const SpeechView: React.FC<Props> = ({ isOpen, onClose }) => {
                   {item.groupLabel}
                   {item.projectTitle && ` › ${item.projectTitle}`}
                 </div>
-                <div className={`text-sm font-medium ${isActive ? 'text-white' : ''}`}>
+                <div className={`text-sm font-medium ${isItemDone(item) ? COMPLETED_ITEM_CLASS : (isActive ? 'text-white' : '')}`}>
                   {item.title}
                 </div>
                 {item.due_date && (

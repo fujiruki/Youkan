@@ -5,6 +5,8 @@ import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { safeParseDate, normalizeDateKey } from '../../logic/dateUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { CapacityBar } from './CapacityBar';
 
 interface CalendarCellProps {
     date: Date;
@@ -164,6 +166,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                         })
                         .slice(0, isMini ? 10 : 3).map(i => {
                             const proj = projects.find(p => p.id === i.projectId);
+                            const done = isItemDone(i);
                             return (
                                 <div
                                     key={i.id}
@@ -173,7 +176,8 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                         if (onItemClick) onItemClick(i);
                                     }}
                                     className={cn(
-                                        "px-1 py-px rounded-[1px] text-[9px] truncate shadow-sm cursor-pointer border-l-2 bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 transition-transform hover:scale-105 pointer-events-auto",
+                                        "px-1 py-px rounded-[1px] text-[9px] truncate shadow-sm cursor-pointer border-l-2 bg-white/90 dark:bg-slate-800/90 transition-transform hover:scale-105 pointer-events-auto",
+                                        done ? COMPLETED_ITEM_CLASS : "text-slate-700 dark:text-slate-300",
                                         flashingIds.has(i.id) ? "ring-1 ring-amber-400 scale-105" : "",
                                         i.tenantId ? "border-l-indigo-400" : "border-l-red-400",
                                         "mb-0.5"
@@ -195,6 +199,15 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                     )}
                 </div>
             </div>
+
+            {/* R-034 Phase 1: 進捗棒グラフ（セル下端 4px） */}
+            {!isMini && metric && metric.capacityMinutes > 0 && (
+                <CapacityBar
+                    totalMinutes={metric.volumeMinutes}
+                    completedMinutes={metric.completedVolumeMinutes}
+                    capacityMinutes={metric.capacityMinutes}
+                />
+            )}
         </div>
     );
 });

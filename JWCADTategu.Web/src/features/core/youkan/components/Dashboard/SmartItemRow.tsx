@@ -3,6 +3,7 @@ import { Item } from '../../types';
 import { safeFormat } from '../../logic/dateUtils';
 import { cn } from '../../../../../lib/utils';
 import { Folder } from 'lucide-react';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 interface SmartItemRowProps {
     item: Item;
@@ -38,6 +39,7 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
     index,
     isRecommended
 }) => {
+    const done = isItemDone(item);
     return (
         <div
             onClick={() => {
@@ -73,7 +75,9 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
             <div className="flex-1 flex items-center min-w-0 gap-1.5 overflow-hidden">
                 <span className={cn(
                     "text-xs font-medium truncate",
-                    item.status === 'focus' ? "text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"
+                    done
+                        ? COMPLETED_ITEM_CLASS
+                        : item.status === 'focus' ? "text-slate-800 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"
                 )}>
                     {item.title}
                 </span>
