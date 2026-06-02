@@ -26,6 +26,7 @@ import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { useFilter } from '../contexts/FilterContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import { ApiClient } from '../../../../api/client';
+import { applyGanttCompletedFilter } from '../logic/filterUtils';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -131,6 +132,11 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
 
+	// R-036: ガントビューの「完了を表示」スイッチ。
+	// 仕様 §5.4 によりセッション単位（ブラウザを閉じるとデフォルト on に戻る）。
+	// localStorage には永続化しない。
+	const [showCompletedInGantt, setShowCompletedInGantt] = useState<boolean>(true);
+
 	const calendarRef = useRef<RyokanCalendarHandle>(null);
 	const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
 
@@ -164,6 +170,12 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			...(gdbLog || [])
 		].filter(item => item != null && item.status !== 'someday');
 	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
+
+	// R-036: ガントビューに渡すアイテムは「完了を表示」スイッチで done を絞り込む
+	const ganttItems = useMemo(
+		() => applyGanttCompletedFilter(unifiedAllItems, showCompletedInGantt),
+		[unifiedAllItems, showCompletedInGantt]
+	);
 
 
 	useEffect(() => {
@@ -239,6 +251,8 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					onRowHeightChange={setGanttRowHeight}
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
+					showCompleted={showCompletedInGantt}
+					onShowCompletedChange={setShowCompletedInGantt}
 				/>
 			)}
 
@@ -249,7 +263,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 							{viewMode === 'calendar' && (
 								<RyokanCalendar
 									ref={calendarRef}
-									items={unifiedAllItems}
+									items={ganttItems}
 									members={members}
 									capacityConfig={capacityConfig}
 									projects={filteredProjects}

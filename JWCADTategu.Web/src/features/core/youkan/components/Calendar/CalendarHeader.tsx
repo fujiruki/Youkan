@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List, CheckCircle2 } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
@@ -22,6 +22,13 @@ interface CalendarHeaderProps {
     onShowGroupsChange: (value: boolean) => void;
     /** ビュー種別（gantt: 全機能 / grid: 月切替＋今月＋日次設定のみ） */
     variant?: 'gantt' | 'grid';
+    /**
+     * R-036: ガントビュー「完了を表示」スイッチ。
+     * 状態スコープはセッション単位（localStorage 非永続）。
+     * gantt variant のときのみ描画される。
+     */
+    showCompleted?: boolean;
+    onShowCompletedChange?: (value: boolean) => void;
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -34,7 +41,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     onRowHeightChange,
     showGroups,
     onShowGroupsChange,
-    variant = 'gantt'
+    variant = 'gantt',
+    showCompleted = true,
+    onShowCompletedChange
 }) => {
     const isGantt = variant === 'gantt';
     const today = new Date();
@@ -127,6 +136,40 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                             一覧
                         </button>
                     </div>
+                )}
+
+                {/* R-036: 完了を表示スイッチ (gantt only) */}
+                {isGantt && (
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={showCompleted}
+                        aria-label="完了を表示"
+                        onClick={() => onShowCompletedChange?.(!showCompleted)}
+                        className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 text-[11px] font-black rounded-xl border transition-all duration-300",
+                            showCompleted
+                                ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                                : "bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700"
+                        )}
+                        title={showCompleted ? '完了済アイテムを非表示にする' : '完了済アイテムを表示する'}
+                    >
+                        <CheckCircle2 size={14} strokeWidth={2.5} className={cn(showCompleted ? '' : 'opacity-40')} />
+                        完了を表示
+                        <span
+                            className={cn(
+                                "ml-1 inline-flex items-center w-7 h-3.5 rounded-full transition-colors",
+                                showCompleted ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "inline-block w-3 h-3 rounded-full bg-white shadow transition-transform",
+                                    showCompleted ? "translate-x-3.5" : "translate-x-0.5"
+                                )}
+                            />
+                        </span>
+                    </button>
                 )}
 
                 <div className="flex items-center gap-4">

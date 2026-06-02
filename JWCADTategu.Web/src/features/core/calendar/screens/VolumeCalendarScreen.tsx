@@ -10,6 +10,7 @@ import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetai
 import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
 import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
+import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
 import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
 
@@ -34,6 +35,11 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	useEffect(() => {
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
+
+	// R-036: ガントビューの「完了を表示」スイッチ。
+	// 仕様 §5.4 によりセッション単位（ブラウザを閉じるとデフォルト on に戻る）。
+	// localStorage には永続化しない。
+	const [showCompletedInGantt, setShowCompletedInGantt] = useState<boolean>(true);
 	const { filterMode } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
@@ -74,6 +80,13 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		externalRange.from,
 		externalRange.to,
 		externalViewMode
+	);
+
+	// R-036: ガントビューに渡すアイテムは「完了を表示」スイッチで done を絞り込む。
+	// ガント以外のサブビューでも同 state を共有することで挙動を統一する。
+	const visibleItems = React.useMemo(
+		() => applyGanttCompletedFilter(items, showCompletedInGantt),
+		[items, showCompletedInGantt]
 	);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {
@@ -163,13 +176,15 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
+					showCompleted={showCompletedInGantt}
+					onShowCompletedChange={setShowCompletedInGantt}
 				/>
 			)}
 
 			<div className="flex-1 overflow-hidden relative">
 				<RyokanCalendar
 					ref={calendarRef}
-					items={items || []}
+					items={visibleItems || []}
 					completedItems={completedItems || []}
 					members={members || []}
 					projects={projects || []}
