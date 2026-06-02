@@ -64,6 +64,41 @@ Agentは機能完成後も解放しない。デバッグ・追加修正も同じ
 2. 劣化Agentが `docs/handover/` に引き継ぎ資料を作成
 3. Agent解放→新Agent起動（引き継ぎ資料 + 該当specを読む）
 
+### 並列起動時の worktree 分離（恒久ルール）
+
+複数 Agent を並列起動する場合、互いの git 操作（`git checkout` 等）で `stash` が混入したり未コミット変更が他ブランチに紛れ込む事故が起きる。これを防ぐため:
+
+1. **`isolation: "worktree"` を必ず指定する**
+   - 各 Agent ツール呼び出しに `isolation: "worktree"` を渡す
+   - 各 Agent は独立した git worktree（`.claude/worktrees/<name>/`）で作業し、互いに干渉しない
+   - 変更がない Agent の worktree は完了時に自動削除される
+2. **Agent prompt に worktree 情報の返却を明示**
+   - 完了報告には worktree path とブランチ名を含めるよう指示する
+3. **指揮 AI 自身は `git checkout` でブランチ切替しない**
+   - ブランチ切替は Agent の責務。指揮 AI は worktree 経由でファイルを参照するか、現在のブランチで読み取りに留める
+4. **`master` へのマージも worktree で別 Agent に委譲**
+   - 「マージ Agent」を立て、worktree で `git merge` → push まで実行させる
+5. **`.gitignore` に `.claude/worktrees/` を追加**しておく（worktree ディレクトリが untracked として現れない様に）
+6. **`.worktreeinclude` を整備**（`.env`, `backend/jbwos.sqlite` 等の untracked かつ必要なファイルを worktree に自動コピー）
+
+参考: https://code.claude.com/docs/en/worktrees
+
+### Agent 完了の判定強化（chrome-devtools MCP 必須）
+
+Agent のテスト緑＋デプロイ成功だけでは「完了」としない。以下を必須とする:
+
+1. **`chrome-devtools MCP` で実機操作**
+   - 主要ツール: `navigate_page`, `take_snapshot`, `click`, `take_screenshot`, `evaluate_script`
+   - 修正対象機能を実画面で再現し、ON/OFF や Before/After のスクリーンショット 2 枚以上を取得
+2. **ログイン状態の準備**
+   - 本番 (`http://door-fujita.com/contents/Youkan/`) でのログインが必要な場合、テスト用アカウントの認証情報を Agent prompt に含めるか、`localStorage` への JWT 直接注入の手順を指示する
+   - これらを Agent prompt の「実機検証」セクションに最初から書く（後付け禁止）
+3. **指揮 AI による報告フォーマット**
+   - スクリーンショット添付で発注者へ報告
+   - 「実機で動作確認しました」ではなく「スクリーンショット A: 修正前、スクリーンショット B: 修正後」を明示
+
+参考: chrome-devtools MCP は `npx chrome-devtools-mcp` で稼働中。Windows では `cmd /c npx` 経由起動推奨。
+
 ---
 
 ## 状況検知と自律的な提案

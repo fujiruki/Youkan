@@ -1,0 +1,12 @@
+# .env 系（フロント・バック両方）
+.env
+.env.local
+JWCADTategu.Web/.env
+JWCADTategu.Web/.env.local
+backend/.env
+backend/.env.local
+
+# 開発用 SQLite DB（worktree でも同じ DB を見たい）
+backend/jbwos.sqlite
+
+# その他、worktree で必要な untracked ファイルがあれば追加
