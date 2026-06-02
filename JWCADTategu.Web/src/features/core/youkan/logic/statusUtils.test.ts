@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Item, JudgmentStatus } from '../types';
-import { isTodayCandidate, isOverdue, STATUS_META } from './statusUtils';
+import { isTodayCandidate, isOverdue, STATUS_META, COMPLETED_ITEM_CLASS, isItemDone } from './statusUtils';
 
 // Mock helper
 const createItem = (status: JudgmentStatus, overrides: Partial<Item> = {}): Item => ({
@@ -100,5 +100,34 @@ describe('STATUS_META (R-028)', () => {
         statuses.forEach(s => {
             expect(STATUS_META[s]).toBeDefined();
         });
+    });
+});
+
+describe('R-035 完了アイテム表示統一', () => {
+    it('COMPLETED_ITEM_CLASS は slate-400 + line-through を含む', () => {
+        expect(COMPLETED_ITEM_CLASS).toContain('text-slate-400');
+        expect(COMPLETED_ITEM_CLASS).toContain('line-through');
+    });
+
+    it('isItemDone は status=done で true', () => {
+        expect(isItemDone({ status: 'done' })).toBe(true);
+    });
+
+    it('isItemDone は status=completed / log（過去互換）でも true', () => {
+        expect(isItemDone({ status: 'completed' })).toBe(true);
+        expect(isItemDone({ status: 'log' })).toBe(true);
+    });
+
+    it('isItemDone は status=focus / inbox / waiting / pending / someday で false', () => {
+        expect(isItemDone({ status: 'focus' })).toBe(false);
+        expect(isItemDone({ status: 'inbox' })).toBe(false);
+        expect(isItemDone({ status: 'waiting' })).toBe(false);
+        expect(isItemDone({ status: 'pending' })).toBe(false);
+        expect(isItemDone({ status: 'someday' })).toBe(false);
+    });
+
+    it('isItemDone は status が空/未定義のとき false', () => {
+        expect(isItemDone({ status: '' })).toBe(false);
+        expect(isItemDone({})).toBe(false);
     });
 });

@@ -12,6 +12,8 @@ import { validateDependencyConstraint, calculateCascadeAdjustments } from '../..
 import { ContextMenu } from '../Common/ContextMenu';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { useToast } from '../../../../../contexts/ToastContext';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { CapacityBar } from './CapacityBar';
 
 const isSameDate = (d1: Date, d2: Date) => {
 	return d1.getFullYear() === d2.getFullYear() &&
@@ -350,6 +352,27 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		return map;
 	}, [items, capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId]);
 
+	// R-034 Phase 1: ガント一覧表示用に日付別の量感を集計
+	// 一覧（showGroups=false）のときだけ計算する（プロジェクト別では非表示）
+	const dailyCapacityStats = useMemo(() => {
+		if (showGroups) return new Map<string, { total: number; completed: number; capacity: number }>();
+		const map = new Map<string, { total: number; completed: number; capacity: number }>();
+		items.forEach(item => {
+			const steps = allocationMap.get(item.id);
+			if (!steps || steps.length === 0) return;
+			const done = isItemDone(item);
+			steps.forEach((s: any) => {
+				const key = normalizeDateKey(s.date);
+				const cur = map.get(key) || { total: 0, completed: 0, capacity: s.capacityMinutes };
+				cur.total += s.allocatedMinutes;
+				if (done) cur.completed += s.allocatedMinutes;
+				cur.capacity = s.capacityMinutes; // 同じ日付なら capacity は安定
+				map.set(key, cur);
+			});
+		});
+		return map;
+	}, [items, allocationMap, showGroups]);
+
 	// Helper to calculate bar style with drag offset
 	const getBarStyle = (item: Item, type: 'prep', baseStyle: React.CSSProperties) => {
 		if (dragState && dragState.itemId === item.id && type === 'prep') {
@@ -385,6 +408,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const isSat = day.getDay() === 6;
 							const isFirst = day.getDate() === 1;
 							const isToday = isSameDate(day, _today);
+							// R-034 Phase 1: ガント一覧表示時のみ進捗バーを描画
+							const stats = !showGroups ? dailyCapacityStats.get(normalizeDateKey(day)) : undefined;
 							return (
 								<div
 									key={i}
@@ -407,6 +432,13 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									<span className={`text-[10px] font-bold leading-none mt-1 ${isSun ? 'text-red-500' : isSat ? 'text-blue-500' : isToday ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
 										{day.getDate()}
 									</span>
+									{stats && stats.capacity > 0 && (
+										<CapacityBar
+											totalMinutes={stats.total}
+											completedMinutes={stats.completed}
+											capacityMinutes={stats.capacity}
+										/>
+									)}
 								</div>
 							);
 						})}
@@ -472,6 +504,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const prepDateObj = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
 							const dueDateObj = item.due_date ? new Date(item.due_date) : null;
 							const depth = wrapper.depth || 0;
+							const done = isItemDone(item);
 
 							return (
 								<div
@@ -487,7 +520,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 										onContextMenu={(e) => handleItemContextMenu(e, item.id)}
 									>
 										<div
-											className="truncate text-sm font-medium flex-1 text-slate-700 dark:text-slate-200 cursor-pointer hover:text-indigo-600 hover:underline flex items-center min-w-0"
+											className={cn(
+												"truncate text-sm font-medium flex-1 cursor-pointer hover:underline flex items-center min-w-0",
+												done ? COMPLETED_ITEM_CLASS : "text-slate-700 dark:text-slate-200 hover:text-indigo-600"
+											)}
 											style={{ paddingLeft: `${depth * 16}px` }}
 											onClick={(e) => {
 												e.stopPropagation();

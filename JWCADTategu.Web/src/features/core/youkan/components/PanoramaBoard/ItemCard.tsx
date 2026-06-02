@@ -5,6 +5,7 @@ import { Item } from '../../types';
 import { Calendar, Folder } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 interface ItemCardProps {
     item: Item;
@@ -137,7 +138,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                         ) : (
                             <>
                                 <span className={cn(
-                                    "text-slate-700 dark:text-slate-200 font-medium leading-snug truncate",
+                                    "font-medium leading-snug truncate",
+                                    isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-700 dark:text-slate-200",
                                     isCompact ? "text-[0.9em]" : "text-[0.95em]"
                                 )}>
                                     {item.title}

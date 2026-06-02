@@ -2,6 +2,7 @@ import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { Item } from '../../types';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 export interface FlowItemNodeData {
   item: Item;
@@ -90,7 +91,8 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
 
   const highlightRing = nodeData.isHighlighted ? 'ring-2 ring-blue-400 ring-offset-1' : '';
   const selectedRing = selected ? 'ring-2 ring-indigo-500 ring-offset-1' : highlightRing;
-  const doneOpacity = item.status === 'done' ? 'opacity-50' : '';
+  const done = isItemDone(item);
+  const doneOpacity = done ? 'opacity-50' : '';
 
   return (
     <div
@@ -111,7 +113,7 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
           />
         ) : (
           <span
-            className={`text-xs font-bold ${colors.text} truncate`}
+            className={`text-xs font-bold truncate ${done ? COMPLETED_ITEM_CLASS : colors.text}`}
             onClick={(e) => {
               if (selected) {
                 e.stopPropagation();

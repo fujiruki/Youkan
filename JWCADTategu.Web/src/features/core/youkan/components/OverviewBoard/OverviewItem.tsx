@@ -4,6 +4,7 @@ import { cn } from '../../../../../lib/utils';
 import { OverviewItemWrapper } from './useOverviewItems';
 import { Folder, FolderOpen, GitBranch } from 'lucide-react';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 interface OverviewItemProps {
 	wrapper: OverviewItemWrapper;
@@ -198,7 +199,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	}
 
 	const { item, depth, displayDate, displayDateType } = wrapper;
-	const isDone = (item.status as string) === 'done' || (item.status as string) === 'completed' || (item.status as string) === 'log';
+	const isDone = isItemDone(item);
 
 	const handleTimeEditStart = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -254,7 +255,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					<span
 						className={cn(
 							"text-[1em] font-medium truncate",
-							isDone ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-200"
+							isDone ? COMPLETED_ITEM_CLASS : "text-slate-700 dark:text-slate-200"
 						)}
 						style={{ maxWidth: `${titleLimit || 20}em` }}
 						title={item.title}

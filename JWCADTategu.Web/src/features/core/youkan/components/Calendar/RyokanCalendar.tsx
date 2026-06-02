@@ -14,6 +14,7 @@ import { ChevronRight } from 'lucide-react';
 import { SimpleModal } from '../Modal/SimpleModal';
 import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
+import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 
 export interface RyokanCalendarHandle {
 	scrollToMonth: (year: number, month: number) => void;
@@ -721,7 +722,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 											>
 												<div className="flex-1 min-w-0">
 													<div className="flex items-center gap-2 mb-0.5">
-														<span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+														<span className={cn(
+															"text-sm font-bold truncate transition-colors",
+															COMPLETED_ITEM_CLASS
+														)}>
 															{item.title}
 														</span>
 														{proj && (
@@ -771,7 +775,12 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 											>
 												<div className="flex-1 min-w-0">
 													<div className="flex items-center gap-2 mb-0.5">
-														<span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+														<span className={cn(
+															"text-sm font-bold truncate transition-colors",
+															isItemDone(item)
+																? COMPLETED_ITEM_CLASS
+																: "text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+														)}>
 															{item.title}
 														</span>
 														{proj && (

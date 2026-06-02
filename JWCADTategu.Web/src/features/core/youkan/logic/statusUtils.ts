@@ -11,6 +11,22 @@ export const STATUS_META = {
 } as const;
 
 /**
+ * R-035: 完了アイテムの共通スタイル。
+ * 全ビュー（登録と集中 / 状況把握 / 全体一覧 / カレンダー / ガント / フローチャート / 読み上げ）で
+ * 完了済（`status=done`）アイテムを「視覚的に控えめだが存在は確認できる」状態に統一する。
+ */
+export const COMPLETED_ITEM_CLASS = 'text-slate-400 line-through';
+
+/**
+ * R-035: アイテムが完了扱いかどうか判定する共通ヘルパー。
+ * 内部状態として `done` を正とするが、過去のデータ互換のため `completed` / `log` も完了とみなす。
+ */
+export function isItemDone(item: Pick<Item, 'status'> | { status?: string | null }): boolean {
+    const s = (item?.status ?? '') as string;
+    return s === 'done' || s === 'completed' || s === 'log';
+}
+
+/**
  * Determines if an item is a candidate for "Today's Work".
  * @param item - The item to check
  * @param nowUnix - Current time in Unix seconds (optional, defaults to now)

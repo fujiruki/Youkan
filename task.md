@@ -89,3 +89,61 @@
 - SimpleModal 破壊的変更
 - WCAG 完全準拠
 - スマホ全般 safe-area 見直し
+
+---
+
+## R-034 Phase 1 + R-035 量感セル進捗棒グラフ＋完了アイテム表示統一
+
+- **ブランチ**: `feature/R-034-R-035-capacity-bar-and-completed-style`
+- **議事録**: `secretary/notes/2026-06-02-会議-Googleカレンダー連携.md`
+- **仕様**: `docs/spec/02_機能仕様.md F-06 進捗棒グラフ` / `docs/spec/03_画面設計.md §5.6, §5.7`
+
+### A. CapacityBar コンポーネント
+- [x] `src/features/core/youkan/components/Calendar/CapacityBar.tsx` 新規作成
+- [x] Props: `{ totalMinutes, completedMinutes, capacityMinutes }`
+- [x] 描画: 高さ 4px、`absolute bottom-0`、未完了=`emerald-500`、完了=`emerald-200`、100%超=`red-500`
+- [x] React.memo で再レンダリング最小化
+- [x] 単体テスト: 0% / 50% / 100% / 超過の描画パターン
+
+### B. グリッドビュー統合
+- [x] `CalendarCell` の各日付セル末尾に CapacityBar を組み込み（`RyokanGridView` 経由）
+- [x] セル内タスク集計を totalMinutes / completedMinutes に分解（`QuantityMetric.completedVolumeMinutes` 追加）
+- [x] 既存背景色グラデーションは触らない（併存）
+
+### C. ガントビュー一覧表示への適用
+- [x] showGroups=false（一覧）モードのみ日付ヘッダー直下に CapacityBar 追加（`RyokanGanttView`）
+- [x] showGroups=true（プロジェクト別）は対象外
+
+### D. 量感計算の確認
+- [x] `QuantityEngine.ts` で someday のみ除外・done は分子に含むことを確認
+- [x] `QuantityMetric.completedVolumeMinutes` を追加し、done アイテムの割当分を別途集計
+- [x] バックエンド `QuantityService.php` は計算対象外（変更不要）
+- [x] 既存テスト破壊なし（master と同数の40件失敗・421件パス。+5は本タスクの新規テスト）
+
+### E. 完了アイテム表示統一（R-035）
+- [x] 共通スタイル定数 `COMPLETED_ITEM_CLASS = 'text-slate-400 line-through'` を `logic/statusUtils.ts` に追加
+- [x] `isItemDone(item)` ヘルパー追加（done/completed/log を吸収）
+- [x] 登録と集中: `SmartItemRow` のタイトルに適用
+- [x] 状況把握: `PanoramaBoard/ItemCard` のタイトルに適用
+- [x] 全体一覧: `OverviewItem` の既存 `line-through` を定数に置換
+- [x] カレンダー: `CalendarCell` 内チップ / `RyokanCalendar` 内訳パネル（完了・負荷タスク両セクション）
+- [x] ガント: `RyokanGanttView` のタイトル列に適用
+- [x] フローチャート: `FlowItemNode` タイトルに適用
+- [x] 読み上げ: `SpeechView` の行タイトルに適用
+- [x] 詳細モーダル: `DecisionDetailModal` の h2 タイトルのみ取り消し線（本文編集領域は変更なし）
+
+### F. 仕上げ
+- [x] 全テスト: 私の変更で追加テスト緑、既存テスト破壊ゼロ確認済
+- [x] vite build 成功確認
+- [x] コミット
+- [ ] `upload.ps1` でデプロイ
+- [ ] 実ブラウザで全画面の完了アイテム表示と棒グラフを確認
+- [ ] 完了報告
+
+---
+
+## 関連リクエスト
+
+- **R-034 全体**: 4 Phase 段階リリース。Phase 2（Google primary 連携）以降は別途ゲート確認後に着手
+- **R-035**: R-034 Phase 1 と一体実装
+- **R-036**: 独立バグ修正、並列実行（別ブランチ feature/R-036-gantt-completed-toggle）
