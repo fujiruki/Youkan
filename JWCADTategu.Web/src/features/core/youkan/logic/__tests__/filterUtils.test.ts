@@ -87,4 +87,27 @@ describe('applyGanttCompletedFilter (R-036)', () => {
         expect(applyGanttCompletedFilter(mixed, true)).toEqual(mixed);
         expect(applyGanttCompletedFilter(mixed, false)).toEqual(mixed);
     });
+
+    /**
+     * R-036 真因対応: バックエンドが /calendar/items から done を除外して返すため、
+     * items には完了アイテムが含まれていない。「完了を表示=ON」を実現するには
+     * 呼び出し側で completedItems を合成してから本フィルタに渡す必要がある。
+     * このテストはその合成 + フィルタの組み合わせが期待通り動くことを保証する。
+     */
+    it('items に completedItems をマージしてから filter すると、ON=合算 / OFF=items のみ になる', () => {
+        const items = [
+            { id: 'a', status: 'inbox' },
+            { id: 'b', status: 'focus' },
+        ];
+        const completedItems = [
+            { id: 'c', status: 'done' },
+            { id: 'd', status: 'done' },
+        ];
+
+        const onMerged = applyGanttCompletedFilter([...items, ...completedItems], true);
+        expect(onMerged.map(i => i.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+
+        const offMerged = applyGanttCompletedFilter([...items, ...completedItems], false);
+        expect(offMerged.map(i => i.id).sort()).toEqual(['a', 'b']);
+    });
 });

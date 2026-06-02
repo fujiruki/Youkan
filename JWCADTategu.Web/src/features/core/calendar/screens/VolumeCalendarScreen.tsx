@@ -54,14 +54,20 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		tenantId: activeTenantId
 	});
 
+	const filterByMode = React.useCallback((item: Item) => {
+		if (filterMode === 'all') return true;
+		if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
+		if (filterMode === 'company') return !!item.tenantId;
+		return item.tenantId === filterMode;
+	}, [filterMode]);
+
 	const items = React.useMemo(() => {
-		return (rawItems || []).filter(item => {
-			if (filterMode === 'all') return true;
-			if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
-			if (filterMode === 'company') return !!item.tenantId;
-			return item.tenantId === filterMode;
-		});
-	}, [rawItems, filterMode]);
+		return (rawItems || []).filter(filterByMode);
+	}, [rawItems, filterByMode]);
+
+	const filteredCompletedItems = React.useMemo(() => {
+		return (completedItems || []).filter(filterByMode);
+	}, [completedItems, filterByMode]);
 
 	// R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダー外部イベントを取得
 	// 取得対象ビューの判定は useExternalEvents 内部で「表示するビュー」設定（ykn_external_events_views）に基づき行う
@@ -82,12 +88,23 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		externalViewMode
 	);
 
-	// R-036: ガントビューに渡すアイテムは「完了を表示」スイッチで done を絞り込む。
-	// ガント以外のサブビューでも同 state を共有することで挙動を統一する。
-	const visibleItems = React.useMemo(
-		() => applyGanttCompletedFilter(items, showCompletedInGantt),
-		[items, showCompletedInGantt]
-	);
+	/**
+	 * R-036 真因対応:
+	 * バックエンド `/calendar/items` は status='done' を SQL レベルで除外して返すため、
+	 * `items` には完了アイテムが含まれない。完了アイテムは `/calendar/completed` で
+	 * 別取得され `completedItems` に入っている。
+	 *
+	 * 「完了を表示」スイッチを意味あるものにするには、ON のときに
+	 * items + completedItems を合成してからガント等のビューに渡す必要がある。
+	 * OFF のときは items だけを渡す（API 側で done 除外済のため、追加フィルタは不要だが
+	 * 防御的に applyGanttCompletedFilter を通す）。
+	 */
+	const visibleItems = React.useMemo(() => {
+		const merged = showCompletedInGantt
+			? [...items, ...filteredCompletedItems]
+			: items;
+		return applyGanttCompletedFilter(merged, showCompletedInGantt);
+	}, [items, filteredCompletedItems, showCompletedInGantt]);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {
 		try {
