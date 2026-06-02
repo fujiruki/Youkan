@@ -40,14 +40,17 @@ global.ResizeObserver = class {
 	disconnect() { }
 };
 
-// モック: HTMLElement.scrollTo / scrollIntoView（jsdom には未実装）
-if (typeof window !== 'undefined') {
+// モック: Element.scrollTo / scrollIntoView / window.scrollTo（jsdom 未実装対策）
+if (typeof Element !== 'undefined') {
 	if (!(Element.prototype as any).scrollTo) {
 		(Element.prototype as any).scrollTo = function () { };
 	}
 	if (!(Element.prototype as any).scrollIntoView) {
 		(Element.prototype as any).scrollIntoView = function () { };
 	}
+}
+if (typeof window !== 'undefined' && !window.scrollTo) {
+	window.scrollTo = (() => { }) as any;
 }
 
 // モック: matchMedia
