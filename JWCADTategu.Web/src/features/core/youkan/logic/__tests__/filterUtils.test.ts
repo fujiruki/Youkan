@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTenantFilter, isCompanyContext, getSelectedTenantId } from '../filterUtils';
+import { isTenantFilter, isCompanyContext, getSelectedTenantId, applyGanttCompletedFilter } from '../filterUtils';
 
 describe('isTenantFilter', () => {
     it('"all" は false を返す', () => {
@@ -52,5 +52,39 @@ describe('getSelectedTenantId', () => {
 
     it('テナントID文字列はその文字列自身を返す', () => {
         expect(getSelectedTenantId('t_xxxx')).toBe('t_xxxx');
+    });
+});
+
+describe('applyGanttCompletedFilter (R-036)', () => {
+    const items = [
+        { id: '1', status: 'inbox' },
+        { id: '2', status: 'focus' },
+        { id: '3', status: 'done' },
+        { id: '4', status: 'waiting' },
+        { id: '5', status: 'done' },
+    ];
+
+    it('showCompleted=true のときは done を除外しない（全件返す）', () => {
+        const result = applyGanttCompletedFilter(items, true);
+        expect(result).toHaveLength(5);
+        expect(result.map(i => i.id)).toEqual(['1', '2', '3', '4', '5']);
+    });
+
+    it('showCompleted=false のときは status=done を除外する', () => {
+        const result = applyGanttCompletedFilter(items, false);
+        expect(result).toHaveLength(3);
+        expect(result.map(i => i.id)).toEqual(['1', '2', '4']);
+        expect(result.every(i => i.status !== 'done')).toBe(true);
+    });
+
+    it('入力が空配列でも安全に動く', () => {
+        expect(applyGanttCompletedFilter([], true)).toEqual([]);
+        expect(applyGanttCompletedFilter([], false)).toEqual([]);
+    });
+
+    it('status 未設定アイテムは showCompleted の値に関わらず保持される', () => {
+        const mixed = [{ id: 'x' } as { id: string; status?: string }];
+        expect(applyGanttCompletedFilter(mixed, true)).toEqual(mixed);
+        expect(applyGanttCompletedFilter(mixed, false)).toEqual(mixed);
     });
 });
