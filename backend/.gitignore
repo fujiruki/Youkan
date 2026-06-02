@@ -1,3 +1,5 @@
 *.sqlite
 *.log
 *.db
+.env
+!.env.example

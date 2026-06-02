@@ -590,6 +590,40 @@ if (preg_match('#^(/api)?/dependencies(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
+// Google Calendar Routes (R-034 Phase 2)
+if (preg_match('#^(/api)?/google/(oauth|calendar)(/.*)?$#', $path, $matches)) {
+    require_once 'GoogleCalendarController.php';
+    try {
+        $controller = new GoogleCalendarController();
+    } catch (\Throwable $e) {
+        http_response_code(503);
+        echo json_encode([
+            'error' => 'Google Calendar 連携が未設定です（.env に GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REDIRECT_URI / YOUKAN_ENCRYPTION_KEY を設定してください）',
+            'detail' => $e->getMessage(),
+        ]);
+        exit;
+    }
+    $subPath = ($matches[2] ?? '') . ($matches[3] ?? '');
+
+    if ($method === 'POST' && $subPath === 'oauth/start') {
+        $controller->oauthStart();
+    } elseif ($method === 'GET' && $subPath === 'oauth/callback') {
+        $controller->oauthCallback();
+    } elseif ($method === 'GET' && $subPath === 'oauth/status') {
+        $controller->status();
+    } elseif ($method === 'DELETE' && $subPath === 'oauth') {
+        $controller->revoke();
+    } elseif ($method === 'POST' && $subPath === 'calendar/refresh') {
+        $controller->refresh();
+    } elseif ($method === 'GET' && $subPath === 'calendar/events') {
+        $controller->getEvents();
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'Google endpoint not found', 'path' => $subPath, 'method' => $method]);
+    }
+    exit;
+}
+
 // Fallback 404
 http_response_code(404);
 echo json_encode([

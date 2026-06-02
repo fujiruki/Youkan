@@ -372,7 +372,30 @@ function ensureTables($pdo) {
         )",
         "CREATE INDEX IF NOT EXISTS idx_dep_source ON item_dependencies(source_item_id)",
         "CREATE INDEX IF NOT EXISTS idx_dep_target ON item_dependencies(target_item_id)",
-        "CREATE INDEX IF NOT EXISTS idx_dep_tenant ON item_dependencies(tenant_id)"
+        "CREATE INDEX IF NOT EXISTS idx_dep_tenant ON item_dependencies(tenant_id)",
+        // [v28] R-034 Phase 2 Google Calendar OAuth + キャッシュ
+        "CREATE TABLE IF NOT EXISTS user_google_oauth (
+            user_id TEXT PRIMARY KEY,
+            encrypted_refresh_token BLOB NOT NULL,
+            primary_calendar_email TEXT,
+            primary_calendar_id TEXT,
+            last_sync_at INTEGER,
+            created_at INTEGER NOT NULL
+        )",
+        "CREATE TABLE IF NOT EXISTS external_events_cache (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            calendar_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            start_at INTEGER NOT NULL,
+            end_at INTEGER NOT NULL,
+            all_day INTEGER NOT NULL DEFAULT 0,
+            title TEXT,
+            location TEXT,
+            fetched_at INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_external_events_user_date ON external_events_cache(user_id, start_at)"
     ];
 
     foreach ($commands as $sql) {
