@@ -15,6 +15,10 @@ import { SimpleModal } from '../Modal/SimpleModal';
 import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { ExternalEvent } from '../../types/externalEvent';
+import { EventDetailModal } from './EventDetailModal';
+import { MobileBottomSheet } from '../Common/MobileBottomSheet';
+import { ExternalEventChip } from './ExternalEventChip';
 
 export interface RyokanCalendarHandle {
 	scrollToMonth: (year: number, month: number) => void;
@@ -49,7 +53,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	onVisibleMonthChange, // [NEW Phase 24]
 	onOpenDailySettings, // [NEW Phase 24]
 	showGroups = true, // [NEW]
-	forceScroll = false
+	forceScroll = false,
+	externalEventsByDate,
+	externalEventsMaxVisible = 3
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -75,6 +81,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const [selectedDateCompleted, setSelectedDateCompleted] = useState<{ date: Date; items: Item[] } | null>(null);
 	const [pressureConnections, setPressureConnections] = useState<PressureConnection[]>([]);
 	const [flashingItemIds, setFlashingItemIds] = useState<Set<string>>(new Set());
+	// R-034 Phase 2: 外部イベントの詳細モーダル・「他 X 件」シート
+	const [selectedExternalEvent, setSelectedExternalEvent] = useState<ExternalEvent | null>(null);
+	const [externalMoreState, setExternalMoreState] = useState<{ date: Date; events: ExternalEvent[] } | null>(null);
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -404,7 +413,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 	}), [items, capacityConfig, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
 
-	const metrics = useMemo(() => QuantityEngine.calculateMetrics(allDays, qCtx), [allDays, qCtx]);
+	const metrics = useMemo(
+		() => QuantityEngine.calculateMetrics(allDays, qCtx, externalEventsByDate),
+		[allDays, qCtx, externalEventsByDate]
+	);
 
 	const heatMap = useMemo(() => {
 		const hMap = new Map<string, number>();
@@ -651,6 +663,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						targetItemId={targetItemId}
 						rowHeight={rowHeight}
 						completedByDate={completedByDate}
+						externalEventsByDate={externalEventsByDate}
+						externalEventsMaxVisible={externalEventsMaxVisible}
+						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
+						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -814,6 +830,33 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 					</div>
 				</div>
 			)}
+			{/* R-034 Phase 2: 外部イベント詳細モーダル */}
+			<EventDetailModal
+				isOpen={!!selectedExternalEvent}
+				event={selectedExternalEvent}
+				onClose={() => setSelectedExternalEvent(null)}
+			/>
+
+			{/* R-034 Phase 2: 「他 X 件」展開シート（PC/スマホ共通でボトムシート） */}
+			<MobileBottomSheet
+				isOpen={!!externalMoreState}
+				onClose={() => setExternalMoreState(null)}
+				title={externalMoreState ? `${format(externalMoreState.date, 'M月d日', { locale: ja })}の予定` : '予定'}
+			>
+				<div className="flex flex-col gap-1 py-2">
+					{externalMoreState?.events.map(ev => (
+						<ExternalEventChip
+							key={ev.id}
+							event={ev}
+							onClick={(e) => {
+								setExternalMoreState(null);
+								setSelectedExternalEvent(e);
+							}}
+						/>
+					))}
+				</div>
+			</MobileBottomSheet>
+
 			{/* Daily Capacity Editor Modal */}
 			<SimpleModal
 				isOpen={!!editingDate}

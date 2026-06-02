@@ -11,6 +11,7 @@ import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
 import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
 import { isValid } from 'date-fns';
+import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
 
 interface Props {
 	onNavigateHome: () => void;
@@ -55,6 +56,20 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 			return item.tenantId === filterMode;
 		});
 	}, [rawItems, filterMode]);
+
+	// R-034 Phase 2: Google カレンダー外部イベントを取得（grid 表示時のみ）
+	const externalRange = React.useMemo(() => {
+		// currentDate を起点に ±2 ヶ月（RyokanCalendar の range と整合）
+		const base = new Date(currentDate);
+		const start = new Date(base.getFullYear(), base.getMonth() - 2, 1);
+		const end = new Date(base.getFullYear(), base.getMonth() + 3, 0);
+		const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+		return { from: ymd(start), to: ymd(end) };
+	}, [currentDate]);
+	const { eventsByDate: externalEventsByDate } = useExternalEvents(
+		viewMode === 'grid' ? externalRange.from : '',
+		viewMode === 'grid' ? externalRange.to : ''
+	);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {
 		try {
@@ -169,6 +184,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					hideHeader={true}
 					showGroups={showGanttGroups}
 					onDeleteItem={handleDelete}
+					externalEventsByDate={externalEventsByDate}
 				/>
 			</div>
 

@@ -1,4 +1,5 @@
 import { Item, Member, CapacityConfig, JoinedTenant, CompanyAllocation } from '../../types';
+import { ExternalEvent } from '../../types/externalEvent';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
@@ -51,4 +52,8 @@ export interface RyokanCalendarProps {
     onOpenDailySettings?: (date: Date) => void; // Opens DailyCapacityEditor for the given date
     showGroups?: boolean; // [NEW] Toggle project grouping in Gantt
     forceScroll?: boolean; // 明示的ナビゲーション時にrange内でもスクロール強制
+    /** R-034 Phase 2: Google カレンダー外部イベント（date キー -> events） */
+    externalEventsByDate?: Map<string, ExternalEvent[]>;
+    /** R-034 Phase 2: グリッドビューのセル内に表示する最大件数（デフォルト 3） */
+    externalEventsMaxVisible?: number;
 }
