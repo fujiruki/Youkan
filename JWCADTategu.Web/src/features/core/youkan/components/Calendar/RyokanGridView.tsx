@@ -5,11 +5,19 @@ import { PressureConnection } from './RyokanCalendarTypes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VolumeCurve } from './VolumeCurve';
 import { CalendarCell } from './CalendarCell';
+import { ExternalEvent } from '../../types/externalEvent';
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
         d1.getMonth() === d2.getMonth() &&
         d1.getDate() === d2.getDate();
+};
+
+const toYmdKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 };
 
 interface GridViewProps {
@@ -33,6 +41,10 @@ interface GridViewProps {
     targetItemId?: string;
     rowHeight?: number;
     completedByDate?: Map<string, Item[]>;
+    externalEventsByDate?: Map<string, ExternalEvent[]>;
+    onExternalEventClick?: (event: ExternalEvent) => void;
+    onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
+    externalEventsMaxVisible?: number;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -45,7 +57,11 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     volumeOnly = false,
     targetItemId,
     rowHeight,
-    completedByDate
+    completedByDate,
+    externalEventsByDate,
+    onExternalEventClick,
+    onExternalEventsMoreClick,
+    externalEventsMaxVisible = 3
 }) => {
     return (
         <div
@@ -139,6 +155,10 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 monthBoundaryTop={monthBoundaryTop}
                                 monthBoundaryBottom={monthBoundaryBottom}
                                 monthBoundaryLeft={monthBoundaryLeft}
+                                externalEvents={externalEventsByDate?.get(toYmdKey(date)) || []}
+                                onExternalEventClick={onExternalEventClick}
+                                onExternalEventsMoreClick={onExternalEventsMoreClick}
+                                externalEventsMaxVisible={externalEventsMaxVisible}
                             />
                         );
                     })}

@@ -7,6 +7,8 @@ import { ja } from 'date-fns/locale';
 import { safeParseDate, normalizeDateKey } from '../../logic/dateUtils';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { CapacityBar } from './CapacityBar';
+import { ExternalEvent } from '../../types/externalEvent';
+import { ExternalEventChip } from './ExternalEventChip';
 
 interface CalendarCellProps {
     date: Date;
@@ -31,11 +33,20 @@ interface CalendarCellProps {
     monthBoundaryTop?: boolean;
     monthBoundaryBottom?: boolean;
     monthBoundaryLeft?: boolean;
+    /** R-034 Phase 2: Google カレンダーイベント（その日に表示する分） */
+    externalEvents?: ExternalEvent[];
+    /** R-034 Phase 2: イベントチップタップ時のコールバック */
+    onExternalEventClick?: (event: ExternalEvent) => void;
+    /** R-034 Phase 2: 「他 X 件」タップ時のコールバック（その日全件を渡す） */
+    onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
+    /** R-034 Phase 2: セル内に表示する最大件数（デフォルト 3） */
+    externalEventsMaxVisible?: number;
 }
 
 export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
-    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false
+    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
+    externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -195,6 +206,33 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                             <span className="w-0.5 h-0.5 rounded-full bg-slate-400" />
                             <span className="w-0.5 h-0.5 rounded-full bg-slate-400" />
                             <span className="text-[8px] text-slate-400">+{items.length - 3}</span>
+                        </div>
+                    )}
+
+                    {/* R-034 Phase 2: Google カレンダー外部イベント表示 */}
+                    {!isMini && !volumeOnly && externalEvents && externalEvents.length > 0 && (
+                        <div className="mt-0.5 flex flex-col pointer-events-auto">
+                            {externalEvents.slice(0, externalEventsMaxVisible).map(ev => (
+                                <ExternalEventChip
+                                    key={ev.id}
+                                    event={ev}
+                                    onClick={onExternalEventClick}
+                                />
+                            ))}
+                            {externalEvents.length > externalEventsMaxVisible && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onExternalEventsMoreClick) {
+                                            onExternalEventsMoreClick(date, externalEvents);
+                                        }
+                                    }}
+                                    className="text-[9px] text-indigo-600 dark:text-indigo-300 hover:underline text-left pl-1 font-bold"
+                                >
+                                    他 {externalEvents.length - externalEventsMaxVisible} 件
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

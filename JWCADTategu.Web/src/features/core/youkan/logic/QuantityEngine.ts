@@ -1,6 +1,7 @@
 import { Item, Member, CapacityConfig } from '../types';
 import { isHoliday as baseIsHoliday } from './capacity';
 import { safeParseDate, normalizeDateKey } from './dateUtils';
+import { ExternalEvent, DEFAULT_ALL_DAY_WEIGHT_MINUTES } from '../types/externalEvent';
 
 export interface QuantityMetric {
     date: Date;
@@ -51,15 +52,24 @@ export class QuantityEngine {
 
     /**
      * Calculates the daily metrics for a range of days.
+     *
+     * @param externalEvents R-034 Phase 2: 日付キーをキーとする Google カレンダー
+     *                       イベント一覧。各イベントの所要時間を量感の分子に加算する。
+     *                       終日イベントは `allDayWeightMinutes`（デフォルト 240 分）。
+     *                       重複イベント（時間帯被り）は二重加算する（事実重視）。
      */
     static calculateMetrics(
         days: Date[],
-        context: QuantityContext
+        context: QuantityContext,
+        externalEvents?: Map<string, ExternalEvent[]>,
+        allDayWeightMinutes: number = DEFAULT_ALL_DAY_WEIGHT_MINUTES
     ): Map<string, QuantityMetric> {
         const metricsMap = new Map<string, QuantityMetric>();
         // Ensure current user is consistently evaluated from context
         const { volumeMap, completedVolumeMap, contributorsMap } = this.calculateVolume(context);
         const { focusedTenantId } = context;
+
+        const externalVolumeMap = this.calculateExternalVolume(externalEvents, allDayWeightMinutes);
 
         days.forEach((date, i) => {
             // [DEBUG] Pinpoint Log
@@ -69,7 +79,9 @@ export class QuantityEngine {
             const dateKey = normalizeDateKey(date);
 
             // Step 2: Get Volume
-            const volume = volumeMap.get(dateKey) || 0;
+            const taskVolume = volumeMap.get(dateKey) || 0;
+            const externalVolume = externalVolumeMap.get(dateKey) || 0;
+            const volume = taskVolume + externalVolume;
             const completedVolume = completedVolumeMap.get(dateKey) || 0;
 
             // Step 3: Get Capacity
@@ -96,6 +108,37 @@ export class QuantityEngine {
         });
 
         return metricsMap;
+    }
+
+    /**
+     * R-034 Phase 2: Google カレンダー外部イベントを日付キー別の合計分に集計する。
+     *
+     * - 時間指定: `(endAt - startAt) / 60` を分として加算
+     * - 終日: `allDayWeightMinutes`（デフォルト 240 分）を 1 件あたり加算
+     * - 重複イベント（時間帯被り）は仕様通り二重加算する（事実重視）
+     */
+    static calculateExternalVolume(
+        externalEvents: Map<string, ExternalEvent[]> | undefined,
+        allDayWeightMinutes: number = DEFAULT_ALL_DAY_WEIGHT_MINUTES
+    ): Map<string, number> {
+        const result = new Map<string, number>();
+        if (!externalEvents || externalEvents.size === 0) return result;
+
+        externalEvents.forEach((events, dateKey) => {
+            let total = 0;
+            for (const ev of events) {
+                if (ev.allDay) {
+                    total += allDayWeightMinutes;
+                } else {
+                    const minutes = Math.max(0, Math.round((ev.endAt - ev.startAt) / 60));
+                    total += minutes;
+                }
+            }
+            if (total > 0) {
+                result.set(dateKey, (result.get(dateKey) || 0) + total);
+            }
+        });
+        return result;
     }
 
     /**
