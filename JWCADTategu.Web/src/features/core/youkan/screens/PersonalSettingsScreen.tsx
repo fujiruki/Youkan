@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Lock, User, Clock, AlertTriangle, FileJson, Settings, 
 import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings';
 // [PRESERVED] スライダーUI版（復旧用）: import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
 import { CapacityTableEditor } from '../components/Settings/CapacityTableEditor';
+import { GoogleCalendarSection } from '../components/Settings/GoogleCalendarSection';
 import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
 
 interface PersonalSettingsScreenProps {
@@ -336,6 +337,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 						)}
 					</div>
 				</section>
+
+				{/* Google カレンダー連携 (R-034 Phase 2) */}
+				<GoogleCalendarSection />
 
 				{/* Motivation Quotes Section */}
 				<section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
