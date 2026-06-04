@@ -14,6 +14,7 @@ import { CalendarToggleButton } from '../../youkan/components/Calendar/CalendarT
 import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
 import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
+import { useGoogleCalendars } from '../../youkan/hooks/useGoogleCalendars';
 
 interface Props {
 	onNavigateHome: () => void;
@@ -96,6 +97,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		externalRange.to,
 		externalViewMode
 	);
+	// R-041-Y3: イベントチップにカレンダー色を反映するため、Google カレンダー一覧を取得
+	const { calendars: googleCalendars } = useGoogleCalendars();
 	// R-042-Y2: sentinel から呼ぶ lazy load コールバック。
 	// useExternalEvents.loadMore はそのまま渡せばよい（direction / months 引数の意味は一致）。
 
@@ -237,6 +240,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					showGroups={showGanttGroups}
 					onDeleteItem={handleDelete}
 					externalEventsByDate={externalEventsByDate}
+					googleCalendars={googleCalendars}
 					onLoadMore={externalLoadMore}
 					isLoadingMore={externalIsLoadingMore}
 					loadedRange={externalLoadedRange}

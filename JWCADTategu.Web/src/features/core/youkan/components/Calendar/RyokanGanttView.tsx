@@ -15,6 +15,8 @@ import { useToast } from '../../../../../contexts/ToastContext';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { CapacityBar } from './CapacityBar';
 import { ExternalEvent } from '../../types/externalEvent';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
+import { getCalendarColor, toTint } from '../../logic/calendarColor';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
@@ -72,6 +74,8 @@ interface GanttViewProps {
 	onLoadMore?: (direction: 'before' | 'after', months: number) => void;
 	/** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
 	isLoadingMore?: boolean;
+	/** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
+	googleCalendars?: GoogleCalendar[];
 }
 
 /** R-039 Phase 3 UX: ガント日付列ヘッダー内に表示する Google 予定の最大件数 */
@@ -84,6 +88,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
 	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
 	onLoadMore, isLoadingMore = false,
+	googleCalendars = [],
 }) => {
 	// R-042-Y2: 横スクロール左端・右端の sentinel。
 	// 追加ロード中（isLoadingMore=true）は enabled=false で二重発火を抑止する。
@@ -495,20 +500,33 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											data-testid={`gantt-external-events-${dayKey}`}
 											className="mt-0.5 flex flex-col items-center gap-px w-full px-px pointer-events-auto"
 										>
-											{visibleEvents.map(ev => (
-												<button
-													key={ev.id}
-													type="button"
-													onClick={(e) => {
-														e.stopPropagation();
-														if (onExternalEventClick) onExternalEventClick(ev);
-													}}
-													title={ev.title || '(無題)'}
-													className="w-full bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:hover:bg-indigo-900/70 text-indigo-700 dark:text-indigo-200 text-[8px] leading-none rounded-sm px-px py-px flex items-center justify-center"
-												>
-													<span aria-hidden="true">📅</span>
-												</button>
-											))}
+											{visibleEvents.map(ev => {
+												// R-041-Y3: カレンダー色を背景 tint と左色帯に反映
+												const colorHex = getCalendarColor(ev.calendarId, googleCalendars);
+												const tintBg = toTint(colorHex);
+												const inlineStyle: React.CSSProperties = {};
+												if (tintBg) inlineStyle.backgroundColor = tintBg;
+												if (colorHex) inlineStyle.borderLeftColor = colorHex;
+												return (
+													<button
+														key={ev.id}
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															if (onExternalEventClick) onExternalEventClick(ev);
+														}}
+														title={ev.title || '(無題)'}
+														style={inlineStyle}
+														className={cn(
+															'w-full border border-dashed border-l-[3px] hover:bg-indigo-200 dark:hover:bg-indigo-900/70 text-indigo-700 dark:text-indigo-200 text-[8px] leading-none rounded-sm px-px py-px flex items-center justify-center',
+															!colorHex && 'bg-indigo-100 dark:bg-indigo-900/50 border-l-indigo-400 dark:border-l-indigo-500',
+															'border-slate-300 dark:border-slate-600'
+														)}
+													>
+														<span aria-hidden="true">📅</span>
+													</button>
+												);
+											})}
 											{moreCount > 0 && (
 												<button
 													type="button"

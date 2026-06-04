@@ -7,6 +7,7 @@ import { VolumeCurve } from './VolumeCurve';
 import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -53,6 +54,8 @@ interface GridViewProps {
     onLoadMore?: (direction: 'before' | 'after', months: number) => void;
     /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
     isLoadingMore?: boolean;
+    /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
+    googleCalendars?: GoogleCalendar[];
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -72,6 +75,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     externalEventsMaxVisible = 3,
     onLoadMore,
     isLoadingMore = false,
+    googleCalendars = [],
 }) => {
     // R-042-Y2: 縦スクロール先頭・末尾に sentinel を配置し、交差検知で +3 ヶ月の追加読み込みを発火。
     // 追加ロード中（isLoadingMore=true）は enabled=false にして二重発火を抑止する。
@@ -188,6 +192,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 onExternalEventClick={onExternalEventClick}
                                 onExternalEventsMoreClick={onExternalEventsMoreClick}
                                 externalEventsMaxVisible={externalEventsMaxVisible}
+                                googleCalendars={googleCalendars}
                             />
                         );
                     })}

@@ -7,6 +7,7 @@ import { cn } from '../../../../../lib/utils';
 import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -51,6 +52,8 @@ interface TimelineViewProps {
     onLoadMore?: (direction: 'before' | 'after', months: number) => void;
     /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
     isLoadingMore?: boolean;
+    /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
+    googleCalendars?: GoogleCalendar[];
 }
 
 export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
@@ -68,6 +71,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     onExternalEventsMoreClick,
     onLoadMore,
     isLoadingMore = false,
+    googleCalendars = [],
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +154,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 onExternalEventClick={onExternalEventClick}
                                 onExternalEventsMoreClick={onExternalEventsMoreClick}
                                 externalEventsMaxVisible={externalEventsMaxVisible}
+                                googleCalendars={googleCalendars}
                             />
                         );
                     })}

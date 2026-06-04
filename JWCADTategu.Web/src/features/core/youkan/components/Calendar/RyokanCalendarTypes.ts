@@ -1,5 +1,6 @@
 import { Item, Member, CapacityConfig, JoinedTenant, CompanyAllocation } from '../../types';
 import { ExternalEvent } from '../../types/externalEvent';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
 
 export type RyokanDisplayMode = 'grid' | 'timeline' | 'gantt';
 
@@ -62,4 +63,6 @@ export interface RyokanCalendarProps {
     isLoadingMore?: boolean;
     /** R-042-Y2: 現在ロード済みの範囲（YYYY-MM-DD）。デバッグ／将来拡張用に保持 */
     loadedRange?: { from: string; to: string };
+    /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
+    googleCalendars?: GoogleCalendar[];
 }
