@@ -3,13 +3,15 @@ import { ApiClient } from '../../../../api/client';
 import { ExternalEvent } from '../types/externalEvent';
 
 /**
- * R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダーイベント取得用 hook。
+ * R-034 Phase 2 / R-039 Phase 3 UX / R-042-Y1: Google カレンダーイベント取得用 hook。
  *
  * - エンドポイント: `GET /google/calendar/events?from=YYYY-MM-DD&to=YYYY-MM-DD`
  *   フォールバック: `GET /calendar/grid?from=...&to=...` の `external_events`
- * - SWR 風キャッシュ（プロセス内 Map）、TTL は 15 分
+ * - キャッシュは **月単位 key**（`YYYY-MM`）。TTL は 15 分。
  * - 未連携 / API エラー時は空 Map を返す（タスクの表示を壊さない）
  * - R-039: 設定画面の「表示するビュー」設定で OFF にされたビューでは fetch せず空 Map を返す
+ * - R-042-Y1: `loadMore(direction, months)` で前後方向に月単位の追加ロードができる。
+ *   既にキャッシュ済の月はスキップし、連続する未取得月は 1 リクエストにまとめる。
  */
 
 /** R-039 Phase 3 UX: 表示するビューの種類（カレンダーサブビュー） */
@@ -43,16 +45,17 @@ export const readExternalEventsViews = (): ExternalEventsViewMode[] => {
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
-type CacheEntry = {
+/** R-042-Y1: 月単位キャッシュエントリ（key は `YYYY-MM`） */
+type MonthCacheEntry = {
     fetchedAt: number;
     data: Map<string, ExternalEvent[]>;
 };
 
-const cache = new Map<string, CacheEntry>();
+const monthCache = new Map<string, MonthCacheEntry>();
 
 /** テスト用: キャッシュをリセットする内部関数 */
 export const __clearExternalEventsCache = () => {
-    cache.clear();
+    monthCache.clear();
 };
 
 type RawEvent = {
@@ -80,6 +83,69 @@ const toDateKey = (unixSeconds: number): string => {
     return `${y}-${m}-${day}`;
 };
 
+/** `YYYY-MM-DD` を 2 桁 0 埋めで作る */
+const ymd = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+/** `YYYY-MM` を 2 桁 0 埋めで作る */
+const monthKey = (year: number, monthIndex0: number): string => {
+    const m = String(monthIndex0 + 1).padStart(2, '0');
+    return `${year}-${m}`;
+};
+
+/** `YYYY-MM-DD` から `YYYY-MM` を抽出 */
+const monthKeyFromDate = (dateStr: string): string => {
+    if (!dateStr || dateStr.length < 7) return '';
+    return dateStr.slice(0, 7);
+};
+
+/** `YYYY-MM-DD` を Date オブジェクトに（ローカルタイム） */
+const parseYmd = (dateStr: string): Date | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+};
+
+/** from / to（YYYY-MM-DD）の範囲に含まれる月キー配列を返す（昇順・重複なし） */
+const enumerateMonthKeys = (from: string, to: string): string[] => {
+    const start = parseYmd(from);
+    const end = parseYmd(to);
+    if (!start || !end) return [];
+    const keys: string[] = [];
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(end.getFullYear(), end.getMonth(), 1);
+    let safety = 0;
+    while (cur.getTime() <= last.getTime() && safety < 240) {
+        keys.push(monthKey(cur.getFullYear(), cur.getMonth()));
+        cur.setMonth(cur.getMonth() + 1);
+        safety++;
+    }
+    return keys;
+};
+
+/** `YYYY-MM` の月初・月末（ローカル）を返す */
+const monthRange = (mk: string): { from: string; to: string } | null => {
+    const m = /^(\d{4})-(\d{2})$/.exec(mk);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const idx = Number(m[2]) - 1;
+    const first = new Date(y, idx, 1);
+    const last = new Date(y, idx + 1, 0);
+    return { from: ymd(first), to: ymd(last) };
+};
+
+/** `YYYY-MM` を offset ヶ月オフセット */
+const shiftMonth = (mk: string, offset: number): string => {
+    const m = /^(\d{4})-(\d{2})$/.exec(mk);
+    if (!m) return mk;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1 + offset, 1);
+    return monthKey(d.getFullYear(), d.getMonth());
+};
+
 const normalizeEvent = (raw: RawEvent): ExternalEvent => ({
     id: raw.id,
     calendarId: raw.calendar_id,
@@ -100,15 +166,12 @@ const buildEventsByDate = (events: ExternalEvent[]): Map<string, ExternalEvent[]
     const map = new Map<string, ExternalEvent[]>();
     for (const ev of events) {
         if (ev.allDay) {
-            // 終日: start から end-1 までの各日付に登録（end は exclusive を想定）。
-            // end が同日なら start 1 日分のみ。
             const startMs = ev.startAt * 1000;
             const endMs = Math.max(ev.endAt * 1000, startMs + 1);
             const cursor = new Date(startMs);
             cursor.setHours(0, 0, 0, 0);
             const limit = new Date(endMs - 1);
             limit.setHours(0, 0, 0, 0);
-            // セーフティ: 最大 31 日
             let safety = 0;
             while (cursor.getTime() <= limit.getTime() && safety < 31) {
                 const k = toDateKey(Math.floor(cursor.getTime() / 1000));
@@ -123,7 +186,6 @@ const buildEventsByDate = (events: ExternalEvent[]): Map<string, ExternalEvent[]
             map.get(k)!.push(ev);
         }
     }
-    // 各日付内で開始時刻昇順にソート
     for (const arr of map.values()) {
         arr.sort((a, b) => a.startAt - b.startAt);
     }
@@ -133,8 +195,6 @@ const buildEventsByDate = (events: ExternalEvent[]): Map<string, ExternalEvent[]
 const MOCK_FLAG_KEY = 'YOUKAN_EXTERNAL_EVENTS_MOCK';
 
 const buildMockEventsForRange = (from: string, to: string): ExternalEvent[] => {
-    // 「from」〜「to」の範囲に、開発検証用のサンプルイベントを散らす。
-    // 表示・「他 X 件」展開・終日表示の 3 ケースを検証できるよう、特定の日に 4 件以上、別の日に終日 1 件を入れる。
     const [fy, fm, fd] = from.split('-').map(Number);
     const [ty, tm, td] = to.split('-').map(Number);
     if (!fy || !fm || !fd || !ty || !tm || !td) return [];
@@ -142,7 +202,6 @@ const buildMockEventsForRange = (from: string, to: string): ExternalEvent[] => {
     const end = new Date(ty, tm - 1, td);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // 表示対象を「今日」周辺に置く（カレンダー初期スクロール位置と整合）
     const anchor = today >= start && today <= end ? today : start;
 
     const at = (base: Date, dayOffset: number, h: number, m: number) => {
@@ -160,7 +219,6 @@ const buildMockEventsForRange = (from: string, to: string): ExternalEvent[] => {
     };
 
     const events: ExternalEvent[] = [
-        // 今日: 4 件以上（「他 X 件」展開検証）
         {
             id: 'mock:1', calendarId: 'primary', eventId: 'mock1',
             startAt: at(anchor, 0, 9, 0), endAt: at(anchor, 0, 10, 0),
@@ -186,13 +244,11 @@ const buildMockEventsForRange = (from: string, to: string): ExternalEvent[] => {
             startAt: at(anchor, 0, 17, 0), endAt: at(anchor, 0, 18, 0),
             allDay: false, title: '日次レビュー', location: null, htmlLink: null,
         },
-        // 翌日: 終日イベント
         {
             id: 'mock:6', calendarId: 'primary', eventId: 'mock6',
             startAt: dayStart(anchor, 1), endAt: dayStart(anchor, 1) + 60,
             allDay: true, title: '東京出張', location: '東京', htmlLink: null,
         },
-        // 翌々日: 通常 1 件
         {
             id: 'mock:7', calendarId: 'primary', eventId: 'mock7',
             startAt: at(anchor, 2, 14, 0), endAt: at(anchor, 2, 15, 30),
@@ -210,7 +266,11 @@ const isMockEnabled = (): boolean => {
     return false;
 };
 
-const fetchExternalEvents = async (from: string, to: string): Promise<Map<string, ExternalEvent[]>> => {
+/**
+ * 指定 from〜to のレンジを 1 リクエストで fetch し、`Map<dateKey, events>` で返す。
+ * 失敗時は空 Map（mock 有効時のみサンプル）。月キャッシュへの格納は呼び出し側で行う。
+ */
+const fetchRangeEvents = async (from: string, to: string): Promise<Map<string, ExternalEvent[]>> => {
     try {
         const path = `/google/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
         const payload = await ApiClient.request<ApiPayload>('GET', path, undefined, true);
@@ -218,8 +278,6 @@ const fetchExternalEvents = async (from: string, to: string): Promise<Map<string
         const normalized = raws.map(normalizeEvent);
         return buildEventsByDate(normalized);
     } catch (_e) {
-        // 未連携 / 401 / 404 などはエラーにせず空で返す（タスク表示を壊さない方針）
-        // 開発検証用 mock フラグが有効なときのみ、フォールバックでサンプルイベントを返す。
         if (isMockEnabled()) {
             return buildEventsByDate(buildMockEventsForRange(from, to));
         }
@@ -227,11 +285,108 @@ const fetchExternalEvents = async (from: string, to: string): Promise<Map<string
     }
 };
 
+/**
+ * 月キャッシュに対し、指定月キーごとにイベントマップを分配して格納する。
+ * イベント所属月は dateKey の先頭 7 文字で判定。
+ * - `monthKeys` の月は必ず（イベント 0 件でも）「取得済み」として登録する。
+ * - dateKey が `monthKeys` 外に出ているイベント（fixture や TZ ずれ等）も、
+ *   `monthKeys` の最初の月キーに紐づけて保存する。これによりキャッシュ間で
+ *   イベント数が一致し、レンジ単位キャッシュとしての挙動が成立する。
+ */
+const storeMonthsInCache = (
+    monthKeys: string[],
+    rangeData: Map<string, ExternalEvent[]>,
+    fetchedAt: number,
+): void => {
+    if (monthKeys.length === 0) return;
+    const buckets = new Map<string, Map<string, ExternalEvent[]>>();
+    for (const mk of monthKeys) {
+        buckets.set(mk, new Map());
+    }
+    const primaryMk = monthKeys[0];
+    for (const [dateKey, events] of rangeData.entries()) {
+        const mk = monthKeyFromDate(dateKey);
+        const target = buckets.has(mk) ? mk : primaryMk;
+        buckets.get(target)!.set(dateKey, events);
+    }
+    for (const [mk, data] of buckets.entries()) {
+        monthCache.set(mk, { fetchedAt, data });
+    }
+};
+
+/** 月キャッシュをマージして範囲内の `Map<dateKey, events>` を生成 */
+const mergeCachedMonths = (monthKeys: string[]): Map<string, ExternalEvent[]> => {
+    const merged = new Map<string, ExternalEvent[]>();
+    for (const mk of monthKeys) {
+        const entry = monthCache.get(mk);
+        if (!entry) continue;
+        for (const [dateKey, events] of entry.data.entries()) {
+            if (!merged.has(dateKey)) merged.set(dateKey, []);
+            merged.get(dateKey)!.push(...events);
+        }
+    }
+    for (const arr of merged.values()) {
+        arr.sort((a, b) => a.startAt - b.startAt);
+    }
+    return merged;
+};
+
+/** ある月キーがキャッシュにあり、かつ TTL 内か */
+const isMonthFresh = (mk: string): boolean => {
+    const entry = monthCache.get(mk);
+    if (!entry) return false;
+    return (Date.now() - entry.fetchedAt) < CACHE_TTL_MS;
+};
+
+/** 連続する月キー配列をまとめてグループ化 */
+const groupConsecutiveMonths = (monthKeys: string[]): string[][] => {
+    const groups: string[][] = [];
+    let current: string[] = [];
+    for (const mk of monthKeys) {
+        if (current.length === 0) {
+            current.push(mk);
+            continue;
+        }
+        const prev = current[current.length - 1];
+        const prevDate = parseYmd(`${prev}-01`);
+        const curDate = parseYmd(`${mk}-01`);
+        if (!prevDate || !curDate) {
+            groups.push(current);
+            current = [mk];
+            continue;
+        }
+        const expected = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 1);
+        if (expected.getTime() === curDate.getTime()) {
+            current.push(mk);
+        } else {
+            groups.push(current);
+            current = [mk];
+        }
+    }
+    if (current.length > 0) groups.push(current);
+    return groups;
+};
+
+/** ロード済み月キー集合の min/max を返す */
+const minMaxMonth = (set: Set<string>): { min: string | null; max: string | null } => {
+    if (set.size === 0) return { min: null, max: null };
+    const sorted = Array.from(set).sort();
+    return { min: sorted[0], max: sorted[sorted.length - 1] };
+};
+
+export type LoadMoreDirection = 'before' | 'after';
+
 export type UseExternalEventsResult = {
     eventsByDate: Map<string, ExternalEvent[]>;
     loading: boolean;
     error: Error | null;
     refresh: () => Promise<void>;
+    /** R-042-Y1: 前後方向に月単位で追加読み込み（連続未取得月はまとめて 1 リクエスト） */
+    loadMore: (direction: LoadMoreDirection, months: number) => Promise<void>;
+    /** R-042-Y1: 現在ロード済みの範囲（YYYY-MM-DD） */
+    loadedRange: { from: string; to: string };
+    /** R-042-Y1: loadMore による追加取得中フラグ */
+    isLoadingMore: boolean;
 };
 
 export const useExternalEvents = (
@@ -242,42 +397,67 @@ export const useExternalEvents = (
     const [eventsByDate, setEventsByDate] = useState<Map<string, ExternalEvent[]>>(new Map());
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<Error | null>(null);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const [loadedRange, setLoadedRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
     const reqIdRef = useRef(0);
+    const loadedMonthsRef = useRef<Set<string>>(new Set());
 
-    const cacheKey = `${from}__${to}`;
+    /** R-039: 現在 viewMode が有効か（無効なら fetch をスキップ） */
+    const isViewEnabled = useCallback((): boolean => {
+        if (!viewMode) return true;
+        const enabledViews = readExternalEventsViews();
+        return enabledViews.includes(viewMode);
+    }, [viewMode]);
 
     const load = useCallback(async (force: boolean) => {
         if (!from || !to) {
             setEventsByDate(new Map());
+            setLoadedRange({ from: '', to: '' });
+            loadedMonthsRef.current = new Set();
             setLoading(false);
             return;
         }
 
-        // R-039 Phase 3 UX: viewMode が指定されていて、設定でそのビューが OFF の場合は fetch しない
-        if (viewMode) {
-            const enabledViews = readExternalEventsViews();
-            if (!enabledViews.includes(viewMode)) {
-                setEventsByDate(new Map());
-                setLoading(false);
-                return;
-            }
-        }
-
-        const cached = cache.get(cacheKey);
-        const fresh = cached && (Date.now() - cached.fetchedAt) < CACHE_TTL_MS;
-        if (fresh && !force) {
-            setEventsByDate(cached!.data);
+        if (!isViewEnabled()) {
+            setEventsByDate(new Map());
+            setLoadedRange({ from: '', to: '' });
+            loadedMonthsRef.current = new Set();
             setLoading(false);
             return;
         }
+
+        const monthKeys = enumerateMonthKeys(from, to);
+        if (monthKeys.length === 0) {
+            setEventsByDate(new Map());
+            setLoadedRange({ from, to });
+            setLoading(false);
+            return;
+        }
+
+        const needFetchMonths = force
+            ? monthKeys.slice()
+            : monthKeys.filter(mk => !isMonthFresh(mk));
 
         setLoading(true);
         const myReqId = ++reqIdRef.current;
         try {
-            const data = await fetchExternalEvents(from, to);
-            if (myReqId !== reqIdRef.current) return;
-            cache.set(cacheKey, { fetchedAt: Date.now(), data });
-            setEventsByDate(data);
+            const groups = groupConsecutiveMonths(needFetchMonths);
+            const now = Date.now();
+            for (const group of groups) {
+                const firstRange = monthRange(group[0]);
+                const lastRange = monthRange(group[group.length - 1]);
+                if (!firstRange || !lastRange) continue;
+                const data = await fetchRangeEvents(firstRange.from, lastRange.to);
+                if (myReqId !== reqIdRef.current) return;
+                storeMonthsInCache(group, data, now);
+            }
+
+            for (const mk of monthKeys) {
+                loadedMonthsRef.current.add(mk);
+            }
+            const merged = mergeCachedMonths(monthKeys);
+            setEventsByDate(merged);
+            setLoadedRange({ from, to });
             setError(null);
         } catch (e) {
             if (myReqId !== reqIdRef.current) return;
@@ -286,7 +466,7 @@ export const useExternalEvents = (
         } finally {
             if (myReqId === reqIdRef.current) setLoading(false);
         }
-    }, [from, to, cacheKey, viewMode]);
+    }, [from, to, isViewEnabled]);
 
     useEffect(() => {
         load(false);
@@ -296,5 +476,74 @@ export const useExternalEvents = (
         await load(true);
     }, [load]);
 
-    return { eventsByDate, loading, error, refresh };
+    /**
+     * R-042-Y1: 前後方向に月単位で追加読み込み。
+     * - direction='after': ロード済み最大月の翌月以降 months ヶ月を対象
+     * - direction='before': ロード済み最小月の前月以前 months ヶ月を対象
+     * - 既にキャッシュ済 (TTL 内) の月はスキップ
+     * - 連続する未取得月はまとめて 1 リクエストで取得
+     * - months=0 / 未連携状態では何もしない
+     */
+    const loadMore = useCallback(async (direction: LoadMoreDirection, months: number) => {
+        if (!months || months <= 0) return;
+        if (!isViewEnabled()) return;
+
+        const { min, max } = minMaxMonth(loadedMonthsRef.current);
+        if (!min || !max) return;
+
+        const targetMonths: string[] = [];
+        if (direction === 'after') {
+            for (let i = 1; i <= months; i++) {
+                targetMonths.push(shiftMonth(max, i));
+            }
+        } else {
+            for (let i = months; i >= 1; i--) {
+                targetMonths.push(shiftMonth(min, -i));
+            }
+        }
+
+        const needFetchMonths = targetMonths.filter(mk => !isMonthFresh(mk));
+        if (needFetchMonths.length === 0) {
+            for (const mk of targetMonths) {
+                loadedMonthsRef.current.add(mk);
+            }
+            const allMonths = Array.from(loadedMonthsRef.current).sort();
+            const merged = mergeCachedMonths(allMonths);
+            setEventsByDate(merged);
+            const firstRange = monthRange(allMonths[0]);
+            const lastRange = monthRange(allMonths[allMonths.length - 1]);
+            if (firstRange && lastRange) {
+                setLoadedRange({ from: firstRange.from, to: lastRange.to });
+            }
+            return;
+        }
+
+        setIsLoadingMore(true);
+        try {
+            const groups = groupConsecutiveMonths(needFetchMonths);
+            const now = Date.now();
+            for (const group of groups) {
+                const firstRange = monthRange(group[0]);
+                const lastRange = monthRange(group[group.length - 1]);
+                if (!firstRange || !lastRange) continue;
+                const data = await fetchRangeEvents(firstRange.from, lastRange.to);
+                storeMonthsInCache(group, data, now);
+            }
+            for (const mk of targetMonths) {
+                loadedMonthsRef.current.add(mk);
+            }
+            const allMonths = Array.from(loadedMonthsRef.current).sort();
+            const merged = mergeCachedMonths(allMonths);
+            setEventsByDate(merged);
+            const firstRange = monthRange(allMonths[0]);
+            const lastRange = monthRange(allMonths[allMonths.length - 1]);
+            if (firstRange && lastRange) {
+                setLoadedRange({ from: firstRange.from, to: lastRange.to });
+            }
+        } finally {
+            setIsLoadingMore(false);
+        }
+    }, [isViewEnabled]);
+
+    return { eventsByDate, loading, error, refresh, loadMore, loadedRange, isLoadingMore };
 };
