@@ -115,4 +115,64 @@ describe('useExternalEvents', () => {
         expect(spy).not.toHaveBeenCalled();
         expect(result.current.eventsByDate.size).toBe(0);
     });
+
+    // R-039 Phase 3 UX: ビュー単位の取得制御
+    describe('R-039 Phase 3 UX: ビュー別表示制御', () => {
+        const STORAGE_KEY = 'ykn_external_events_views';
+
+        beforeEach(() => {
+            try {
+                window.localStorage.removeItem(STORAGE_KEY);
+            } catch (_e) { /* noop */ }
+        });
+
+        it('viewMode = "gantt" でも、デフォルト設定（全 ON）では fetch する', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockResolvedValue(mockApiPayload as any);
+            const { result } = renderHook(() => useExternalEvents(FROM, TO, 'gantt'));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(Array.from(result.current.eventsByDate.values()).flat().length).toBe(2);
+        });
+
+        it('viewMode = "timeline" でも、デフォルト設定（全 ON）では fetch する', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockResolvedValue(mockApiPayload as any);
+            const { result } = renderHook(() => useExternalEvents(FROM, TO, 'timeline'));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(Array.from(result.current.eventsByDate.values()).flat().length).toBe(2);
+        });
+
+        it('設定で timeline を OFF にしたとき、viewMode = "timeline" では fetch しない', async () => {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(['grid', 'gantt']));
+            const spy = vi.spyOn(ApiClient, 'request');
+            const { result } = renderHook(() => useExternalEvents(FROM, TO, 'timeline'));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).not.toHaveBeenCalled();
+            expect(result.current.eventsByDate.size).toBe(0);
+        });
+
+        it('設定で grid のみ ON にしたとき、viewMode = "gantt" では fetch しない', async () => {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(['grid']));
+            const spy = vi.spyOn(ApiClient, 'request');
+            const { result } = renderHook(() => useExternalEvents(FROM, TO, 'gantt'));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).not.toHaveBeenCalled();
+        });
+
+        it('viewMode 未指定（後方互換）では設定に関わらず fetch する', async () => {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(['grid']));
+            const spy = vi.spyOn(ApiClient, 'request').mockResolvedValue(mockApiPayload as any);
+            const { result } = renderHook(() => useExternalEvents(FROM, TO));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+
+        it('localStorage に不正な JSON が入っている場合はデフォルト（全 ON）で動作する', async () => {
+            window.localStorage.setItem(STORAGE_KEY, 'not-a-valid-json');
+            const spy = vi.spyOn(ApiClient, 'request').mockResolvedValue(mockApiPayload as any);
+            const { result } = renderHook(() => useExternalEvents(FROM, TO, 'gantt'));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+    });
 });

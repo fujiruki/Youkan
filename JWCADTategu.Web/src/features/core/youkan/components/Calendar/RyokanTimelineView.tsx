@@ -5,11 +5,19 @@ import { PressureConnection } from './RyokanCalendarTypes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../../../lib/utils';
 import { CalendarCell } from './CalendarCell';
+import { ExternalEvent } from '../../types/externalEvent';
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
         d1.getMonth() === d2.getMonth() &&
         d1.getDate() === d2.getDate();
+};
+
+const toYmdKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 };
 
 interface TimelineViewProps {
@@ -30,6 +38,11 @@ interface TimelineViewProps {
     scrollRef?: React.RefObject<HTMLDivElement>;
     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void; // [NEW] Loop back for infinite scroll
     onBackgroundClick?: () => void;
+    /** R-039 Phase 3 UX: Google カレンダー外部イベント */
+    externalEventsByDate?: Map<string, ExternalEvent[]>;
+    externalEventsMaxVisible?: number;
+    onExternalEventClick?: (event: ExternalEvent) => void;
+    onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
 }
 
 export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
@@ -40,7 +53,11 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     renderItemTitle,
     scrollRef,
     onScroll,
-    onBackgroundClick
+    onBackgroundClick,
+    externalEventsByDate,
+    externalEventsMaxVisible = 3,
+    onExternalEventClick,
+    onExternalEventsMoreClick,
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -100,6 +117,10 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                                 onItemClick={onItemClick}
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}
+                                externalEvents={externalEventsByDate?.get(toYmdKey(date)) || []}
+                                onExternalEventClick={onExternalEventClick}
+                                onExternalEventsMoreClick={onExternalEventsMoreClick}
+                                externalEventsMaxVisible={externalEventsMaxVisible}
                             />
                         );
                     })}

@@ -57,7 +57,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		});
 	}, [rawItems, filterMode]);
 
-	// R-034 Phase 2: Google カレンダー外部イベントを取得（grid 表示時のみ）
+	// R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダー外部イベントを取得
+	// 取得対象ビューの判定は useExternalEvents 内部で「表示するビュー」設定（ykn_external_events_views）に基づき行う
 	const externalRange = React.useMemo(() => {
 		// currentDate を起点に ±2 ヶ月（RyokanCalendar の range と整合）
 		const base = new Date(currentDate);
@@ -66,9 +67,13 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 		return { from: ymd(start), to: ymd(end) };
 	}, [currentDate]);
+	const externalViewMode = viewMode === 'grid' || viewMode === 'gantt' || viewMode === 'timeline'
+		? viewMode
+		: undefined;
 	const { eventsByDate: externalEventsByDate } = useExternalEvents(
-		viewMode === 'grid' ? externalRange.from : '',
-		viewMode === 'grid' ? externalRange.to : ''
+		externalRange.from,
+		externalRange.to,
+		externalViewMode
 	);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {

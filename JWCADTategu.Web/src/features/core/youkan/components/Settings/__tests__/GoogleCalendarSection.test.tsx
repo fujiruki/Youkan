@@ -195,4 +195,81 @@ describe('GoogleCalendarSection', () => {
 
         (window as any).location = originalLocation;
     });
+
+    // R-039 Phase 3 UX: 表示するビューの設定セクション
+    describe('R-039 Phase 3 UX: 表示するビュー', () => {
+        const STORAGE_KEY = 'ykn_external_events_views';
+
+        beforeEach(() => {
+            try {
+                window.localStorage.removeItem(STORAGE_KEY);
+            } catch (_e) { /* noop */ }
+        });
+
+        it('連携済み時: グリッド／ガント／タイムラインのチェックボックスが表示され、デフォルトでは全てチェック済み', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            const grid = screen.getByRole('checkbox', { name: /グリッド/ });
+            const gantt = screen.getByRole('checkbox', { name: /ガント/ });
+            const timeline = screen.getByRole('checkbox', { name: /タイムライン/ });
+
+            expect(grid).toBeChecked();
+            expect(gantt).toBeChecked();
+            expect(timeline).toBeChecked();
+        });
+
+        it('未連携時: 表示するビューのチェックボックスは表示されない', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({ connected: false });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            expect(screen.queryByRole('checkbox', { name: /グリッド/ })).toBeNull();
+        });
+
+        it('チェックボックスを操作すると localStorage が即時更新される', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            const timeline = screen.getByRole('checkbox', { name: /タイムライン/ });
+            fireEvent.click(timeline);
+            await flushPromises();
+
+            const saved = window.localStorage.getItem(STORAGE_KEY);
+            expect(saved).not.toBeNull();
+            const parsed = JSON.parse(saved!);
+            expect(parsed).not.toContain('timeline');
+            expect(parsed).toContain('grid');
+            expect(parsed).toContain('gantt');
+        });
+
+        it('localStorage に保存済みの設定がある場合は初期表示に反映される', async () => {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(['grid']));
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            expect(screen.getByRole('checkbox', { name: /グリッド/ })).toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /ガント/ })).not.toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /タイムライン/ })).not.toBeChecked();
+        });
+    });
 });

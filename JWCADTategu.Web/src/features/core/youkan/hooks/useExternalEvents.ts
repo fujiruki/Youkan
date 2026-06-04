@@ -3,13 +3,43 @@ import { ApiClient } from '../../../../api/client';
 import { ExternalEvent } from '../types/externalEvent';
 
 /**
- * R-034 Phase 2: Google カレンダーイベント取得用 hook。
+ * R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダーイベント取得用 hook。
  *
  * - エンドポイント: `GET /google/calendar/events?from=YYYY-MM-DD&to=YYYY-MM-DD`
  *   フォールバック: `GET /calendar/grid?from=...&to=...` の `external_events`
  * - SWR 風キャッシュ（プロセス内 Map）、TTL は 15 分
  * - 未連携 / API エラー時は空 Map を返す（タスクの表示を壊さない）
+ * - R-039: 設定画面の「表示するビュー」設定で OFF にされたビューでは fetch せず空 Map を返す
  */
+
+/** R-039 Phase 3 UX: 表示するビューの種類（カレンダーサブビュー） */
+export type ExternalEventsViewMode = 'grid' | 'gantt' | 'timeline';
+
+/** R-039 Phase 3 UX: 表示するビュー設定の localStorage キー */
+export const EXTERNAL_EVENTS_VIEWS_KEY = 'ykn_external_events_views';
+
+/** R-039 Phase 3 UX: デフォルト有効ビュー（全 ON） */
+export const DEFAULT_EXTERNAL_EVENTS_VIEWS: ExternalEventsViewMode[] = ['grid', 'gantt', 'timeline'];
+
+/**
+ * R-039 Phase 3 UX: 表示するビュー設定を localStorage から読み出す。
+ * 不正な JSON / 配列以外の値はデフォルト（全 ON）にフォールバック。
+ */
+export const readExternalEventsViews = (): ExternalEventsViewMode[] => {
+    try {
+        if (typeof window === 'undefined') return [...DEFAULT_EXTERNAL_EVENTS_VIEWS];
+        const raw = window.localStorage?.getItem(EXTERNAL_EVENTS_VIEWS_KEY);
+        if (!raw) return [...DEFAULT_EXTERNAL_EVENTS_VIEWS];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [...DEFAULT_EXTERNAL_EVENTS_VIEWS];
+        const filtered = parsed.filter((v): v is ExternalEventsViewMode =>
+            v === 'grid' || v === 'gantt' || v === 'timeline'
+        );
+        return filtered;
+    } catch (_e) {
+        return [...DEFAULT_EXTERNAL_EVENTS_VIEWS];
+    }
+};
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
@@ -204,7 +234,11 @@ export type UseExternalEventsResult = {
     refresh: () => Promise<void>;
 };
 
-export const useExternalEvents = (from: string, to: string): UseExternalEventsResult => {
+export const useExternalEvents = (
+    from: string,
+    to: string,
+    viewMode?: ExternalEventsViewMode
+): UseExternalEventsResult => {
     const [eventsByDate, setEventsByDate] = useState<Map<string, ExternalEvent[]>>(new Map());
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<Error | null>(null);
@@ -217,6 +251,16 @@ export const useExternalEvents = (from: string, to: string): UseExternalEventsRe
             setEventsByDate(new Map());
             setLoading(false);
             return;
+        }
+
+        // R-039 Phase 3 UX: viewMode が指定されていて、設定でそのビューが OFF の場合は fetch しない
+        if (viewMode) {
+            const enabledViews = readExternalEventsViews();
+            if (!enabledViews.includes(viewMode)) {
+                setEventsByDate(new Map());
+                setLoading(false);
+                return;
+            }
         }
 
         const cached = cache.get(cacheKey);
@@ -242,7 +286,7 @@ export const useExternalEvents = (from: string, to: string): UseExternalEventsRe
         } finally {
             if (myReqId === reqIdRef.current) setLoading(false);
         }
-    }, [from, to, cacheKey]);
+    }, [from, to, cacheKey, viewMode]);
 
     useEffect(() => {
         load(false);

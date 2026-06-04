@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Calendar, RefreshCcw, Unlink, ExternalLink, Loader2 } from 'lucide-react';
 import { GoogleCalendarApi, GoogleOAuthStatus } from '../../../../../api/googleCalendar';
 import { useToast } from '../../../../../contexts/ToastContext';
+import {
+    DEFAULT_EXTERNAL_EVENTS_VIEWS,
+    EXTERNAL_EVENTS_VIEWS_KEY,
+    ExternalEventsViewMode,
+    readExternalEventsViews,
+} from '../../hooks/useExternalEvents';
 
 const COOLDOWN_SECONDS = 60;
 
@@ -32,6 +38,14 @@ const formatDateTime = (epochSec: number): string => {
  * - 連携済み時: メール / 最終同期 / 今すぐ更新（60s クールダウン） / 連携解除
  * - Phase 2 では共有カレンダー振り分け UI はスケルトンのみ
  */
+const VIEW_LABELS: Record<ExternalEventsViewMode, string> = {
+    grid: 'グリッド',
+    gantt: 'ガント',
+    timeline: 'タイムライン',
+};
+
+const VIEW_ORDER: ExternalEventsViewMode[] = ['grid', 'gantt', 'timeline'];
+
 export const GoogleCalendarSection: React.FC = () => {
     const { showToast } = useToast();
     const [status, setStatus] = useState<GoogleOAuthStatus | null>(null);
@@ -40,6 +54,24 @@ export const GoogleCalendarSection: React.FC = () => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isRevoking, setIsRevoking] = useState(false);
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+    // R-039 Phase 3 UX: 表示するビュー設定
+    const [enabledViews, setEnabledViews] = useState<ExternalEventsViewMode[]>(() => {
+        const stored = readExternalEventsViews();
+        return stored.length > 0 ? stored : [...DEFAULT_EXTERNAL_EVENTS_VIEWS];
+    });
+
+    const toggleView = useCallback((view: ExternalEventsViewMode) => {
+        setEnabledViews((prev) => {
+            const next = prev.includes(view)
+                ? prev.filter((v) => v !== view)
+                : [...prev, view];
+            try {
+                window.localStorage.setItem(EXTERNAL_EVENTS_VIEWS_KEY, JSON.stringify(next));
+            } catch (_e) { /* noop */ }
+            return next;
+        });
+    }, []);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -285,7 +317,33 @@ export const GoogleCalendarSection: React.FC = () => {
                         </p>
                     )}
 
-                    {/* Phase 3 用 UI スケルトン */}
+                    {/* R-039 Phase 3 UX: 表示するビュー */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                            表示するビュー
+                        </h3>
+                        <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                            チェックを外したビューでは Google 予定は表示されず、量感計算にも反映されません。
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                            {VIEW_ORDER.map((view) => (
+                                <label
+                                    key={view}
+                                    className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={enabledViews.includes(view)}
+                                        onChange={() => toggleView(view)}
+                                        className="w-4 h-4 accent-blue-500"
+                                    />
+                                    {VIEW_LABELS[view]}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Phase 3 共有カレンダー振り分け UI スケルトン */}
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                         <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
                             共有カレンダー振り分け

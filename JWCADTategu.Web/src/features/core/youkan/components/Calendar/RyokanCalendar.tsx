@@ -639,6 +639,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						scrollRef={scrollContainerRef}
 						onScroll={handleScroll}
 						onBackgroundClick={resetHighlights}
+						externalEventsByDate={externalEventsByDate}
+						externalEventsMaxVisible={externalEventsMaxVisible}
+						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
+						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 					/>
 				)}
 				{displayMode === 'grid' && (
@@ -695,6 +699,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onVisibleMonthChange={onVisibleMonthChange}
 						scrollRef={scrollContainerRef}
 						onDateClick={onDateClick}
+						externalEventsByDate={externalEventsByDate}
+						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
+						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 					/>
 				)}
 			</div>
