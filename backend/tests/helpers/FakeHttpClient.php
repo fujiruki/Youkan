@@ -22,4 +22,21 @@ class FakeHttpClient {
         }
         return array_shift($this->queue);
     }
+
+    /**
+     * curl_multi の挙動を模倣。
+     * $requests: [ key => ['method' => ..., 'url' => ..., 'options' => [...]] ]
+     * 戻り値: [ key => ['status' => int, 'body' => string, 'headers' => array] ]
+     * 並列度 $concurrency は呼び出し履歴に影響しない（テストでは無視）。
+     */
+    public function requestMulti(array $requests, int $concurrency = 5): array {
+        $results = [];
+        foreach ($requests as $key => $req) {
+            $method = $req['method'] ?? 'GET';
+            $url = $req['url'] ?? '';
+            $options = $req['options'] ?? [];
+            $results[$key] = $this->request($method, $url, $options);
+        }
+        return $results;
+    }
 }

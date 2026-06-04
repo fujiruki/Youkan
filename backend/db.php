@@ -395,7 +395,25 @@ function ensureTables($pdo) {
             fetched_at INTEGER NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )",
-        "CREATE INDEX IF NOT EXISTS idx_external_events_user_date ON external_events_cache(user_id, start_at)"
+        "CREATE INDEX IF NOT EXISTS idx_external_events_user_date ON external_events_cache(user_id, start_at)",
+        // [v29] R-041 複数 Google カレンダー対応
+        "CREATE TABLE IF NOT EXISTS user_google_calendars (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            calendar_id TEXT NOT NULL,
+            summary TEXT,
+            description TEXT,
+            color_hex TEXT,
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            last_synced_at INTEGER,
+            deleted_at INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(user_id, calendar_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_user_google_calendars_user ON user_google_calendars(user_id, is_enabled)"
     ];
 
     foreach ($commands as $sql) {

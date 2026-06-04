@@ -1,6 +1,6 @@
 <?php
 // backend/GoogleCalendarController.php
-// R-034 Phase 2: Google カレンダー連携 API
+// R-034 Phase 2 + R-041 Phase 3: Google カレンダー連携 API
 //
 // エンドポイント:
 //   POST   /api/google/oauth/start       → { authUrl }
@@ -9,6 +9,8 @@
 //   DELETE /api/google/oauth             → 連携解除
 //   POST   /api/google/calendar/refresh  → 手動更新（60 秒クールダウン）
 //   GET    /api/google/calendar/events   → キャッシュから期間取得
+//   GET    /api/google/calendars         → [R-041] ユーザーのカレンダー一覧
+//   PATCH  /api/google/calendars/{id}    → [R-041] is_enabled 切替
 require_once __DIR__ . '/BaseController.php';
 require_once __DIR__ . '/services/CryptoService.php';
 require_once __DIR__ . '/services/GoogleCalendarService.php';
@@ -113,7 +115,14 @@ class GoogleCalendarController extends BaseController {
         $to = isset($_GET['to']) ? strtotime($_GET['to'] . ' 23:59:59') : strtotime('+2 months');
 
         try {
-            $events = $this->service->fetchEvents($this->currentUserId, $from, $to);
+            // [R-041] user_google_calendars が空（旧仕様の連携 or 初回）の場合は
+            // calendarList を取り込んでから events 取得。複数カレンダー対応。
+            $check = $this->pdo->prepare("SELECT COUNT(*) FROM user_google_calendars WHERE user_id = ? AND deleted_at IS NULL");
+            $check->execute([$this->currentUserId]);
+            if ((int)$check->fetchColumn() === 0) {
+                $this->service->getCalendarList($this->currentUserId);
+            }
+            $events = $this->service->getEvents($this->currentUserId, $from, $to);
         } catch (\Throwable $e) {
             error_log('refresh failed: ' . $e->getMessage());
             $this->sendError(500, 'Google から取得に失敗: ' . $e->getMessage());
@@ -142,6 +151,48 @@ class GoogleCalendarController extends BaseController {
             'from' => date('Y-m-d', $from),
             'to' => date('Y-m-d', $to),
         ]);
+    }
+
+    // --- [R-041] 複数 Google カレンダー対応 ---
+
+    /**
+     * GET /google/calendars
+     *  - Google `calendarList.list` を呼んで `user_google_calendars` に upsert
+     *  - 現在の有効/無効状態を含むカレンダー一覧を JSON で返す
+     *  - Google 側で削除されたカレンダーは応答に含めない（論理削除済み）
+     */
+    public function listCalendars(): void {
+        $this->authenticate();
+        try {
+            // Google から最新を取り込み（upsert + 論理削除）
+            $list = $this->service->getCalendarList($this->currentUserId);
+        } catch (\Throwable $e) {
+            error_log('listCalendars failed: ' . $e->getMessage());
+            $this->sendError(500, 'Google からカレンダー一覧取得に失敗: ' . $e->getMessage());
+            return;
+        }
+        $this->sendJSON(['calendars' => $list]);
+    }
+
+    /**
+     * PATCH /google/calendars/{id}
+     *  - body: { is_enabled: bool }
+     *  - user_id でスコープを限定し、他テナントの行は触らない
+     */
+    public function patchCalendar(int $rowId): void {
+        $this->authenticate();
+        $input = $this->getInput();
+        if (!array_key_exists('is_enabled', $input)) {
+            $this->sendError(400, 'is_enabled は必須です');
+            return;
+        }
+        $isEnabled = (bool)$input['is_enabled'];
+        $ok = $this->service->updateCalendarEnabled($this->currentUserId, $rowId, $isEnabled);
+        if (!$ok) {
+            $this->sendError(404, 'カレンダーが見つかりません');
+            return;
+        }
+        $this->sendJSON(['success' => true, 'id' => $rowId, 'is_enabled' => $isEnabled]);
     }
 
     // --- state 署名（CSRF 対策の最小実装）---

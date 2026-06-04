@@ -20,6 +20,8 @@ class TestableGoogleCalendarController extends GoogleCalendarController {
     public string $mockUserId = 'user-1';
     public array $lastResponse = [];
     public ?int $lastStatus = null;
+    /** PATCH/POST 等で php://input を差し替えるためのモック */
+    public array $mockInput = [];
 
     public function __construct(PDO $pdo, GoogleCalendarService $service) {
         // 親の constructor は呼ばず、必要なプロパティだけ注入
@@ -41,6 +43,10 @@ class TestableGoogleCalendarController extends GoogleCalendarController {
         $this->lastStatus = $code;
         $this->lastResponse = ['error' => $message];
         throw new TestExit();
+    }
+
+    protected function getInput() {
+        return $this->mockInput;
     }
 }
 
@@ -80,6 +86,24 @@ class GoogleCalendarControllerTest {
                 fetched_at INTEGER NOT NULL
             )
         ");
+        // [R-041] 複数 Google カレンダー対応用テーブル
+        $this->pdo->exec("
+            CREATE TABLE user_google_calendars (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                calendar_id TEXT NOT NULL,
+                summary TEXT,
+                description TEXT,
+                color_hex TEXT,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                last_synced_at INTEGER,
+                deleted_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(user_id, calendar_id)
+            )
+        ");
         $this->crypto = new CryptoService(str_repeat('a1b2', 16));
         $this->http = new FakeHttpClient();
         $this->service = new GoogleCalendarService(
@@ -103,6 +127,10 @@ class GoogleCalendarControllerTest {
         $this->testStatusWhenConnected();
         $this->testStatusWhenNotConnected();
         $this->testDeleteOauth();
+        // [R-041] 複数 Google カレンダー対応
+        $this->testListCalendarsReturnsRows();
+        $this->testPatchCalendarTogglesEnabled();
+        $this->testPatchCalendarRejectsOtherUser();
         echo "All tests passed!\n";
     }
 
@@ -212,6 +240,73 @@ class GoogleCalendarControllerTest {
         $oauthCount = (int)$this->pdo->query("SELECT COUNT(*) FROM user_google_oauth")->fetchColumn();
         $cacheCount = (int)$this->pdo->query("SELECT COUNT(*) FROM external_events_cache")->fetchColumn();
         assert($oauthCount === 0 && $cacheCount === 0, "cleanup failed");
+        echo " OK\n";
+    }
+
+    // ===== [R-041] 複数 Google カレンダー対応 =====
+
+    private function testListCalendarsReturnsRows(): void {
+        echo "  [Test] GET /google/calendars returns calendar list...";
+        // OAuth を仕込み、refresh access → calendarList.list の順でモック
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, created_at) VALUES (?, ?, 'primary', ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now]);
+
+        $this->http->enqueue(200, ['access_token' => 'ya29.cal', 'expires_in' => 3600]);
+        $this->http->enqueue(200, [
+            'items' => [
+                ['id' => 'primary', 'summary' => 'Primary', 'backgroundColor' => '#4285F4'],
+                ['id' => 'side@group.calendar.google.com', 'summary' => 'サブ', 'backgroundColor' => '#33B679'],
+            ],
+        ]);
+
+        $res = $this->captureResponse(fn() => $this->controller->listCalendars());
+        $list = $res['body']['calendars'] ?? null;
+        assert(is_array($list), 'calendars missing in response');
+        assert(count($list) === 2, 'expected 2 calendars, got ' . count($list));
+        $byId = [];
+        foreach ($list as $c) { $byId[$c['calendar_id']] = $c; }
+        assert(isset($byId['primary']) && $byId['primary']['color_hex'] === '#4285F4', 'primary color_hex missing');
+        assert($byId['primary']['is_enabled'] === true, 'is_enabled bool expected');
+        assert(isset($byId['primary']['id']) && $byId['primary']['id'] > 0, 'row id missing');
+        echo " OK\n";
+    }
+
+    private function testPatchCalendarTogglesEnabled(): void {
+        echo "  [Test] PATCH /google/calendars/{id} toggles is_enabled...";
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?)")
+            ->execute(['user-1', 'primary', 'Primary', '#4285F4', $now, $now]);
+        $rowId = (int)$this->pdo->lastInsertId();
+
+        $this->controller->mockInput = ['is_enabled' => false];
+        $res = $this->captureResponse(fn() => $this->controller->patchCalendar($rowId));
+        assert(($res['body']['success'] ?? false) === true, 'success flag missing');
+
+        $row = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$rowId")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['is_enabled'] === 0, 'is_enabled should be 0');
+        echo " OK\n";
+    }
+
+    private function testPatchCalendarRejectsOtherUser(): void {
+        echo "  [Test] PATCH /google/calendars/{id} rejects other-user rows...";
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        // 他ユーザーの行
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)")
+            ->execute(['other-user', 'primary', 'Other', $now, $now]);
+        $otherId = (int)$this->pdo->lastInsertId();
+
+        $this->controller->mockInput = ['is_enabled' => false];
+        $res = $this->captureResponse(fn() => $this->controller->patchCalendar($otherId));
+        assert($res['status'] === 404, 'expected 404 not-found for other user, got ' . var_export($res['status'], true));
+
+        // 行は変更されない
+        $row = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$otherId")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['is_enabled'] === 1, '他ユーザー行は変更されていないこと');
         echo " OK\n";
     }
 }
