@@ -376,8 +376,16 @@ class GoogleCalendarServiceTest {
         assert($byCal['work@group.calendar.google.com']['color_hex'] === '#0B8043', 'color_hex (work) not propagated');
 
         // events.list を 2 回呼んだか確認（並列 = 順序関係なく 2 件）
-        $eventsCalls = array_filter($this->http->calls, fn($c) => strpos($c['url'], '/events?') !== false);
-        assert(count($eventsCalls) === 2, 'events.list should be called for each calendar, got ' . count($eventsCalls));
+        // 注: $this->http->calls は全テストで累積するため、本テスト固有の access token "ya29.mlt" で絞る
+        $eventsCalls = array_filter($this->http->calls, function($c) {
+            if (strpos($c['url'], '/events?') === false) return false;
+            $headers = $c['options']['headers'] ?? [];
+            foreach ($headers as $h) {
+                if (strpos($h, 'Bearer ya29.mlt') !== false) return true;
+            }
+            return false;
+        });
+        assert(count($eventsCalls) === 2, 'events.list should be called for each enabled calendar, got ' . count($eventsCalls));
         echo " OK\n";
     }
 

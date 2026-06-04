@@ -590,8 +590,9 @@ if (preg_match('#^(/api)?/dependencies(?:/([^/]+))?$#', $path, $matches)) {
     exit;
 }
 
-// Google Calendar Routes (R-034 Phase 2)
-if (preg_match('#^(/api)?/google/(oauth|calendar)(/.*)?$#', $path, $matches)) {
+// Google Calendar Routes (R-034 Phase 2 / R-041 Phase 3)
+// /google/oauth/*, /google/calendar/*, /google/calendars(/...)
+if (preg_match('#^(/api)?/google/(oauth|calendar|calendars)(/.*)?$#', $path, $matches)) {
     require_once 'GoogleCalendarController.php';
     try {
         $controller = new GoogleCalendarController();
@@ -617,6 +618,12 @@ if (preg_match('#^(/api)?/google/(oauth|calendar)(/.*)?$#', $path, $matches)) {
         $controller->refresh();
     } elseif ($method === 'GET' && $subPath === 'calendar/events') {
         $controller->getEvents();
+    } elseif ($method === 'GET' && $subPath === 'calendars') {
+        // [R-041] GET /google/calendars
+        $controller->listCalendars();
+    } elseif ($method === 'PATCH' && preg_match('#^calendars/(\d+)$#', $subPath, $cm)) {
+        // [R-041] PATCH /google/calendars/{id}
+        $controller->patchCalendar((int)$cm[1]);
     } else {
         http_response_code(404);
         echo json_encode(['error' => 'Google endpoint not found', 'path' => $subPath, 'method' => $method]);

@@ -19,6 +19,7 @@ class GoogleCalendarService {
     public const USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
     public const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
     public const ALL_DAY_MINUTES = 240; // 終日イベントの量感換算（仕様: 半日相当）
+    public const MULTI_CONCURRENCY = 5; // R-041: events.list 並列取得の同時接続数上限
 
     private PDO $pdo;
     private CryptoService $crypto;
@@ -326,6 +327,269 @@ class GoogleCalendarService {
             ];
         }
         return $result;
+    }
+
+    // ===== [R-041] 複数 Google カレンダー対応 =====
+
+    /**
+     * Google `calendarList.list` を呼び、`user_google_calendars` に upsert する。
+     * Google 側から消えたカレンダーは `is_enabled = 0` + `deleted_at = now()` で論理削除。
+     * 初回連携または新規発見カレンダーは `is_enabled = 1` として挿入（前提: 全 ON）。
+     *
+     * @return array<int, array{
+     *   id:int, calendar_id:string, summary:?string, description:?string,
+     *   color_hex:?string, is_enabled:bool, sort_order:int
+     * }>
+     */
+    public function getCalendarList(string $userId): array {
+        $accessToken = $this->refreshAccessToken($userId);
+        $res = $this->http->request('GET', self::CALENDAR_API . '/users/me/calendarList', [
+            'headers' => ["Authorization: Bearer $accessToken"],
+        ]);
+        if ($res['status'] !== 200) {
+            throw new \RuntimeException('GoogleCalendarService: calendarList.list failed: ' . $res['body']);
+        }
+        $data = json_decode($res['body'], true);
+        $items = $data['items'] ?? [];
+
+        $now = time();
+        $googleIds = [];
+        $sortOrder = 0;
+
+        foreach ($items as $item) {
+            $calendarId = $item['id'] ?? null;
+            if (!$calendarId) continue;
+            $googleIds[] = $calendarId;
+            $summary = $item['summaryOverride'] ?? ($item['summary'] ?? null);
+            $description = $item['description'] ?? null;
+            $colorHex = $item['backgroundColor'] ?? null;
+
+            // 既存行を確認
+            $sel = $this->pdo->prepare("SELECT id, is_enabled FROM user_google_calendars WHERE user_id = ? AND calendar_id = ?");
+            $sel->execute([$userId, $calendarId]);
+            $existing = $sel->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                // 既存行は属性更新、削除フラグ解除。is_enabled はユーザー設定を尊重
+                $upd = $this->pdo->prepare("
+                    UPDATE user_google_calendars
+                       SET summary = ?, description = ?, color_hex = ?,
+                           sort_order = ?, deleted_at = NULL, last_synced_at = ?, updated_at = ?
+                     WHERE id = ?
+                ");
+                $upd->execute([$summary, $description, $colorHex, $sortOrder, $now, $now, (int)$existing['id']]);
+            } else {
+                // 新規発見カレンダー: is_enabled = 1 で挿入（初回連携 = 全 ON）
+                $ins = $this->pdo->prepare("
+                    INSERT INTO user_google_calendars
+                        (user_id, calendar_id, summary, description, color_hex, is_enabled, sort_order, last_synced_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+                ");
+                $ins->execute([$userId, $calendarId, $summary, $description, $colorHex, $sortOrder, $now, $now, $now]);
+            }
+            $sortOrder++;
+        }
+
+        // Google にない既存行を論理削除
+        if (!empty($googleIds)) {
+            $placeholders = implode(',', array_fill(0, count($googleIds), '?'));
+            $params = array_merge([$now, $now, $userId], $googleIds);
+            $delStmt = $this->pdo->prepare("
+                UPDATE user_google_calendars
+                   SET is_enabled = 0, deleted_at = ?, updated_at = ?
+                 WHERE user_id = ?
+                   AND calendar_id NOT IN ($placeholders)
+                   AND deleted_at IS NULL
+            ");
+            $delStmt->execute($params);
+        } else {
+            // Google が空（理論上 primary が必ず返るので通常起こらない）
+            $delStmt = $this->pdo->prepare("
+                UPDATE user_google_calendars
+                   SET is_enabled = 0, deleted_at = ?, updated_at = ?
+                 WHERE user_id = ? AND deleted_at IS NULL
+            ");
+            $delStmt->execute([$now, $now, $userId]);
+        }
+
+        return $this->fetchCalendarRows($userId);
+    }
+
+    /**
+     * `user_google_calendars` の現在の行を取得（論理削除済みは除外）。
+     */
+    public function fetchCalendarRows(string $userId): array {
+        $stmt = $this->pdo->prepare("
+            SELECT id, calendar_id, summary, description, color_hex, is_enabled, sort_order
+              FROM user_google_calendars
+             WHERE user_id = ? AND deleted_at IS NULL
+             ORDER BY sort_order ASC, id ASC
+        ");
+        $stmt->execute([$userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $result = [];
+        foreach ($rows as $r) {
+            $result[] = [
+                'id' => (int)$r['id'],
+                'calendar_id' => $r['calendar_id'],
+                'summary' => $r['summary'],
+                'description' => $r['description'],
+                'color_hex' => $r['color_hex'],
+                'is_enabled' => (int)$r['is_enabled'] === 1,
+                'sort_order' => (int)$r['sort_order'],
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * 有効カレンダー全件の events を curl_multi で並列取得し、合算して返す。
+     * 各カレンダーは `external_events_cache` に calendar_id 別キーで個別キャッシュされる。
+     *
+     * @return array<int, array{
+     *   id:string, event_id:string, calendar_id:string, color_hex:?string,
+     *   start_at:int, end_at:int, all_day:int, title:?string, location:?string, html_link:?string
+     * }>
+     */
+    public function getEvents(string $userId, int $fromTimestamp, int $toTimestamp): array {
+        // 1. 有効カレンダー取得
+        $stmt = $this->pdo->prepare("
+            SELECT id, calendar_id, color_hex
+              FROM user_google_calendars
+             WHERE user_id = ? AND is_enabled = 1 AND deleted_at IS NULL
+             ORDER BY sort_order ASC, id ASC
+        ");
+        $stmt->execute([$userId]);
+        $calendars = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($calendars)) {
+            return [];
+        }
+
+        // 2. access token を 1 回だけ取得（全カレンダーで共有）
+        $accessToken = $this->refreshAccessToken($userId);
+
+        // 3. curl_multi で events.list を並列取得（同時 5）
+        $requests = [];
+        foreach ($calendars as $cal) {
+            $calendarId = $cal['calendar_id'];
+            $url = self::CALENDAR_API . '/calendars/' . rawurlencode($calendarId) . '/events?' . http_build_query([
+                'timeMin' => gmdate('Y-m-d\TH:i:s\Z', $fromTimestamp),
+                'timeMax' => gmdate('Y-m-d\TH:i:s\Z', $toTimestamp),
+                'singleEvents' => 'true',
+                'orderBy' => 'startTime',
+                'maxResults' => 250,
+            ]);
+            $requests[$calendarId] = [
+                'method' => 'GET',
+                'url' => $url,
+                'options' => ['headers' => ["Authorization: Bearer $accessToken"]],
+            ];
+        }
+
+        $responses = $this->http->requestMulti($requests, self::MULTI_CONCURRENCY);
+
+        // 4. 結果を正規化＋カレンダー別キャッシュ更新
+        $now = time();
+        $colorByCalendar = [];
+        foreach ($calendars as $cal) {
+            $colorByCalendar[$cal['calendar_id']] = $cal['color_hex'];
+        }
+
+        $insStmt = $this->pdo->prepare("
+            INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, location, fetched_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                start_at = excluded.start_at,
+                end_at = excluded.end_at,
+                all_day = excluded.all_day,
+                title = excluded.title,
+                location = excluded.location,
+                fetched_at = excluded.fetched_at
+        ");
+        $delPerCal = $this->pdo->prepare("
+            DELETE FROM external_events_cache
+             WHERE user_id = ? AND calendar_id = ? AND start_at >= ? AND start_at < ?
+        ");
+
+        $allEvents = [];
+        foreach ($responses as $calendarId => $res) {
+            if (($res['status'] ?? 0) !== 200) {
+                // 個別カレンダーの失敗は warning ログのみ。他のカレンダーは続行
+                error_log("GoogleCalendarService::getEvents: events.list failed for $calendarId: " . ($res['body'] ?? ''));
+                continue;
+            }
+            $data = json_decode($res['body'], true);
+            $items = $data['items'] ?? [];
+
+            // このカレンダーの該当期間キャッシュを一旦クリア
+            $delPerCal->execute([$userId, $calendarId, $fromTimestamp, $toTimestamp]);
+
+            foreach ($items as $item) {
+                if (($item['status'] ?? '') === 'cancelled') {
+                    continue;
+                }
+                $eventId = $item['id'] ?? null;
+                if (!$eventId) continue;
+
+                $allDay = 0;
+                $startAt = 0;
+                $endAt = 0;
+                if (isset($item['start']['dateTime'])) {
+                    $startAt = strtotime($item['start']['dateTime']);
+                    $endAt = strtotime($item['end']['dateTime'] ?? $item['start']['dateTime']);
+                } elseif (isset($item['start']['date'])) {
+                    $allDay = 1;
+                    $startAt = strtotime($item['start']['date'] . ' 00:00:00');
+                    $endAt = strtotime(($item['end']['date'] ?? $item['start']['date']) . ' 00:00:00');
+                } else {
+                    continue;
+                }
+
+                $rowId = 'google:' . $calendarId . ':' . $eventId;
+                $insStmt->execute([
+                    $rowId, $userId, $calendarId, $eventId,
+                    $startAt, $endAt, $allDay,
+                    $item['summary'] ?? null, $item['location'] ?? null, $now,
+                ]);
+
+                $allEvents[] = [
+                    'id' => $rowId,
+                    'event_id' => $eventId,
+                    'calendar_id' => $calendarId,
+                    'color_hex' => $colorByCalendar[$calendarId] ?? null,
+                    'start_at' => $startAt,
+                    'end_at' => $endAt,
+                    'all_day' => $allDay,
+                    'title' => $item['summary'] ?? null,
+                    'location' => $item['location'] ?? null,
+                    'html_link' => $item['htmlLink'] ?? null,
+                ];
+            }
+        }
+
+        // 5. last_sync_at 更新
+        $this->pdo->prepare("UPDATE user_google_oauth SET last_sync_at = ? WHERE user_id = ?")
+            ->execute([$now, $userId]);
+
+        // start_at 昇順で並べ替え
+        usort($allEvents, fn($a, $b) => $a['start_at'] <=> $b['start_at']);
+
+        return $allEvents;
+    }
+
+    /**
+     * カレンダー行の is_enabled を切り替える。user_id でスコープを限定（他テナント保護）。
+     * @return bool 更新成功（指定 user_id の行が存在し更新された）なら true、そうでなければ false
+     */
+    public function updateCalendarEnabled(string $userId, int $rowId, bool $isEnabled): bool {
+        $stmt = $this->pdo->prepare("
+            UPDATE user_google_calendars
+               SET is_enabled = ?, updated_at = ?
+             WHERE id = ? AND user_id = ?
+        ");
+        $stmt->execute([$isEnabled ? 1 : 0, time(), $rowId, $userId]);
+        return $stmt->rowCount() > 0;
     }
 
     /**
