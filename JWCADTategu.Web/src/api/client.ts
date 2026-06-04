@@ -57,9 +57,9 @@ export class ApiClient {
 			(headers as any)['Authorization'] = `Bearer ${token}`;
 		}
 
-		// Server compatibility: Use X-HTTP-Method-Override for PUT/DELETE
+		// Server compatibility: Use X-HTTP-Method-Override for PUT/PATCH/DELETE
 		let actualMethod = method;
-		if (method === 'PUT' || method === 'DELETE') {
+		if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
 			headers['X-HTTP-Method-Override'] = method;
 			actualMethod = 'POST';
 		}
