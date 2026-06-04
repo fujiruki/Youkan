@@ -6,6 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../../../lib/utils';
 import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
+import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+
+/** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
+const LAZY_LOAD_MONTHS = 3;
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
@@ -43,6 +47,10 @@ interface TimelineViewProps {
     externalEventsMaxVisible?: number;
     onExternalEventClick?: (event: ExternalEvent) => void;
     onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
+    /** R-042-Y2: スクロール端で +N ヶ月の追加ロードを発火するコールバック */
+    onLoadMore?: (direction: 'before' | 'after', months: number) => void;
+    /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
+    isLoadingMore?: boolean;
 }
 
 export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
@@ -58,9 +66,23 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     externalEventsMaxVisible = 3,
     onExternalEventClick,
     onExternalEventsMoreClick,
+    onLoadMore,
+    isLoadingMore = false,
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // R-042-Y2: 上端／下端（縦表示）または左端／右端（横表示）に sentinel を配置し、
+    // 交差検知で +3 ヶ月の追加読み込みを発火。isLoadingMore=true のときは抑止する。
+    const sentinelEnabled = !!onLoadMore && !isLoadingMore;
+    const setBeforeRef = useLazyLoadSentinel({
+        enabled: sentinelEnabled,
+        onIntersect: () => onLoadMore?.('before', LAZY_LOAD_MONTHS),
+    });
+    const setAfterRef = useLazyLoadSentinel({
+        enabled: sentinelEnabled,
+        onIntersect: () => onLoadMore?.('after', LAZY_LOAD_MONTHS),
+    });
 
     useEffect(() => {
         if (todayRef.current) {
@@ -71,6 +93,13 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     return (
         <div className="w-full h-full relative" ref={containerRef} onClick={onBackgroundClick}>
             <div className={cn("flex-1 h-full overflow-auto select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef} onScroll={onScroll}>
+                {/* R-042-Y2: スクロール先頭側 sentinel（縦表示時=上端、横表示時=左端） */}
+                <div
+                    ref={setBeforeRef}
+                    data-testid="lazy-sentinel-before"
+                    aria-hidden="true"
+                    className={cn("pointer-events-none", isMini ? "h-px w-full" : "h-full w-px absolute top-0 left-0 z-0")}
+                />
                 <div className={cn("flex min-w-max min-h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
                     <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full pressure-lines-svg">
                         <AnimatePresence>
@@ -125,6 +154,13 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                         );
                     })}
                 </div>
+                {/* R-042-Y2: スクロール末尾側 sentinel（縦表示時=下端、横表示時=右端） */}
+                <div
+                    ref={setAfterRef}
+                    data-testid="lazy-sentinel-after"
+                    aria-hidden="true"
+                    className={cn("pointer-events-none", isMini ? "h-px w-full" : "h-full w-px absolute top-0 right-0 z-0")}
+                />
             </div>
         </div>
     );

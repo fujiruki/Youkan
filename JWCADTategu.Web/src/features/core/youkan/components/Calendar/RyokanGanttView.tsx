@@ -15,6 +15,10 @@ import { useToast } from '../../../../../contexts/ToastContext';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { CapacityBar } from './CapacityBar';
 import { ExternalEvent } from '../../types/externalEvent';
+import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+
+/** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
+const LAZY_LOAD_MONTHS = 3;
 
 const isSameDate = (d1: Date, d2: Date) => {
 	return d1.getFullYear() === d2.getFullYear() &&
@@ -64,6 +68,10 @@ interface GanttViewProps {
 	externalEventsByDate?: Map<string, ExternalEvent[]>;
 	onExternalEventClick?: (event: ExternalEvent) => void;
 	onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
+	/** R-042-Y2: スクロール端で +N ヶ月の追加ロードを発火するコールバック */
+	onLoadMore?: (direction: 'before' | 'after', months: number) => void;
+	/** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
+	isLoadingMore?: boolean;
 }
 
 /** R-039 Phase 3 UX: ガント日付列ヘッダー内に表示する Google 予定の最大件数 */
@@ -74,8 +82,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	onUpdateItem, onDeleteItem,
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
-	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick
+	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
+	onLoadMore, isLoadingMore = false,
 }) => {
+	// R-042-Y2: 横スクロール左端・右端の sentinel。
+	// 追加ロード中（isLoadingMore=true）は enabled=false で二重発火を抑止する。
+	const sentinelEnabled = !!onLoadMore && !isLoadingMore;
+	const setBeforeRef = useLazyLoadSentinel({
+		enabled: sentinelEnabled,
+		onIntersect: () => onLoadMore?.('before', LAZY_LOAD_MONTHS),
+	});
+	const setAfterRef = useLazyLoadSentinel({
+		enabled: sentinelEnabled,
+		onIntersect: () => onLoadMore?.('after', LAZY_LOAD_MONTHS),
+	});
 	const { showToast } = useToast();
 	const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -516,6 +536,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				ref={effectiveScrollRef}
 				className="flex-1 overflow-auto overflow-x-auto relative min-h-0"
 			>
+				{/* R-042-Y2: 横スクロール左端 sentinel（前方への +3 ヶ月 lazy load トリガ） */}
+				<div
+					ref={setBeforeRef}
+					data-testid="lazy-sentinel-before"
+					aria-hidden="true"
+					className="absolute top-0 bottom-0 left-0 w-px pointer-events-none z-0"
+				/>
+				{/* R-042-Y2: 横スクロール右端 sentinel（後方への +3 ヶ月 lazy load トリガ） */}
+				<div
+					ref={setAfterRef}
+					data-testid="lazy-sentinel-after"
+					aria-hidden="true"
+					className="absolute top-0 bottom-0 right-0 w-px pointer-events-none z-0"
+				/>
 				<div className="min-w-max pb-32 relative">
 					{/* [FIX] Background Grid & Scroll Targets (Always present even if no items) */}
 					<div className="absolute top-0 bottom-0 left-[16rem] flex pointer-events-none z-0">

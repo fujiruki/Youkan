@@ -55,7 +55,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	showGroups = true, // [NEW]
 	forceScroll = false,
 	externalEventsByDate,
-	externalEventsMaxVisible = 3
+	externalEventsMaxVisible = 3,
+	onLoadMore,
+	isLoadingMore = false,
+	loadedRange: _loadedRange,
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -664,6 +667,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						externalEventsMaxVisible={externalEventsMaxVisible}
 						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onLoadMore={onLoadMore}
+						isLoadingMore={isLoadingMore}
 					/>
 				)}
 				{displayMode === 'grid' && (
@@ -692,6 +697,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						externalEventsMaxVisible={externalEventsMaxVisible}
 						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onLoadMore={onLoadMore}
+						isLoadingMore={isLoadingMore}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -723,6 +730,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						externalEventsByDate={externalEventsByDate}
 						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onLoadMore={onLoadMore}
+						isLoadingMore={isLoadingMore}
 					/>
 				)}
 			</div>

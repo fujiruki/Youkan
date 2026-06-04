@@ -96,10 +96,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		externalRange.to,
 		externalViewMode
 	);
-	// R-042-Y1: Y2 への準備として参照だけ確保（未使用警告抑制）
-	void externalLoadMore;
-	void externalLoadedRange;
-	void externalIsLoadingMore;
+	// R-042-Y2: sentinel から呼ぶ lazy load コールバック。
+	// useExternalEvents.loadMore はそのまま渡せばよい（direction / months 引数の意味は一致）。
 
 	/**
 	 * R-036 真因対応:
@@ -239,6 +237,9 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					showGroups={showGanttGroups}
 					onDeleteItem={handleDelete}
 					externalEventsByDate={externalEventsByDate}
+					onLoadMore={externalLoadMore}
+					isLoadingMore={externalIsLoadingMore}
+					loadedRange={externalLoadedRange}
 				/>
 			</div>
 
