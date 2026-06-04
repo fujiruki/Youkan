@@ -80,6 +80,16 @@ Agentは機能完成後も解放しない。デバッグ・追加修正も同じ
    - 「マージ Agent」を立て、worktree で `git merge` → push まで実行させる
 5. **`.gitignore` に `.claude/worktrees/` を追加**しておく（worktree ディレクトリが untracked として現れない様に）
 6. **`.worktreeinclude` を整備**（`.env`, `backend/jbwos.sqlite` 等の untracked かつ必要なファイルを worktree に自動コピー）
+7. **Agent prompt の最初の git 操作に `git fetch && git checkout -b <branch> master` を明示する**（必須）
+   - worktree が起動時に取り込む base スナップショットは過去の master を指していることがある（指揮 AI が直前にコミットした場合特に）
+   - これを無視して `git checkout -b ...` だけだと、ブランチ全体が R-XXX を巻き戻す巨大差分（+45万行）になりマージ不能になる
+   - **実際に発生した事故**（2026-06-04）: R-038 Agent の base が古く、`master` の `.gitignore` 整理コミット（`b436236`）を巻き戻す状態で実装してしまった。リカバリに cherry-pick + 衝突解消の追加 Agent 1 回分のコストが発生した
+8. **指揮 AI 側の自衛**
+   - Agent 起動の前後で `pwd` と `git rev-parse --abbrev-ref HEAD` を確認する。Bash ツールの cwd が Agent worktree 内に勝手に移ることがあるため、コマンドは `cd /c/Fujiruki/Projects/Youkan && ...` を先頭に付けて固定
+   - メイン作業ツリーの HEAD が Agent worktree のブランチに化けていたら（`On branch feature/R-XXX` と出る）即 master に戻す
+9. **マージ後の差分検査を必須化**
+   - Agent 完了報告を受け取ったら、master マージ前に `git diff --stat master..<branch>` で**全体行数**を確認する
+   - 期待行数の 10 倍以上、または `*.sqlite` / `*.log` / `tsbuildinfo` などの巻き戻しが混入していたら、**マージせずに cherry-pick リカバリに切り替える**
 
 参考: https://code.claude.com/docs/en/worktrees
 
