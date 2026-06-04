@@ -90,6 +90,44 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const [allDays, setAllDays] = useState<Date[]>([]);
 	const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
 
+	// [R-038] グリッドビュー縦スクロール時、ビューポート中央のセル日付から表示月を算出。
+	// data-date 属性は normalizeDateKey() (= Date.toDateString()) で書かれているため、
+	// 文字列の前方一致ではなく new Date() でパースして月を取り出す。
+	const lastReportedMonthRef = useRef<string>('');
+
+	const detectVisibleMonth = useCallback((container: HTMLElement) => {
+		if (!onVisibleMonthChange) return;
+		// コンテナ縦中央に最も近いセルを探す
+		const centerY = container.scrollTop + container.clientHeight / 2;
+		const cells = container.querySelectorAll('[data-date]');
+		if (cells.length === 0) return;
+
+		let closestCell: HTMLElement | null = null;
+		let closestDistance = Infinity;
+		cells.forEach(cell => {
+			const el = cell as HTMLElement;
+			const cellCenter = el.offsetTop + el.offsetHeight / 2;
+			const dist = Math.abs(cellCenter - centerY);
+			if (dist < closestDistance) {
+				closestDistance = dist;
+				closestCell = el;
+			}
+		});
+
+		if (!closestCell) return;
+		const dateStr = (closestCell as HTMLElement).getAttribute('data-date');
+		if (!dateStr) return;
+
+		const parsed = new Date(dateStr);
+		if (Number.isNaN(parsed.getTime())) return;
+
+		const monthKey = `${parsed.getFullYear()}-${parsed.getMonth() + 1}`;
+		if (monthKey !== lastReportedMonthRef.current) {
+			lastReportedMonthRef.current = monthKey;
+			onVisibleMonthChange(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+		}
+	}, [onVisibleMonthChange]);
+
 	// [NEW Phase 24] Expose imperative scroll control
 	const scrollToDateElement = useCallback((targetDate: Date, instant: boolean = false) => {
 		if (!scrollContainerRef.current) return;
@@ -185,10 +223,24 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				});
 			}
 		} else {
-			// Grid/Timeline: 従来のスクロール
-			scrollToDateElement(now);
+			// [R-038] Grid/Timeline: 今月1日のセルを中央付近に配置する。
+			// 1日が DOM 内に無い場合は今日のセル、それも無ければ従来の scrollToDateElement にフォールバック。
+			const monthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+			const firstKey = normalizeDateKey(monthFirstDay);
+			const todayKey = normalizeDateKey(now);
+
+			const targetCell = (container.querySelector(`[data-date="${firstKey}"]`)
+				|| container.querySelector(`[data-date="${todayKey}"]`)) as HTMLElement | null;
+
+			if (targetCell) {
+				targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				// scrollIntoView 後に detectVisibleMonth を 1 度走らせてヘッダーを同期
+				requestAnimationFrame(() => detectVisibleMonth(container));
+			} else {
+				scrollToDateElement(now);
+			}
 		}
-	}, [displayMode, scrollToDateElement, items]);
+	}, [displayMode, scrollToDateElement, items, detectVisibleMonth]);
 
 	useImperativeHandle(calendarRef, () => ({
 		scrollToMonth: (year: number, month: number) => {
@@ -325,37 +377,6 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 		return map;
 	}, [completedItems]);
-
-	// [NEW Phase 24] Track visible month from scroll position
-	const lastReportedMonthRef = useRef<string>('');
-
-	const detectVisibleMonth = useCallback((container: HTMLElement) => {
-		if (!onVisibleMonthChange) return;
-		// Find the date cell closest to the vertical center of the container
-		const centerY = container.scrollTop + container.clientHeight / 2;
-		const cells = container.querySelectorAll('[data-date]');
-		let closestCell: Element | null = null;
-		let closestDistance = Infinity;
-		cells.forEach(cell => {
-			const top = (cell as HTMLElement).offsetTop;
-			const dist = Math.abs(top - centerY);
-			if (dist < closestDistance) {
-				closestDistance = dist;
-				closestCell = cell;
-			}
-		});
-		if (closestCell) {
-			const dateStr = (closestCell as HTMLElement).getAttribute('data-date');
-			if (dateStr) {
-				const monthKey = dateStr.substring(0, 7); // 'YYYY-MM'
-				if (monthKey !== lastReportedMonthRef.current) {
-					lastReportedMonthRef.current = monthKey;
-					const [y, m] = monthKey.split('-').map(Number);
-					onVisibleMonthChange(new Date(y, m - 1, 1));
-				}
-			}
-		}
-	}, [onVisibleMonthChange]);
 
 	// Handle Infinite Scroll Extension
 	const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
