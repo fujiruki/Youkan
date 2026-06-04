@@ -175,4 +175,132 @@ describe('useExternalEvents', () => {
             expect(spy).toHaveBeenCalledTimes(1);
         });
     });
+
+    // R-042-Y1: 月単位キャッシュ＋ loadMore による段階拡張
+    describe('R-042-Y1: 月単位キャッシュと loadMore', () => {
+        const buildEmptyPayload = () => ({ external_events: [] });
+
+        it('月単位キャッシュ key: 2026-05 と 2026-06 は別 key として扱われる', async () => {
+            // 5 月のみ取得 → その後 6 月のみ取得した場合、月キーが別なので 2 回 fetch される
+            const spy = vi.spyOn(ApiClient, 'request').mockImplementation(async () =>
+                buildEmptyPayload() as any
+            );
+
+            const { result: r1, unmount: u1 } = renderHook(() =>
+                useExternalEvents('2026-05-01', '2026-05-31')
+            );
+            await waitFor(() => expect(r1.current.loading).toBe(false));
+            u1();
+
+            const { result: r2 } = renderHook(() =>
+                useExternalEvents('2026-06-01', '2026-06-30')
+            );
+            await waitFor(() => expect(r2.current.loading).toBe(false));
+
+            expect(spy).toHaveBeenCalledTimes(2);
+            const calls = spy.mock.calls.map(c => c[1] as string);
+            expect(calls.some(p => p.includes('2026-05'))).toBe(true);
+            expect(calls.some(p => p.includes('2026-06'))).toBe(true);
+        });
+
+        it('loadMore("after", 3) で 3 ヶ月分の未取得月をまとめて fetch する', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockImplementation(async () =>
+                buildEmptyPayload() as any
+            );
+
+            const { result } = renderHook(() =>
+                useExternalEvents('2026-06-01', '2026-06-30')
+            );
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await result.current.loadMore('after', 3);
+            });
+
+            // 追加 fetch は 1 回（連続月をまとめて 1 リクエスト）
+            expect(spy).toHaveBeenCalledTimes(2);
+            const lastCall = spy.mock.calls[1][1] as string;
+            expect(lastCall).toContain('2026-07-01');
+            expect(lastCall).toContain('2026-09-30');
+        });
+
+        it('loadMore("before", 3) で 3 ヶ月分の未取得月をまとめて fetch する', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockImplementation(async () =>
+                buildEmptyPayload() as any
+            );
+
+            const { result } = renderHook(() =>
+                useExternalEvents('2026-06-01', '2026-06-30')
+            );
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await result.current.loadMore('before', 3);
+            });
+
+            expect(spy).toHaveBeenCalledTimes(2);
+            const lastCall = spy.mock.calls[1][1] as string;
+            expect(lastCall).toContain('2026-03-01');
+            expect(lastCall).toContain('2026-05-31');
+        });
+
+        it('既存キャッシュとオーバーラップする月は再 fetch しない', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockImplementation(async () =>
+                buildEmptyPayload() as any
+            );
+
+            // 初期: 5〜7 月（3 ヶ月）
+            const { result } = renderHook(() =>
+                useExternalEvents('2026-05-01', '2026-07-31')
+            );
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            // after で 2 ヶ月追加 → 8〜9 月のみ取得（6〜7 月は再取得しない）
+            await act(async () => {
+                await result.current.loadMore('after', 2);
+            });
+            expect(spy).toHaveBeenCalledTimes(2);
+            const afterCall = spy.mock.calls[1][1] as string;
+            expect(afterCall).toContain('2026-08-01');
+            expect(afterCall).toContain('2026-09-30');
+            expect(afterCall).not.toContain('2026-07');
+
+            // さらに before で 2 ヶ月（3〜4 月）追加
+            await act(async () => {
+                await result.current.loadMore('before', 2);
+            });
+            expect(spy).toHaveBeenCalledTimes(3);
+            const beforeCall = spy.mock.calls[2][1] as string;
+            expect(beforeCall).toContain('2026-03-01');
+            expect(beforeCall).toContain('2026-04-30');
+            expect(beforeCall).not.toContain('2026-05');
+        });
+
+        it('loadMore で 0 ヶ月指定の場合は fetch しない', async () => {
+            const spy = vi.spyOn(ApiClient, 'request').mockImplementation(async () =>
+                buildEmptyPayload() as any
+            );
+
+            const { result } = renderHook(() =>
+                useExternalEvents('2026-05-01', '2026-07-31')
+            );
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await result.current.loadMore('after', 0);
+            });
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+
+        it('返り値に loadMore 関数が含まれる', async () => {
+            vi.spyOn(ApiClient, 'request').mockResolvedValue(buildEmptyPayload() as any);
+            const { result } = renderHook(() => useExternalEvents(FROM, TO));
+            await waitFor(() => expect(result.current.loading).toBe(false));
+            expect(typeof result.current.loadMore).toBe('function');
+        });
+    });
 });
