@@ -92,6 +92,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		loadMore: externalLoadMore,
 		loadedRange: externalLoadedRange,
 		isLoadingMore: externalIsLoadingMore,
+		loadDirection: externalLoadDirection,
 	} = useExternalEvents(
 		externalRange.from,
 		externalRange.to,
@@ -243,6 +244,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					googleCalendars={googleCalendars}
 					onLoadMore={externalLoadMore}
 					isLoadingMore={externalIsLoadingMore}
+					loadDirection={externalLoadDirection}
 					loadedRange={externalLoadedRange}
 				/>
 			</div>

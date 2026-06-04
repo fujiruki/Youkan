@@ -387,6 +387,8 @@ export type UseExternalEventsResult = {
     loadedRange: { from: string; to: string };
     /** R-042-Y1: loadMore による追加取得中フラグ */
     isLoadingMore: boolean;
+    /** R-042-Y3: 現在追加ロード中の方向。アイドル時は null（スケルトン UI の表示位置切替に使用） */
+    loadDirection: LoadMoreDirection | null;
 };
 
 export const useExternalEvents = (
@@ -398,6 +400,7 @@ export const useExternalEvents = (
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<Error | null>(null);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const [loadDirection, setLoadDirection] = useState<LoadMoreDirection | null>(null);
     const [loadedRange, setLoadedRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
     const reqIdRef = useRef(0);
     const loadedMonthsRef = useRef<Set<string>>(new Set());
@@ -485,11 +488,22 @@ export const useExternalEvents = (
      * - months=0 / 未連携状態では何もしない
      */
     const loadMore = useCallback(async (direction: LoadMoreDirection, months: number) => {
-        if (!months || months <= 0) return;
-        if (!isViewEnabled()) return;
+        // R-042-Y3: スケルトン UI 側で方向別の表示切替に使うため、本格的な処理に入る前に方向を公開する。
+        setLoadDirection(direction);
+        if (!months || months <= 0) {
+            setLoadDirection(null);
+            return;
+        }
+        if (!isViewEnabled()) {
+            setLoadDirection(null);
+            return;
+        }
 
         const { min, max } = minMaxMonth(loadedMonthsRef.current);
-        if (!min || !max) return;
+        if (!min || !max) {
+            setLoadDirection(null);
+            return;
+        }
 
         const targetMonths: string[] = [];
         if (direction === 'after') {
@@ -515,6 +529,7 @@ export const useExternalEvents = (
             if (firstRange && lastRange) {
                 setLoadedRange({ from: firstRange.from, to: lastRange.to });
             }
+            setLoadDirection(null);
             return;
         }
 
@@ -542,8 +557,9 @@ export const useExternalEvents = (
             }
         } finally {
             setIsLoadingMore(false);
+            setLoadDirection(null);
         }
     }, [isViewEnabled]);
 
-    return { eventsByDate, loading, error, refresh, loadMore, loadedRange, isLoadingMore };
+    return { eventsByDate, loading, error, refresh, loadMore, loadedRange, isLoadingMore, loadDirection };
 };

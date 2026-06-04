@@ -61,6 +61,8 @@ export interface RyokanCalendarProps {
     onLoadMore?: (direction: 'before' | 'after', months: number) => void;
     /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
     isLoadingMore?: boolean;
+    /** R-042-Y3: 現在追加ロード中の方向。スケルトン UI の表示位置切替に使用 */
+    loadDirection?: 'before' | 'after' | null;
     /** R-042-Y2: 現在ロード済みの範囲（YYYY-MM-DD）。デバッグ／将来拡張用に保持 */
     loadedRange?: { from: string; to: string };
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */

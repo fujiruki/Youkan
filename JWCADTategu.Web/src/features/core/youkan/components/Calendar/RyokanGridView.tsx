@@ -8,6 +8,7 @@ import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
 import { GoogleCalendar } from '../../../../../api/googleCalendar';
+import { Skeleton } from '../../../../../shared/components/Skeleton';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -54,6 +55,8 @@ interface GridViewProps {
     onLoadMore?: (direction: 'before' | 'after', months: number) => void;
     /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
     isLoadingMore?: boolean;
+    /** R-042-Y3: 現在追加ロード中の方向。スケルトン UI の表示位置切替に使用 */
+    loadDirection?: 'before' | 'after' | null;
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
     googleCalendars?: GoogleCalendar[];
 }
@@ -75,6 +78,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     externalEventsMaxVisible = 3,
     onLoadMore,
     isLoadingMore = false,
+    loadDirection = null,
     googleCalendars = [],
 }) => {
     // R-042-Y2: 縦スクロール先頭・末尾に sentinel を配置し、交差検知で +3 ヶ月の追加読み込みを発火。
@@ -103,6 +107,10 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                 aria-hidden="true"
                 className="h-px w-full pointer-events-none"
             />
+            {/* R-042-Y3: before 方向ロード中のスケルトン（sentinel 直後・グリッド本体直上に挿入） */}
+            {isLoadingMore && loadDirection === 'before' && (
+                <Skeleton className="h-16 w-full mb-1" />
+            )}
             <div className="flex-1 relative">
                 {/* [NEW] Weekday Headers */}
                 <div className="grid grid-cols-7 gap-px mb-px bg-slate-200 dark:bg-slate-800 border-x border-t border-slate-200 dark:border-slate-800 rounded-t-lg overflow-hidden sticky top-0 z-30">
@@ -205,6 +213,10 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                     </svg>
                 </div>
             </div>
+            {/* R-042-Y3: after 方向ロード中のスケルトン（sentinel 直前・グリッド本体直下に挿入） */}
+            {isLoadingMore && loadDirection === 'after' && (
+                <Skeleton className="h-16 w-full mb-1" />
+            )}
             {/* R-042-Y2: 末尾 sentinel（rootMargin 200px 手前で交差） */}
             <div
                 ref={setAfterRef}
