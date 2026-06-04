@@ -69,7 +69,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	const [prepDate, setPrepDate] = React.useState('');
 	const [workDays, setWorkDays] = React.useState(1);
 	const [isWorkDaysDirty, setIsWorkDaysDirty] = React.useState(false);
-	const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+	// R-037: タイトル編集欄は常時 input。isEditingTitle フラグは廃止
 	const [editedTitle, setEditedTitle] = React.useState('');
 	const [estimatedMinutes, setEstimatedMinutes] = React.useState(0);
 
@@ -489,41 +489,32 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							</div>
 
 
-							{/* Title (Editable) */}
-							{isEditingTitle ? (
-								<input
-									ref={titleInputRef}
-									type="text"
-									className="w-full text-2xl font-bold bg-slate-100 dark:bg-slate-800 p-1 rounded mt-1"
-									value={editedTitle}
-									onChange={(e) => setEditedTitle(e.target.value)}
-									onBlur={async () => {
-										setIsEditingTitle(false);
-										if (editedTitle.trim() && editedTitle !== item.title) {
-											await onUpdate?.(item.id, { title: editedTitle.trim() });
-										} else if (!editedTitle.trim()) {
-											// Restore old title if input is empty
-											setEditedTitle(item.title);
-										}
-									}}
-									onKeyDown={async (e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											titleInputRef.current?.blur();
-										}
-									}}
-								/>
-							) : (
-								<h2
-									className={cn(
-										"text-2xl md:text-3xl font-bold leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded px-1 -ml-1 transition-colors",
-										isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-800 dark:text-white"
-									)}
-									onClick={() => setIsEditingTitle(true)}
-								>
-									{item.title}
-								</h2>
-							)}
+							{/* Title (Always Editable - R-037) */}
+							{/* 空文字・空白のみのアイテムも編集可能にするため、表示/編集の出し分けを廃止し常に input を描画する */}
+							<input
+								ref={titleInputRef}
+								type="text"
+								data-testid="decision-detail-title-input"
+								className={cn(
+									"w-full text-2xl md:text-3xl font-bold leading-tight bg-transparent px-1 -ml-1 rounded transition-colors outline-none hover:bg-slate-50 dark:hover:bg-slate-800/50 focus:bg-slate-100 dark:focus:bg-slate-800 placeholder:font-normal placeholder:italic placeholder:text-slate-400 dark:placeholder:text-slate-500",
+									isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-800 dark:text-white"
+								)}
+								placeholder="タイトル未入力"
+								value={editedTitle}
+								onChange={(e) => setEditedTitle(e.target.value)}
+								onBlur={async () => {
+									// editedTitle が item.title と異なれば常に保存（空文字・空白のみも許容）
+									if (editedTitle !== item.title) {
+										await onUpdate?.(item.id, { title: editedTitle });
+									}
+								}}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										titleInputRef.current?.blur();
+									}
+								}}
+							/>
 							{/* [NEW] Perspective Label Badge in Detail View (Computed Dynamically) */}
 							{(() => {
 								const isCompanyAccount = (currentUserId?.length || 0) > 20;
