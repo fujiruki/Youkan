@@ -9,6 +9,8 @@ import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { CapacityBar } from './CapacityBar';
 import { ExternalEvent } from '../../types/externalEvent';
 import { ExternalEventChip } from './ExternalEventChip';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
+import { getCalendarColor } from '../../logic/calendarColor';
 
 interface CalendarCellProps {
     date: Date;
@@ -41,12 +43,15 @@ interface CalendarCellProps {
     onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
     /** R-034 Phase 2: セル内に表示する最大件数（デフォルト 3） */
     externalEventsMaxVisible?: number;
+    /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
+    googleCalendars?: GoogleCalendar[];
 }
 
 export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
     volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
-    externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3
+    externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3,
+    googleCalendars = []
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -216,6 +221,7 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                 <ExternalEventChip
                                     key={ev.id}
                                     event={ev}
+                                    colorHex={getCalendarColor(ev.calendarId, googleCalendars)}
                                     onClick={onExternalEventClick}
                                 />
                             ))}

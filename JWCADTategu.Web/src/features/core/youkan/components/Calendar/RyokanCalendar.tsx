@@ -19,6 +19,7 @@ import { ExternalEvent } from '../../types/externalEvent';
 import { EventDetailModal } from './EventDetailModal';
 import { MobileBottomSheet } from '../Common/MobileBottomSheet';
 import { ExternalEventChip } from './ExternalEventChip';
+import { getCalendarColor } from '../../logic/calendarColor';
 
 export interface RyokanCalendarHandle {
 	scrollToMonth: (year: number, month: number) => void;
@@ -59,6 +60,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	onLoadMore,
 	isLoadingMore = false,
 	loadedRange: _loadedRange,
+	googleCalendars = [],
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -669,6 +671,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						googleCalendars={googleCalendars}
 					/>
 				)}
 				{displayMode === 'grid' && (
@@ -699,6 +702,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						googleCalendars={googleCalendars}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -732,6 +736,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						googleCalendars={googleCalendars}
 					/>
 				)}
 			</div>
@@ -885,6 +890,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						<ExternalEventChip
 							key={ev.id}
 							event={ev}
+							colorHex={getCalendarColor(ev.calendarId, googleCalendars)}
 							onClick={(e) => {
 								setExternalMoreState(null);
 								setSelectedExternalEvent(e);
