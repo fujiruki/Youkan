@@ -1,2 +1,13 @@
 # Claude Code worktrees（並列 Agent 用）
 .claude/worktrees/
+
+# ビルド成果物・キャッシュ
+*.tsbuildinfo
+
+# 開発用 DB・ログ（本番デプロイ対象外）
+backend/jbwos.sqlite
+backend/php_errors.log
+
+# デプロイ・スモークテスト出力
+deploy_debug.log
+smoke_*.txt
