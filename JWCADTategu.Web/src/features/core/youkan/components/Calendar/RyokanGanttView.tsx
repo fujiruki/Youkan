@@ -22,6 +22,20 @@ const isSameDate = (d1: Date, d2: Date) => {
 		d1.getDate() === d2.getDate();
 };
 
+/**
+ * R-040: Google カレンダー予定の Map key 用ヘルパー。
+ *
+ * `useExternalEvents.buildEventsByDate` が生成する key は `YYYY-MM-DD` 形式のため、
+ * グリッドビューと同じローカル実装で揃える（`normalizeDateKey` は `toDateString` 形式で
+ * `data-gantt-date` 属性やヘッダー追従検知などで使われ続けるためそのまま残す）。
+ */
+const toYmdKey = (d: Date) => {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+};
+
 interface GanttViewProps {
 	allDays: Date[];
 	items: Item[];
@@ -420,8 +434,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							// R-034 Phase 1: ガント一覧表示時のみ進捗バーを描画
 							const stats = !showGroups ? dailyCapacityStats.get(normalizeDateKey(day)) : undefined;
 							// R-039 Phase 3 UX: その日の Google カレンダー予定
+							// dayKey は data-testid のサフィックスなど従来用途で利用（toDateString 形式）
 							const dayKey = normalizeDateKey(day);
-							const dayEvents = externalEventsByDate?.get(dayKey) || [];
+							// R-040: 取得は YYYY-MM-DD 形式（useExternalEvents の出力形式と一致）
+							const dayEvents = externalEventsByDate?.get(toYmdKey(day)) || [];
 							const visibleEvents = dayEvents.slice(0, GANTT_EXTERNAL_EVENTS_MAX);
 							const moreCount = Math.max(0, dayEvents.length - GANTT_EXTERNAL_EVENTS_MAX);
 							return (
