@@ -10,6 +10,7 @@ import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetai
 import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
 import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
+import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
 import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
 
@@ -34,6 +35,11 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	useEffect(() => {
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
+
+	// R-036: ガントビューの「完了を表示」スイッチ。
+	// 仕様 §5.4 によりセッション単位（ブラウザを閉じるとデフォルト on に戻る）。
+	// localStorage には永続化しない。
+	const [showCompletedInGantt, setShowCompletedInGantt] = useState<boolean>(true);
 	const { filterMode } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
@@ -48,14 +54,20 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		tenantId: activeTenantId
 	});
 
+	const filterByMode = React.useCallback((item: Item) => {
+		if (filterMode === 'all') return true;
+		if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
+		if (filterMode === 'company') return !!item.tenantId;
+		return item.tenantId === filterMode;
+	}, [filterMode]);
+
 	const items = React.useMemo(() => {
-		return (rawItems || []).filter(item => {
-			if (filterMode === 'all') return true;
-			if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
-			if (filterMode === 'company') return !!item.tenantId;
-			return item.tenantId === filterMode;
-		});
-	}, [rawItems, filterMode]);
+		return (rawItems || []).filter(filterByMode);
+	}, [rawItems, filterByMode]);
+
+	const filteredCompletedItems = React.useMemo(() => {
+		return (completedItems || []).filter(filterByMode);
+	}, [completedItems, filterByMode]);
 
 	// R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダー外部イベントを取得
 	// 取得対象ビューの判定は useExternalEvents 内部で「表示するビュー」設定（ykn_external_events_views）に基づき行う
@@ -75,6 +87,24 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		externalRange.to,
 		externalViewMode
 	);
+
+	/**
+	 * R-036 真因対応:
+	 * バックエンド `/calendar/items` は status='done' を SQL レベルで除外して返すため、
+	 * `items` には完了アイテムが含まれない。完了アイテムは `/calendar/completed` で
+	 * 別取得され `completedItems` に入っている。
+	 *
+	 * 「完了を表示」スイッチを意味あるものにするには、ON のときに
+	 * items + completedItems を合成してからガント等のビューに渡す必要がある。
+	 * OFF のときは items だけを渡す（API 側で done 除外済のため、追加フィルタは不要だが
+	 * 防御的に applyGanttCompletedFilter を通す）。
+	 */
+	const visibleItems = React.useMemo(() => {
+		const merged = showCompletedInGantt
+			? [...items, ...filteredCompletedItems]
+			: items;
+		return applyGanttCompletedFilter(merged, showCompletedInGantt);
+	}, [items, filteredCompletedItems, showCompletedInGantt]);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {
 		try {
@@ -163,13 +193,15 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
+					showCompleted={showCompletedInGantt}
+					onShowCompletedChange={setShowCompletedInGantt}
 				/>
 			)}
 
 			<div className="flex-1 overflow-hidden relative">
 				<RyokanCalendar
 					ref={calendarRef}
-					items={items || []}
+					items={visibleItems || []}
 					completedItems={completedItems || []}
 					members={members || []}
 					projects={projects || []}

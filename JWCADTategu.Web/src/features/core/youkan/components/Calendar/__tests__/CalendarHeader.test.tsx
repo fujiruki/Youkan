@@ -92,4 +92,111 @@ describe('CalendarHeader Component', () => {
 		fireEvent.click(settingsBtn);
 		expect(onOpenSettings).toHaveBeenCalledTimes(1);
 	});
+
+	// R-036: ガントビューヘッダー「完了を表示」スイッチ
+	describe('R-036 完了を表示スイッチ（gantt variant）', () => {
+		it('gantt variant のとき「完了を表示」トグルが描画される', () => {
+			render(
+				<CalendarHeader
+					variant="gantt"
+					visibleDate={new Date(2026, 5, 2)}
+					onPrevMonth={() => { }}
+					onNextMonth={() => { }}
+					onGoToCurrentMonth={() => { }}
+					onOpenDailySettings={() => { }}
+					rowHeight={24}
+					onRowHeightChange={() => { }}
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+					showCompleted={true}
+					onShowCompletedChange={() => { }}
+				/>
+			);
+			expect(screen.getByRole('switch', { name: /完了を表示/ })).toBeInTheDocument();
+		});
+
+		it('showCompleted=true のとき aria-checked が true', () => {
+			render(
+				<CalendarHeader
+					variant="gantt"
+					visibleDate={new Date(2026, 5, 2)}
+					onPrevMonth={() => { }}
+					onNextMonth={() => { }}
+					onGoToCurrentMonth={() => { }}
+					onOpenDailySettings={() => { }}
+					rowHeight={24}
+					onRowHeightChange={() => { }}
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+					showCompleted={true}
+					onShowCompletedChange={() => { }}
+				/>
+			);
+			const sw = screen.getByRole('switch', { name: /完了を表示/ });
+			expect(sw).toHaveAttribute('aria-checked', 'true');
+		});
+
+		it('showCompleted=false のとき aria-checked が false', () => {
+			render(
+				<CalendarHeader
+					variant="gantt"
+					visibleDate={new Date(2026, 5, 2)}
+					onPrevMonth={() => { }}
+					onNextMonth={() => { }}
+					onGoToCurrentMonth={() => { }}
+					onOpenDailySettings={() => { }}
+					rowHeight={24}
+					onRowHeightChange={() => { }}
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+					showCompleted={false}
+					onShowCompletedChange={() => { }}
+				/>
+			);
+			const sw = screen.getByRole('switch', { name: /完了を表示/ });
+			expect(sw).toHaveAttribute('aria-checked', 'false');
+		});
+
+		it('スイッチをクリックすると onShowCompletedChange が反対値で呼ばれる', () => {
+			const onChange = vi.fn();
+			render(
+				<CalendarHeader
+					variant="gantt"
+					visibleDate={new Date(2026, 5, 2)}
+					onPrevMonth={() => { }}
+					onNextMonth={() => { }}
+					onGoToCurrentMonth={() => { }}
+					onOpenDailySettings={() => { }}
+					rowHeight={24}
+					onRowHeightChange={() => { }}
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+					showCompleted={true}
+					onShowCompletedChange={onChange}
+				/>
+			);
+			fireEvent.click(screen.getByRole('switch', { name: /完了を表示/ }));
+			expect(onChange).toHaveBeenCalledWith(false);
+		});
+
+		it('grid variant のときは「完了を表示」トグルを描画しない', () => {
+			render(
+				<CalendarHeader
+					variant="grid"
+					visibleDate={new Date(2026, 5, 2)}
+					onPrevMonth={() => { }}
+					onNextMonth={() => { }}
+					onGoToCurrentMonth={() => { }}
+					onOpenDailySettings={() => { }}
+					rowHeight={24}
+					onRowHeightChange={() => { }}
+					showGroups={true}
+					onShowGroupsChange={() => { }}
+					showCompleted={true}
+					onShowCompletedChange={() => { }}
+				/>
+			);
+			expect(screen.queryByRole('switch', { name: /完了を表示/ })).not.toBeInTheDocument();
+		});
+	});
 });
