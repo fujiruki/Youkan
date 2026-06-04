@@ -56,4 +56,10 @@ export interface RyokanCalendarProps {
     externalEventsByDate?: Map<string, ExternalEvent[]>;
     /** R-034 Phase 2: グリッドビューのセル内に表示する最大件数（デフォルト 3） */
     externalEventsMaxVisible?: number;
+    /** R-042-Y2: スクロール端で +N ヶ月の追加ロードを発火するコールバック */
+    onLoadMore?: (direction: 'before' | 'after', months: number) => void;
+    /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
+    isLoadingMore?: boolean;
+    /** R-042-Y2: 現在ロード済みの範囲（YYYY-MM-DD）。デバッグ／将来拡張用に保持 */
+    loadedRange?: { from: string; to: string };
 }

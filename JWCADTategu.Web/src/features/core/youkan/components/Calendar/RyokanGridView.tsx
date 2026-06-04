@@ -6,6 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { VolumeCurve } from './VolumeCurve';
 import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
+import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+
+/** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
+const LAZY_LOAD_MONTHS = 3;
 
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
@@ -45,6 +49,10 @@ interface GridViewProps {
     onExternalEventClick?: (event: ExternalEvent) => void;
     onExternalEventsMoreClick?: (date: Date, events: ExternalEvent[]) => void;
     externalEventsMaxVisible?: number;
+    /** R-042-Y2: スクロール端で +N ヶ月の追加ロードを発火するコールバック */
+    onLoadMore?: (direction: 'before' | 'after', months: number) => void;
+    /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
+    isLoadingMore?: boolean;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -61,8 +69,22 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     externalEventsByDate,
     onExternalEventClick,
     onExternalEventsMoreClick,
-    externalEventsMaxVisible = 3
+    externalEventsMaxVisible = 3,
+    onLoadMore,
+    isLoadingMore = false,
 }) => {
+    // R-042-Y2: 縦スクロール先頭・末尾に sentinel を配置し、交差検知で +3 ヶ月の追加読み込みを発火。
+    // 追加ロード中（isLoadingMore=true）は enabled=false にして二重発火を抑止する。
+    const sentinelEnabled = !!onLoadMore && !isLoadingMore;
+    const setBeforeRef = useLazyLoadSentinel({
+        enabled: sentinelEnabled,
+        onIntersect: () => onLoadMore?.('before', LAZY_LOAD_MONTHS),
+    });
+    const setAfterRef = useLazyLoadSentinel({
+        enabled: sentinelEnabled,
+        onIntersect: () => onLoadMore?.('after', LAZY_LOAD_MONTHS),
+    });
+
     return (
         <div
             ref={scrollRef}
@@ -70,6 +92,13 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
             onClick={onBackgroundClick}
             onScroll={onScroll}
         >
+            {/* R-042-Y2: 先頭 sentinel（rootMargin 200px 手前で交差） */}
+            <div
+                ref={setBeforeRef}
+                data-testid="lazy-sentinel-before"
+                aria-hidden="true"
+                className="h-px w-full pointer-events-none"
+            />
             <div className="flex-1 relative">
                 {/* [NEW] Weekday Headers */}
                 <div className="grid grid-cols-7 gap-px mb-px bg-slate-200 dark:bg-slate-800 border-x border-t border-slate-200 dark:border-slate-800 rounded-t-lg overflow-hidden sticky top-0 z-30">
@@ -171,6 +200,13 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                     </svg>
                 </div>
             </div>
+            {/* R-042-Y2: 末尾 sentinel（rootMargin 200px 手前で交差） */}
+            <div
+                ref={setAfterRef}
+                data-testid="lazy-sentinel-after"
+                aria-hidden="true"
+                className="h-px w-full pointer-events-none"
+            />
         </div>
     );
 };
