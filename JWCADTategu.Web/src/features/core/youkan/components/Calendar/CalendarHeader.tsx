@@ -29,6 +29,11 @@ interface CalendarHeaderProps {
      */
     showCompleted?: boolean;
     onShowCompletedChange?: (value: boolean) => void;
+    /**
+     * R-041-Y2: ヘッダー右側に差し込む任意のアクション（カレンダー切替ボタン等）。
+     * 「完了を表示」スイッチの隣に表示される。
+     */
+    extraActions?: React.ReactNode;
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -43,7 +48,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     onShowGroupsChange,
     variant = 'gantt',
     showCompleted = true,
-    onShowCompletedChange
+    onShowCompletedChange,
+    extraActions
 }) => {
     const isGantt = variant === 'gantt';
     const today = new Date();
@@ -171,6 +177,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                         </span>
                     </button>
                 )}
+
+                {/* R-041-Y2: 「完了を表示」スイッチの隣に追加アクションを差し込む（カレンダー切替ボタン等） */}
+                {extraActions}
 
                 <div className="flex items-center gap-4">
                     {/* Density Slider (gantt only) */}
