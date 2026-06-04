@@ -8,6 +8,7 @@ import { CalendarCell } from './CalendarCell';
 import { ExternalEvent } from '../../types/externalEvent';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
 import { GoogleCalendar } from '../../../../../api/googleCalendar';
+import { Skeleton } from '../../../../../shared/components/Skeleton';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -52,6 +53,8 @@ interface TimelineViewProps {
     onLoadMore?: (direction: 'before' | 'after', months: number) => void;
     /** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
     isLoadingMore?: boolean;
+    /** R-042-Y3: 現在追加ロード中の方向。スケルトン UI の表示位置切替に使用 */
+    loadDirection?: 'before' | 'after' | null;
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
     googleCalendars?: GoogleCalendar[];
 }
@@ -71,6 +74,7 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     onExternalEventsMoreClick,
     onLoadMore,
     isLoadingMore = false,
+    loadDirection = null,
     googleCalendars = [],
 }) => {
     const todayRef = useRef<HTMLDivElement>(null);
@@ -104,6 +108,10 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                     aria-hidden="true"
                     className={cn("pointer-events-none", isMini ? "h-px w-full" : "h-full w-px absolute top-0 left-0 z-0")}
                 />
+                {/* R-042-Y3: before 方向ロード中スケルトン（sentinel 直後・本体直上） */}
+                {isLoadingMore && loadDirection === 'before' && (
+                    <Skeleton className="h-16 w-full" />
+                )}
                 <div className={cn("flex min-w-max min-h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
                     <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full pressure-lines-svg">
                         <AnimatePresence>
@@ -159,6 +167,10 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                         );
                     })}
                 </div>
+                {/* R-042-Y3: after 方向ロード中スケルトン（sentinel 直前・本体直下） */}
+                {isLoadingMore && loadDirection === 'after' && (
+                    <Skeleton className="h-16 w-full" />
+                )}
                 {/* R-042-Y2: スクロール末尾側 sentinel（縦表示時=下端、横表示時=右端） */}
                 <div
                     ref={setAfterRef}

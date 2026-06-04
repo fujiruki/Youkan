@@ -18,6 +18,7 @@ import { ExternalEvent } from '../../types/externalEvent';
 import { GoogleCalendar } from '../../../../../api/googleCalendar';
 import { getCalendarColor, toTint } from '../../logic/calendarColor';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
+import { Skeleton } from '../../../../../shared/components/Skeleton';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -74,6 +75,8 @@ interface GanttViewProps {
 	onLoadMore?: (direction: 'before' | 'after', months: number) => void;
 	/** R-042-Y2: 追加ロード中フラグ（true のとき sentinel 発火を抑止する） */
 	isLoadingMore?: boolean;
+	/** R-042-Y3: 現在追加ロード中の方向。スケルトン UI の表示位置切替に使用 */
+	loadDirection?: 'before' | 'after' | null;
 	/** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
 	googleCalendars?: GoogleCalendar[];
 }
@@ -87,7 +90,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
 	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
-	onLoadMore, isLoadingMore = false,
+	onLoadMore, isLoadingMore = false, loadDirection = null,
 	googleCalendars = [],
 }) => {
 	// R-042-Y2: 横スクロール左端・右端の sentinel。
@@ -561,6 +564,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					aria-hidden="true"
 					className="absolute top-0 bottom-0 left-0 w-px pointer-events-none z-0"
 				/>
+				{/* R-042-Y3: before 方向ロード中の縦長スケルトン（左端 sentinel の隣） */}
+				{isLoadingMore && loadDirection === 'before' && (
+					<div className="absolute top-0 bottom-0 left-0 pointer-events-none z-10 p-1">
+						<Skeleton className="w-24 h-full" />
+					</div>
+				)}
 				{/* R-042-Y2: 横スクロール右端 sentinel（後方への +3 ヶ月 lazy load トリガ） */}
 				<div
 					ref={setAfterRef}
@@ -568,6 +577,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					aria-hidden="true"
 					className="absolute top-0 bottom-0 right-0 w-px pointer-events-none z-0"
 				/>
+				{/* R-042-Y3: after 方向ロード中の縦長スケルトン（右端 sentinel の隣） */}
+				{isLoadingMore && loadDirection === 'after' && (
+					<div className="absolute top-0 bottom-0 right-0 pointer-events-none z-10 p-1">
+						<Skeleton className="w-24 h-full" />
+					</div>
+				)}
 				<div className="min-w-max pb-32 relative">
 					{/* [FIX] Background Grid & Scroll Targets (Always present even if no items) */}
 					<div className="absolute top-0 bottom-0 left-[16rem] flex pointer-events-none z-0">

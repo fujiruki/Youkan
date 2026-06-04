@@ -59,6 +59,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	externalEventsMaxVisible = 3,
 	onLoadMore,
 	isLoadingMore = false,
+	loadDirection = null,
 	loadedRange: _loadedRange,
 	googleCalendars = [],
 }, calendarRef) => {
@@ -671,6 +672,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
 					/>
 				)}
@@ -702,6 +704,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
 					/>
 				)}
@@ -736,6 +739,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
+						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
 					/>
 				)}
