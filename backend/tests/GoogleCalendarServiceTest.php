@@ -42,6 +42,24 @@ class GoogleCalendarServiceTest {
                 fetched_at INTEGER NOT NULL
             )
         ");
+        // [R-041] 複数 Google カレンダー対応用テーブル
+        $this->pdo->exec("
+            CREATE TABLE user_google_calendars (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                calendar_id TEXT NOT NULL,
+                summary TEXT,
+                description TEXT,
+                color_hex TEXT,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                last_synced_at INTEGER,
+                deleted_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(user_id, calendar_id)
+            )
+        ");
 
         $this->crypto = new CryptoService(str_repeat('a1b2', 16));
         $this->http = new FakeHttpClient();
@@ -65,6 +83,13 @@ class GoogleCalendarServiceTest {
         $this->testRefreshAccessToken();
         $this->testFetchEvents();
         $this->testRevoke();
+        // [R-041] 複数 Google カレンダー対応
+        $this->testGetCalendarListUpsertsRows();
+        $this->testGetCalendarListLogicallyDeletesMissing();
+        $this->testGetEventsParallelMultiCalendar();
+        $this->testGetEventsRespectsIsEnabled();
+        $this->testGetEventsCacheKeyPerCalendar();
+        $this->testUpdateCalendarEnabled();
         echo "All tests passed!\n";
     }
 
@@ -224,6 +249,234 @@ class GoogleCalendarServiceTest {
         // revoke 先 URL を確認
         $revokeCall = end($this->http->calls);
         assert(strpos($revokeCall['url'], 'https://oauth2.googleapis.com/revoke') === 0, "wrong revoke endpoint");
+        echo " OK\n";
+    }
+
+    // ===== [R-041] 複数 Google カレンダー対応 =====
+
+    /** トークンとカレンダー一覧を仕込んでから getCalendarList() を呼ぶヘルパー */
+    private function seedOAuth(string $userId, string $refresh = '1//rt'): void {
+        $this->pdo->prepare(
+            "INSERT OR REPLACE INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, created_at) VALUES (?, ?, 'primary', ?)"
+        )->execute([$userId, $this->crypto->encrypt($refresh), time()]);
+    }
+
+    private function testGetCalendarListUpsertsRows(): void {
+        echo "  [Test] getCalendarList upserts rows from calendarList.list...";
+        $this->seedOAuth('user-cal-1');
+
+        // 1. refresh access token → 2. calendarList.list
+        $this->http->enqueue(200, ['access_token' => 'ya29.cal', 'expires_in' => 3600]);
+        $this->http->enqueue(200, [
+            'items' => [
+                [
+                    'id' => 'primary',
+                    'summary' => 'Primary',
+                    'backgroundColor' => '#4285F4',
+                ],
+                [
+                    'id' => 'work@group.calendar.google.com',
+                    'summary' => '仕事',
+                    'description' => '会社のカレンダー',
+                    'backgroundColor' => '#0B8043',
+                ],
+            ],
+        ]);
+
+        $result = $this->service->getCalendarList('user-cal-1');
+        assert(count($result) === 2, 'expected 2 calendars, got ' . count($result));
+
+        $rows = $this->pdo->query("SELECT * FROM user_google_calendars WHERE user_id='user-cal-1' ORDER BY calendar_id")->fetchAll(PDO::FETCH_ASSOC);
+        assert(count($rows) === 2, 'rows not inserted');
+        $byId = [];
+        foreach ($rows as $r) { $byId[$r['calendar_id']] = $r; }
+        assert($byId['primary']['summary'] === 'Primary', 'primary summary not saved');
+        assert($byId['primary']['color_hex'] === '#4285F4', 'color_hex not saved: ' . $byId['primary']['color_hex']);
+        assert((int)$byId['primary']['is_enabled'] === 1, '初回連携時は全 ON のはず');
+        assert($byId['work@group.calendar.google.com']['description'] === '会社のカレンダー', 'description not saved');
+        echo " OK\n";
+    }
+
+    private function testGetCalendarListLogicallyDeletesMissing(): void {
+        echo "  [Test] getCalendarList logically deletes calendars missing from Google...";
+        $userId = 'user-cal-del';
+        $this->seedOAuth($userId);
+        $now = time();
+        // 既存行 2 件を準備
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?)")
+            ->execute([$userId, 'primary', 'Primary', '#4285F4', $now - 100, $now - 100]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 1, ?, ?)")
+            ->execute([$userId, 'gone@group.calendar.google.com', 'もう消えた', '#FF0000', $now - 100, $now - 100]);
+
+        // Google からは primary のみ返ってくる
+        $this->http->enqueue(200, ['access_token' => 'ya29.cal2', 'expires_in' => 3600]);
+        $this->http->enqueue(200, [
+            'items' => [
+                ['id' => 'primary', 'summary' => 'Primary', 'backgroundColor' => '#4285F4'],
+            ],
+        ]);
+
+        $this->service->getCalendarList($userId);
+
+        $gone = $this->pdo->query("SELECT * FROM user_google_calendars WHERE user_id='$userId' AND calendar_id='gone@group.calendar.google.com'")->fetch(PDO::FETCH_ASSOC);
+        assert($gone !== false, '行は残るべき（物理削除ではない）');
+        assert((int)$gone['is_enabled'] === 0, 'Google にないカレンダーは is_enabled = 0');
+        assert((int)$gone['deleted_at'] > 0, 'deleted_at が記録されるべき');
+
+        $primary = $this->pdo->query("SELECT * FROM user_google_calendars WHERE user_id='$userId' AND calendar_id='primary'")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$primary['is_enabled'] === 1, 'Google にあるカレンダーは is_enabled 維持');
+        assert($primary['deleted_at'] === null, 'deleted_at は null のまま');
+        echo " OK\n";
+    }
+
+    private function testGetEventsParallelMultiCalendar(): void {
+        echo "  [Test] getEvents fetches multiple calendars in parallel via curl_multi...";
+        $userId = 'user-multi';
+        $this->seedOAuth($userId);
+        $now = time();
+        // 有効カレンダー 2 件
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)")
+            ->execute([$userId, 'primary', 'Primary', '#4285F4', 0, $now, $now]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)")
+            ->execute([$userId, 'work@group.calendar.google.com', '仕事', '#0B8043', 1, $now, $now]);
+
+        // access token → multi 結果（FakeHttpClient.requestMulti は内部で request() を回す）
+        $this->http->enqueue(200, ['access_token' => 'ya29.mlt', 'expires_in' => 3600]);
+        $this->http->enqueue(200, [
+            'items' => [
+                [
+                    'id' => 'evt_p',
+                    'summary' => 'プライマリ予定',
+                    'start' => ['dateTime' => '2026-06-10T09:00:00+09:00'],
+                    'end' => ['dateTime' => '2026-06-10T10:00:00+09:00'],
+                ],
+            ],
+        ]);
+        $this->http->enqueue(200, [
+            'items' => [
+                [
+                    'id' => 'evt_w',
+                    'summary' => '会議',
+                    'start' => ['dateTime' => '2026-06-11T09:00:00+09:00'],
+                    'end' => ['dateTime' => '2026-06-11T10:00:00+09:00'],
+                ],
+            ],
+        ]);
+
+        $from = strtotime('2026-06-01');
+        $to = strtotime('2026-06-30');
+        $events = $this->service->getEvents($userId, $from, $to);
+
+        assert(count($events) === 2, 'expected 2 events, got ' . count($events));
+        $byCal = [];
+        foreach ($events as $e) { $byCal[$e['calendar_id']] = $e; }
+        assert(isset($byCal['primary']), 'primary event missing');
+        assert(isset($byCal['work@group.calendar.google.com']), 'work event missing');
+        assert($byCal['primary']['color_hex'] === '#4285F4', 'color_hex not propagated');
+        assert($byCal['work@group.calendar.google.com']['color_hex'] === '#0B8043', 'color_hex (work) not propagated');
+
+        // events.list を 2 回呼んだか確認（並列 = 順序関係なく 2 件）
+        $eventsCalls = array_filter($this->http->calls, fn($c) => strpos($c['url'], '/events?') !== false);
+        assert(count($eventsCalls) === 2, 'events.list should be called for each calendar, got ' . count($eventsCalls));
+        echo " OK\n";
+    }
+
+    private function testGetEventsRespectsIsEnabled(): void {
+        echo "  [Test] getEvents skips disabled calendars...";
+        $userId = 'user-disabled';
+        $this->seedOAuth($userId);
+        $now = time();
+        // 有効 1 件、無効 1 件
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?)")
+            ->execute([$userId, 'primary', 'Primary', '#4285F4', $now, $now]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, 1, ?, ?)")
+            ->execute([$userId, 'off@group.calendar.google.com', 'OFF', '#888888', $now, $now]);
+
+        $this->http->enqueue(200, ['access_token' => 'ya29.dis', 'expires_in' => 3600]);
+        $this->http->enqueue(200, ['items' => []]);
+
+        $events = $this->service->getEvents($userId, strtotime('2026-06-01'), strtotime('2026-06-30'));
+        assert(count($events) === 0, 'no events expected');
+
+        // OFF カレンダーのエンドポイントが叩かれていないこと
+        foreach ($this->http->calls as $c) {
+            assert(strpos($c['url'], 'off%40group.calendar.google.com') === false && strpos($c['url'], 'off@group.calendar.google.com') === false, 'OFF カレンダーは fetch されないはず: ' . $c['url']);
+        }
+        echo " OK\n";
+    }
+
+    private function testGetEventsCacheKeyPerCalendar(): void {
+        echo "  [Test] getEvents caches events per calendar_id (no cross-calendar contamination)...";
+        $userId = 'user-cache';
+        $this->seedOAuth($userId);
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?)")
+            ->execute([$userId, 'primary', 'Primary', '#4285F4', $now, $now]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 1, ?, ?)")
+            ->execute([$userId, 'work@group.calendar.google.com', '仕事', '#0B8043', $now, $now]);
+
+        // 事前キャッシュ: primary のみ過去のイベントが残っている
+        $this->pdo->prepare("INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, fetched_at) VALUES (?,?,?,?,?,?,?,?,?)")
+            ->execute(['google:primary:old', $userId, 'primary', 'old', strtotime('2026-06-15 10:00:00'), strtotime('2026-06-15 11:00:00'), 0, '旧キャッシュ', $now - 1000]);
+
+        $this->http->enqueue(200, ['access_token' => 'ya29.cache', 'expires_in' => 3600]);
+        // primary は新しいイベント 1 件
+        $this->http->enqueue(200, [
+            'items' => [
+                [
+                    'id' => 'new',
+                    'summary' => '新規',
+                    'start' => ['dateTime' => '2026-06-20T10:00:00+09:00'],
+                    'end' => ['dateTime' => '2026-06-20T11:00:00+09:00'],
+                ],
+            ],
+        ]);
+        // work は空
+        $this->http->enqueue(200, ['items' => []]);
+
+        $events = $this->service->getEvents($userId, strtotime('2026-06-01'), strtotime('2026-06-30'));
+
+        // primary のキャッシュは calendar_id ごとに上書きされ、work には影響しない
+        $primaryRows = $this->pdo->query("SELECT * FROM external_events_cache WHERE user_id='$userId' AND calendar_id='primary'")->fetchAll(PDO::FETCH_ASSOC);
+        assert(count($primaryRows) === 1, 'primary cache should be replaced for the period');
+        assert($primaryRows[0]['event_id'] === 'new', '旧キャッシュは消えるはず');
+
+        $workRows = $this->pdo->query("SELECT * FROM external_events_cache WHERE user_id='$userId' AND calendar_id='work@group.calendar.google.com'")->fetchAll(PDO::FETCH_ASSOC);
+        assert(count($workRows) === 0, 'work には何も入らないはず');
+
+        // id が calendar_id を含む（衝突回避）
+        assert($primaryRows[0]['id'] === 'google:primary:new', 'id should embed calendar_id: ' . $primaryRows[0]['id']);
+        echo " OK\n";
+    }
+
+    private function testUpdateCalendarEnabled(): void {
+        echo "  [Test] updateCalendarEnabled toggles is_enabled with user_id scoping...";
+        $userId = 'user-toggle';
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)")
+            ->execute([$userId, 'primary', 'Primary', $now, $now]);
+        $rowId = (int)$this->pdo->lastInsertId();
+
+        // 他ユーザーの行（マルチテナント隔離テスト）
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)")
+            ->execute(['other-user', 'primary', 'Other', $now, $now]);
+        $otherRowId = (int)$this->pdo->lastInsertId();
+
+        $ok = $this->service->updateCalendarEnabled($userId, $rowId, false);
+        assert($ok === true, 'update should return true');
+
+        $row = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$rowId")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['is_enabled'] === 0, '無効化されるべき');
+
+        // 他ユーザーの行は触られない
+        $other = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$otherRowId")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$other['is_enabled'] === 1, '他ユーザーの行は変更されないこと');
+
+        // 他ユーザーの id を渡しても更新されない
+        $fail = $this->service->updateCalendarEnabled($userId, $otherRowId, false);
+        assert($fail === false, '他ユーザー行は更新されない');
+        $other2 = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$otherRowId")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$other2['is_enabled'] === 1, '他ユーザー行は依然として変更されない');
         echo " OK\n";
     }
 }
