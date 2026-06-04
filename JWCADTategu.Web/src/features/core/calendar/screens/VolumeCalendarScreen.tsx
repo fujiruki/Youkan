@@ -69,24 +69,36 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		return (completedItems || []).filter(filterByMode);
 	}, [completedItems, filterByMode]);
 
-	// R-034 Phase 2 / R-039 Phase 3 UX: Google カレンダー外部イベントを取得
+	// R-034 Phase 2 / R-039 Phase 3 UX / R-042-Y1: Google カレンダー外部イベントを取得
 	// 取得対象ビューの判定は useExternalEvents 内部で「表示するビュー」設定（ykn_external_events_views）に基づき行う
+	// R-042-Y1: 初期取得範囲を ±6 ヶ月（計 13 ヶ月）に拡大。月単位キャッシュにより重複 fetch は抑制される。
 	const externalRange = React.useMemo(() => {
-		// currentDate を起点に ±2 ヶ月（RyokanCalendar の range と整合）
 		const base = new Date(currentDate);
-		const start = new Date(base.getFullYear(), base.getMonth() - 2, 1);
-		const end = new Date(base.getFullYear(), base.getMonth() + 3, 0);
+		const start = new Date(base.getFullYear(), base.getMonth() - 6, 1);
+		// 月末は翌月 0 日で算出（+7 ヶ月の 0 日 = +6 ヶ月の月末）
+		const end = new Date(base.getFullYear(), base.getMonth() + 7, 0);
 		const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 		return { from: ymd(start), to: ymd(end) };
 	}, [currentDate]);
 	const externalViewMode = viewMode === 'grid' || viewMode === 'gantt' || viewMode === 'timeline'
 		? viewMode
 		: undefined;
-	const { eventsByDate: externalEventsByDate } = useExternalEvents(
+	// R-042-Y2 で sentinel から呼ぶための loadMore / loadedRange / isLoadingMore を取得
+	// （Y1 では呼び出し側で未使用。Y2 で props 経路を通す）
+	const {
+		eventsByDate: externalEventsByDate,
+		loadMore: externalLoadMore,
+		loadedRange: externalLoadedRange,
+		isLoadingMore: externalIsLoadingMore,
+	} = useExternalEvents(
 		externalRange.from,
 		externalRange.to,
 		externalViewMode
 	);
+	// R-042-Y1: Y2 への準備として参照だけ確保（未使用警告抑制）
+	void externalLoadMore;
+	void externalLoadedRange;
+	void externalIsLoadingMore;
 
 	/**
 	 * R-036 真因対応:
