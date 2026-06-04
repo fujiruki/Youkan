@@ -10,6 +10,7 @@ import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetai
 import { Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
 import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
+import { CalendarToggleButton } from '../../youkan/components/Calendar/CalendarToggleButton';
 import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
 import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
@@ -207,6 +208,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onShowGroupsChange={setShowGanttGroups}
 					showCompleted={showCompletedInGantt}
 					onShowCompletedChange={setShowCompletedInGantt}
+					extraActions={<CalendarToggleButton />}
 				/>
 			)}
 
