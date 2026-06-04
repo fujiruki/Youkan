@@ -134,7 +134,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 
 	return (
 		<div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-			{/* Header Section (Unified CalendarHeader) - gantt: 全機能, grid: 月切替＋今月＋日次設定のみ */}
+			{/* [R-038] Header Section（CalendarHeader）-
+			    gantt: 全機能 / grid: 月切替＋今月＋日次設定のみ。
+			    どちらのモードでも年月表示はスクロール追従し、「今月を表示」ボタンで
+			    今月 1 日のセルを中央付近に再配置できる（RyokanCalendar 側で対応）。 */}
 			{(viewMode === 'gantt' || viewMode === 'grid') && (
 				<CalendarHeader
 					variant={viewMode === 'gantt' ? 'gantt' : 'grid'}
