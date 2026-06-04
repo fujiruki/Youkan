@@ -90,8 +90,8 @@ New-Item -ItemType Directory -Path $deployTmp | Out-Null
 # バックエンドファイルのコピー（存在する場合）
 if (Test-Path $backendDir) {
     Write-Host "   → Copying backend directory ($backendDir)..." -ForegroundColor Cyan
-    # [FIX] Exclude database and log files from deployment to prevent overwriting remote data
-    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log"
+    # [FIX] Exclude database / log / .env から本番のデータ・秘密鍵を保護
+    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log", ".env"
     Write-Host "   ✓ Backend files copied" -ForegroundColor Green
 }
 else {
