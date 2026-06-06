@@ -213,3 +213,30 @@
 - [x] 本番 chrome-devtools で発火回数 1 回ずつになっていることを実機検証（スクリーンショット 2 枚）
 - [x] 追加コミット（`7931a71`）: useYoukanViewModel から `getJoinedTenants` API 呼び出しを撤廃し `useAuth().joinedTenants` を再利用（dedup ではカバーできないシーケンシャル重複への対応）
 - [x] 再デプロイ（2026-06-06 10:11）→ `/auth/me` も 1 回まで集約確認
+
+---
+
+## R-049 既存 vitest 38 件 failing の棚卸し（2026-06-06）
+
+**ブランチ**: `feature/R-049-test-triage`
+**目的**: master ベースで 39 件 failing していたテストを棚卸しし、修正 / 削除 / 別 R 化に振り分ける
+**handover**: `docs/handover/R-049-test-triage.md`
+
+### サブタスク
+
+- [x] ベースライン取得（17 ファイル / 39 テスト failed / 565 passed）
+- [x] 失敗の全件分類（a 修正可能 / b 削除すべき / c 別件 R 化）
+- [x] (a) テスト修正（9 ファイル）: FocusCard.jest→vi, KeyboardAndButtons 引数, InteractionTests 値入力, TodayLogic status, MenuDrawer 現行ラベル, FutureBoard 現行見出し, FilterContext 仕様変更, perspective 仕様変更, useLoginViewModel API 名/メッセージ, RyokanGanttView projectName / scrollRef を ToastProvider でラップ
+- [x] (b) テスト削除（2 ファイル）: WorkDaysSave.test.tsx（空ファイル）, MenuInteraction.test.tsx（廃止 UI）
+- [x] (c) 別 R 化 skip（5 ファイル）: QuantityEngine (Scenario 2/3/6) → R-051、manufacturing → R-051、useYoukanViewModel.cascade → R-052、IntentDeleteIntegration → R-053、PanoramaBoard.showGroups は timeout 延長で復活
+- [x] setupTests.ts 補強: fetch Unhandled Rejection 抑止 / DependencyRepository モック / useAuth.joinedTenants デフォルト
+- [x] 全テスト Green 確認（585 passed / 0 failed / 17 skipped）
+- [x] handover ドキュメント記録
+- [x] master マージ前の差分確認
+- [ ] master マージ・push（本セッションではテストのみのためデプロイ不要）
+
+### (c) として残した R 番号候補
+
+- **R-051**: QuantityEngine / Manufacturing repository のテスト再整備
+- **R-052**: useYoukanViewModel カスケード楽観更新の仕様確定とテスト再整備
+- **R-053**: PanoramaBoard 統合シナリオを E2E or VM フィクスチャ整備で再構築

@@ -68,6 +68,30 @@ Object.defineProperty(window, 'matchMedia', {
 	})),
 });
 
+// モック: fetch（テスト個別にモック上書き可能）
+// 相対パス '/api/...' を URL parse 失敗させないため、Unhandled Rejection を防止する
+if (typeof globalThis.fetch === 'function') {
+	const originalFetch = globalThis.fetch.bind(globalThis);
+	globalThis.fetch = ((input: any, init?: any) => {
+		try {
+			if (typeof input === 'string' && input.startsWith('/')) {
+				// 相対パスは jsdom 環境では Invalid URL になるため、ネットワーク到達失敗扱いで Reject
+				return Promise.reject(new Error('Network unavailable in tests: ' + input));
+			}
+		} catch { /* noop */ }
+		return originalFetch(input, init);
+	}) as typeof fetch;
+}
+
+// モック: DependencyRepository（テスト時は依存関係 API を呼ばず空配列を返す）
+vi.mock('@/features/core/youkan/repositories/DependencyRepository', () => ({
+	DependencyRepository: class {
+		async getDependencies() { return []; }
+		async createDependency() { return { id: '', sourceItemId: '', targetItemId: '' }; }
+		async deleteDependency() { return; }
+	}
+}));
+
 // モック: useAuth
 vi.mock('@/features/core/auth/providers/AuthProvider', async (importOriginal) => {
 	const actual = await importOriginal();
@@ -77,6 +101,7 @@ vi.mock('@/features/core/auth/providers/AuthProvider', async (importOriginal) =>
 			isAuthenticated: true,
 			user: { id: 'test-user', name: 'Test User' },
 			tenant: { id: 'test-tenant', name: 'Test Tenant' },
+			joinedTenants: [],
 			login: vi.fn(),
 			logout: vi.fn(),
 		}))

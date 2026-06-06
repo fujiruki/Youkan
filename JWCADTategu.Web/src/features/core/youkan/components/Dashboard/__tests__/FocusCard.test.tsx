@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FocusCard } from '../FocusCard';
 import { Item } from '../../../types';
@@ -24,11 +25,11 @@ describe('FocusCard', () => {
         render(
             <FocusCard
                 item={mockItem}
-                onSetEngaged={jest.fn()}
-                onComplete={jest.fn()}
-                onDrop={jest.fn()}
-                onSkip={jest.fn()}
-                onClick={jest.fn()}
+                onSetEngaged={vi.fn()}
+                onComplete={vi.fn()}
+                onDrop={vi.fn()}
+                onSkip={vi.fn()}
+                onClick={vi.fn()}
             />
         );
 
@@ -42,11 +43,11 @@ describe('FocusCard', () => {
         render(
             <FocusCard
                 item={privateItem}
-                onSetEngaged={jest.fn()}
-                onComplete={jest.fn()}
-                onDrop={jest.fn()}
-                onSkip={jest.fn()}
-                onClick={jest.fn()}
+                onSetEngaged={vi.fn()}
+                onComplete={vi.fn()}
+                onDrop={vi.fn()}
+                onSkip={vi.fn()}
+                onClick={vi.fn()}
             />
         );
 

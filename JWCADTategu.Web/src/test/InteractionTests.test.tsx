@@ -37,8 +37,9 @@ describe('DecisionDetailModal - Basic Rendering', () => {
             </BrowserRouter>
         );
 
-        // アイテムタイトルが表示されている
-        expect(screen.getByText(/レンダリングテスト/i)).toBeInTheDocument();
+        // アイテムタイトルが編集 input の value として表示されている
+        const titleInput = screen.getByTestId('decision-detail-title-input') as HTMLInputElement;
+        expect(titleInput.value).toBe('レンダリングテスト');
     });
 
     it('複数のアイテムでモーダルがレンダリングできる', () => {
@@ -60,7 +61,8 @@ describe('DecisionDetailModal - Basic Rendering', () => {
                 </BrowserRouter>
             );
 
-            expect(screen.getByText(new RegExp(item.title, 'i'))).toBeInTheDocument();
+            const titleInput = screen.getByTestId('decision-detail-title-input') as HTMLInputElement;
+            expect(titleInput.value).toBe(item.title);
             unmount();
         });
     });

@@ -31,22 +31,19 @@ describe('MenuDrawer', () => {
         expect(menu).toBeInTheDocument();
     });
 
-    it('renders navigation links', () => {
+    it('renders navigation links（現行仕様: 個人/会社設定・アプリ設定・変更履歴・マニュアル）', () => {
         render(<MenuDrawer {...defaultProps} isOpen={true} />);
-        expect(screen.getByText('Today')).toBeInTheDocument();
-        expect(screen.getByText('Projects')).toBeInTheDocument();
-        expect(screen.getByText('History')).toBeInTheDocument();
-        expect(screen.getByText('設定')).toBeInTheDocument();
+        // 現行 MenuDrawer は Today/Projects 直接導線を持たず、アプリ設定や履歴等のセカンダリ系を持つ
+        expect(screen.getByText('アプリ設定')).toBeInTheDocument();
+        expect(screen.getByText('変更履歴 (Audit Log)')).toBeInTheDocument();
+        expect(screen.getByText('マニュアル (Manual)')).toBeInTheDocument();
     });
 
-    it('calls logic when buttons are clicked', () => {
+    it('calls onNavigateToSettings when アプリ設定 が押下される', () => {
         render(<MenuDrawer {...defaultProps} isOpen={true} />);
 
-        fireEvent.click(screen.getByText('Today'));
-        expect(defaultProps.onNavigateToToday).toHaveBeenCalled();
-
-        fireEvent.click(screen.getByText('Projects'));
-        expect(defaultProps.onNavigateToProjects).toHaveBeenCalled();
+        fireEvent.click(screen.getByText('アプリ設定'));
+        expect(defaultProps.onNavigateToSettings).toHaveBeenCalled();
     });
 
     it('calls onClose when backdrop is clicked', () => {

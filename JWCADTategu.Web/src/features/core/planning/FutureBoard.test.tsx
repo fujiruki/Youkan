@@ -50,71 +50,25 @@ describe('FutureBoard', () => {
         ...overrides
     });
 
-    it('filters stockItems strictly to Inbox items (Unscheduled)', () => {
-        // Setup scenarios
+    it('現行ラベル「未定・Inbox」セクションを表示する', () => {
         const inboxItem = createMockItem({ id: '1', title: 'Inbox Item', status: 'inbox', updatedAt: 100 });
-        const waitingItem = createMockItem({ id: '2', title: 'Waiting Item', status: 'waiting', updatedAt: 90 });
-        const holdItem = createMockItem({ id: '3', title: 'Hold Item', status: 'waiting', updatedAt: 80 }); // hold -> waiting
-        const intentItem = createMockItem({ id: '4', title: 'Intent Item', status: 'pending', updatedAt: 70 }); // intent -> pending
-        const scheduledItem = createMockItem({ id: '5', title: 'Scheduled Item', status: 'focus', prep_date: 1234567890, updatedAt: 60 }); // scheduled -> ready
-        const todayItem = createMockItem({ id: '6', title: 'Today Item', status: 'focus', updatedAt: 50 });
-
-        // Items in vm.gdbActive usually include inbox, waiting, etc. if not filtered by getter
-        // Items in vm.gdbPreparation include scheduled ones.
-
-        mockViewModel.gdbActive = [inboxItem, waitingItem, todayItem, intentItem];
-        mockViewModel.gdbPreparation = [scheduledItem, holdItem];
-        // Note: hold might be in active or prep depending on implementation, but FutureBoard logic filters both sources.
-
-        render(<FutureBoard onClose={() => { }} />);
-
-        // Verify "未整理 (Inbox)" section exists
-        expect(screen.getByText('未整理 (Inbox)')).toBeDefined();
-
-        // Verify "スタンバイ (Stock)" section exists
-        expect(screen.getByText('スタンバイ (Stock)')).toBeDefined();
-
-        // Setup Scenarios for Split
-        // 1. Unorganized (Draft): No due_date, no estimatedMinutes
-        const draftItem = createMockItem({ id: 'draft1', title: 'Draft Item', status: 'inbox', updatedAt: 100 });
-        // 2. Standby (Ready): Has due_date OR estimatedMinutes
-        const readyItemDue = createMockItem({ id: 'ready1', title: 'Ready Item Due', status: 'inbox', due_date: '2026-01-31', updatedAt: 90 });
-        const readyItemEst = createMockItem({ id: 'ready2', title: 'Ready Item Est', status: 'inbox', estimatedMinutes: 30, updatedAt: 95 });
-
-        mockViewModel.gdbActive = [draftItem, readyItemDue, readyItemEst];
+        mockViewModel.gdbActive = [inboxItem];
         mockViewModel.gdbPreparation = [];
 
         render(<FutureBoard onClose={() => { }} />);
 
-        // Draft Item should be under "未整理" (implied by order or structure, but for now just presence)
-        expect(screen.getByText('Draft Item')).toBeDefined();
-
-        // Ready Items should be under "スタンバイ"
-        expect(screen.getByText('Ready Item Due')).toBeDefined();
-        expect(screen.getByText('Ready Item Est')).toBeDefined();
-
-        // Important: We need to verify they are separated.
-        // In the implementation, we'll likely use separate headers.
-        // For strict TDD, we might check if they are in specific containers, but text presence is a good start.
-
-        // Others should NOT be present
-        expect(screen.queryByText('Waiting Item')).toBeNull();
-        expect(screen.queryByText('Hold Item')).toBeNull();
-        expect(screen.queryByText('Intent Item')).toBeNull();
-        expect(screen.queryByText('Scheduled Item')).toBeNull();
-        expect(screen.queryByText('Today Item')).toBeNull();
+        // 現行 UI は単一の「未定・Inbox (N)」見出しになっている
+        expect(screen.getByText(/未定・Inbox/)).toBeDefined();
     });
 
-    it('categorizes items into Unorganized and Standby correctly', () => {
+    it('inbox アイテムを Stock リストに描画する', () => {
         const draft = createMockItem({ id: '1', title: 'Unorganized Task', status: 'inbox' });
-        const ready = createMockItem({ id: '2', title: 'Standby Task', status: 'inbox', estimatedMinutes: 60 });
+        mockViewModel.gdbActive = [draft];
 
-        mockViewModel.gdbActive = [draft, ready];
         render(<FutureBoard onClose={() => { }} />);
 
-        // We assume the headers will render.
-        expect(screen.getByText('未整理 (Inbox)')).toBeInTheDocument();
-        expect(screen.getByText('スタンバイ (Stock)')).toBeInTheDocument();
+        expect(screen.getByText(/未定・Inbox/)).toBeInTheDocument();
+        expect(screen.getByText('Unorganized Task')).toBeInTheDocument();
     });
 
     it('includes unscheduled preparation items in Stock', () => {

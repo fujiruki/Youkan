@@ -65,7 +65,7 @@ describe('FilterContext', () => {
             expect(getByTestId('filter-mode').textContent).toBe('company');
         });
 
-        it('setFilterMode すると localStorage に保存される', async () => {
+        it('setFilterMode しても localStorage には保存されない（セッション単位仕様）', async () => {
             const { getByTestId } = render(
                 <FilterProvider>
                     <FilterModeSetter mode="personal" />
@@ -74,17 +74,19 @@ describe('FilterContext', () => {
             await act(async () => {
                 getByTestId('set-button').click();
             });
-            expect(localStorage.getItem('youkan_filter_mode')).toBe('personal');
+            // 仕様変更: filterMode は localStorage 非永続化（毎セッション 'all' から開始）
+            expect(localStorage.getItem('youkan_filter_mode')).toBeNull();
         });
 
-        it('localStorage に値があれば初期値としてその値が使われる', () => {
+        it('localStorage に値があっても初期値は常に "all"（セッション単位仕様）', () => {
             localStorage.setItem('youkan_filter_mode', 'company');
             render(
                 <FilterProvider>
                     <FilterModeDisplay />
                 </FilterProvider>
             );
-            expect(screen.getByTestId('filter-mode').textContent).toBe('company');
+            // 仕様変更: localStorage を無視し常に 'all' で開始
+            expect(screen.getByTestId('filter-mode').textContent).toBe('all');
         });
     });
 
