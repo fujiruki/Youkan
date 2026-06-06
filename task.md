@@ -259,10 +259,13 @@
   - `RyokanCalendar` から `loadedRange` を propagation
 - [x] テスト Green 確認（6/6 Pass）
 - [x] ビルド検証（`npm.cmd run build` 通過、TS エラー 0）
-- [ ] master マージ前に `git diff --stat master..HEAD` で全体行数確認
-- [ ] master マージ・push
-- [ ] upload.ps1 で本番デプロイ
-- [ ] 本番 chrome-devtools 検証（スクリーンショット 2 枚以上）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（5 ファイル +425/-28）
+- [x] master マージ・push（merge commit `2124f0e`）
+- [x] upload.ps1 で本番デプロイ（2026-06-06 12:23）
+- [x] 本番 chrome-devtools 検証:
+  - 初期: 「読み込み済み: 2025-12 〜 2026-12（13ヶ月）」表示 → `R-050-after-initial-status.png`
+  - 横スクロール末端到達 → 「+3ヶ月読み込み中…（後ろへ）」→ 自動で 2027-09 まで拡張 → `R-050-after-auto-load.png`
+  - 上限超過時の警告＋ボタン disable → `R-050-after-limit-warning.png`
 
 ---
 
@@ -280,9 +283,8 @@
 - [x] (b) テスト削除（2 ファイル）: WorkDaysSave.test.tsx（空ファイル）, MenuInteraction.test.tsx（廃止 UI）
 - [x] (c) 別 R 化 skip（5 ファイル）: QuantityEngine (Scenario 2/3/6) → R-051、manufacturing → R-051、useYoukanViewModel.cascade → R-052、IntentDeleteIntegration → R-053、PanoramaBoard.showGroups は timeout 延長で復活
 - [x] setupTests.ts 補強: fetch Unhandled Rejection 抑止 / DependencyRepository モック / useAuth.joinedTenants デフォルト
-- [x] 全テスト Green 確認（585 passed / 0 failed / 17 skipped）
+- [x] 全テスト Green 確認（585 passed / 0 failed / 17 skipped、master merge 後 591 passed）
 - [x] handover ドキュメント記録
-- [x] master マージ前の差分確認
 - [x] master マージ・push（本セッションではテストのみのためデプロイ不要）
 
 ### (c) として残した R 番号候補
