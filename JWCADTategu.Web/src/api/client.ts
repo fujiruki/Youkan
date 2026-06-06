@@ -23,6 +23,10 @@ const API_BASE = getApiBase();
 export class ApiClient {
 	private static errorHandler: ((error: Error, method: string, path: string) => void) | null = null;
 
+	// [R-044] in-flight dedup: 同一 GET path への並行リクエストを 1 本にまとめる
+	// データの鮮度を保つため、Promise の resolve/reject 直後に解放する短いウィンドウ限定。
+	private static inFlightGets: Map<string, Promise<any>> = new Map();
+
 	// グローバルエラーハンドラの登録
 	public static setErrorHandler(handler: (error: Error, method: string, path: string) => void) {
 		this.errorHandler = handler;
@@ -47,6 +51,28 @@ export class ApiClient {
 	}
 
 	public static async request<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
+		// [R-044] in-flight dedup: GET の並行リクエストは 1 本に集約する
+		// 副作用のない GET のみ対象。同一 URL（クエリ込み）で in-flight があれば乗り合わせる。
+		if (method === 'GET') {
+			const dedupKey = path;
+			const existing = this.inFlightGets.get(dedupKey);
+			if (existing) {
+				return existing as Promise<T>;
+			}
+			const fresh = this.performRequest<T>(method, path, body, silent);
+			this.inFlightGets.set(dedupKey, fresh);
+			// 完了したらキャッシュから外す（成功/失敗いずれも）
+			fresh.finally(() => {
+				if (this.inFlightGets.get(dedupKey) === fresh) {
+					this.inFlightGets.delete(dedupKey);
+				}
+			});
+			return fresh;
+		}
+		return this.performRequest<T>(method, path, body, silent);
+	}
+
+	private static async performRequest<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
 		const headers: HeadersInit = {
 			'Content-Type': 'application/json',
 		};
