@@ -30,13 +30,12 @@ describe('R-048: HealthCheck 起動時 API 抑制', () => {
         expect(ApiClient.getHealth).not.toHaveBeenCalled();
     });
 
-    it('System Status ボタン押下時に getHealth が 1 回呼ばれる', async () => {
+    it('System Status ボタン押下時に getHealth が 1 回呼ばれる', () => {
+        vi.useRealTimers();
         const { container } = render(<HealthCheck />);
         const button = container.querySelector('button[title="System Status: Operational"]');
         expect(button).not.toBeNull();
         fireEvent.click(button!);
-        await waitFor(() => {
-            expect(ApiClient.getHealth).toHaveBeenCalledTimes(1);
-        });
+        expect(ApiClient.getHealth).toHaveBeenCalledTimes(1);
     });
 });

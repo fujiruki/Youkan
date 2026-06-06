@@ -1,9 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
-import { Item, Dependency } from '../../types';
+import { useMemo } from 'react';
+import { Item } from '../../types';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { format } from 'date-fns';
 import { buildHierarchicalList } from '../../logic/hierarchy';
-import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
@@ -11,8 +10,7 @@ export type OverviewItemWrapper =
 	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null }
 	| { id: string; type: 'header'; projectId: string; projectTitle: string; project: Item; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null };
 
-const dependencyRepo = new DependencyRepository();
-
+// R-048: /dependencies は起動時に呼ばないため OverviewBoard では取得しない（フロー/ガント画面のみで取得）
 export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
@@ -25,12 +23,6 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 		todayCommits,
 		executionItem
 	} = viewModel;
-
-	const [dependencies, setDependencies] = useState<Dependency[]>([]);
-
-	useEffect(() => {
-		dependencyRepo.getDependencies().then(setDependencies).catch(console.error);
-	}, []);
 
 	return useMemo(() => {
 		// 1. Gather all tasks from ALL zones（someday はデフォルト除外）
@@ -46,13 +38,14 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 		];
 
 		// 2. Build Hierarchy using Common Logic
+		// R-048: OverviewBoard では依存関係を考慮しない（フロー/ガント画面でのみ /dependencies を取得するため）
 		const hierarchicalWrappers = buildHierarchicalList({
 			activeProjectId: activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null),
 			allProjects: viewModelProjects,
 			allItems: allItemsRaw,
 			showGroups: true,
 			hideCompleted,
-			dependencies
+			dependencies: []
 		});
 
 		// 3. Add Overview-specific formatting (Dates)
@@ -86,5 +79,5 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			return wrapper as OverviewItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday, dependencies]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday]);
 };
