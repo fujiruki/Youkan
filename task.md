@@ -330,3 +330,46 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 ### スコープ外
 
 - ステータスバー UI（R-050 でガントに追加した「読み込み済み範囲」「もっと読むボタン」「24 ヶ月上限警告」）はタイムラインには適用しない。タイムラインは元来 sentinel のみの自動 lazy load 設計のため、本タスクは sentinel 配置不具合の最小修正に留める
+
+---
+
+## R-055 青年部カレンダー「絆感謝運動」(6/7) 表示漏れバグ修正（2026-06-06）
+
+**ブランチ**: `feature/R-055-event-display-fix`
+**worktree**: `.claude/worktrees/agent-aee960f77a98975c8/`
+**分析資料**: `docs/handover/R-055-analysis.md`
+**目的**: `GET /google/calendar/events` で primary カレンダー以外（青年部商工会など）のイベントが返らないバグを根治する。
+
+### 真因
+
+`GoogleCalendarController::getEvents()` (GET) が `getCachedEvents()` (R-034 Phase 2 の旧キャッシュ参照のみ) を呼ぶ実装のままで、R-041 で複数カレンダー対応した live fetch (`getEvents()`) を呼んでいなかった。設定画面の「更新」ボタン（POST /refresh）を押さない限りキャッシュが更新されず、`external_events_cache` には primary のレコードしか残らない状態だった。本番調査では、ユーザーの全 6 カレンダー（祝日／青年部商工会／ファミリー／YuiHaruFujita／door.fujita@gmail.com／fjt.suntree@gmail.com）が `user_google_calendars` に正しく入り、`is_enabled=true` だが、`GET /events` のレスポンスは calendar_id="primary" のものしか含まれていなかった。
+
+### 修正
+
+- `GoogleCalendarController::getEvents()` を改修
+  - `user_google_oauth.last_sync_at` が `AUTO_SYNC_TTL_SEC=60` 秒より古い、または `user_google_calendars` が空の場合、`getCalendarList()` → `getEvents()` (R-041 新版) を自動で走らせる
+  - 同期に失敗した場合は既存キャッシュにフォールバック（UX を壊さない）
+  - 60 秒以内の連続呼び出しは従来通り DB 応答のみで高速
+- フロントは無変更
+
+### サブタスク
+
+- [x] worktree 作成（master ベース、HEAD=0f1f97e）
+- [x] 本番再現: `GET /google/calendars` は 6 件全件返るが、`GET /events` は primary のみで「絆感謝運動」を含まないことを確認
+- [x] 本番で `POST /refresh` 1 回叩くと「絆感謝運動」を含む 197 件が取得できることを確認（root cause 特定）
+- [x] `docs/handover/R-055-analysis.md` に分析記録
+- [x] `tests/GoogleCalendarControllerTest.php` に R-055 ケース 3 件追加（stale → 自動同期 / fresh → スキップ / 失敗時 → cache fallback）
+- [x] テスト Red 確認 → `GoogleCalendarController::getEvents()` 実装 → Green 確認（PHP 12/12 OK、Vitest 595 passed / 17 skipped）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認
+- [x] master マージ・push
+- [x] upload.ps1 で本番デプロイ
+- [x] 本番 chrome-devtools で 6/7 の「絆感謝運動」が表示されることを確認、Before/After スクリーンショット
+
+### 同型バグ（同時に治る）
+
+修正前は primary 以外の全カレンダーが Youkan に表示されない状態だったため、本修正により以下も自動で復活する見込み:
+- 日本の祝日カレンダー
+- ファミリー カレンダー
+- YuiHaruFujita 共有カレンダー
+- door.fujita@gmail.com の予定
+- 青年部商工会の全イベント（絆感謝運動 以外も）
