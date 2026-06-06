@@ -131,6 +131,10 @@ class GoogleCalendarControllerTest {
         $this->testListCalendarsReturnsRows();
         $this->testPatchCalendarTogglesEnabled();
         $this->testPatchCalendarRejectsOtherUser();
+        // [R-055] GET /events 時に古いキャッシュなら自動同期する
+        $this->testGetEventsTriggersAutoSyncWhenStale();
+        $this->testGetEventsSkipsAutoSyncWhenFresh();
+        $this->testGetEventsFallsBackToCacheOnSyncFailure();
         echo "All tests passed!\n";
     }
 
@@ -184,6 +188,14 @@ class GoogleCalendarControllerTest {
     private function testGetEventsFromCache(): void {
         echo "  [Test] GET /google/calendar/events reads from cache...";
         $now = time();
+        // [R-055] 既存テスト維持のため、自動同期が走らないように last_sync_at を直近に更新し、
+        // user_google_calendars もダミーで 1 行入れる。
+        $this->pdo->prepare("UPDATE user_google_oauth SET last_sync_at = ? WHERE user_id = ?")
+            ->execute([$now, 'user-1']);
+        $this->pdo->prepare("DELETE FROM user_google_calendars WHERE user_id = ?")->execute(['user-1']);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, 'primary', 'Primary', 1, 0, ?, ?)")
+            ->execute(['user-1', $now, $now]);
+
         $this->pdo->prepare("INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, location, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
             ->execute([
                 'google:evt1', 'user-1', 'primary', 'evt1',
@@ -307,6 +319,141 @@ class GoogleCalendarControllerTest {
         // 行は変更されない
         $row = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$otherId")->fetch(PDO::FETCH_ASSOC);
         assert((int)$row['is_enabled'] === 1, '他ユーザー行は変更されていないこと');
+        echo " OK\n";
+    }
+
+    // ===== [R-055] GET /events 時に古いキャッシュなら自動同期 =====
+
+    /**
+     * GET /google/calendar/events 呼び出し時、`last_sync_at` が AUTO_SYNC_TTL_SEC より古い場合、
+     * 自動的に calendarList.list + events.list を叩き、最新の全カレンダー分を返すこと。
+     * これが R-055「青年部商工会の絆感謝運動が表示されない」バグの修正ポイント。
+     */
+    private function testGetEventsTriggersAutoSyncWhenStale(): void {
+        echo "  [Test] GET /events triggers auto-sync when last_sync_at is stale (R-055)...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $this->pdo->prepare("DELETE FROM external_events_cache")->execute();
+
+        $now = time();
+        // 古い last_sync_at (1 日前)
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at) VALUES (?, ?, 'primary', ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now - 86400, $now - 86400]);
+        // user_google_calendars は未登録 (まだ R-041 マイグレーション後の初回 GET 状態を再現)
+
+        // モック: refresh access (calendarList.list 用) → calendarList.list → refresh access (events.list 用) → events.list × 2
+        // ただし GoogleCalendarService::getCalendarList と getEvents はそれぞれ別々に refreshAccessToken を呼ぶ
+        $this->http->enqueue(200, ['access_token' => 'ya29.cal', 'expires_in' => 3600]); // calendarList 用 refresh
+        $this->http->enqueue(200, [
+            'items' => [
+                ['id' => 'primary', 'summary' => 'Primary', 'backgroundColor' => '#4285F4'],
+                ['id' => 'youth@group.calendar.google.com', 'summary' => '青年部商工会', 'backgroundColor' => '#a47ae2'],
+            ],
+        ]);
+        $this->http->enqueue(200, ['access_token' => 'ya29.evt', 'expires_in' => 3600]); // events 用 refresh
+        // 青年部のイベント (絆感謝運動 6/7)
+        $this->http->enqueue(200, [
+            'items' => [
+                [
+                    'id' => 'kizuna-evt',
+                    'summary' => '絆感謝運動',
+                    'start' => ['dateTime' => '2026-06-07T12:00:00+09:00'],
+                    'end' => ['dateTime' => '2026-06-07T13:00:00+09:00'],
+                ],
+            ],
+        ]);
+        // primary のイベント
+        $this->http->enqueue(200, ['items' => []]);
+
+        $_GET['from'] = '2026-06-01';
+        $_GET['to'] = '2026-06-30';
+        $res = $this->captureResponse(fn() => $this->controller->getEvents());
+
+        $events = $res['body']['events'] ?? null;
+        assert(is_array($events), 'events missing in response');
+        $titles = array_column($events, 'title');
+        assert(in_array('絆感謝運動', $titles, true), '絆感謝運動 が events に含まれていない: ' . json_encode($titles, JSON_UNESCAPED_UNICODE));
+
+        // 自動同期で user_google_calendars にも 2 行入っているはず
+        $calCount = (int)$this->pdo->query("SELECT COUNT(*) FROM user_google_calendars WHERE user_id = 'user-1'")->fetchColumn();
+        assert($calCount === 2, "expected 2 calendars synced, got $calCount");
+
+        // last_sync_at が更新されたこと
+        $newSync = (int)$this->pdo->query("SELECT last_sync_at FROM user_google_oauth WHERE user_id = 'user-1'")->fetchColumn();
+        assert($newSync >= $now, 'last_sync_at not updated');
+
+        echo " OK\n";
+    }
+
+    /**
+     * `last_sync_at` が AUTO_SYNC_TTL_SEC 以内なら HTTP は叩かず DB キャッシュから返すこと。
+     * 過剰な Google API 呼び出しを防ぐ TTL ガード。
+     */
+    private function testGetEventsSkipsAutoSyncWhenFresh(): void {
+        echo "  [Test] GET /events skips auto-sync when last_sync_at is fresh...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $this->pdo->prepare("DELETE FROM external_events_cache")->execute();
+
+        $now = time();
+        // 直近の last_sync_at (10 秒前)
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at) VALUES (?, ?, 'primary', ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now - 10, $now - 86400]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)")
+            ->execute(['user-1', 'primary', 'Primary', $now, $now]);
+
+        $this->pdo->prepare("INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, location, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+            ->execute([
+                'google:primary:cached1', 'user-1', 'primary', 'cached1',
+                strtotime('2026-06-10 10:00:00'),
+                strtotime('2026-06-10 11:00:00'),
+                0, 'キャッシュ済', null, $now,
+            ]);
+
+        $callsBefore = count($this->http->calls);
+        $_GET['from'] = '2026-06-01';
+        $_GET['to'] = '2026-06-30';
+        $res = $this->captureResponse(fn() => $this->controller->getEvents());
+        $callsAfter = count($this->http->calls);
+
+        assert($callsAfter === $callsBefore, "expected no HTTP calls when fresh, got " . ($callsAfter - $callsBefore));
+        $events = $res['body']['events'] ?? [];
+        assert(count($events) === 1 && $events[0]['title'] === 'キャッシュ済', 'expected cache-only response');
+        echo " OK\n";
+    }
+
+    /**
+     * 自動同期中に Google API エラーが起きても、既存キャッシュから応答してフロントを壊さないこと。
+     */
+    private function testGetEventsFallsBackToCacheOnSyncFailure(): void {
+        echo "  [Test] GET /events falls back to cache on auto-sync failure...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $this->pdo->prepare("DELETE FROM external_events_cache")->execute();
+
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at) VALUES (?, ?, 'primary', ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now - 86400, $now - 86400]);
+
+        $this->pdo->prepare("INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, location, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+            ->execute([
+                'google:primary:fallback1', 'user-1', 'primary', 'fallback1',
+                strtotime('2026-06-15 09:00:00'),
+                strtotime('2026-06-15 10:00:00'),
+                0, '既存キャッシュ', null, $now,
+            ]);
+
+        // Google API がエラー: refresh access 自体が失敗
+        $this->http->enqueue(401, ['error' => 'invalid_grant']);
+
+        $_GET['from'] = '2026-06-01';
+        $_GET['to'] = '2026-06-30';
+        $res = $this->captureResponse(fn() => $this->controller->getEvents());
+
+        assert($res['status'] === null, 'should not surface 5xx to frontend, got status ' . var_export($res['status'], true));
+        $events = $res['body']['events'] ?? [];
+        $titles = array_column($events, 'title');
+        assert(in_array('既存キャッシュ', $titles, true), '既存キャッシュが返ること: ' . json_encode($titles, JSON_UNESCAPED_UNICODE));
         echo " OK\n";
     }
 }

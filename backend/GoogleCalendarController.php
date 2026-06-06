@@ -1,6 +1,6 @@
 <?php
 // backend/GoogleCalendarController.php
-// R-034 Phase 2 + R-041 Phase 3: Google カレンダー連携 API
+// R-034 Phase 2 + R-041 Phase 3 + R-055: Google カレンダー連携 API
 //
 // エンドポイント:
 //   POST   /api/google/oauth/start       → { authUrl }
@@ -8,7 +8,7 @@
 //   GET    /api/google/oauth/status      → 連携状態
 //   DELETE /api/google/oauth             → 連携解除
 //   POST   /api/google/calendar/refresh  → 手動更新（60 秒クールダウン）
-//   GET    /api/google/calendar/events   → キャッシュから期間取得
+//   GET    /api/google/calendar/events   → キャッシュから期間取得（R-055: TTL 切れ時は自動 live fetch）
 //   GET    /api/google/calendars         → [R-041] ユーザーのカレンダー一覧
 //   PATCH  /api/google/calendars/{id}    → [R-041] is_enabled 切替
 require_once __DIR__ . '/BaseController.php';
@@ -19,6 +19,10 @@ class GoogleCalendarController extends BaseController {
     protected GoogleCalendarService $service;
 
     public const REFRESH_COOLDOWN_SEC = 60;
+    // [R-055] GET /events 時に live fetch を自動起動するかの判定 TTL（秒）。
+    // last_sync_at がこの値より古ければ自動同期を走らせ、青年部商工会など
+    // 後から追加されたカレンダーをユーザー操作なしで取り込めるようにする。
+    public const AUTO_SYNC_TTL_SEC = 60;
 
     public function __construct() {
         parent::__construct();
@@ -135,7 +139,13 @@ class GoogleCalendarController extends BaseController {
         ]);
     }
 
-    /** GET /google/calendar/events?from=YYYY-MM-DD&to=YYYY-MM-DD */
+    /**
+     * GET /google/calendar/events?from=YYYY-MM-DD&to=YYYY-MM-DD
+     *
+     * [R-055] last_sync_at が AUTO_SYNC_TTL_SEC より古い、または user_google_calendars が空の場合、
+     * 自動的に calendarList.list + events.list (全カレンダー) を叩き、最新キャッシュへ更新する。
+     * 同期に失敗した場合は既存キャッシュへフォールバックし、UI を壊さない。
+     */
     public function getEvents(): void {
         $this->authenticate();
         $from = isset($_GET['from']) ? strtotime($_GET['from'] . ' 00:00:00') : strtotime('today');
@@ -145,12 +155,52 @@ class GoogleCalendarController extends BaseController {
             $this->sendError(400, 'from / to は YYYY-MM-DD 形式で指定してください');
         }
 
+        if ($this->shouldAutoSync($this->currentUserId)) {
+            try {
+                // user_google_calendars が空の場合だけ calendarList を取り込み（初回 / R-041 移行直後）。
+                $calCheck = $this->pdo->prepare("SELECT COUNT(*) FROM user_google_calendars WHERE user_id = ? AND deleted_at IS NULL");
+                $calCheck->execute([$this->currentUserId]);
+                if ((int)$calCheck->fetchColumn() === 0) {
+                    $this->service->getCalendarList($this->currentUserId);
+                }
+                // R-041 新版: 全有効カレンダーから events.list を並列取得し、calendar_id 別キャッシュへ書き込む。
+                $this->service->getEvents($this->currentUserId, $from, $to);
+            } catch (\Throwable $e) {
+                // Google API ダウン / 認証切れ等。既存キャッシュにフォールバックして UX を保つ。
+                error_log('getEvents auto-sync failed (fallback to cache): ' . $e->getMessage());
+            }
+        }
+
         $events = $this->service->getCachedEvents($this->currentUserId, $from, $to);
         $this->sendJSON([
             'events' => $events,
             'from' => date('Y-m-d', $from),
             'to' => date('Y-m-d', $to),
         ]);
+    }
+
+    /**
+     * 自動同期を走らせるべきかを判定する。
+     * - OAuth 連携が無い → false（同期するものが無い）
+     * - last_sync_at が AUTO_SYNC_TTL_SEC より古い → true
+     * - user_google_calendars が 1 行も無い (R-041 移行直後) → true
+     */
+    private function shouldAutoSync(string $userId): bool {
+        $stmt = $this->pdo->prepare("SELECT last_sync_at FROM user_google_oauth WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return false; // 未連携
+
+        $lastSync = (int)($row['last_sync_at'] ?? 0);
+        if ($lastSync <= 0) return true;
+        if ((time() - $lastSync) >= self::AUTO_SYNC_TTL_SEC) return true;
+
+        // last_sync_at は新しくても、user_google_calendars が空のケース（旧スキーマ運用中の単体ユーザー）
+        $calCheck = $this->pdo->prepare("SELECT COUNT(*) FROM user_google_calendars WHERE user_id = ? AND deleted_at IS NULL");
+        $calCheck->execute([$userId]);
+        if ((int)$calCheck->fetchColumn() === 0) return true;
+
+        return false;
     }
 
     // --- [R-041] 複数 Google カレンダー対応 ---
