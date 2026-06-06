@@ -234,3 +234,32 @@
 - [ ] master マージ・本番デプロイ
 - [ ] After 計測（本番 chrome-devtools, 切替時間が 50% 削減もしくは大幅減を確認）
 - [ ] Before/After スクリーンショット 2 枚添付・完了報告
+
+---
+
+## R-050 ガントビュー無限スクロール感の実現（2026-06-06）
+
+**ブランチ**: `feature/R-050-gantt-infinite-scroll`
+**worktree**: `.claude/worktrees/agent-a2b532ad509984bb2/`
+**目的**: ユーザー指摘「スクロールで続きがロードされていく感じがない」を解消
+
+### サブタスク
+
+- [x] worktree 作成（master ベース）
+- [x] 既存実装（R-042-Y2/Y3）の sentinel 配置を分析
+- [x] 根本原因を `docs/handover/R-050-gantt-analysis.md` に記述
+  （sentinel が `absolute` 配置で `min-w-max` 外にあったため、横スクロールに追従せず viewport に貼り付いていた → マウント直後に一度だけ fire してその後死ぬ）
+- [x] テスト Red: `RyokanGanttView.loadMoreUI.test.tsx` に 6 件追加（6/6 失敗確認）
+- [x] テスト Red コミット（`b71865a`）
+- [x] 実装:
+  - sentinel を `min-w-max` の内側に移動（横スクロール末端で交差検知が機能）
+  - 上部にステータスバー（読み込み済み範囲、+3ヶ月読み込み中…、もっと読むボタン）追加
+  - 「前へ／後ろへ」明示ボタンを併設（sentinel 不発時の退路）
+  - 24 ヶ月上限到達時の警告表示とボタン disable
+  - `RyokanCalendar` から `loadedRange` を propagation
+- [x] テスト Green 確認（6/6 Pass）
+- [x] ビルド検証（`npm.cmd run build` 通過、TS エラー 0）
+- [ ] master マージ前に `git diff --stat master..HEAD` で全体行数確認
+- [ ] master マージ・push
+- [ ] upload.ps1 で本番デプロイ
+- [ ] 本番 chrome-devtools 検証（スクリーンショット 2 枚以上）

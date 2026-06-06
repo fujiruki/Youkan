@@ -23,6 +23,28 @@ import { Skeleton } from '../../../../../shared/components/Skeleton';
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
 
+/**
+ * R-050: ロード済み月数の上限（メモリ観点での無限スクロール上限）。
+ * これを超えるとボタンを disabled にし、警告メッセージを表示する。
+ */
+const LAZY_LOAD_MAX_MONTHS = 24;
+
+/** R-050: `YYYY-MM-DD` から `YYYY-MM` を抽出 */
+const toMonthLabel = (ymdStr: string | undefined | null): string => {
+	if (!ymdStr || ymdStr.length < 7) return '';
+	return ymdStr.slice(0, 7);
+};
+
+/** R-050: 範囲 from/to（YYYY-MM-DD）が跨ぐ月数を返す */
+const countMonths = (from: string | undefined | null, to: string | undefined | null): number => {
+	if (!from || !to || from.length < 7 || to.length < 7) return 0;
+	const f = from.split('-').map(Number);
+	const t = to.split('-').map(Number);
+	if (f.length < 2 || t.length < 2) return 0;
+	const months = (t[0] - f[0]) * 12 + (t[1] - f[1]) + 1;
+	return Math.max(0, months);
+};
+
 const isSameDate = (d1: Date, d2: Date) => {
 	return d1.getFullYear() === d2.getFullYear() &&
 		d1.getMonth() === d2.getMonth() &&
@@ -77,6 +99,8 @@ interface GanttViewProps {
 	isLoadingMore?: boolean;
 	/** R-042-Y3: 現在追加ロード中の方向。スケルトン UI の表示位置切替に使用 */
 	loadDirection?: 'before' | 'after' | null;
+	/** R-050: 現在ロード済みの範囲（YYYY-MM-DD）。ステータス表示・上限判定に使用 */
+	loadedRange?: { from: string; to: string };
 	/** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
 	googleCalendars?: GoogleCalendar[];
 }
@@ -90,12 +114,16 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
 	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
-	onLoadMore, isLoadingMore = false, loadDirection = null,
+	onLoadMore, isLoadingMore = false, loadDirection = null, loadedRange,
 	googleCalendars = [],
 }) => {
+	// R-050: ロード済み月数と上限到達判定
+	const loadedMonths = countMonths(loadedRange?.from, loadedRange?.to);
+	const limitReached = loadedMonths > 0 && loadedMonths >= LAZY_LOAD_MAX_MONTHS;
 	// R-042-Y2: 横スクロール左端・右端の sentinel。
 	// 追加ロード中（isLoadingMore=true）は enabled=false で二重発火を抑止する。
-	const sentinelEnabled = !!onLoadMore && !isLoadingMore;
+	// R-050: 上限到達時（24 ヶ月超）はメモリ保護のため発火停止。
+	const sentinelEnabled = !!onLoadMore && !isLoadingMore && !limitReached;
 	const setBeforeRef = useLazyLoadSentinel({
 		enabled: sentinelEnabled,
 		onIntersect: () => onLoadMore?.('before', LAZY_LOAD_MONTHS),
@@ -552,38 +580,111 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				</div>
 			</div>
 
+			{/* R-050: ロード状況・上限警告・もっと読み込むボタンを表示するステータスバー（sticky 上端） */}
+			<div
+				data-testid="gantt-load-status"
+				className="flex-none flex flex-wrap items-center gap-2 px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 text-[11px] text-slate-600 dark:text-slate-300 z-10"
+			>
+				<button
+					type="button"
+					data-testid="gantt-load-more-before"
+					onClick={() => onLoadMore?.('before', LAZY_LOAD_MONTHS)}
+					disabled={!onLoadMore || isLoadingMore || limitReached}
+					className={cn(
+						"inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-medium",
+						"border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-200",
+						"hover:bg-indigo-50 dark:hover:bg-indigo-900/30",
+						"disabled:opacity-50 disabled:cursor-not-allowed"
+					)}
+					title={`過去 ${LAZY_LOAD_MONTHS} ヶ月分を読み込む`}
+				>
+					← +{LAZY_LOAD_MONTHS}ヶ月（前へ）
+				</button>
+				<span className="text-slate-400">|</span>
+				{loadedRange?.from && loadedRange?.to ? (
+					<span className="font-mono">
+						読み込み済み: {toMonthLabel(loadedRange.from)} 〜 {toMonthLabel(loadedRange.to)}
+						{loadedMonths > 0 && (
+							<span className="ml-1 text-slate-400">（{loadedMonths}ヶ月）</span>
+						)}
+					</span>
+				) : (
+					<span className="text-slate-400">読み込み済み範囲: -</span>
+				)}
+				{isLoadingMore && (
+					<span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-100 font-bold animate-pulse">
+						+{LAZY_LOAD_MONTHS}ヶ月読み込み中…
+						{loadDirection && (
+							<span className="opacity-70">（{loadDirection === 'before' ? '前へ' : '後ろへ'}）</span>
+						)}
+					</span>
+				)}
+				<span className="text-slate-400">|</span>
+				<button
+					type="button"
+					data-testid="gantt-load-more-after"
+					onClick={() => onLoadMore?.('after', LAZY_LOAD_MONTHS)}
+					disabled={!onLoadMore || isLoadingMore || limitReached}
+					className={cn(
+						"inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-medium",
+						"border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-200",
+						"hover:bg-indigo-50 dark:hover:bg-indigo-900/30",
+						"disabled:opacity-50 disabled:cursor-not-allowed"
+					)}
+					title={`今後 ${LAZY_LOAD_MONTHS} ヶ月分を読み込む`}
+				>
+					+{LAZY_LOAD_MONTHS}ヶ月（後ろへ） →
+				</button>
+				{limitReached && (
+					<span
+						data-testid="gantt-load-limit-warning"
+						className="ml-auto text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 px-2 py-0.5 rounded"
+					>
+						⚠ {LAZY_LOAD_MAX_MONTHS}ヶ月の表示上限に到達しました（動作が重くなる可能性があるため自動読み込みを停止）
+					</span>
+				)}
+			</div>
+
 			{/* Body */}
 			<div
 				ref={effectiveScrollRef}
 				className="flex-1 overflow-auto overflow-x-auto relative min-h-0"
 			>
-				{/* R-042-Y2: 横スクロール左端 sentinel（前方への +3 ヶ月 lazy load トリガ） */}
-				<div
-					ref={setBeforeRef}
-					data-testid="lazy-sentinel-before"
-					aria-hidden="true"
-					className="absolute top-0 bottom-0 left-0 w-px pointer-events-none z-0"
-				/>
-				{/* R-042-Y3: before 方向ロード中の縦長スケルトン（左端 sentinel の隣） */}
-				{isLoadingMore && loadDirection === 'before' && (
-					<div className="absolute top-0 bottom-0 left-0 pointer-events-none z-10 p-1">
-						<Skeleton className="w-24 h-full" />
-					</div>
-				)}
-				{/* R-042-Y2: 横スクロール右端 sentinel（後方への +3 ヶ月 lazy load トリガ） */}
-				<div
-					ref={setAfterRef}
-					data-testid="lazy-sentinel-after"
-					aria-hidden="true"
-					className="absolute top-0 bottom-0 right-0 w-px pointer-events-none z-0"
-				/>
-				{/* R-042-Y3: after 方向ロード中の縦長スケルトン（右端 sentinel の隣） */}
-				{isLoadingMore && loadDirection === 'after' && (
-					<div className="absolute top-0 bottom-0 right-0 pointer-events-none z-10 p-1">
-						<Skeleton className="w-24 h-full" />
-					</div>
-				)}
 				<div className="min-w-max pb-32 relative">
+					{/*
+					 * R-050: sentinel をスクロールコンテンツ（min-w-max）の左端・右端にインライン配置する。
+					 * R-042-Y2 では絶対配置だったため横スクロールに追従せず、ユーザーがどれだけ
+					 * 右にスクロールしても末端到達イベントが発火しない不具合があった。
+					 * インライン配置に変更したことでスクロール末尾に近づいたとき自然に交差検知される。
+					 */}
+					<div
+						ref={setBeforeRef}
+						data-testid="lazy-sentinel-before"
+						aria-hidden="true"
+						className="absolute top-0 bottom-0 left-0 w-px pointer-events-none z-0"
+					/>
+					{isLoadingMore && loadDirection === 'before' && (
+						<div className="absolute top-0 bottom-0 left-0 pointer-events-none z-10 p-1 flex items-start">
+							<div className="flex flex-col items-center gap-1 px-2 py-1 bg-indigo-50/90 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700 rounded shadow-sm">
+								<Skeleton className="w-20 h-3" />
+								<span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-200 whitespace-nowrap">+{LAZY_LOAD_MONTHS}ヶ月読み込み中…</span>
+							</div>
+						</div>
+					)}
+					<div
+						ref={setAfterRef}
+						data-testid="lazy-sentinel-after"
+						aria-hidden="true"
+						className="absolute top-0 bottom-0 right-0 w-px pointer-events-none z-0"
+					/>
+					{isLoadingMore && loadDirection === 'after' && (
+						<div className="absolute top-0 bottom-0 right-0 pointer-events-none z-10 p-1 flex items-start">
+							<div className="flex flex-col items-center gap-1 px-2 py-1 bg-indigo-50/90 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-700 rounded shadow-sm">
+								<Skeleton className="w-20 h-3" />
+								<span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-200 whitespace-nowrap">+{LAZY_LOAD_MONTHS}ヶ月読み込み中…</span>
+							</div>
+						</div>
+					)}
 					{/* [FIX] Background Grid & Scroll Targets (Always present even if no items) */}
 					<div className="absolute top-0 bottom-0 left-[16rem] flex pointer-events-none z-0">
 						{allDays.map(date => {
