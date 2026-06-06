@@ -213,3 +213,24 @@
 - [x] 本番 chrome-devtools で発火回数 1 回ずつになっていることを実機検証（スクリーンショット 2 枚）
 - [x] 追加コミット（`7931a71`）: useYoukanViewModel から `getJoinedTenants` API 呼び出しを撤廃し `useAuth().joinedTenants` を再利用（dedup ではカバーできないシーケンシャル重複への対応）
 - [x] 再デプロイ（2026-06-06 10:11）→ `/auth/me` も 1 回まで集約確認
+
+---
+
+## R-046-Y1 ガントビュー CSS 最適化（content-visibility: auto）
+
+**ブランチ**: `feature/R-046-Y1-css-content-visibility`
+**worktree**: `.claude/worktrees/agent-acc126c7617c3c2f3/`
+**目的**: グリッド→ガント切替時の DOM 描画コスト削減。ガント行に `content-visibility: auto` を付与し、ビューポート外行のペイント・レイアウトをスキップする
+**方針**: 2026-06-06 kaigi 議事録で「もたつき軽微・描画遅延なし」のため JS 仮想化（Phase 2）は棄却。CSS only で対応
+
+### サブタスク
+
+- [x] worktree 作成（`feature/R-046-Y1-css-content-visibility` を master ベースで作成）
+- [x] Before 計測（本番 chrome-devtools, グリッド→ガント切替 INP=7210ms / CLS=0.51 / ガント内 DOM 8134 ノード / 43 行）
+- [x] `src/index.css` に `@supports (content-visibility: auto)` でラップした `.gantt-row-cv` クラスを追加（`contain-intrinsic-size: auto 28px`）
+- [x] `RyokanGanttView.tsx` のタスク行 `<div>` に `gantt-row-cv` クラスを付与（h-7 = 28px の行）
+- [x] 既存テスト regression なし確認（master と同じ 17 fail / 86 pass + 1 skipped）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（sqlite/log/tsbuildinfo 混入なし）
+- [ ] master マージ・本番デプロイ
+- [ ] After 計測（本番 chrome-devtools, 切替時間が 50% 削減もしくは大幅減を確認）
+- [ ] Before/After スクリーンショット 2 枚添付・完了報告
