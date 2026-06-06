@@ -96,3 +96,29 @@ chrome-devtools MCP の 2026-06-06 計測で次の重複が確認された。
 | `/auth/me` | 3 | **1** |
 | `/items?scope=aggregated` | 2 | **1** |
 | `/health` | 2 | **1** |
+
+## 本番計測結果（2026-06-06 検証）
+
+本番デプロイ後、`https://door-fujita.com/contents/Youkan/` でログイン状態の reload を実施し、chrome-devtools の Network パネルで XHR/fetch を確認。
+
+| Endpoint | Before (master 0f1f97e) | After (master 5cb4594) |
+|:--|--:|--:|
+| `/auth/me` | 2-3 回 | **1 回** (reqid=1466) |
+| `/items?scope=aggregated` | 2 回 (reqid=62,63) | **1 回** (reqid=1468) |
+| `/health` | 1-2 回 | **0 回** (R-048 の遅延化と組合せ) |
+| `/dependencies` | 1 回 | **0 回** (R-048 の遅延化と組合せ) |
+| 初回 XHR/fetch 総数 | 12 件 | **8 件** |
+
+スクリーンショット:
+- Before: `docs/handover/R-044-before-prod.png`
+- 中間（dedup のみ）: `docs/handover/R-044-after-prod-dedup-only.png`（`/auth/me` まだ 2 回）
+- After（dedup + AuthContext 再利用）: `docs/handover/R-044-after-prod.png`
+
+## 実装の流れ（最終形）
+
+1. **第1段階（commit 04a6faa）**: ApiClient.request に GET の in-flight dedup を追加
+   - 結果: `/items?scope=aggregated` 1 回、`/health` 1 回まで集約。`/auth/me` は AuthProvider → ViewModel が**シーケンシャル**に発火するため 2 回残った
+2. **第2段階（commit 7931a71）**: useYoukanViewModel から `getJoinedTenants()` API 呼び出しを撤廃し、`useAuth().joinedTenants` を直接参照
+   - 結果: `/auth/me` も 1 回まで集約
+
+両方を組合せることで起動時の構造的重複と同時並行重複の両方を抑制している。
