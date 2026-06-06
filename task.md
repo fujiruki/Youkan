@@ -168,3 +168,21 @@
 - **R-035**: R-034 Phase 1 と一体実装
 - **R-036**: 独立バグ修正、並列実行（別ブランチ feature/R-036-gantt-completed-toggle）
 - **R-037**: 詳細モーダル タイトル編集欄常時表示、並列実行（別ブランチ feature/R-037-detail-title-empty-edit）
+
+---
+
+## R-045 Vite manualChunks コード分割（2026-06-06）
+
+**ブランチ**: `feature/R-045-manual-chunks`
+**目的**: 単一 1,464 KB バンドルを vendor / feature 別に分割し、並列ダウンロード・キャッシュ効率を改善
+
+- [x] Before 計測（index-*.js 1,464.26 KB / gzip 431.51 KB の単一バンドル）
+- [x] vite.config.ts に `build.rollupOptions.output.manualChunks` 追加
+  - vendor-react / vendor-router / vendor-flow（@xyflow） / vendor-anim（framer-motion） / vendor-i18n / vendor-dnd / vendor-dexie / vendor-date / vendor-icons / vendor-misc
+  - plugin-tategu / plugin-customer / plugin-manufacturing / plugin-mock
+  - feat-calendar / feat-planning / feat-admin
+- [x] After 計測（entry 302.94 KB + 16 chunks、合算は同じだが並列ロード可能）
+- [x] vite preview で動作確認（ログイン画面正常表示・コンソールエラーなし）
+- [x] 既存テストへの影響なし（manualChunks 変更前後で同じ 17 fail（既存）/ 83 pass）
+- [ ] master マージ・本番デプロイ
+- [ ] 本番 chrome-devtools 検証（Before/After 比較スクリーンショット）
