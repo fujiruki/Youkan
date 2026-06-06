@@ -13,6 +13,7 @@ import { compareFocusItems } from '../logic/sorting';
 import { sanitizeItems } from '../logic/sanitizeItems';
 import { collectDescendantIds } from '../logic/hierarchy';
 import { useFilter } from '../contexts/FilterContext';
+import { useAuth } from '../../auth/providers/AuthProvider';
 
 type TenantSnapshot = { id: string; tenantId: string | null | undefined }[];
 
@@ -60,6 +61,10 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// [REFACTORED] FilterContextからフィルタモードを取得（ローカルステート廃止）
 	const { filterMode } = useFilter();
+
+	// [R-044] AuthContext から joinedTenants を再利用し、/auth/me の重複呼び出しを避ける
+	const auth = useAuth();
+	const authJoinedTenants = (auth as any)?.joinedTenants as any[] | undefined;
 
 	// Loading & Error
 	const [error, setError] = useState<string | null>(null);
@@ -214,8 +219,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 			const projs = await getRepository().getProjects('aggregated');
 			setAllProjectsRaw(projs);
 
-			// Fetch joined tenants
-			const tenants: any[] = await getRepository().getJoinedTenants();
+			// [R-044] joinedTenants は AuthContext を信頼。/auth/me を二重に叩かない。
+			// AuthContext が未供給の場合（古いテスト等）に備え、空配列フォールバック。
+			const tenants: any[] = Array.isArray(authJoinedTenants) ? authJoinedTenants : [];
 			// Map to JoinedTenant schema
 			const mappedTenants: JoinedTenant[] = tenants.map(t => {
 				if (typeof t === 'string') return { id: t, title: `Tenant ${t.substring(0, 4)}`, name: `Tenant ${t.substring(0, 4)}`, role: 'member' };
@@ -240,7 +246,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		} catch (e) {
 			console.error('Failed to fetch context metadata:', e);
 		}
-	}, []);
+	}, [authJoinedTenants]);
 
 	// --- Capacity & Holiday ---
 	const [capacityConfig, setCapacityConfig] = useState<CapacityConfig>({
