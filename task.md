@@ -209,5 +209,7 @@
 - [x] テスト Green 確認（6/6 Pass）
 - [x] dev サーバーで動作確認（バックエンド/フロントエンド起動確認、ローカル DB にテストユーザー不在のため計測は本番で実施）
 - [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（client.ts +26 行、テスト +107 行、分析 +98 行、tsbuildinfo 等の混入なし）
-- [x] upload.ps1 で本番デプロイ
+- [x] upload.ps1 で本番デプロイ（2026-06-06 09:59）
 - [x] 本番 chrome-devtools で発火回数 1 回ずつになっていることを実機検証（スクリーンショット 2 枚）
+- [x] 追加コミット（`7931a71`）: useYoukanViewModel から `getJoinedTenants` API 呼び出しを撤廃し `useAuth().joinedTenants` を再利用（dedup ではカバーできないシーケンシャル重複への対応）
+- [x] 再デプロイ（2026-06-06 10:11）→ `/auth/me` も 1 回まで集約確認
