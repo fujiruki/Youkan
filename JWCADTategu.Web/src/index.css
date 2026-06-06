@@ -44,3 +44,14 @@ input::placeholder,
 textarea::placeholder {
     @apply text-slate-400 dark:text-slate-500;
 }
+
+/* R-046-Y1: ガントビューのタスク行に content-visibility: auto を適用してペイントコストを削減する。
+   Safari/iOS が未対応のため @supports でラップ。未対応ブラウザでは適用されず副作用なし。
+   contain-intrinsic-size の高さは tailwind の h-7 (28px) と一致させ、
+   初回スクロールでガクッとならないようにする（行幅は親のレイアウト計算に委ねる）。 */
+@supports (content-visibility: auto) {
+    .gantt-row-cv {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 28px;
+    }
+}

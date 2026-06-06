@@ -740,6 +740,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
+						loadedRange={_loadedRange}
 						googleCalendars={googleCalendars}
 					/>
 				)}

@@ -216,6 +216,56 @@
 
 ---
 
+## R-046-Y1 ガントビュー CSS 最適化（content-visibility: auto）
+
+**ブランチ**: `feature/R-046-Y1-css-content-visibility`
+**worktree**: `.claude/worktrees/agent-acc126c7617c3c2f3/`
+**目的**: グリッド→ガント切替時の DOM 描画コスト削減。ガント行に `content-visibility: auto` を付与し、ビューポート外行のペイント・レイアウトをスキップする
+**方針**: 2026-06-06 kaigi 議事録で「もたつき軽微・描画遅延なし」のため JS 仮想化（Phase 2）は棄却。CSS only で対応
+
+### サブタスク
+
+- [x] worktree 作成（`feature/R-046-Y1-css-content-visibility` を master ベースで作成）
+- [x] Before 計測（本番 chrome-devtools, グリッド→ガント切替 INP=7210ms / CLS=0.51 / ガント内 DOM 8134 ノード / 43 行）
+- [x] `src/index.css` に `@supports (content-visibility: auto)` でラップした `.gantt-row-cv` クラスを追加（`contain-intrinsic-size: auto 28px`）
+- [x] `RyokanGanttView.tsx` のタスク行 `<div>` に `gantt-row-cv` クラスを付与（h-7 = 28px の行）
+- [x] 既存テスト regression なし確認（master と同じ 17 fail / 86 pass + 1 skipped）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（sqlite/log/tsbuildinfo 混入なし）
+- [ ] master マージ・本番デプロイ
+- [ ] After 計測（本番 chrome-devtools, 切替時間が 50% 削減もしくは大幅減を確認）
+- [ ] Before/After スクリーンショット 2 枚添付・完了報告
+
+---
+
+## R-050 ガントビュー無限スクロール感の実現（2026-06-06）
+
+**ブランチ**: `feature/R-050-gantt-infinite-scroll`
+**worktree**: `.claude/worktrees/agent-a2b532ad509984bb2/`
+**目的**: ユーザー指摘「スクロールで続きがロードされていく感じがない」を解消
+
+### サブタスク
+
+- [x] worktree 作成（master ベース）
+- [x] 既存実装（R-042-Y2/Y3）の sentinel 配置を分析
+- [x] 根本原因を `docs/handover/R-050-gantt-analysis.md` に記述
+  （sentinel が `absolute` 配置で `min-w-max` 外にあったため、横スクロールに追従せず viewport に貼り付いていた → マウント直後に一度だけ fire してその後死ぬ）
+- [x] テスト Red: `RyokanGanttView.loadMoreUI.test.tsx` に 6 件追加（6/6 失敗確認）
+- [x] テスト Red コミット（`b71865a`）
+- [x] 実装:
+  - sentinel を `min-w-max` の内側に移動（横スクロール末端で交差検知が機能）
+  - 上部にステータスバー（読み込み済み範囲、+3ヶ月読み込み中…、もっと読むボタン）追加
+  - 「前へ／後ろへ」明示ボタンを併設（sentinel 不発時の退路）
+  - 24 ヶ月上限到達時の警告表示とボタン disable
+  - `RyokanCalendar` から `loadedRange` を propagation
+- [x] テスト Green 確認（6/6 Pass）
+- [x] ビルド検証（`npm.cmd run build` 通過、TS エラー 0）
+- [ ] master マージ前に `git diff --stat master..HEAD` で全体行数確認
+- [ ] master マージ・push
+- [ ] upload.ps1 で本番デプロイ
+- [ ] 本番 chrome-devtools 検証（スクリーンショット 2 枚以上）
+
+---
+
 ## R-049 既存 vitest 38 件 failing の棚卸し（2026-06-06）
 
 **ブランチ**: `feature/R-049-test-triage`
@@ -233,7 +283,7 @@
 - [x] 全テスト Green 確認（585 passed / 0 failed / 17 skipped）
 - [x] handover ドキュメント記録
 - [x] master マージ前の差分確認
-- [ ] master マージ・push（本セッションではテストのみのためデプロイ不要）
+- [x] master マージ・push（本セッションではテストのみのためデプロイ不要）
 
 ### (c) として残した R 番号候補
 
