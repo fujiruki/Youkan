@@ -186,3 +186,28 @@
 - [x] 既存テストへの影響なし（manualChunks 変更前後で同じ 17 fail（既存）/ 83 pass）
 - [ ] master マージ・本番デプロイ
 - [ ] 本番 chrome-devtools 検証（Before/After 比較スクリーンショット）
+
+---
+
+## R-044 API 重複呼び出し統合（2026-06-06）
+
+**ブランチ**: `feature/R-044-api-dedup`
+**worktree**: `.claude/worktrees/agent-a49e781a3c88226ff/`
+**目的**: 起動時の `/auth/me` 3 回、`/items?scope=aggregated` 2 回、`/health` 2 回の重複発火を解消
+
+### サブタスク
+
+- [x] worktree 作成（`feature/R-044-api-dedup` を master ベースで作成）
+- [x] 起動時 API 発火を chrome-devtools で再現（本番 reqid=58/69 の 2 件、items 62/63 の 2 件等を記録）
+- [x] `/auth/me` 呼び出し元を全て特定（AuthProvider.checkAuth + useYoukanViewModel.refreshContextMetadata × 2 インスタンス）
+- [x] `/items?scope=aggregated` 呼び出し元を全て特定（DashboardScreen VM + PanoramaBoard VM の refreshGdb）
+- [x] `/health` 呼び出し元を特定（HealthCheck コンポーネントのマウント揺れ）
+- [x] 重複の根本原因を `docs/handover/R-044-analysis.md` に記述
+- [x] テスト Red: `src/api/__tests__/client.dedup.test.ts` に 6 件追加（3 件 Red 確認）
+- [x] テスト Red コミット（`5b99889`）
+- [x] 実装: `ApiClient.request` に GET の in-flight dedup を追加
+- [x] テスト Green 確認（6/6 Pass）
+- [x] dev サーバーで動作確認（バックエンド/フロントエンド起動確認、ローカル DB にテストユーザー不在のため計測は本番で実施）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（client.ts +26 行、テスト +107 行、分析 +98 行、tsbuildinfo 等の混入なし）
+- [x] upload.ps1 で本番デプロイ
+- [x] 本番 chrome-devtools で発火回数 1 回ずつになっていることを実機検証（スクリーンショット 2 枚）
