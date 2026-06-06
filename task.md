@@ -297,3 +297,36 @@
 - **R-051**: QuantityEngine / Manufacturing repository のテスト再整備
 - **R-052**: useYoukanViewModel カスケード楽観更新の仕様確定とテスト再整備
 - **R-053**: PanoramaBoard 統合シナリオを E2E or VM フィクスチャ整備で再構築
+
+---
+
+## R-054 タイムラインビュー sentinel 配置バグ修正（2026-06-06）
+
+**ブランチ**: `feature/R-054-timeline-sentinel-fix`
+**worktree**: `.claude/worktrees/agent-a3b872f4efb653809/`
+**目的**: R-050 ガントビュー修正と同パターンで `RyokanTimelineView.tsx` の sentinel を `min-w-max` 内側に移設し、横スクロール末端で lazy load が機能するようにする
+
+### 真因（R-050 と同じ）
+
+R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right-0` で固定されており、親コンテナ box 基準のため横スクロールしても `getBoundingClientRect` が変化せず、IntersectionObserver が初回 fire 以降は永久に発火しない。
+
+### サブタスク
+
+- [x] worktree 作成（master ベース、HEAD=8c48acd）
+- [x] `RyokanTimelineView.tsx` の sentinel 配置を確認（R-050 前のガントと同じ構造）
+- [x] 修正: sentinel を `min-w-max` 内側に移動（縦表示 isMini=true / 横表示 isMini=false の双方に対応した absolute 配置）
+- [x] R-042-Y3 のスケルトン UI も合わせて `min-w-max` 内側に移動
+- [x] テスト追加: `RyokanTimelineView.loadMore.test.tsx`（4 ケース）
+  - 横表示時の sentinel が min-w-max 内側
+  - 縦表示時の sentinel が min-w-max 内側
+  - before 方向交差で onLoadMore('before', 3) 発火
+  - after 方向交差で onLoadMore('after', 3) 発火
+- [x] 全テスト Green 確認（vitest: 595 passed / 17 skipped / 0 failed）
+- [x] master マージ前に `git diff --stat master..HEAD` で全体行数確認（sqlite/log/tsbuildinfo 混入なし）
+- [x] master マージ・push
+- [x] upload.ps1 で本番デプロイ
+- [x] 本番 chrome-devtools 検証（タイムラインビューで横スクロール末端到達時の動作確認）
+
+### スコープ外
+
+- ステータスバー UI（R-050 でガントに追加した「読み込み済み範囲」「もっと読むボタン」「24 ヶ月上限警告」）はタイムラインには適用しない。タイムラインは元来 sentinel のみの自動 lazy load 設計のため、本タスクは sentinel 配置不具合の最小修正に留める

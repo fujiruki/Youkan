@@ -101,18 +101,30 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
     return (
         <div className="w-full h-full relative" ref={containerRef} onClick={onBackgroundClick}>
             <div className={cn("flex-1 h-full overflow-auto select-none", isMini ? "overflow-y-auto" : "overflow-x-auto")} ref={scrollRef} onScroll={onScroll}>
-                {/* R-042-Y2: スクロール先頭側 sentinel（縦表示時=上端、横表示時=左端） */}
-                <div
-                    ref={setBeforeRef}
-                    data-testid="lazy-sentinel-before"
-                    aria-hidden="true"
-                    className={cn("pointer-events-none", isMini ? "h-px w-full" : "h-full w-px absolute top-0 left-0 z-0")}
-                />
-                {/* R-042-Y3: before 方向ロード中スケルトン（sentinel 直後・本体直上） */}
-                {isLoadingMore && loadDirection === 'before' && (
-                    <Skeleton className="h-16 w-full" />
-                )}
                 <div className={cn("flex min-w-max min-h-full relative", isMini ? "flex-col w-full" : "flex-row")}>
+                    {/*
+                     * R-054: sentinel をスクロールコンテンツ（min-w-max）の内側に配置する。
+                     * R-042-Y2 では sentinel が scrollRef 直下に absolute 配置されていたため、
+                     * 親コンテナの box 基準で固定され、横スクロールしても getBoundingClientRect が
+                     * 変化せず IntersectionObserver が二度と発火しない不具合があった
+                     * （R-050 でガントビューを同じパターンで修正済み）。
+                     * 内側に移動したことで末端に近づくと自然に交差検知される。
+                     */}
+                    <div
+                        ref={setBeforeRef}
+                        data-testid="lazy-sentinel-before"
+                        aria-hidden="true"
+                        className={cn(
+                            "pointer-events-none z-0",
+                            isMini
+                                ? "absolute top-0 left-0 right-0 h-px"
+                                : "absolute top-0 bottom-0 left-0 w-px"
+                        )}
+                    />
+                    {/* R-042-Y3: before 方向ロード中スケルトン（sentinel 直後・本体先頭側） */}
+                    {isLoadingMore && loadDirection === 'before' && (
+                        <Skeleton className={cn("pointer-events-none z-10", isMini ? "absolute top-0 left-0 right-0 h-16" : "absolute top-0 bottom-0 left-0 w-24")} />
+                    )}
                     <svg className="absolute inset-0 pointer-events-none z-50 w-full h-full pressure-lines-svg">
                         <AnimatePresence>
                             {pressureConnections.map(conn => (
@@ -166,18 +178,22 @@ export const RyokanTimelineView: React.FC<TimelineViewProps> = ({
                             />
                         );
                     })}
+                    {/* R-042-Y3: after 方向ロード中スケルトン（sentinel 直前・本体末尾側） */}
+                    {isLoadingMore && loadDirection === 'after' && (
+                        <Skeleton className={cn("pointer-events-none z-10", isMini ? "absolute bottom-0 left-0 right-0 h-16" : "absolute top-0 bottom-0 right-0 w-24")} />
+                    )}
+                    <div
+                        ref={setAfterRef}
+                        data-testid="lazy-sentinel-after"
+                        aria-hidden="true"
+                        className={cn(
+                            "pointer-events-none z-0",
+                            isMini
+                                ? "absolute bottom-0 left-0 right-0 h-px"
+                                : "absolute top-0 bottom-0 right-0 w-px"
+                        )}
+                    />
                 </div>
-                {/* R-042-Y3: after 方向ロード中スケルトン（sentinel 直前・本体直下） */}
-                {isLoadingMore && loadDirection === 'after' && (
-                    <Skeleton className="h-16 w-full" />
-                )}
-                {/* R-042-Y2: スクロール末尾側 sentinel（縦表示時=下端、横表示時=右端） */}
-                <div
-                    ref={setAfterRef}
-                    data-testid="lazy-sentinel-after"
-                    aria-hidden="true"
-                    className={cn("pointer-events-none", isMini ? "h-px w-full" : "h-full w-px absolute top-0 right-0 z-0")}
-                />
             </div>
         </div>
     );
