@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, act, fireEvent } from '@testing-library/react';
 import React, { createRef } from 'react';
 import { RyokanGanttView } from '../RyokanGanttView';
+import { ToastProvider } from '../../../../../../contexts/ToastContext';
+
+const renderWithProviders = (ui: React.ReactElement) =>
+	render(<ToastProvider>{ui}</ToastProvider>);
 
 /**
  * scrollRef二重管理バグのテスト
@@ -40,7 +44,7 @@ describe('RyokanGanttView scrollRef二重管理バグ', () => {
 
 		const allDays = makeAllDays(0, 6); // 1月〜6月
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				allDays={allDays}
 				{...defaultProps}
@@ -69,7 +73,7 @@ describe('RyokanGanttView scrollRef二重管理バグ', () => {
 		const onVisibleMonthChange = vi.fn();
 		const allDays = makeAllDays(0, 6);
 
-		const { container } = render(
+		const { container } = renderWithProviders(
 			<RyokanGanttView
 				allDays={allDays}
 				{...defaultProps}

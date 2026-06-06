@@ -8,10 +8,10 @@ import { describe, it, expect } from 'vitest';
 // PanoramaBoardPropsの型テスト: showGroupsとonShowGroupsChangeが存在する
 describe('PanoramaBoardProps型定義', () => {
   it('showGroupsプロパティが定義されている', async () => {
-    // 動的importで型チェックを兼ねる
+    // 動的importで型チェックを兼ねる（モジュール解決連鎖が重いためタイムアウトを延長）
     const mod = await import('../PanoramaBoard');
     expect(mod.PanoramaBoard).toBeDefined();
-  });
+  }, 30000);
 });
 
 // showGroups切替ロジックのユニットテスト

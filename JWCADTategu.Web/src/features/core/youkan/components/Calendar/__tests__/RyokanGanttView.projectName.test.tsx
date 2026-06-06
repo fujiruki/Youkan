@@ -3,6 +3,10 @@ import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { RyokanGanttView } from '../RyokanGanttView';
 import { Item } from '../../../types';
+import { ToastProvider } from '../../../../../../contexts/ToastContext';
+
+const renderWithProviders = (ui: React.ReactElement) =>
+	render(<ToastProvider>{ui}</ToastProvider>);
 
 /**
  * ガント一覧モード（showGroups=false）でプロジェクト名を表示するテスト
@@ -72,7 +76,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			makeItem('task-2', '個人タスク'),
 		];
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}
@@ -92,7 +96,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			makeItem('task-1', 'デザイン作成', 'prj-1'),
 		];
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}
@@ -112,7 +116,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			{ ...makeItem('task-1', 'テスト作業', 'prj-1'), projectTitle: '佐礼谷プロジェクト' },
 		];
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}
@@ -131,7 +135,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			makeItem('task-1', '個人タスク'),
 		];
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}
@@ -150,7 +154,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 		];
 		// projectTitleがundefined（バックエンドからの応答にない場合）
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}
@@ -169,7 +173,7 @@ describe('ガント一覧モード（showGroups=false）でプロジェクト名
 			{ ...makeItem('task-1', 'テスト作業', 'prj-1'), projectTitle: '佐礼谷プロジェクト' },
 		];
 
-		render(
+		renderWithProviders(
 			<RyokanGanttView
 				{...defaultProps}
 				items={items}

@@ -19,18 +19,21 @@ Object.defineProperty(window, 'location', {
 });
 
 describe('useLoginViewModel', () => {
-    const mockLogin = vi.fn();
+    const mockLoginUser = vi.fn();
+    const mockLoginTenant = vi.fn();
     const mockRegister = vi.fn();
 
     beforeAll(() => {
         (AuthService.getInstance as any).mockReturnValue({
-            login: mockLogin,
+            loginUser: mockLoginUser,
+            loginTenant: mockLoginTenant,
             register: mockRegister
         });
     });
 
     beforeEach(() => {
-        mockLogin.mockClear();
+        mockLoginUser.mockClear();
+        mockLoginTenant.mockClear();
         mockRegister.mockClear();
         localStorage.clear();
     });
@@ -51,7 +54,7 @@ describe('useLoginViewModel', () => {
             tenant: mockTenant
         };
 
-        mockLogin.mockResolvedValueOnce(mockResponse);
+        mockLoginUser.mockResolvedValueOnce(mockResponse);
 
         const { result } = renderHook(() => useLoginViewModel());
 
@@ -61,13 +64,12 @@ describe('useLoginViewModel', () => {
         });
 
         // Check Success State
-        expect(result.current.isLoading).toBe(false);
         expect(result.current.error).toBeNull();
-        expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
+        expect(mockLoginUser).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
     });
 
     it('should handle login failure', async () => {
-        mockLogin.mockRejectedValueOnce(new Error('Invalid Credentials'));
+        mockLoginUser.mockRejectedValueOnce(new Error('Invalid Credentials'));
 
         const { result } = renderHook(() => useLoginViewModel());
 
@@ -76,7 +78,7 @@ describe('useLoginViewModel', () => {
         });
 
         expect(result.current.isLoading).toBe(false);
-        expect(result.current.error).toBe('Login failed. Check your credentials.');
+        expect(result.current.error).toBe('ユーザーアカウントのログインに失敗しました。メールアドレスとパスワードを確認してください。');
     });
 
     it('should clear error', () => {

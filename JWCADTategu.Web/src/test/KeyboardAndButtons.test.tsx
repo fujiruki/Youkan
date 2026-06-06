@@ -50,12 +50,13 @@ describe('DecisionDetailModal - Interactions', () => {
             }
         }, { timeout: 3000 });
 
-        // コールバック呼び出し確認
+        // コールバック呼び出し確認（実装は 4 引数: id, decision, note, extra）
         await waitFor(() => {
             expect(mockOnDecision).toHaveBeenCalledWith(
                 mockItem.id,
                 'yes',
-                expect.any(String)
+                expect.any(String),
+                expect.any(Object)
             );
         });
     });
@@ -79,7 +80,8 @@ describe('DecisionDetailModal - Interactions', () => {
             expect(mockOnDecision).toHaveBeenCalledWith(
                 mockItem.id,
                 'yes',
-                expect.any(String)
+                expect.any(String),
+                expect.any(Object)
             );
         });
     });

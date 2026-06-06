@@ -41,8 +41,8 @@ describe('TodayLogic Fallback (TDD)', () => {
     it('should categorize "Ready + Flag" as Commit', async () => {
         // Arrange
         const mockItems: Item[] = [
-            { id: '1', title: 'Task A', status: 'ready', flags: { is_today_commit: true } } as any,
-            { id: '2', title: 'Task B', status: 'ready', flags: { is_today_commit: false } } as any,
+            { id: '1', title: 'Task A', status: 'focus', flags: { is_today_commit: true } } as any,
+            { id: '2', title: 'Task B', status: 'focus', flags: { is_today_commit: false } } as any,
         ];
 
         getShelfMock.mockResolvedValueOnce({
@@ -75,8 +75,8 @@ describe('TodayLogic Fallback (TDD)', () => {
         const todayTs = today.getTime() / 1000;
 
         const mockItems: Item[] = [
-            { id: '1', title: 'Task A', status: 'ready', prep_date: todayTs } as any,
-            { id: '2', title: 'Task B', status: 'ready', prep_date: todayTs + 86400 } as any, // Tomorrow
+            { id: '1', title: 'Task A', status: 'focus', prep_date: todayTs } as any,
+            { id: '2', title: 'Task B', status: 'focus', prep_date: todayTs + 86400 } as any, // Tomorrow
         ];
 
         getShelfMock.mockResolvedValueOnce({
@@ -95,7 +95,7 @@ describe('TodayLogic Fallback (TDD)', () => {
 
     it('should detect Execution item', async () => {
         const mockItems: Item[] = [
-            { id: '1', title: 'Task A', status: 'ready', flags: { is_executing: true, is_today_commit: true } } as any,
+            { id: '1', title: 'Task A', status: 'focus', flags: { is_executing: true, is_today_commit: true } } as any,
         ];
 
         getShelfMock.mockResolvedValueOnce({ active: mockItems, preparation: [], intent: [], log: [] });
