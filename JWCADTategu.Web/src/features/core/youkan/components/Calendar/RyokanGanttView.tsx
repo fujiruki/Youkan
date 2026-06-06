@@ -642,7 +642,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 								<div
 									key={item.id}
 									data-item-id={item.id}
-									className="flex h-7 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
+									/* R-046-Y1: gantt-row-cv = content-visibility: auto + contain-intrinsic-size: auto 28px。
+									   ビューポート外行のペイント・レイアウトをスキップし、ガント切替時の描画コストを下げる。 */
+									className="gantt-row-cv flex h-7 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
 									onMouseEnter={() => setHoveredItemId(item.id)}
 									onMouseLeave={() => setHoveredItemId(null)}
 								>
