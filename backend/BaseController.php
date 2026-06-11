@@ -170,6 +170,10 @@ class BaseController {
         $item['prep_date'] = isset($item['prep_date']) ? (int)$item['prep_date'] : null;
         $item['work_days'] = (int)($item['work_days'] ?? 1);
 
+        // Timestamps: Unix秒→ミリ秒変換（楽観的更新の Date.now() と単位統一）
+        $item['createdAt'] = isset($item['created_at']) ? (int)$item['created_at'] * 1000 : null;
+        $item['updatedAt'] = isset($item['updated_at']) ? (int)$item['updated_at'] * 1000 : null;
+
         // JSON handling
         if (!empty($item['delegation']) && is_string($item['delegation'])) {
             $item['delegation'] = json_decode($item['delegation'], true);

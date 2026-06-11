@@ -2,6 +2,19 @@ import { Item } from "../types";
 import { parseISO, isValid, startOfDay } from "date-fns";
 
 // ----------------------------------------------------------------------
+// R-060-Y2: createdAt フォールバックヘルパー
+// APIレスポンスに createdAt(ms) が欠落している場合に created_at(秒) から補完する
+// ----------------------------------------------------------------------
+export const getCreatedAtMs = (item: Item & { created_at?: number }): number => {
+    if (item.createdAt) return item.createdAt;
+    if (item.created_at) {
+        // 13桁以上ならすでにミリ秒、10桁以下なら秒→ミリ秒変換
+        return item.created_at >= 10000000000 ? item.created_at : item.created_at * 1000;
+    }
+    return 0;
+};
+
+// ----------------------------------------------------------------------
 // Helper: Get Effective Deadline (Min of Due & Prep)
 // ----------------------------------------------------------------------
 const getEffectiveDeadline = (item: Item): number | null => {
@@ -97,7 +110,7 @@ export const compareInboxItems = (a: Item, b: Item): number => {
     if (aDeadline !== null && bDeadline === null) return 1;
 
     // Sort by Created At (Ascending: Old -> New)
-    return (a.createdAt || 0) - (b.createdAt || 0);
+    return getCreatedAtMs(a) - getCreatedAtMs(b);
 };
 
 // ----------------------------------------------------------------------
@@ -131,9 +144,9 @@ const compareByStartLimitGroups = (a: Item, b: Item, noDeadlineOrder: 'asc' | 'd
     const bStart = calculateStartLimit(b);
 
     if (aStart === null && bStart === null) {
-        return noDeadlineOrder === 'asc'
-            ? (a.createdAt || 0) - (b.createdAt || 0)
-            : (b.createdAt || 0) - (a.createdAt || 0);
+        const aMs = getCreatedAtMs(a);
+        const bMs = getCreatedAtMs(b);
+        return noDeadlineOrder === 'asc' ? aMs - bMs : bMs - aMs;
     }
 
     if (aStart === null) return -1;
@@ -143,7 +156,7 @@ const compareByStartLimitGroups = (a: Item, b: Item, noDeadlineOrder: 'asc' | 'd
         return aStart - bStart;
     }
 
-    return (a.createdAt || 0) - (b.createdAt || 0);
+    return getCreatedAtMs(a) - getCreatedAtMs(b);
 };
 
 export const compareGeneralList2Items = (a: Item, b: Item): number =>
@@ -166,7 +179,7 @@ export const compareGanttListItems = (a: Item, b: Item): number => {
     if (aDeadline !== null && bDeadline === null) return 1;
 
     if (aDeadline === null && bDeadline === null) {
-        return (b.createdAt || 0) - (a.createdAt || 0);
+        return getCreatedAtMs(b) - getCreatedAtMs(a);
     }
 
     return (aDeadline as number) - (bDeadline as number);

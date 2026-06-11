@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore, compareGanttListItems, compareOverviewItems } from '../sorting';
+import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore, compareGanttListItems, compareOverviewItems, getCreatedAtMs } from '../sorting';
 import { Item } from '../../types';
 
 // Helper to create mock items
@@ -267,6 +267,53 @@ describe('Sorting Logic', () => {
             const newItem = mockItem({ title: '新しい', createdAt: 2000 });
             expect(compareGeneralList2Items(oldItem, newItem)).toBeGreaterThan(0);
             expect(compareGeneralList2Items(newItem, oldItem)).toBeLessThan(0);
+        });
+    });
+
+    describe('getCreatedAtMs（R-060-Y2: createdAt フォールバックヘルパー）', () => {
+        it('createdAt(ms) があればそれを返す', () => {
+            const item = mockItem({ createdAt: 1749600000000 });
+            expect(getCreatedAtMs(item)).toBe(1749600000000);
+        });
+
+        it('createdAt=0 かつ created_at(秒) があれば ×1000 して返す', () => {
+            const item = mockItem({ createdAt: 0 }) as Item & { created_at?: number };
+            item.created_at = 1749600000;
+            expect(getCreatedAtMs(item)).toBe(1749600000000);
+        });
+
+        it('created_at が 13桁（ms）の場合はそのまま返す', () => {
+            const item = mockItem({ createdAt: 0 }) as Item & { created_at?: number };
+            item.created_at = 1749600000000;
+            expect(getCreatedAtMs(item)).toBe(1749600000000);
+        });
+
+        it('createdAt も created_at もない場合は 0 を返す', () => {
+            const item = mockItem({ createdAt: 0 });
+            expect(getCreatedAtMs(item)).toBe(0);
+        });
+
+        it('createdAt(ms) と created_at(秒) 混在でも正しく比較できる', () => {
+            const itemWithMs = mockItem({ createdAt: 2000000 }); // ms
+            const itemWithSec = mockItem({ createdAt: 0 }) as Item & { created_at?: number };
+            itemWithSec.created_at = 1000; // 秒 → 1000000 ms
+
+            const msA = getCreatedAtMs(itemWithMs);
+            const msB = getCreatedAtMs(itemWithSec);
+            expect(msA).toBe(2000000);
+            expect(msB).toBe(1000000);
+            expect(msA).toBeGreaterThan(msB);
+        });
+
+        it('createdAt なし・created_at(秒) のみのアイテム同士で昇順ソートが効く', () => {
+            const older = mockItem({ createdAt: 0 }) as Item & { created_at?: number };
+            older.created_at = 1000;
+            const newer = mockItem({ createdAt: 0 }) as Item & { created_at?: number };
+            newer.created_at = 2000;
+
+            const msOlder = getCreatedAtMs(older);
+            const msNewer = getCreatedAtMs(newer);
+            expect(msOlder).toBeLessThan(msNewer);
         });
     });
 });
