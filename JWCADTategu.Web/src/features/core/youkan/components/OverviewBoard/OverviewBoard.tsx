@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOverviewItems } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
+import { InlineAddRow } from './InlineAddRow';
 import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../Common/ContextMenu';
@@ -9,10 +10,11 @@ import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 import { useAuth } from '../../../auth/providers/AuthProvider';
 import { getSelectedTenantId } from '../../logic/filterUtils';
+import { getInlineAddInsertIndex } from './inlineAddPosition';
 
 interface OverviewBoardProps {
-	viewModel: any; // Type from hook return
-	activeProject?: any | null; // From Dashboard
+	viewModel: any;
+	activeProject?: any | null;
 	onOpenItem: (item: any) => void;
 	hideCompleted?: boolean;
 	onNavigateToFlow?: (projectId: string) => void;
@@ -24,7 +26,16 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const [showSomeday, setShowSomeday] = useState(false);
 	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday);
 
-	// View State (Persisted)
+	const [inlineAddProjectId, setInlineAddProjectId] = useState<string | null>(null);
+
+	// header が消えたら state をリセット
+	useEffect(() => {
+		if (inlineAddProjectId) {
+			const exists = items.some(w => w.type === 'header' && w.projectId === inlineAddProjectId);
+			if (!exists) setInlineAddProjectId(null);
+		}
+	}, [items, inlineAddProjectId]);
+
 	const [fontSize, setFontSize] = useState<number>(() => {
 		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_FONTSIZE);
 		return saved ? parseInt(saved) : 11;
@@ -33,7 +44,6 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_COLUMNS);
 		return saved ? parseInt(saved) : 3;
 	});
-	// [NEW] Title Character Limit Setting
 	const [titleLimit, setTitleLimit] = useState<number>(() => {
 		const saved = localStorage.getItem(YOUKAN_KEYS.OVERVIEW_TITLE_LIMIT);
 		return saved ? parseInt(saved) : 20;
@@ -51,25 +61,9 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		localStorage.setItem(YOUKAN_KEYS.OVERVIEW_TITLE_LIMIT, titleLimit.toString());
 	}, [titleLimit]);
 
-	// Context Menu State
 	const { menuState: contextMenu, handleContextMenu, closeMenu } = useItemContextMenu({
 		onDelete: (id) => viewModel.deleteItem(id)
 	});
-
-	// [REMOVED] overridesProjectContext and quickInputKey - replaced by inline input in OverviewItem
-
-	// Quick Input: Needs to be integrated into the layout or floating?
-	// Design says: "Header area or first item".
-	// Implementation Plan: "Renders QuickInputWidget as the first item."
-	// BUT we have a hook returning items. We can just render it before the columns usually, or inside the columns?
-	// If inside columns, it flows.
-	// Let's render it sticky top left or inside the flow.
-	// Inside flow logic: Newspaper Layout usually flows text.
-	// If we put it OUTSIDE the columns, it stays top.
-	// If we put it INSIDE, it might end up at bottom of col 1.
-	// Let's float it? Or sticky header?
-	// The design mentioned: "Items sorted: QuickInput (virtual)"
-	// So it should be the very first element inside the columns.
 
 	const quickInputProjectContext = (() => {
 		if (activeProject) {
@@ -95,10 +89,31 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		return null;
 	})();
 
+	// インライン入力行を挿入した描画用配列を構築
+	const buildRows = () => {
+		if (!inlineAddProjectId) return items;
+
+		const insertIdx = getInlineAddInsertIndex(items, inlineAddProjectId);
+		if (insertIdx === -1) return items;
+
+		const header = items.find(w => w.type === 'header' && w.projectId === inlineAddProjectId);
+		const headerDepth = header ? header.depth : 0;
+
+		const result = [...items];
+		result.splice(insertIdx, 0, {
+			id: `__inline-add-${inlineAddProjectId}`,
+			type: '__inlineAdd' as any,
+			projectId: inlineAddProjectId,
+			depth: headerDepth + 1,
+		} as any);
+		return result;
+	};
+
+	const rows = buildRows();
+
 	return (
 		<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
-			{/* Controls Header */}
 			<div className="flex-none relative z-20">
 				<ViewControls
 					fontSize={fontSize}
@@ -112,7 +127,6 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 				/>
 			</div>
 
-			{/* Main Content Area (Horizontal Scroll is Primary - Newspaper Style) */}
 			<div
 				ref={(el) => {
 					if (el) {
@@ -134,13 +148,11 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 						columnGap: '2em',
 						columnRule: '1px dashed rgba(200, 200, 200, 0.2)',
 						fontSize: `${fontSize}px`,
-						// [FIX] Layout: Ensure content flows horizontally
 						columnWidth: `${fontSize * 15}px`,
 						width: 'max-content',
 						minWidth: '100%'
 					}}
 				>
-					{/* Quick Input (Inside Columns) */}
 					<div className="break-inside-avoid mb-[0.5em] p-[0.5em] bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700">
 						<QuickInputWidget
 							viewModel={viewModel}
@@ -153,24 +165,45 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 						/>
 					</div>
 
-					{items.map(wrapper => (
-						<OverviewItem
-							key={wrapper.id}
-							wrapper={wrapper}
-							titleLimit={titleLimit}
-							onClick={(item) => {
-								onOpenItem(item);
-							}}
-							onContextMenu={handleContextMenu}
-							onAddChild={(projItem, title) => {
-								viewModel.throwIn(title, projItem.tenantId, String(projItem.id));
-							}}
-							onUpdateEstimatedMinutes={(itemId, minutes) => {
-								viewModel.updateItem(itemId, { estimatedMinutes: minutes });
-							}}
-							onNavigateToFlow={onNavigateToFlow}
-						/>
-					))}
+					{rows.map(wrapper => {
+						if ((wrapper as any).type === '__inlineAdd') {
+							const w = wrapper as any;
+							const header = items.find(h => h.type === 'header' && h.projectId === w.projectId);
+							const project = header?.type === 'header' ? header.project : null;
+							return (
+								<InlineAddRow
+									key={w.id}
+									depth={w.depth}
+									onSubmit={(title) => {
+										if (project) {
+											viewModel.throwIn(title, project.tenantId, String(project.id));
+										}
+										setInlineAddProjectId(null);
+									}}
+									onCancel={() => setInlineAddProjectId(null)}
+								/>
+							);
+						}
+
+						return (
+							<OverviewItem
+								key={wrapper.id}
+								wrapper={wrapper as any}
+								titleLimit={titleLimit}
+								onClick={(item) => {
+									onOpenItem(item);
+								}}
+								onContextMenu={handleContextMenu}
+								onStartInlineAdd={(projectId) => {
+									setInlineAddProjectId(projectId);
+								}}
+								onUpdateEstimatedMinutes={(itemId, minutes) => {
+									viewModel.updateItem(itemId, { estimatedMinutes: minutes });
+								}}
+								onNavigateToFlow={onNavigateToFlow}
+							/>
+						);
+					})}
 
 				</div>
 			</div>

@@ -126,28 +126,31 @@ export const calculateStartLimit = (item: Item): number | null => {
     return deadline - estMs;
 };
 
-// Item Sorting within a Project (or Unassigned group)
-export const compareGeneralList2Items = (a: Item, b: Item): number => {
+const compareByStartLimitGroups = (a: Item, b: Item, noDeadlineOrder: 'asc' | 'desc'): number => {
     const aStart = calculateStartLimit(a);
     const bStart = calculateStartLimit(b);
 
-    // Group 1: No Deadline (Top) -> Sort by Created Date (Newest First)
     if (aStart === null && bStart === null) {
-        return (b.createdAt || 0) - (a.createdAt || 0); // Descending (Newest First)
+        return noDeadlineOrder === 'asc'
+            ? (a.createdAt || 0) - (b.createdAt || 0)
+            : (b.createdAt || 0) - (a.createdAt || 0);
     }
 
-    // Group 1 vs Group 2 (Has Deadline)
-    if (aStart === null) return -1; // No Deadline is Top
+    if (aStart === null) return -1;
     if (bStart === null) return 1;
 
-    // Group 2: Has Deadline -> Sort by Start Limit (Earliest First)
     if (aStart !== bStart) {
-        return aStart - bStart; // Ascending
+        return aStart - bStart;
     }
 
-    // Tie-breaker: Created Date (Oldest First for Deadlines)
     return (a.createdAt || 0) - (b.createdAt || 0);
 };
+
+export const compareGeneralList2Items = (a: Item, b: Item): number =>
+    compareByStartLimitGroups(a, b, 'desc');
+
+export const compareOverviewItems = (a: Item, b: Item): number =>
+    compareByStartLimitGroups(a, b, 'asc');
 
 // ----------------------------------------------------------------------
 // 4. Gantt List Sorting (一覧モード用)

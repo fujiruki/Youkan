@@ -48,14 +48,14 @@ describe('useOverviewItems', () => {
         const compHeaderIndex = items.findIndex(i => i.type === 'header' && i.project?.id === 'p1');
         expect(compHeaderIndex).toBeGreaterThan(1); // After inbox items
 
-        // Verify Item follows header
-        expect(items[compHeaderIndex + 1].item.id).toBe('2'); // Proj A Item
-        // Verify Done Item is also present for Project A
-        // The order between '2' and '99' depends on iteration order or logic.
-        // Since we just push, they should be both in the list.
+        // Verify Items are present for Project A
+        // noDeadlineCreatedAsc=true のため期限なし群は createdAt 昇順（古い順）
+        // item '99' は createdAt 未指定(=0)、item '2' は createdAt=2000 なので '99' が先
         const projAItems = items.filter(i => i.project?.id === 'p1' && i.type !== 'header');
         expect(projAItems.find(i => i.item.id === '99')).toBeDefined();
         expect(projAItems.find(i => i.item.id === '2')).toBeDefined();
+        // '99'(createdAt=0) が '2'(createdAt=2000) より前
+        expect(items[compHeaderIndex + 1].item.id).toBe('99');
 
         // Verify Personal Project comes last
         const persHeaderIndex = items.findIndex(i => i.type === 'header' && i.project?.id === 'p2');

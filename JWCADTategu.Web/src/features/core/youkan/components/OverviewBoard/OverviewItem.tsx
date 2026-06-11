@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { OverviewItemWrapper } from './useOverviewItems';
@@ -10,7 +10,7 @@ interface OverviewItemProps {
 	wrapper: OverviewItemWrapper;
 	onClick: (item: Item) => void;
 	onContextMenu: (e: React.MouseEvent, itemId: string) => void;
-	onAddChild?: (item: Item, title: string) => void;
+	onStartInlineAdd?: (projectId: string) => void;
 	onUpdateEstimatedMinutes?: (itemId: string, minutes: number) => void;
 	onNavigateToFlow?: (projectId: string) => void;
 	titleLimit?: number;
@@ -45,7 +45,6 @@ const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: 
 		);
 	}
 
-	// Default: light grey for and-so-on
 	return (
 		<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
 			<div className="w-[0.45em] h-[0.45em] rounded-full bg-slate-300 dark:bg-slate-600" />
@@ -72,25 +71,15 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	wrapper,
 	onClick,
 	onContextMenu,
-	onAddChild,
+	onStartInlineAdd,
 	onUpdateEstimatedMinutes,
 	onNavigateToFlow,
 	titleLimit
 }) => {
 	const isHeader = wrapper.type === 'header';
-	const [isInlineInputOpen, setIsInlineInputOpen] = useState(false);
-	const [inlineInputValue, setInlineInputValue] = useState('');
 	const [isTimeEditing, setIsTimeEditing] = useState(false);
 	const [timeInputValue, setTimeInputValue] = useState('');
 	const timeInputRef = useRef<HTMLInputElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
-
-	// Auto-focus when input opens
-	useEffect(() => {
-		if (isInlineInputOpen && inputRef.current) {
-			inputRef.current.focus();
-		}
-	}, [isInlineInputOpen]);
 
 	useEffect(() => {
 		if (isTimeEditing && timeInputRef.current) {
@@ -98,21 +87,6 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 			timeInputRef.current.select();
 		}
 	}, [isTimeEditing]);
-
-	const handleInlineSubmit = () => {
-		const trimmed = inlineInputValue.trim();
-		if (trimmed && onAddChild) {
-			const targetProject = wrapper.project;
-			onAddChild(targetProject as any, trimmed);
-		}
-		setInlineInputValue('');
-		setIsInlineInputOpen(false);
-	};
-
-	const handleInlineCancel = () => {
-		setInlineInputValue('');
-		setIsInlineInputOpen(false);
-	};
 
 	if (isHeader) {
 		const { depth, project, projectId, projectTitle } = wrapper;
@@ -158,42 +132,13 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						className="opacity-60 hover:opacity-100 p-0 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-all text-blue-600 dark:text-blue-400 shrink-0"
 						onClick={(e) => {
 							e.stopPropagation();
-							setIsInlineInputOpen(true);
+							onStartInlineAdd?.(projectId);
 						}}
 						title="サブアイテムを追加"
 					>
 						<span className="text-sm leading-none">+</span>
 					</button>
 				</div>
-
-				{/* Inline Input */}
-				{isInlineInputOpen && (
-					<div className="mt-1" style={{ paddingLeft: `${(depth + 1) * 1.5 + 0.5}rem` }}>
-						<input
-							ref={inputRef}
-							type="text"
-							value={inlineInputValue}
-							onChange={(e) => setInlineInputValue(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									handleInlineSubmit();
-								} else if (e.key === 'Escape') {
-									handleInlineCancel();
-								}
-							}}
-							onBlur={() => {
-								setTimeout(() => {
-									if (!inlineInputValue.trim()) {
-										handleInlineCancel();
-									}
-								}, 150);
-							}}
-							placeholder="Alt+D to add..."
-							className="w-full text-[0.9em] px-2 py-1 border border-blue-300 dark:border-blue-700 rounded bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-						/>
-					</div>
-				)}
 			</div>
 		);
 	}
@@ -249,7 +194,6 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 		>
 			<IndentLines depth={depth} />
 
-			{/* Content: Title (with Dot) + Date */}
 			<div className="flex-1 min-w-0 flex items-center justify-between gap-[0.3em] leading-tight overflow-hidden">
 				<div className="flex-1 min-w-0 flex items-center gap-[0.2em] overflow-hidden">
 					<span
@@ -311,6 +255,6 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					</span>
 				)}
 			</div>
-		</div >
+		</div>
 	);
 };
