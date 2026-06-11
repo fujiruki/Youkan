@@ -1,5 +1,5 @@
 import { Item, Dependency } from '../types';
-import { compareGeneralList2Items, compareGanttListItems, getProjectUrgencyScore } from './sorting';
+import { compareGeneralList2Items, compareOverviewItems, compareGanttListItems, getProjectUrgencyScore } from './sorting';
 
 export interface HierarchyOptions {
 	activeProjectId?: string | null;
@@ -8,6 +8,7 @@ export interface HierarchyOptions {
 	allItems: Item[];
 	hideCompleted?: boolean;
 	dependencies?: Dependency[];
+	noDeadlineCreatedAsc?: boolean;
 }
 
 export type HierarchicalWrapper =
@@ -200,7 +201,8 @@ export const collectDescendantIds = (allItems: Item[], rootId: string): string[]
 };
 
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
-	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false, dependencies = [] } = options;
+	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false, dependencies = [], noDeadlineCreatedAsc = false } = options;
+	const itemCompareFn = noDeadlineCreatedAsc ? compareOverviewItems : compareGeneralList2Items;
 
 	// 1. Prepare Data
 	// We treat everything that is a project (isProject=true or in allProjects) as a potential container.
@@ -259,7 +261,7 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 			return areIdsMatching(iparentId, nContainerId) || (!iparentId && areIdsMatching(ipid, nContainerId));
 		});
 
-		sortWithDependencies(subTasks, dependencies, compareGeneralList2Items).forEach(task => {
+		sortWithDependencies(subTasks, dependencies, itemCompareFn).forEach(task => {
 			const tid = normalizeId(task.id)!;
 			if (processedIds.has(tid)) return;
 			processedIds.add(tid);

@@ -45,7 +45,8 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			allItems: allItemsRaw,
 			showGroups: true,
 			hideCompleted,
-			dependencies: []
+			dependencies: [],
+			noDeadlineCreatedAsc: true,
 		});
 
 		// 3. Add Overview-specific formatting (Dates)

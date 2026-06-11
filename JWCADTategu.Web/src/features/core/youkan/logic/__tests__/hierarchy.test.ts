@@ -439,3 +439,92 @@ describe('buildHierarchicalList: 依存関係によるソート', () => {
     expect(items.map(w => w.item.id)).toEqual(['B', 'A']);
   });
 });
+
+describe('buildHierarchicalList: noDeadlineCreatedAsc オプション', () => {
+  const makeProjectItem = (id: string, title: string): Item => ({
+    id,
+    title,
+    status: 'inbox',
+    focusOrder: 0,
+    isEngaged: false,
+    statusUpdatedAt: 0,
+    interrupt: false,
+    weight: 2,
+    parentId: null,
+    projectId: null,
+    createdAt: 0,
+    updatedAt: 0,
+    memo: '',
+    due_date: '',
+    flags: {},
+    isProject: true,
+    type: 'project',
+  });
+
+  it('noDeadlineCreatedAsc=true のとき期限なし同士が createdAt 昇順（古い順）', () => {
+    const project = makeProjectItem('proj-1', 'テスト');
+    const oldTask = { ...makeItem('old', null, 'proj-1'), createdAt: 1000 };
+    const newTask = { ...makeItem('new', null, 'proj-1'), createdAt: 2000 };
+
+    const result = buildHierarchicalList({
+      allItems: [newTask, oldTask],
+      allProjects: [project] as any,
+      showGroups: true,
+      noDeadlineCreatedAsc: true,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    expect(items.map(w => w.item.id)).toEqual(['old', 'new']);
+  });
+
+  it('noDeadlineCreatedAsc 未指定（デフォルト）は従来どおり降順', () => {
+    const project = makeProjectItem('proj-1', 'テスト');
+    const oldTask = { ...makeItem('old', null, 'proj-1'), createdAt: 1000 };
+    const newTask = { ...makeItem('new', null, 'proj-1'), createdAt: 2000 };
+
+    const result = buildHierarchicalList({
+      allItems: [oldTask, newTask],
+      allProjects: [project] as any,
+      showGroups: true,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    expect(items.map(w => w.item.id)).toEqual(['new', 'old']);
+  });
+
+  it('noDeadlineCreatedAsc=true でも期限ありアイテムは期限なしの後ろ（グループ分け維持）', () => {
+    const project = makeProjectItem('proj-1', 'テスト');
+    const oldTask = { ...makeItem('old', null, 'proj-1'), createdAt: 1000 };
+    const newTask = { ...makeItem('new', null, 'proj-1'), createdAt: 2000 };
+    const deadlineTask = { ...makeItem('dl', null, 'proj-1'), due_date: '2026-01-01' };
+
+    const result = buildHierarchicalList({
+      allItems: [deadlineTask, newTask, oldTask],
+      allProjects: [project] as any,
+      showGroups: true,
+      noDeadlineCreatedAsc: true,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    expect(items[0].item.id).toBe('old');
+    expect(items[1].item.id).toBe('new');
+    expect(items[2].item.id).toBe('dl');
+  });
+
+  it('showGroups=false では noDeadlineCreatedAsc は効果なし（一覧モードは compareGanttListItems 使用）', () => {
+    const project = makeProjectItem('proj-1', 'テスト');
+    const oldTask = { ...makeItem('old', null, 'proj-1'), createdAt: 1000 };
+    const newTask = { ...makeItem('new', null, 'proj-1'), createdAt: 2000 };
+
+    const result = buildHierarchicalList({
+      allItems: [oldTask, newTask],
+      allProjects: [project] as any,
+      showGroups: false,
+      noDeadlineCreatedAsc: true,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    // showGroups=false は最後に compareGanttListItems で再ソートするので降順のまま
+    expect(items.map(w => w.item.id)).toEqual(['new', 'old']);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore, compareGanttListItems } from '../sorting';
+import { compareFocusItems, compareInboxItems, calculateStartLimit, compareGeneralList2Items, getProjectUrgencyScore, compareGanttListItems, compareOverviewItems } from '../sorting';
 import { Item } from '../../types';
 
 // Helper to create mock items
@@ -237,6 +237,36 @@ describe('Sorting Logic', () => {
 
             expect(scoreA).toBeLessThan(scoreB);
             expect(scoreB).toBeLessThan(scoreC);
+        });
+    });
+
+    describe('compareOverviewItems（全体一覧用ソート）', () => {
+        it('期限なし同士は createdAt 昇順（古いものが先）', () => {
+            const oldItem = mockItem({ title: '古い', createdAt: 1000 });
+            const newItem = mockItem({ title: '新しい', createdAt: 2000 });
+            expect(compareOverviewItems(oldItem, newItem)).toBeLessThan(0);
+            expect(compareOverviewItems(newItem, oldItem)).toBeGreaterThan(0);
+        });
+
+        it('期限なしは期限ありより前（グループ1が上位）', () => {
+            const noDead = mockItem({ title: '期限なし' });
+            const hasDue = mockItem({ title: '期限あり', due_date: '2026-01-01' });
+            expect(compareOverviewItems(noDead, hasDue)).toBeLessThan(0);
+            expect(compareOverviewItems(hasDue, noDead)).toBeGreaterThan(0);
+        });
+
+        it('期限あり同士は着手限界日（Start Limit）昇順', () => {
+            const earlyDue = mockItem({ title: '早い', due_date: '2026-01-05' });
+            const lateDue = mockItem({ title: '遅い', due_date: '2026-01-15' });
+            expect(compareOverviewItems(earlyDue, lateDue)).toBeLessThan(0);
+            expect(compareOverviewItems(lateDue, earlyDue)).toBeGreaterThan(0);
+        });
+
+        it('compareGeneralList2Items の既存挙動は変わらない（期限なし同士は降順）', () => {
+            const oldItem = mockItem({ title: '古い', createdAt: 1000 });
+            const newItem = mockItem({ title: '新しい', createdAt: 2000 });
+            expect(compareGeneralList2Items(oldItem, newItem)).toBeGreaterThan(0);
+            expect(compareGeneralList2Items(newItem, oldItem)).toBeLessThan(0);
         });
     });
 });
