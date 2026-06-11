@@ -1,5 +1,10 @@
 # Requests
 
+- **【低】** Beaver（自作案件管理システム）連携: 案件からのタスク登録・引用
+  - 2026-06-11 ユーザー発言: 「のちのちBeaverという自作の案件管理システムの案件からタスク登録とか引用できたらいいなとは思っているけど、いまはいい」
+  - Beaver は `C:\Fujiruki\Projects\Beaver`（フロント 5178 / バック 8003）
+  - 着手時は連携方向（Beaver→Youkan のタスク取り込み or 双方向）・認証方式から仕様詰めが必要
+
 - **【中】** マネージャーAI連携用API（晴樹さん行動分析）
   - 目的: 外部のマネージャーAI（C:\claude-workspace\shared\manager\）が、指定ユーザー（例: fjt.suntree@gmail.com）のタスク一覧・focus傾向・完了状況を1日2回（12:00, 21:00）取得し、行動パターン分析に使う
   - 現状: `shared/youkan_helper.py` の `get_focus_tasks()` は毎回ログインして `/items?scope=aggregated` を叩いている。外部バッチ向けの専用口やAPIキー発行機構はない
