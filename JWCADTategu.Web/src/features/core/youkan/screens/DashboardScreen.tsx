@@ -487,7 +487,6 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					}}
 					onUpdate={async (id: string, updates: Partial<Item>) => {
 						await updateItem(id, updates);
-						handleRefresh();
 					}}
 					onCreateSubTask={createSubTask}
 					onGetSubTasks={getSubTasks}
