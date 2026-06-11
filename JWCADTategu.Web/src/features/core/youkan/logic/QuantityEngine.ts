@@ -46,7 +46,8 @@ export class QuantityEngine {
      * Structure for detailed allocation breakdown
      */
     static calculateAllocationDetails(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): AllocationStep[] {
-        const { steps } = this.allocateBackwardsCore(endDate, estimatedMinutes, context, tenantId);
+        const capacityCache = new Map<string, number>();
+        const { steps } = this.allocateBackwardsCore(endDate, estimatedMinutes, context, tenantId, capacityCache);
         return steps;
     }
 
@@ -65,8 +66,9 @@ export class QuantityEngine {
         allDayWeightMinutes: number = DEFAULT_ALL_DAY_WEIGHT_MINUTES
     ): Map<string, QuantityMetric> {
         const metricsMap = new Map<string, QuantityMetric>();
+        const capacityCache = new Map<string, number>();
         // Ensure current user is consistently evaluated from context
-        const { volumeMap, completedVolumeMap, contributorsMap } = this.calculateVolume(context);
+        const { volumeMap, completedVolumeMap, contributorsMap } = this.calculateVolume(context, capacityCache);
         const { focusedTenantId } = context;
 
         const externalVolumeMap = this.calculateExternalVolume(externalEvents, allDayWeightMinutes);
@@ -89,7 +91,7 @@ export class QuantityEngine {
             if (isNaN(date.getTime())) {
                 console.error(`[QuantityEngine] Invalid Date encountered at index ${i}`, date);
             }
-            const capacity = this.calculateCapacityForDate(date, context, focusedTenantId);
+            const capacity = this.calculateCapacityForDate(date, context, focusedTenantId, capacityCache);
 
             const isHol = this.checkIsHoliday(date, context);
             const contributors = contributorsMap.get(dateKey) || [];
@@ -144,7 +146,7 @@ export class QuantityEngine {
     /**
      * Ryokan Logic: Backward allocation from prep_date or due_date.
      */
-    private static calculateVolume(context: QuantityContext): {
+    private static calculateVolume(context: QuantityContext, capacityCache?: Map<string, number>): {
         volumeMap: Map<string, number>,
         completedVolumeMap: Map<string, number>,
         contributorsMap: Map<string, Item[]>
@@ -168,7 +170,7 @@ export class QuantityEngine {
             const endDate = safeParseDate(item.prep_date || item.due_date);
             if (endDate) {
                 const totalMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
-                const { steps } = this.allocateBackwardsCore(endDate, totalMinutes, context, item.tenantId);
+                const { steps } = this.allocateBackwardsCore(endDate, totalMinutes, context, item.tenantId, capacityCache);
                 // R-035: done アイテムは「完了済み量感」として別途集計し、進捗棒グラフの完了部分へ反映する
                 const isDone = (item.status as string) === 'done';
 
@@ -200,25 +202,32 @@ export class QuantityEngine {
     /**
      * Capacity Logic: Determine Denominator based on Matrix.
      */
-    private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null): number {
+    private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null, capacityCache?: Map<string, number>): number {
         const { capacityConfig, focusedTenantId, currentUser } = context;
 
         if (!currentUser) return 0;
 
-        const isHol = this.checkIsHoliday(date, context);
         const dateKey = this.formatDateKey(date);
+        const targetId = forTenantId !== undefined ? forTenantId : focusedTenantId;
+        const cacheKey = `${dateKey}|${targetId ?? ''}`;
+
+        if (capacityCache?.has(cacheKey)) {
+            return capacityCache.get(cacheKey)!;
+        }
+
+        const isHol = this.checkIsHoliday(date, context);
         const dayOfWeek = date.getDay();
 
         // --- Core Allocation Logic (Company Specific Priority) ---
         // Priority 1: Specific Context (フィルタで絞り込まれている、または特定の会社枠を表示したい場合)
-        const targetId = forTenantId !== undefined ? forTenantId : focusedTenantId;
+        let result: number;
 
         if (targetId) {
             const companyException = capacityConfig.dailyCompanyExceptions?.[dateKey];
             if (companyException && companyException[targetId] !== undefined) {
-                const val = companyException[targetId];
-                console.log(`[QuantityEngine] Capacity Match (Company Exception): date=${dateKey}, tenant=${targetId}, val=${val}`);
-                return val;
+                result = companyException[targetId];
+                capacityCache?.set(cacheKey, result);
+                return result;
             }
 
             const companyPattern = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek];
@@ -229,14 +238,17 @@ export class QuantityEngine {
                 // BUT if there is a specific EXCEPTION (capacity=0) on this date, that exception wins.
                 if (val > 0) {
                     const specificException = capacityConfig.dailyCompanyExceptions?.[dateKey]?.[targetId];
-                    if (specificException === 0) return 0; // Explicitly set to 0 (Holiday Override)
-
+                    if (specificException === 0) {
+                        capacityCache?.set(cacheKey, 0);
+                        return 0;
+                    }
+                    capacityCache?.set(cacheKey, val);
                     return val;
                 }
             }
 
             if (isHol) {
-                console.log(`[QuantityEngine] Capacity Skip (Holiday): date=${dateKey}`);
+                capacityCache?.set(cacheKey, 0);
                 return 0;
             }
 
@@ -246,19 +258,21 @@ export class QuantityEngine {
 
         // --- Fallback Logic: Personal Standard Capacity (Molecule of Reality) ---
         // 会社枠に設定がない、または Private アイテムの場合。
-        if (isHol) return 0;
+        if (isHol) {
+            capacityCache?.set(cacheKey, 0);
+            return 0;
+        }
 
         // standardWeeklyPattern -> defaultDailyMinutes
         const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-        const result = weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
-
-        // console.log(`[QuantityEngine] Capacity Personal Result: ...`); // [REMOVED] Reduce noise
+        result = weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
+        capacityCache?.set(cacheKey, result);
         return result;
     }
 
     static calculateAllocationDays(endDate: Date, estimatedMinutes: number, context: QuantityContext, tenantId?: string | null): Date[] {
-        // [Refactor] Use detail logic and just map to dates
-        const details = this.calculateAllocationDetails(endDate, estimatedMinutes, context, tenantId);
+        const capacityCache = new Map<string, number>();
+        const { steps: details } = this.allocateBackwardsCore(endDate, estimatedMinutes, context, tenantId, capacityCache);
         // Returns dates in reverse chronological order (as original logic pushed backwards)
         // Original logic pushed backwards: [EndDate, EndDate-1, ...]
         // calculateAllocationDetails sorts ascending: [Oldest, ..., EndDate]
@@ -289,7 +303,7 @@ export class QuantityEngine {
     /**
      * CORE ALLOCATION ENGINE: Single source of truth for backward distribution.
      */
-    private static allocateBackwardsCore(endDate: Date, totalMinutes: number, context: QuantityContext, tenantId?: string | null): { steps: AllocationStep[] } {
+    private static allocateBackwardsCore(endDate: Date, totalMinutes: number, context: QuantityContext, tenantId?: string | null, capacityCache?: Map<string, number>): { steps: AllocationStep[] } {
         const steps: AllocationStep[] = [];
         let remainingMinutes = totalMinutes || 0;
         let current = new Date(endDate);
@@ -299,7 +313,7 @@ export class QuantityEngine {
             safety++;
 
             // [LOGIC] Capacity calculation itself handles holiday logic priority
-            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId);
+            const dailyCapacity = this.calculateCapacityForDate(current, context, tenantId, capacityCache);
 
             if (dailyCapacity <= 0) {
                 current.setDate(current.getDate() - 1);
