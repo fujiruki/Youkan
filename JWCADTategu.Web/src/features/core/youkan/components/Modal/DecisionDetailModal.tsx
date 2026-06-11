@@ -122,18 +122,23 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		}
 	}, [item?.id, isProject, _onGetSubTasks, item?.dueStatus]);
 
+	const currentUserFromStorage = React.useMemo(() => {
+		try {
+			return JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
+		} catch {
+			return {};
+		}
+	}, []);
+
 	// [NEW] Use separate memo for Details to display the breakdown, and derive Period from it
 	const allocationDetails = React.useMemo(() => {
 		if (!item || !capacityConfig) {
-			console.log('[DecisionDetailModal] No item or capacityConfig, skipping allocation');
 			return [];
 		}
 
 		const anchorStr = prepDate || dueDate;
-		// console.log(`[DecisionDetailModal] Recalc Trigger: anchor=${anchorStr}, min=${estimatedMinutes}, wDays=${workDays}`);
 
 		if (!anchorStr) {
-			console.log('[DecisionDetailModal] No anchor date, skipping allocation');
 			return [];
 		}
 		const anchor = new Date(anchorStr);
@@ -157,16 +162,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 			focusedProjectId: item.projectId,
 			tenantProfiles,
 			currentUser: {
-				id: (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || ''),
-				isCompanyAccount: (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || '').length > 20,
+				id: (currentUserFromStorage.id || ''),
+				isCompanyAccount: (currentUserFromStorage.id || '').length > 20,
 				joinedTenants: joinedTenants
 			}
 		};
 
 		const details = QuantityEngine.calculateAllocationDetails(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
-		// console.log(`[DecisionDetailModal] Allocation Result: ${details.length} steps`);
 		return details;
-	}, [item?.id, prepDate, dueDate, activeDateInput, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode]);
+	}, [item?.id, prepDate, dueDate, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode, currentUserFromStorage]);
 
 	const commitPeriodDates = React.useMemo(() => {
 		return allocationDetails.map(step => step.date);
@@ -341,6 +345,28 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		return () => window.removeEventListener('keydown', onKey);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [item?.id]);
+
+	const selectedDateObj = React.useMemo(
+		() => dueDate ? new Date(dueDate) : null,
+		[dueDate]
+	);
+	const prepDateObj = React.useMemo(
+		() => prepDate ? new Date(prepDate) : null,
+		[prepDate]
+	);
+	const handleSideCalendarSelectDate = React.useCallback((d: Date) => {
+		const val = format(d, 'yyyy-MM-dd');
+		if (activeDateInput === 'my') {
+			setPrepDate(val);
+			const timestamp = Math.floor(new Date(val).getTime() / 1000);
+			if (onUpdate) onUpdate(item!.id, { prep_date: timestamp });
+			else ApiClient.updateItem(item!.id, { prep_date: timestamp });
+		} else {
+			setDueDate(val);
+			if (onUpdate) onUpdate(item!.id, { due_date: val, dueStatus: 'confirmed' });
+			else ApiClient.updateItem(item!.id, { due_date: val, dueStatus: 'confirmed' });
+		}
+	}, [activeDateInput, item?.id, onUpdate]);
 
 	if (!item) return null;
 
@@ -647,21 +673,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 						{/* Scrollable Calendar */}
 						<div className="flex-1 overflow-y-auto min-h-0 bg-white dark:bg-slate-900">
 							<SideCalendarPanel
-								selectedDate={dueDate ? new Date(dueDate) : null}
-								onSelectDate={(d) => {
-									const val = format(d, 'yyyy-MM-dd');
-									if (activeDateInput === 'my') {
-										setPrepDate(val);
-										const timestamp = Math.floor(new Date(val).getTime() / 1000);
-										if (onUpdate) onUpdate(item.id, { prep_date: timestamp });
-										else ApiClient.updateItem(item.id, { prep_date: timestamp });
-									} else {
-										setDueDate(val);
-										if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
-										else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
-									}
-								}}
-								prepDate={prepDate ? new Date(prepDate) : null}
+								selectedDate={selectedDateObj}
+								onSelectDate={handleSideCalendarSelectDate}
+								prepDate={prepDateObj}
 								targetMode={activeDateInput || 'due'}
 								filterMode={filterMode}
 								currentItem={item}

@@ -293,14 +293,18 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			}
 		}
 
-		// Start: 2 months back, align to start of week
-		const start = new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1);
+		// mini モードは初期 range を ±1ヶ月に縮小（約 90 セル）
+		// スクロールによる自動拡張（handleScroll）は既存挙動のまま
+		const rangeMonths = isMini ? 1 : 2;
+
+		// Start: N months back, align to start of week
+		const start = new Date(anchor.getFullYear(), anchor.getMonth() - rangeMonths, 1);
 		const dayOfWeek = start.getDay();
 		start.setDate(start.getDate() - dayOfWeek);
 		start.setHours(0, 0, 0, 0);
 
-		// End: 2 months forward, align to end of week
-		const end = new Date(anchor.getFullYear(), anchor.getMonth() + 3, 0); // End of month + 2
+		// End: N months forward, align to end of week
+		const end = new Date(anchor.getFullYear(), anchor.getMonth() + rangeMonths + 1, 0);
 		const endDayOfWeek = end.getDay();
 		end.setDate(end.getDate() + (6 - endDayOfWeek));
 		end.setHours(23, 59, 59, 999);
@@ -310,7 +314,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (range && (anchor < range.start || anchor > range.end)) {
 			setHasInitialScrolled(false);
 		}
-	}, [today.getTime(), focusDate?.getTime(), forceScroll]);
+	}, [today.getTime(), focusDate?.getTime(), forceScroll, isMini]);
 
 	// Update allDays when range changes
 	React.useEffect(() => {
@@ -455,7 +459,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 
 	const effectiveUserId = useMemo(() => currentUserId || (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || null), [currentUserId]);
 
-	const renderItemTitle = (item: Item) => {
+	const renderItemTitle = useCallback((item: Item) => {
 		const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
 
 		let title = item.title;
@@ -475,7 +479,19 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			return title;
 		}
 		return `予定あり [${projName.substring(0, 4) || '???'}]`;
-	};
+	}, [focusedProjectId, projects, showGroups, effectiveUserId]);
+
+	const handleExternalEventClick = useCallback((ev: ExternalEvent) => {
+		setSelectedExternalEvent(ev);
+	}, []);
+
+	const handleExternalEventsMoreClick = useCallback((d: Date, evs: ExternalEvent[]) => {
+		setExternalMoreState({ date: d, events: evs });
+	}, []);
+
+	const handleGanttJumpToDate = useCallback((date: Date) => {
+		if (onSelectDate) onSelectDate(date);
+	}, [onSelectDate]);
 
 	const resetHighlights = () => {
 		setPressureConnections([]);
@@ -668,8 +684,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onBackgroundClick={resetHighlights}
 						externalEventsByDate={externalEventsByDate}
 						externalEventsMaxVisible={externalEventsMaxVisible}
-						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
-						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onExternalEventClick={handleExternalEventClick}
+						onExternalEventsMoreClick={handleExternalEventsMoreClick}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
@@ -700,8 +716,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						completedByDate={completedByDate}
 						externalEventsByDate={externalEventsByDate}
 						externalEventsMaxVisible={externalEventsMaxVisible}
-						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
-						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onExternalEventClick={handleExternalEventClick}
+						onExternalEventsMoreClick={handleExternalEventsMoreClick}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
@@ -718,9 +734,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						safeConfig={capacityConfig || { defaultDailyMinutes: 480, holidays: [], exceptions: {} }}
 						rowHeight={24}
 						projects={projects}
-						onJumpToDate={(date) => {
-							if (onSelectDate) onSelectDate(date);
-						}}
+						onJumpToDate={handleGanttJumpToDate}
 						renderItemTitle={renderItemTitle}
 						onUpdateItem={onUpdateItem}
 						onDeleteItem={onDeleteItem}
@@ -735,8 +749,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						scrollRef={scrollContainerRef}
 						onDateClick={onDateClick}
 						externalEventsByDate={externalEventsByDate}
-						onExternalEventClick={(ev) => setSelectedExternalEvent(ev)}
-						onExternalEventsMoreClick={(d, evs) => setExternalMoreState({ date: d, events: evs })}
+						onExternalEventClick={handleExternalEventClick}
+						onExternalEventsMoreClick={handleExternalEventsMoreClick}
 						onLoadMore={onLoadMore}
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}

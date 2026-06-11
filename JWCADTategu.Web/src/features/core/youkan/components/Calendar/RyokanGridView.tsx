@@ -81,6 +81,11 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     loadDirection = null,
     googleCalendars = [],
 }) => {
+    const handleCellAction = React.useCallback(
+        (d: Date, _items: Item[], type: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => onAction(d, type, rect),
+        [onAction]
+    );
+
     // R-042-Y2: 縦スクロール先頭・末尾に sentinel を配置し、交差検知で +3 ヶ月の追加読み込みを発火。
     // 追加ロード中（isLoadingMore=true）は enabled=false にして二重発火を抑止する。
     const sentinelEnabled = !!onLoadMore && !isLoadingMore;
@@ -184,7 +189,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 isPrep={isP}
                                 isCommitPeriod={isCP}
                                 flashingIds={flashingIds}
-                                onAction={(d, _items, type, rect) => onAction(d, type, rect)}
+                                onAction={handleCellAction}
                                 onItemClick={onItemClick}
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}

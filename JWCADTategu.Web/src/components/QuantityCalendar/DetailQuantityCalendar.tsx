@@ -23,7 +23,7 @@ interface DetailQuantityCalendarProps {
 	forceScroll?: boolean;
 }
 
-export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
+const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 	item: _item,
 	globalFilter,
 	selectedDate,
@@ -145,3 +145,5 @@ export const DetailQuantityCalendar: React.FC<DetailQuantityCalendarProps> = ({
 		</div>
 	);
 };
+
+export const DetailQuantityCalendar = React.memo(DetailQuantityCalendarInner);

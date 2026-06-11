@@ -47,7 +47,7 @@ interface CalendarCellProps {
     googleCalendars?: GoogleCalendar[];
 }
 
-export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
+const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
     volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
     externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3,
@@ -255,3 +255,5 @@ export const CalendarCell = forwardRef<HTMLDivElement, CalendarCellProps>(({
         </div>
     );
 });
+
+export const CalendarCell = React.memo(CalendarCellInner);
