@@ -24,7 +24,7 @@ interface SideCalendarPanelProps {
     commitPeriod?: Date[];
 }
 
-export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
+const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
     currentItem,
     selectedDate,
     onSelectDate,
@@ -112,3 +112,5 @@ export const SideCalendarPanel: React.FC<SideCalendarPanelProps> = ({
         </div>
     );
 };
+
+export const SideCalendarPanel = React.memo(SideCalendarPanelInner);
