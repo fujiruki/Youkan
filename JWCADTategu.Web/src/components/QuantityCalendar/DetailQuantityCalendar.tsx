@@ -3,6 +3,10 @@ import { Item, Member, CapacityConfig, FilterMode, JoinedTenant } from '../../fe
 import { RyokanCalendar } from '../../features/core/youkan/components/Calendar/RyokanCalendar';
 import { cn } from '../../lib/utils';
 import { YOUKAN_KEYS } from '../../features/core/session/youkanKeys';
+import { ExternalEvent } from '../../features/core/youkan/types/externalEvent';
+import { GoogleCalendar } from '../../api/googleCalendar';
+
+type CalendarDensity = 'full' | 'compact';
 
 interface DetailQuantityCalendarProps {
 	item: Item | null;
@@ -19,8 +23,11 @@ interface DetailQuantityCalendarProps {
 	currentUserId?: string | null;
 	targetItemId?: string;
 	commitPeriod?: Date[];
-	focusDate?: Date | null; // [NEW] Allow external control of focus
+	focusDate?: Date | null;
 	forceScroll?: boolean;
+	// R-061: 外部イベント
+	externalEventsByDate?: Map<string, ExternalEvent[]>;
+	googleCalendars?: GoogleCalendar[];
 }
 
 const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
@@ -38,14 +45,13 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 	targetItemId,
 	commitPeriod,
 	focusDate,
-	forceScroll
+	forceScroll,
+	externalEventsByDate,
+	googleCalendars,
 }) => {
-	// [NEW] Local Volume Only Toggle
 	const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
 
-	// [NEW] Local Filter Mode with auto-selection logic
 	const [filterMode, setFilterMode] = React.useState<FilterMode>(() => {
-		// Default based on item ownership: No tenantId means personal
 		if (_item) {
 			const isPersonal = !_item.tenantId || _item.domain === 'private';
 			return isPersonal ? 'personal' : 'company';
@@ -53,7 +59,25 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 		return globalFilter;
 	});
 
-	// Handle item changes to re-sync filter if needed
+	// R-061: 表示密度（localStorage永続化）
+	const [density, setDensity] = React.useState<CalendarDensity>(() => {
+		try {
+			const saved = localStorage.getItem(YOUKAN_KEYS.DETAIL_CALENDAR_DENSITY);
+			if (saved === 'compact') return 'compact';
+		} catch { /* noop */ }
+		return 'full';
+	});
+
+	const handleDensityToggle = React.useCallback(() => {
+		setDensity(prev => {
+			const next: CalendarDensity = prev === 'full' ? 'compact' : 'full';
+			try {
+				localStorage.setItem(YOUKAN_KEYS.DETAIL_CALENDAR_DENSITY, next);
+			} catch { /* noop */ }
+			return next;
+		});
+	}, []);
+
 	React.useEffect(() => {
 		if (_item) {
 			const isPersonal = !_item.tenantId || _item.domain === 'private';
@@ -61,12 +85,10 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 		}
 	}, [_item?.id, _item?.tenantId, _item?.domain]);
 
-	// [FIX] Apply filterMode to items locally (QuantityEngine no longer filters)
 	const filteredItems = React.useMemo(() => {
 		if (filterMode === 'all') return items;
 		if (filterMode === 'company') return items.filter(i => !!i.tenantId || i.domain === 'business');
 		if (filterMode === 'personal') return items.filter(i => !i.tenantId && i.domain !== 'business');
-		// tenantId string
 		return items.filter(i => i.tenantId === filterMode);
 	}, [items, filterMode]);
 
@@ -75,7 +97,7 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 			{/* Minimal Header with Toggle */}
 			<div className="flex items-center justify-between px-2 py-1 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 shrink-0">
 				<div className="flex items-center gap-1">
-					{/* [NEW] Filter Buttons (All / Personal / Company) */}
+					{/* Filter Buttons (All / Personal / Company) */}
 					<div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-0.5 shadow-sm scale-90 origin-left">
 						{[
 							{ id: 'all', label: '全て' },
@@ -98,17 +120,33 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 					</div>
 				</div>
 
-				<button
-					onClick={() => setIsVolumeOnly(!isVolumeOnly)}
-					className={cn(
-						"text-[9px] px-1.5 py-0.5 rounded border transition-colors font-bold tracking-tighter",
-						isVolumeOnly
-							? 'bg-indigo-100 text-indigo-600 border-indigo-200'
-							: 'bg-white text-slate-400 border-slate-200 shadow-sm'
-					)}
-				>
-					{isVolumeOnly ? 'VOL ONLY' : 'DETAIL'}
-				</button>
+				<div className="flex items-center gap-1">
+					{/* R-061: 密度トグル */}
+					<button
+						data-testid="density-toggle-btn"
+						onClick={handleDensityToggle}
+						className={cn(
+							"text-[9px] px-1.5 py-0.5 rounded border transition-colors font-bold tracking-tighter",
+							density === 'compact'
+								? 'bg-slate-100 text-slate-600 border-slate-300'
+								: 'bg-white text-slate-400 border-slate-200 shadow-sm'
+						)}
+					>
+						{density === 'full' ? 'FULL' : 'COMPACT'}
+					</button>
+
+					<button
+						onClick={() => setIsVolumeOnly(!isVolumeOnly)}
+						className={cn(
+							"text-[9px] px-1.5 py-0.5 rounded border transition-colors font-bold tracking-tighter",
+							isVolumeOnly
+								? 'bg-indigo-100 text-indigo-600 border-indigo-200'
+								: 'bg-white text-slate-400 border-slate-200 shadow-sm'
+						)}
+					>
+						{isVolumeOnly ? 'VOL ONLY' : 'DETAIL'}
+					</button>
+				</div>
 			</div>
 
 			<div className="flex-1 overflow-hidden relative">
@@ -120,26 +158,28 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 					joinedTenants={joinedTenants}
 					currentUserId={currentUserId || (() => { try { const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}'); return u?.id || null; } catch { return null; } })()}
 
-					layoutMode="mini"
+					layoutMode={density === 'full' ? 'panorama' : 'mini'}
 					displayMode="grid"
 					filterMode={filterMode}
 					focusedTenantId={_item?.tenantId}
 					focusedProjectId={_item?.projectId}
 
-					selectedDate={selectedDate} // Due Date (Red)
-					prepDate={prepDate}         // My Deadline (Blue)
-					focusDate={focusDate || selectedDate || prepDate || new Date()} // 納期 > マイ期限 > 今月 の優先順位
-					onSelectDate={onSelectDate} // Handle click to set date
+					selectedDate={selectedDate}
+					prepDate={prepDate}
+					focusDate={focusDate || selectedDate || prepDate || new Date()}
+					onSelectDate={onSelectDate}
 
 					volumeOnly={isVolumeOnly}
-					hideHeader={true}  // Hide standard header
+					hideHeader={true}
 
 					targetItemId={targetItemId}
 					commitPeriod={commitPeriod}
 
-					// Allow default RyokanCalendar behavior for dateClick (Show Breakdown)
-					disablePressureLines={true} // [NEW] Disable pressure lines in detail modal
+					disablePressureLines={true}
 					forceScroll={forceScroll}
+
+					externalEventsByDate={externalEventsByDate}
+					googleCalendars={googleCalendars}
 				/>
 			</div>
 		</div>

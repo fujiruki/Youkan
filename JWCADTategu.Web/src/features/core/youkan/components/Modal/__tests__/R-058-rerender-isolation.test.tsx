@@ -17,6 +17,35 @@ vi.mock('../../../../../../contexts/ToastContext', () => ({
     useToast: () => ({ showToast: vi.fn() }),
 }));
 
+// R-061: 外部イベントフックのモック（参照安定・ネットワーク不要）
+// React.memo の再レンダリング隔離を壊さないよう、安定した定数参照を返す。
+// vi.mock ファクトリは hoist されるため内部で定数を定義する。
+vi.mock('../../../hooks/useExternalEvents', () => {
+    const stableMap = new Map();
+    const stableResult = {
+        eventsByDate: stableMap,
+        loading: false,
+        error: null,
+        refresh: () => Promise.resolve(),
+        loadMore: () => Promise.resolve(),
+        loadedRange: { from: '', to: '' },
+        isLoadingMore: false,
+        loadDirection: null,
+    };
+    return { useExternalEvents: () => stableResult };
+});
+
+vi.mock('../../../hooks/useGoogleCalendars', () => {
+    const stableResult = {
+        calendars: [] as any[],
+        loading: false,
+        error: null,
+        refresh: () => Promise.resolve(),
+        toggle: () => Promise.resolve(),
+    };
+    return { useGoogleCalendars: () => stableResult };
+});
+
 // SideCalendarPanel のレンダー回数を計測するためにモジュールをスパイ
 // ここでは実際の SideCalendarPanel コンポーネントに React.memo が適用されているかを
 // 直接レンダーカウントで検証する

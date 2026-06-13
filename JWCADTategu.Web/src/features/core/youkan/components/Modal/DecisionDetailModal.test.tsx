@@ -10,6 +10,30 @@ vi.mock('../../../../../contexts/ToastContext', () => ({
     }),
 }));
 
+// R-061: 外部イベントフックのモック（ネットワーク不要）
+vi.mock('../../hooks/useExternalEvents', () => ({
+    useExternalEvents: () => ({
+        eventsByDate: new Map(),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+        loadMore: vi.fn(),
+        loadedRange: { from: '', to: '' },
+        isLoadingMore: false,
+        loadDirection: null,
+    }),
+}));
+
+vi.mock('../../hooks/useGoogleCalendars', () => ({
+    useGoogleCalendars: () => ({
+        calendars: [],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+        toggle: vi.fn(),
+    }),
+}));
+
 const renderModal = (overrides: Parameters<typeof createMockItem>[0] = {}, onUpdate = vi.fn()) => {
     const item = createMockItem(overrides);
     const utils = render(

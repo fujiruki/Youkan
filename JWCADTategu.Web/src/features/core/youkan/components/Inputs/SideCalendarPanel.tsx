@@ -1,20 +1,19 @@
 import React from 'react';
 import { Item, FilterMode } from '../../types';
 import { cn } from '../../../../../lib/utils';
-// import { RyokanCalendar } from '../Calendar/RyokanCalendar'; // Removed
 import { DetailQuantityCalendar } from '../../../../../components/QuantityCalendar/DetailQuantityCalendar';
 import { addDays, nextDay, Day } from 'date-fns';
+import { ExternalEvent } from '../../types/externalEvent';
+import { GoogleCalendar } from '../../../../../api/googleCalendar';
 
 interface SideCalendarPanelProps {
-    // items, onItemClick, workDays, targetItemId, commitPeriod, capacityConfig are no longer used by DetailQuantityCalendar
-    currentItem?: Item | null; // [NEW] For Smart Context
-    selectedDate: Date | null;       // 納期 (赤枠)
+    currentItem?: Item | null;
+    selectedDate: Date | null;
     onSelectDate: (date: Date) => void;
-    prepDate?: Date | null;          // マイ期限 (青枠)
+    prepDate?: Date | null;
     targetMode?: 'due' | 'my' | null;
     filterMode?: FilterMode;
     className?: string;
-    // [NEW] Data for RyokanCalendar
     items?: Item[];
     members?: any[];
     capacityConfig?: any;
@@ -22,6 +21,9 @@ interface SideCalendarPanelProps {
     joinedTenants?: any[];
     currentUserId?: string | null;
     commitPeriod?: Date[];
+    // R-061: 外部イベント
+    externalEventsByDate?: Map<string, ExternalEvent[]>;
+    googleCalendars?: GoogleCalendar[];
 }
 
 const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
@@ -32,20 +34,19 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
     targetMode = 'due',
     filterMode = 'all',
     className,
-    items, members, capacityConfig, projects, joinedTenants, currentUserId, commitPeriod
+    items, members, capacityConfig, projects, joinedTenants, currentUserId, commitPeriod,
+    externalEventsByDate,
+    googleCalendars,
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // [NEW] Manual focus control for "Show This Month" without changing data
     const [manualFocusDate, setManualFocusDate] = React.useState<Date | null>(null);
 
-    // Reset manual focus when real dates change (so we jump to the new selection)
     React.useEffect(() => {
         setManualFocusDate(null);
     }, [selectedDate, prepDate]);
 
-    // スクロール実行後にforceScrollをリセット（次のセルクリックでジャンプしないようにする）
     React.useEffect(() => {
         if (manualFocusDate) {
             const timer = setTimeout(() => setManualFocusDate(null), 300);
@@ -74,8 +75,10 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
                     currentUserId={currentUserId}
                     targetItemId={currentItem?.id}
                     commitPeriod={commitPeriod}
-                    focusDate={manualFocusDate} // [NEW] Pass manual focus
+                    focusDate={manualFocusDate}
                     forceScroll={!!manualFocusDate}
+                    externalEventsByDate={externalEventsByDate}
+                    googleCalendars={googleCalendars}
                 />
             </div>
 
@@ -95,10 +98,8 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
                                 } else if (key === 'next_mon') {
                                     onSelectDate(nextDay(today, 1 as Day));
                                 } else if (key === 'this_month') {
-                                    // [FIX] Just jump view to today/this month, DO NOT SELECT
                                     setManualFocusDate(new Date());
                                 } else {
-                                    // Today
                                     onSelectDate(today);
                                 }
                             }}

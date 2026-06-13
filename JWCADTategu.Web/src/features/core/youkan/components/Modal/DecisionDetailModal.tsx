@@ -15,6 +15,8 @@ import { QuantityEngine } from '../../logic/QuantityEngine';
 import { SubtaskListWidget } from '../Widgets/SubtaskListWidget';
 import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { useExternalEvents } from '../../hooks/useExternalEvents';
+import { useGoogleCalendars } from '../../hooks/useGoogleCalendars';
 
 
 interface DecisionDetailModalProps {
@@ -175,6 +177,27 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	const commitPeriodDates = React.useMemo(() => {
 		return allocationDetails.map(step => step.date);
 	}, [allocationDetails]);
+
+	// R-061: 外部イベント取得（アンカー=dueDate||prepDate||today, ±1ヶ月）
+	const externalRange = React.useMemo(() => {
+		const ymd = (d: Date): string => {
+			const y = d.getFullYear();
+			const m = String(d.getMonth() + 1).padStart(2, '0');
+			const day = String(d.getDate()).padStart(2, '0');
+			return `${y}-${m}-${day}`;
+		};
+		const anchor = dueDate
+			? new Date(dueDate)
+			: prepDate
+				? new Date(prepDate)
+				: new Date();
+		const from = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
+		const to = new Date(anchor.getFullYear(), anchor.getMonth() + 2, 0);
+		return { from: ymd(from), to: ymd(to) };
+	}, [dueDate, prepDate]);
+
+	const { eventsByDate: externalEventsByDate } = useExternalEvents(externalRange.from, externalRange.to, 'grid');
+	const { calendars: googleCalendars } = useGoogleCalendars();
 
 	const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 	const isMobile = useIsMobile();
@@ -687,6 +710,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								joinedTenants={joinedTenants}
 								currentUserId={currentUserId}
 								commitPeriod={commitPeriodDates}
+								externalEventsByDate={externalEventsByDate}
+								googleCalendars={googleCalendars}
 							/>
 						</div>
 

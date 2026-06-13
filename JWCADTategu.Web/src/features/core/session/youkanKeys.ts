@@ -33,6 +33,9 @@ export const YOUKAN_KEYS = {
 	OVERVIEW_FONTSIZE: 'youkan_overview_fontsize',
 	OVERVIEW_COLUMNS: 'youkan_overview_columns',
 	OVERVIEW_TITLE_LIMIT: 'youkan_overview_title_limit',
+
+	// === 詳細カレンダー設定 ===
+	DETAIL_CALENDAR_DENSITY: 'youkan_detail_calendar_density',
 } as const;
 
 /** カスタムイベント名 */

@@ -11,6 +11,30 @@ vi.mock('../contexts/ToastContext', () => ({
     }),
 }));
 
+// R-061: 外部イベントフックのモック（ネットワーク不要）
+vi.mock('../features/core/youkan/hooks/useExternalEvents', () => ({
+    useExternalEvents: () => ({
+        eventsByDate: new Map(),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+        loadMore: vi.fn(),
+        loadedRange: { from: '', to: '' },
+        isLoadingMore: false,
+        loadDirection: null,
+    }),
+}));
+
+vi.mock('../features/core/youkan/hooks/useGoogleCalendars', () => ({
+    useGoogleCalendars: () => ({
+        calendars: [],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+        toggle: vi.fn(),
+    }),
+}));
+
 describe('DecisionDetailModal - Interactions', () => {
     const mockItem = createMockItem({
         title: 'インタラクションテスト建具',
