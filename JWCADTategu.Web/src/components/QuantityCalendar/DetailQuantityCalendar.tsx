@@ -161,8 +161,8 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 					layoutMode={density === 'full' ? 'panorama' : 'mini'}
 					displayMode="grid"
 					filterMode={filterMode}
-					focusedTenantId={_item?.tenantId}
-					focusedProjectId={_item?.projectId}
+					// 量感母集団は左上フィルタ（全て/個人/会社）に連動。
+					// アイテムの所属プロジェクト/テナントでは量感を絞り込まない（R-062）
 
 					selectedDate={selectedDate}
 					prepDate={prepDate}
