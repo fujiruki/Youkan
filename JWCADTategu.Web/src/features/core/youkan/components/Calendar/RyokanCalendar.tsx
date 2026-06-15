@@ -691,7 +691,6 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
-						hideExternalEventTime={hideExternalEventTime}
 					/>
 				)}
 				{displayMode === 'grid' && (

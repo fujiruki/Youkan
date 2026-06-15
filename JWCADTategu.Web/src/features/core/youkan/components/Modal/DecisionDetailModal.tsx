@@ -79,6 +79,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	// const [newSubTaskTitle, setNewSubTaskTitle] = React.useState('');
 	const [isProject, setIsProject] = React.useState(false);
 	const [activeDateInput, setActiveDateInput] = React.useState<'due' | 'my' | null>('due');
+	// R-064: 目安期間ブレイクダウン折りたたみ（デフォルト閉じ）
+	const [isAllocationOpen, setIsAllocationOpen] = React.useState(false);
 
 	const [localTenantId, setLocalTenantId] = React.useState<string>('');
 	const [localProjectId, setLocalProjectId] = React.useState<string>('');
@@ -687,14 +689,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 					</div>
 				</div>
 
-				{/* Middle Area (Flex Row) */}
-				<div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+				{/* Middle Area — R-064: landscape=2カラム flex-row / portrait=縦積み flex-col */}
+				<div className="flex-1 min-h-0 flex flex-col md:flex-row landscape:flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
 
-					{/* LEFT COLUMN: Calendar (Scrollable) & Memo (Fixed Bottom) */}
-					<div className="flex-none md:flex-1 flex flex-col min-w-0 md:border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full overflow-hidden">
+					{/* LEFT COLUMN: カレンダー専有（R-064: landscape で h-full 確保） */}
+					<div className="flex-none md:flex-1 landscape:flex-1 flex flex-col min-w-0 md:border-r landscape:border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full landscape:h-full overflow-hidden">
 
-						{/* Scrollable Calendar */}
-						<div className="flex-1 overflow-y-auto min-h-0 bg-white dark:bg-slate-900">
+						{/* カレンダー（flex-1 で最大化） */}
+						<div className="flex-1 min-h-0 bg-white dark:bg-slate-900">
 							<SideCalendarPanel
 								selectedDate={selectedDateObj}
 								onSelectDate={handleSideCalendarSelectDate}
@@ -716,45 +718,63 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							/>
 						</div>
 
-						{/* Fixed Bottom: Memo & Boost & [NEW] Allocation Details */}
-						<div className="flex-none p-3 space-y-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
-							{/* [NEW] Allocation Details */}
-							{allocationDetails.length > 0 && (
-								<div className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-									<div className="font-bold mb-1 text-slate-400 uppercase tracking-wider flex justify-between">
-										<span>目安期間の対象</span>
-										<span>計 {allocationDetails.reduce((sum, s) => sum + s.allocatedMinutes, 0)}分 / {estimatedMinutes}分</span>
+						{/* R-064: 目安期間ブレイクダウン（折りたたみ、デフォルト閉じ） */}
+						{(allocationDetails.length > 0 || (estimatedMinutes > 0 && (prepDate || dueDate))) && (
+							<div className="flex-none border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+								<button
+									data-testid="allocation-toggle-btn"
+									onClick={() => setIsAllocationOpen(v => !v)}
+									className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+								>
+									<span>目安期間の内訳</span>
+									<span className={cn("transition-transform duration-200", isAllocationOpen ? "rotate-180" : "rotate-0")}>▾</span>
+								</button>
+								{isAllocationOpen && (
+									<div className="px-3 pb-2 space-y-1">
+										{allocationDetails.length > 0 ? (
+											<div className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+												<div className="font-bold mb-1 text-slate-400 uppercase tracking-wider flex justify-between">
+													<span>目安期間の対象</span>
+													<span>計 {allocationDetails.reduce((sum, s) => sum + s.allocatedMinutes, 0)}分 / {estimatedMinutes}分</span>
+												</div>
+												<div className="flex flex-wrap gap-1">
+													{allocationDetails.map((step, idx) => (
+														<span key={idx} className="inline-flex items-center">
+															<span className="font-mono text-slate-700 dark:text-slate-300">
+																{format(step.date, 'M/d')}
+															</span>
+															<span className="text-slate-400 mx-0.5 text-[9px]">
+																({step.allocatedMinutes}m/{step.capacityMinutes}m)
+															</span>
+															{idx < allocationDetails.length - 1 && <span className="text-slate-300 mr-1">,</span>}
+														</span>
+													))}
+												</div>
+												<div className="mt-1 text-[8px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 leading-tight">
+													※(消費/枠)。稼働枠を使い切っている日は目安期間（青枠）となります。
+												</div>
+											</div>
+										) : (
+											<div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-200 dark:border-amber-700 flex items-center gap-1.5">
+												<span className="text-base">⚠</span>
+												<div>
+													<span className="font-bold">稼働設定が未完了のため、目安期間（青枠）を計算できません。</span>
+													<span className="text-amber-500 dark:text-amber-400 ml-1">ガントチャートの「日次設定」で設定してください。</span>
+												</div>
+											</div>
+										)}
 									</div>
-									<div className="flex flex-wrap gap-1">
-										{allocationDetails.map((step, idx) => (
-											<span key={idx} className="inline-flex items-center">
-												<span className="font-mono text-slate-700 dark:text-slate-300">
-													{format(step.date, 'M/d')}
-												</span>
-												<span className="text-slate-400 mx-0.5 text-[9px]">
-													({step.allocatedMinutes}m/{step.capacityMinutes}m)
-												</span>
-												{idx < allocationDetails.length - 1 && <span className="text-slate-300 mr-1">,</span>}
-											</span>
-										))}
-									</div>
-									<div className="mt-1 text-[8px] text-slate-400 dark:text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 leading-tight">
-										※(消費/枠)。稼働枠を使い切っている日は目安期間（青枠）となります。
-									</div>
-								</div>
-							)}
+								)}
+							</div>
+						)}
+					</div>
 
-							{/* [NEW] Capacity Insufficiency Warning */}
-							{estimatedMinutes > 0 && allocationDetails.length === 0 && (prepDate || dueDate) && (
-								<div className="text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 p-2 rounded border border-amber-200 dark:border-amber-700 flex items-center gap-1.5">
-									<span className="text-base">⚠</span>
-									<div>
-										<span className="font-bold">稼働設定が未完了のため、目安期間（青枠）を計算できません。</span>
-										<span className="text-amber-500 dark:text-amber-400 ml-1">ガントチャートの「日次設定」で1日あたりの稼働時間を設定してください。</span>
-									</div>
-								</div>
-							)}
 
+					{/* RIGHT COLUMN: Estimates, Assignee, Subtasks, Memo/Boost（R-064: 独立スクロール） */}
+					<div className="w-full md:w-[320px] landscape:w-[320px] lg:w-[360px] flex-1 md:flex-none landscape:flex-none flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
+
+						{/* R-064: Boost & Memo（カレンダーカラムから移動） */}
+						<div className="space-y-2">
 							<div className="flex justify-center">
 								<button
 									onClick={async () => {
@@ -790,11 +810,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								/>
 							</div>
 						</div>
-					</div>
-
-
-					{/* RIGHT COLUMN: Estimates, Assignee, Subtasks (Independently Scrollable) */}
-					<div className="w-full md:w-[320px] lg:w-[360px] flex-1 md:flex-none flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
 
 						{/* Estimate Section */}
 						<div className="space-y-4">
