@@ -15,9 +15,11 @@ export default {
                 mono: ['JetBrains Mono', 'monospace'],
             },
             // R-064-Y2: landscape/portrait バリアント用スクリーン定義
+            // R-064-Y4: landscape-compact = スマホ横専用（高さ500px以下の横向き）
             screens: {
                 landscape: { raw: '(orientation: landscape)' },
                 portrait: { raw: '(orientation: portrait)' },
+                'landscape-compact': { raw: '(orientation: landscape) and (max-height: 500px)' },
             },
         },
     },

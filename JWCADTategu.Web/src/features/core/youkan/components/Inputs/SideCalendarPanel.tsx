@@ -86,9 +86,9 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
                 />
             </div>
 
-            {/* クイック選択ボタン — landscape では非表示（高さをカレンダーグリッドへ回す） */}
+            {/* クイック選択ボタン — landscape-compact（スマホ横）では非表示（高さをカレンダーグリッドへ回す）。PCは常時表示 */}
             <div className={cn(
-                "p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20 landscape:hidden",
+                "p-1.5 flex justify-center gap-1 bg-white dark:bg-slate-900 border-t z-20 landscape-compact:!hidden",
                 targetMode === 'my' ? "border-indigo-200 dark:border-indigo-800" : "border-slate-100 dark:border-slate-800"
             )}>
                 {['today:今日', 'tomorrow:明日', 'next_mon:来週月', 'this_month:今月を表示'].map(opt => {

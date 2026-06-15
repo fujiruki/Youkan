@@ -404,13 +404,13 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 				className="relative w-[98vw] h-[calc(100vh-20px)] flex flex-col overflow-hidden rounded-xl shadow-2xl bg-white dark:bg-gray-800"
 				onClick={e => e.stopPropagation()}
 			>
-				{/* Header (Fixed) — R-064-Y3: landscape でさらにコンパクト化（縦画面・md以上は現状維持） */}
+				{/* Header (Fixed) — R-064-Y4: landscape-compact（スマホ横=高さ≤500px）のみコンパクト化。デスクトップ(高さ>500px)は従来通り大表示 */}
 				<div className="flex-none flex flex-col border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
 					{/* Top Row: Breadcrumbs & Close */}
-					<div className="flex justify-between items-start p-4 pb-2 landscape:p-1 landscape:pb-0">
+					<div className="flex justify-between items-start p-4 pb-2 landscape-compact:!p-1 landscape-compact:!pb-0">
 						<div className="flex-1 min-w-0">
-							{/* Breadcrumbs (Tenant/Project) — landscape: テキスト縮小・mb 削減 */}
-							<div className="flex items-center gap-1 mb-1 landscape:mb-0 overflow-visible h-6 landscape:h-5 relative z-50">
+							{/* Breadcrumbs (Tenant/Project) — landscape-compact: テキスト縮小・mb 削減 */}
+							<div className="flex items-center gap-1 mb-1 landscape-compact:!mb-0 overflow-visible h-6 landscape-compact:!h-5 relative z-50">
 								{/* Tenant Selector */}
 								<YoukanDropdown
 									trigger={
@@ -422,7 +422,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 										>
 											{localTenantId ? <Building2 size={10} /> : <User size={10} />}
 											<span className={cn(
-												"text-[10px] landscape:text-[9px] font-black uppercase tracking-widest truncate max-w-[120px] landscape:max-w-[80px]",
+												"text-[10px] landscape-compact:!text-[9px] font-black uppercase tracking-widest truncate max-w-[120px] landscape-compact:!max-w-[80px]",
 												localTenantId && "bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded"
 											)}>
 												{joinedTenants.find(t => t.id === localTenantId)?.name || 'Private'}
@@ -548,7 +548,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								data-testid="decision-detail-title-input"
 								className={cn(
 									"w-full text-2xl md:text-3xl font-bold leading-tight bg-transparent px-1 -ml-1 rounded transition-colors outline-none hover:bg-slate-50 dark:hover:bg-slate-800/50 focus:bg-slate-100 dark:focus:bg-slate-800 placeholder:font-normal placeholder:italic placeholder:text-slate-400 dark:placeholder:text-slate-500",
-									"landscape:text-sm landscape:leading-none landscape:py-0",
+									"landscape-compact:!text-sm landscape-compact:!leading-none landscape-compact:!py-0",
 									isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-800 dark:text-white"
 								)}
 								placeholder="タイトル未入力"
@@ -578,7 +578,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 									label = tenant ? `${tenant.name}マネージャーとして` : '自分の時間管理';
 								}
 								return (
-									<div className="flex items-center mt-1 landscape:hidden">
+									<div className="flex items-center mt-1 landscape-compact:!hidden">
 										<span className="text-[9px] font-black text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2.5 py-0.5 rounded-full border border-slate-100 dark:border-slate-800 uppercase tracking-tighter">
 											{label}
 										</span>
@@ -610,24 +610,24 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 						</div>
 					</div>
 
-					{/* Bottom Row: Dates (Fixed) — R-064-Y3: landscape では横一列ピルに圧縮（縦画面・md以上は現状維持） */}
-					<div className="px-4 pb-3 pt-0 landscape:px-1 landscape:pb-0.5 landscape:pt-0">
-						<div className="flex flex-wrap gap-2 landscape:gap-1 landscape:flex-nowrap">
+					{/* Bottom Row: Dates (Fixed) — R-064-Y4: landscape-compact（スマホ横）のみ横一列ピルに圧縮 */}
+					<div className="px-4 pb-3 pt-0 landscape-compact:!px-1 landscape-compact:!pb-0.5 landscape-compact:!pt-0">
+						<div className="flex flex-wrap gap-2 landscape-compact:!gap-1 landscape-compact:!flex-nowrap">
 							{/* Due Date Input */}
 							<div className={cn(
 								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
-								"landscape:flex-row landscape:items-center landscape:gap-1 landscape:py-0.5 landscape:px-1.5",
+								"landscape-compact:!flex-row landscape-compact:!items-center landscape-compact:!gap-1 landscape-compact:!py-0.5 landscape-compact:!px-1.5",
 								activeDateInput === 'due'
 									? "bg-red-50/60 dark:bg-red-900/20 border-red-300 dark:border-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)] ring-1 ring-red-200 dark:ring-red-700"
 									: "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
 							)}>
 								<div className={cn("flex items-center gap-1", activeDateInput === 'due' ? "text-red-500" : "text-slate-400")}>
-									<CalendarDays size={14} className="landscape:w-[10px] landscape:h-[10px] md:w-[16px] md:h-[16px]" />
-									<label className="block text-[8px] md:text-[10px] landscape:text-[8px] font-bold uppercase tracking-wider whitespace-nowrap">
+									<CalendarDays size={14} className="landscape-compact:!w-[10px] landscape-compact:!h-[10px] md:w-[16px] md:h-[16px]" />
+									<label className="block text-[8px] md:text-[10px] landscape-compact:!text-[8px] font-bold uppercase tracking-wider whitespace-nowrap">
 										納期
 									</label>
 								</div>
-								<div className="flex-1 min-w-0 w-full landscape:w-auto">
+								<div className="flex-1 min-w-0 w-full landscape-compact:!w-auto">
 									<SmartDateInput
 										value={dueDate ? new Date(dueDate) : null}
 										onChange={(d) => {
@@ -636,7 +636,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 											if (onUpdate) onUpdate(item.id, { due_date: val, dueStatus: 'confirmed' });
 											else ApiClient.updateItem(item.id, { due_date: val, dueStatus: 'confirmed' });
 										}}
-										inputClassName="w-[71px] border-0 px-0 text-sm landscape:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
+										inputClassName="w-[71px] border-0 px-0 text-sm landscape-compact:!text-xs font-bold bg-transparent focus:ring-0 focus:outline-none"
 										className="[&_svg]:hidden"
 										onFocus={() => setActiveDateInput('due')}
 									/>
@@ -646,7 +646,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							{/* Preparation Date Input */}
 							<div className={cn(
 								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
-								"landscape:flex-row landscape:items-center landscape:gap-1 landscape:py-0.5 landscape:px-1.5",
+								"landscape-compact:!flex-row landscape-compact:!items-center landscape-compact:!gap-1 landscape-compact:!py-0.5 landscape-compact:!px-1.5",
 								activeDateInput === 'my'
 									? "bg-blue-50/60 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-blue-200 dark:ring-blue-700"
 									: "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
@@ -657,15 +657,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 										? "text-red-500"
 										: activeDateInput === 'my' ? "text-blue-500" : "text-slate-400"
 								)}>
-									<CalendarClock size={14} className="landscape:w-[10px] landscape:h-[10px] md:w-[16px] md:h-[16px]" />
+									<CalendarClock size={14} className="landscape-compact:!w-[10px] landscape-compact:!h-[10px] md:w-[16px] md:h-[16px]" />
 									<label className={cn(
-										"block text-[8px] md:text-[10px] landscape:text-[8px] font-bold uppercase tracking-wider whitespace-nowrap",
+										"block text-[8px] md:text-[10px] landscape-compact:!text-[8px] font-bold uppercase tracking-wider whitespace-nowrap",
 										(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && "text-red-500"
 									)}>
 										マイ期限{(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && ' ⚠'}
 									</label>
 								</div>
-								<div className="flex-1 min-w-0 w-full landscape:w-auto">
+								<div className="flex-1 min-w-0 w-full landscape-compact:!w-auto">
 									<SmartDateInput
 										value={prepDate ? new Date(prepDate) : null}
 										onChange={(d) => {
@@ -678,7 +678,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 											else ApiClient.updateItem(item.id, { prep_date: timestamp });
 										}}
 										inputClassName={cn(
-											"w-[71px] border-0 px-0 text-sm landscape:text-xs font-bold bg-transparent focus:ring-0 focus:outline-none",
+											"w-[71px] border-0 px-0 text-sm landscape-compact:!text-xs font-bold bg-transparent focus:ring-0 focus:outline-none",
 											(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && "text-red-500"
 										)}
 										className="[&_svg]:hidden"
@@ -690,12 +690,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 					</div>
 				</div>
 
-				{/* Middle Area — R-064: landscape=2カラム flex-row / portrait=縦積み flex-col */}
-				<div className="flex-1 min-h-0 flex flex-col md:flex-row landscape:flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+				{/* Middle Area — R-064: landscape-compact（スマホ横）=2カラム flex-row / md以上またはportrait=縦積みまたは横2カラム flex-col|flex-row */}
+				<div className="flex-1 min-h-0 flex flex-col md:flex-row landscape-compact:!flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
 
-					{/* LEFT COLUMN: カレンダー専有（R-064: landscape で h-full 確保） */}
-					{/* R-064-Y2: landscape では flex-1 + min-h-0 でフレックス内の高さを確実に伝搬させる */}
-					<div className="flex-none md:flex-1 landscape:flex-1 landscape:min-h-0 flex flex-col min-w-0 md:border-r landscape:border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full landscape:h-full overflow-hidden">
+					{/* LEFT COLUMN: カレンダー専有（R-064: landscape-compact で h-full 確保） */}
+					{/* R-064-Y4: landscape-compact（スマホ横）では flex-1 + min-h-0 でフレックス内の高さを確実に伝搬させる */}
+					<div className="flex-none md:flex-1 landscape-compact:!flex-1 landscape-compact:!min-h-0 flex flex-col min-w-0 md:border-r landscape-compact:!border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full landscape-compact:!h-full overflow-hidden">
 
 						{/* カレンダー（flex-1 で最大化） */}
 						<div className="flex-1 min-h-0 bg-white dark:bg-slate-900">
@@ -773,7 +773,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
 
 					{/* RIGHT COLUMN: Estimates, Assignee, Subtasks, Memo/Boost（R-064: 独立スクロール） */}
-					<div className="w-full md:w-[320px] landscape:w-[320px] lg:w-[360px] flex-1 md:flex-none landscape:flex-none flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
+					<div className="w-full md:w-[320px] landscape-compact:!w-[320px] lg:w-[360px] flex-1 md:flex-none landscape-compact:!flex-none flex flex-col border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-5 space-y-6">
 
 						{/* R-064: Boost & Memo（カレンダーカラムから移動） */}
 						<div className="space-y-2">
