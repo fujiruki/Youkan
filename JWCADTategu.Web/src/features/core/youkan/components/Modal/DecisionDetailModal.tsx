@@ -404,10 +404,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 				className="relative w-[98vw] h-[calc(100vh-20px)] flex flex-col overflow-hidden rounded-xl shadow-2xl bg-white dark:bg-gray-800"
 				onClick={e => e.stopPropagation()}
 			>
-				{/* Header (Fixed) */}
+				{/* Header (Fixed) — R-064-Y2: landscape でコンパクト化（縦画面・md以上は現状維持） */}
 				<div className="flex-none flex flex-col border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 z-10">
 					{/* Top Row: Breadcrumbs & Close */}
-					<div className="flex justify-between items-start p-4 pb-2">
+					<div className="flex justify-between items-start p-4 pb-2 landscape:p-2 landscape:pb-1">
 						<div className="flex-1 min-w-0">
 							{/* Breadcrumbs (Tenant/Project) */}
 							<div className="flex items-center gap-1 mb-1 overflow-visible h-6 relative z-50">
@@ -548,6 +548,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								data-testid="decision-detail-title-input"
 								className={cn(
 									"w-full text-2xl md:text-3xl font-bold leading-tight bg-transparent px-1 -ml-1 rounded transition-colors outline-none hover:bg-slate-50 dark:hover:bg-slate-800/50 focus:bg-slate-100 dark:focus:bg-slate-800 placeholder:font-normal placeholder:italic placeholder:text-slate-400 dark:placeholder:text-slate-500",
+									"landscape:text-base landscape:leading-none landscape:py-0",
 									isItemDone(item) ? COMPLETED_ITEM_CLASS : "text-slate-800 dark:text-white"
 								)}
 								placeholder="タイトル未入力"
@@ -577,7 +578,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 									label = tenant ? `${tenant.name}マネージャーとして` : '自分の時間管理';
 								}
 								return (
-									<div className="flex items-center mt-1">
+									<div className="flex items-center mt-1 landscape:hidden">
 										<span className="text-[9px] font-black text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2.5 py-0.5 rounded-full border border-slate-100 dark:border-slate-800 uppercase tracking-tighter">
 											{label}
 										</span>
@@ -609,20 +610,20 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 						</div>
 					</div>
 
-					{/* Bottom Row: Dates (Fixed) */}
-					<div className="px-4 pb-3 pt-0">
+					{/* Bottom Row: Dates (Fixed) — landscape: padding 圧縮・要素を横並び小型化 */}
+					<div className="px-4 pb-3 pt-0 landscape:px-2 landscape:pb-1 landscape:pt-0">
 						{/* Mobile Side-by-Side Optimization: Fixed width for yyyy/mm/dd */}
-						<div className="flex flex-wrap gap-2">
+						<div className="flex flex-wrap gap-2 landscape:gap-1.5">
 							{/* Due Date Input */}
 							<div className={cn(
-								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
+								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 landscape:p-1 rounded-lg border transition-all duration-300",
 								activeDateInput === 'due'
 									? "bg-red-50/60 dark:bg-red-900/20 border-red-300 dark:border-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)] ring-1 ring-red-200 dark:ring-red-700"
 									: "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
 							)}>
 								<div className={cn("flex items-center gap-1", activeDateInput === 'due' ? "text-red-500" : "text-slate-400")}>
-									<CalendarDays size={14} className="md:w-[16px] md:h-[16px]" />
-									<label className="block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+									<CalendarDays size={14} className="landscape:w-[11px] landscape:h-[11px] md:w-[16px] md:h-[16px]" />
+									<label className="block text-[8px] md:text-[10px] landscape:text-[7px] font-bold uppercase tracking-wider whitespace-nowrap">
 										納期
 									</label>
 								</div>
@@ -644,7 +645,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
 							{/* Preparation Date Input */}
 							<div className={cn(
-								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 rounded-lg border transition-all duration-300",
+								"flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 p-1.5 landscape:p-1 rounded-lg border transition-all duration-300",
 								activeDateInput === 'my'
 									? "bg-blue-50/60 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600 shadow-[0_0_8px_rgba(59,130,246,0.3)] ring-1 ring-blue-200 dark:ring-blue-700"
 									: "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700"
@@ -656,9 +657,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 										? "text-red-500"
 										: activeDateInput === 'my' ? "text-blue-500" : "text-slate-400"
 								)}>
-									<CalendarClock size={14} className="md:w-[16px] md:h-[16px]" />
+									<CalendarClock size={14} className="landscape:w-[11px] landscape:h-[11px] md:w-[16px] md:h-[16px]" />
 									<label className={cn(
-										"block text-[8px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
+										"block text-[8px] md:text-[10px] landscape:text-[7px] font-bold uppercase tracking-wider whitespace-nowrap",
 										(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && "text-red-500"
 									)}>
 										マイ期限{(dueDate && prepDate && new Date(prepDate) > new Date(dueDate)) && ' ⚠ 納期超過'}
@@ -693,7 +694,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 				<div className="flex-1 min-h-0 flex flex-col md:flex-row landscape:flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
 
 					{/* LEFT COLUMN: カレンダー専有（R-064: landscape で h-full 確保） */}
-					<div className="flex-none md:flex-1 landscape:flex-1 flex flex-col min-w-0 md:border-r landscape:border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full landscape:h-full overflow-hidden">
+					{/* R-064-Y2: landscape では flex-1 + min-h-0 でフレックス内の高さを確実に伝搬させる */}
+					<div className="flex-none md:flex-1 landscape:flex-1 landscape:min-h-0 flex flex-col min-w-0 md:border-r landscape:border-r border-slate-200 dark:border-slate-800 h-[45vh] md:h-full landscape:h-full overflow-hidden">
 
 						{/* カレンダー（flex-1 で最大化） */}
 						<div className="flex-1 min-h-0 bg-white dark:bg-slate-900">
