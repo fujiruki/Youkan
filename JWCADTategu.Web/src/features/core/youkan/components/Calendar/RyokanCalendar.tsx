@@ -62,6 +62,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	loadDirection = null,
 	loadedRange: _loadedRange,
 	googleCalendars = [],
+	hideExternalEventTime = false,
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -690,6 +691,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
+						hideExternalEventTime={hideExternalEventTime}
 					/>
 				)}
 				{displayMode === 'grid' && (
@@ -722,6 +724,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						isLoadingMore={isLoadingMore}
 						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
+						hideExternalEventTime={hideExternalEventTime}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -910,6 +913,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 							key={ev.id}
 							event={ev}
 							colorHex={getCalendarColor(ev.calendarId, googleCalendars)}
+							hideTime={hideExternalEventTime}
 							onClick={(e) => {
 								setExternalMoreState(null);
 								setSelectedExternalEvent(e);

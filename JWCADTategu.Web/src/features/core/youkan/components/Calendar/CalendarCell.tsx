@@ -45,13 +45,15 @@ interface CalendarCellProps {
     externalEventsMaxVisible?: number;
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
     googleCalendars?: GoogleCalendar[];
+    /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
+    hideExternalEventTime?: boolean;
 }
 
 const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
     volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
     externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3,
-    googleCalendars = []
+    googleCalendars = [], hideExternalEventTime = false
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -223,6 +225,7 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
                                     event={ev}
                                     colorHex={getCalendarColor(ev.calendarId, googleCalendars)}
                                     onClick={onExternalEventClick}
+                                    hideTime={hideExternalEventTime}
                                 />
                             ))}
                             {externalEvents.length > externalEventsMaxVisible && (

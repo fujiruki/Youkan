@@ -10,6 +10,8 @@ interface Props {
     compact?: boolean;
     /** R-041-Y3: 紐づく Google カレンダーのカラー hex。指定があれば tint 背景と左色帯に反映する */
     colorHex?: string;
+    /** R-063: true のとき時刻ラベル（HH:MM / [終日]）を非表示にする。タイトルと📅は出す */
+    hideTime?: boolean;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -27,7 +29,7 @@ const formatTimeLabel = (event: ExternalEvent): string => {
  * - 点線左ボーダー（border-dashed border-l-[3px]）で Youkan タスク（実線）と視覚差別化
  * - Google イベントは Youkan のタスクではないため、完了スタイル（R-035）は適用しない
  */
-export const ExternalEventChip: React.FC<Props> = React.memo(({ event, onClick, compact = false, colorHex }) => {
+export const ExternalEventChip: React.FC<Props> = React.memo(({ event, onClick, compact = false, colorHex, hideTime = false }) => {
     const timeLabel = formatTimeLabel(event);
     const title = (event.title && event.title.trim()) || '(無題)';
 
@@ -58,7 +60,7 @@ export const ExternalEventChip: React.FC<Props> = React.memo(({ event, onClick, 
             )}
         >
             <span aria-hidden="true">📅</span>
-            <span className="font-semibold tabular-nums">{timeLabel}</span>
+            {!hideTime && <span className="font-semibold tabular-nums">{timeLabel}</span>}
             <span className="truncate">{title}</span>
         </button>
     );

@@ -24,6 +24,8 @@ interface SideCalendarPanelProps {
     // R-061: 外部イベント
     externalEventsByDate?: Map<string, ExternalEvent[]>;
     googleCalendars?: GoogleCalendar[];
+    /** R-063: true のとき外部イベントチップで時刻を非表示にする */
+    hideExternalEventTime?: boolean;
 }
 
 const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
@@ -37,6 +39,7 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
     items, members, capacityConfig, projects, joinedTenants, currentUserId, commitPeriod,
     externalEventsByDate,
     googleCalendars,
+    hideExternalEventTime = false,
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -79,6 +82,7 @@ const SideCalendarPanelInner: React.FC<SideCalendarPanelProps> = ({
                     forceScroll={!!manualFocusDate}
                     externalEventsByDate={externalEventsByDate}
                     googleCalendars={googleCalendars}
+                    hideExternalEventTime={hideExternalEventTime}
                 />
             </div>
 

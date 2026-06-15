@@ -59,6 +59,8 @@ interface GridViewProps {
     loadDirection?: 'before' | 'after' | null;
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
     googleCalendars?: GoogleCalendar[];
+    /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
+    hideExternalEventTime?: boolean;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -80,6 +82,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     isLoadingMore = false,
     loadDirection = null,
     googleCalendars = [],
+    hideExternalEventTime = false,
 }) => {
     const handleCellAction = React.useCallback(
         (d: Date, _items: Item[], type: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => onAction(d, type, rect),
@@ -206,6 +209,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 onExternalEventsMoreClick={onExternalEventsMoreClick}
                                 externalEventsMaxVisible={externalEventsMaxVisible}
                                 googleCalendars={googleCalendars}
+                                hideExternalEventTime={hideExternalEventTime}
                             />
                         );
                     })}

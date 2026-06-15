@@ -712,6 +712,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								commitPeriod={commitPeriodDates}
 								externalEventsByDate={externalEventsByDate}
 								googleCalendars={googleCalendars}
+								hideExternalEventTime={true}
 							/>
 						</div>
 

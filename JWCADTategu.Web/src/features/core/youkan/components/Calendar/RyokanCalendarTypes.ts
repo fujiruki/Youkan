@@ -67,4 +67,6 @@ export interface RyokanCalendarProps {
     loadedRange?: { from: string; to: string };
     /** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
     googleCalendars?: GoogleCalendar[];
+    /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
+    hideExternalEventTime?: boolean;
 }

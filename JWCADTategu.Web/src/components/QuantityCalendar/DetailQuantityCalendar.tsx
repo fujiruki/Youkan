@@ -28,6 +28,8 @@ interface DetailQuantityCalendarProps {
 	// R-061: 外部イベント
 	externalEventsByDate?: Map<string, ExternalEvent[]>;
 	googleCalendars?: GoogleCalendar[];
+	/** R-063: true のとき外部イベントチップで時刻を非表示にする */
+	hideExternalEventTime?: boolean;
 }
 
 const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
@@ -48,6 +50,7 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 	forceScroll,
 	externalEventsByDate,
 	googleCalendars,
+	hideExternalEventTime = true,
 }) => {
 	const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
 
@@ -180,6 +183,7 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 
 					externalEventsByDate={externalEventsByDate}
 					googleCalendars={googleCalendars}
+					hideExternalEventTime={hideExternalEventTime}
 				/>
 			</div>
 		</div>
