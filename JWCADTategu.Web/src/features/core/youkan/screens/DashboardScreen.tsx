@@ -132,11 +132,6 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
 
-	// R-036: ガントビューの「完了を表示」スイッチ。
-	// 仕様 §5.4 によりセッション単位（ブラウザを閉じるとデフォルト on に戻る）。
-	// localStorage には永続化しない。
-	const [showCompletedInGantt, setShowCompletedInGantt] = useState<boolean>(true);
-
 	const calendarRef = useRef<RyokanCalendarHandle>(null);
 	const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date());
 
@@ -171,10 +166,10 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		].filter(item => item != null && item.status !== 'someday');
 	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
 
-	// R-036: ガントビューに渡すアイテムは「完了を表示」スイッチで done を絞り込む
+	// R-065: 右上「完了非表示」ボタン（FilterContext.hideCompleted）でガント完了表示を制御
 	const ganttItems = useMemo(
-		() => applyGanttCompletedFilter(unifiedAllItems, showCompletedInGantt),
-		[unifiedAllItems, showCompletedInGantt]
+		() => applyGanttCompletedFilter(unifiedAllItems, !hideCompleted),
+		[unifiedAllItems, hideCompleted]
 	);
 
 
@@ -251,8 +246,6 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					onRowHeightChange={setGanttRowHeight}
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
-					showCompleted={showCompletedInGantt}
-					onShowCompletedChange={setShowCompletedInGantt}
 				/>
 			)}
 

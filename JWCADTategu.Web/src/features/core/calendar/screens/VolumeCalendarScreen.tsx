@@ -38,11 +38,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
 
-	// R-036: ガントビューの「完了を表示」スイッチ。
-	// 仕様 §5.4 によりセッション単位（ブラウザを閉じるとデフォルト on に戻る）。
-	// localStorage には永続化しない。
-	const [showCompletedInGantt, setShowCompletedInGantt] = useState<boolean>(true);
-	const { filterMode } = useFilter();
+	const { filterMode, hideCompleted } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
 	const {
@@ -104,22 +100,15 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	// useExternalEvents.loadMore はそのまま渡せばよい（direction / months 引数の意味は一致）。
 
 	/**
-	 * R-036 真因対応:
-	 * バックエンド `/calendar/items` は status='done' を SQL レベルで除外して返すため、
-	 * `items` には完了アイテムが含まれない。完了アイテムは `/calendar/completed` で
-	 * 別取得され `completedItems` に入っている。
-	 *
-	 * 「完了を表示」スイッチを意味あるものにするには、ON のときに
-	 * items + completedItems を合成してからガント等のビューに渡す必要がある。
-	 * OFF のときは items だけを渡す（API 側で done 除外済のため、追加フィルタは不要だが
-	 * 防御的に applyGanttCompletedFilter を通す）。
+	 * R-065: 右上「完了非表示」ボタン（FilterContext.hideCompleted）に統一。
+	 * hideCompleted=false → 完了表示（items + completedItems をマージ）
+	 * hideCompleted=true  → 完了非表示（items のみ）
 	 */
 	const visibleItems = React.useMemo(() => {
-		const merged = showCompletedInGantt
-			? [...items, ...filteredCompletedItems]
-			: items;
-		return applyGanttCompletedFilter(merged, showCompletedInGantt);
-	}, [items, filteredCompletedItems, showCompletedInGantt]);
+		const showCompleted = !hideCompleted;
+		const merged = showCompleted ? [...items, ...filteredCompletedItems] : items;
+		return applyGanttCompletedFilter(merged, showCompleted);
+	}, [items, filteredCompletedItems, hideCompleted]);
 
 	const handleUpdate = async (id: string, updates: Partial<Item>) => {
 		try {
@@ -208,8 +197,6 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
-					showCompleted={showCompletedInGantt}
-					onShowCompletedChange={setShowCompletedInGantt}
 					extraActions={<CalendarToggleButton />}
 				/>
 			)}
@@ -218,7 +205,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 				<RyokanCalendar
 					ref={calendarRef}
 					items={visibleItems || []}
-					completedItems={completedItems || []}
+					completedItems={hideCompleted ? [] : (filteredCompletedItems || [])}
 					members={members || []}
 					projects={projects || []}
 					focusedProjectId={activeProjectId}
