@@ -280,9 +280,11 @@ class CalendarController extends BaseController {
 
     public function handleRequest($method, $id = null) {
         $params = $_GET;
-        if (preg_match('#/completed$#', $_SERVER['REQUEST_URI'])) {
+        // クエリ文字列を除いたパスでルーティング（REQUEST_URI には ?query が含まれるため $ アンカーが機能しないバグを修正）
+        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        if (preg_match('#/completed$#', $path)) {
             $this->getCompletedItems($params);
-        } elseif (preg_match('#/items$#', $_SERVER['REQUEST_URI'])) {
+        } elseif (preg_match('#/items$#', $path)) {
             $this->getItems($params);
         } else {
             echo json_encode($this->getLoad($params));
