@@ -404,6 +404,7 @@ export const useExternalEvents = (
     const [loadedRange, setLoadedRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
     const reqIdRef = useRef(0);
     const loadedMonthsRef = useRef<Set<string>>(new Set());
+    const blockedLoadMoreDirectionsRef = useRef<Set<LoadMoreDirection>>(new Set());
 
     /** R-039: 現在 viewMode が有効か（無効なら fetch をスキップ） */
     const isViewEnabled = useCallback((): boolean => {
@@ -417,6 +418,7 @@ export const useExternalEvents = (
             setEventsByDate(new Map());
             setLoadedRange({ from: '', to: '' });
             loadedMonthsRef.current = new Set();
+            blockedLoadMoreDirectionsRef.current = new Set();
             setLoading(false);
             return;
         }
@@ -425,6 +427,7 @@ export const useExternalEvents = (
             setEventsByDate(new Map());
             setLoadedRange({ from: '', to: '' });
             loadedMonthsRef.current = new Set();
+            blockedLoadMoreDirectionsRef.current = new Set();
             setLoading(false);
             return;
         }
@@ -462,6 +465,7 @@ export const useExternalEvents = (
             setEventsByDate(merged);
             setLoadedRange({ from, to });
             setError(null);
+            blockedLoadMoreDirectionsRef.current = new Set();
         } catch (e) {
             if (myReqId !== reqIdRef.current) return;
             setError(e as Error);
@@ -491,6 +495,10 @@ export const useExternalEvents = (
         // R-042-Y3: スケルトン UI 側で方向別の表示切替に使うため、本格的な処理に入る前に方向を公開する。
         setLoadDirection(direction);
         if (!months || months <= 0) {
+            setLoadDirection(null);
+            return;
+        }
+        if (blockedLoadMoreDirectionsRef.current.has(direction)) {
             setLoadDirection(null);
             return;
         }
@@ -555,6 +563,11 @@ export const useExternalEvents = (
             if (firstRange && lastRange) {
                 setLoadedRange({ from: firstRange.from, to: lastRange.to });
             }
+            setError(null);
+            blockedLoadMoreDirectionsRef.current.delete(direction);
+        } catch (e) {
+            setError(e as Error);
+            blockedLoadMoreDirectionsRef.current.add(direction);
         } finally {
             setIsLoadingMore(false);
             setLoadDirection(null);

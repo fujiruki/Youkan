@@ -19,6 +19,7 @@ import { GoogleCalendar } from '../../../../../api/googleCalendar';
 import { getCalendarColor, toTint } from '../../logic/calendarColor';
 import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
 import { Skeleton } from '../../../../../shared/components/Skeleton';
+import { ApiClient } from '../../../../../api/client';
 
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
@@ -76,6 +77,8 @@ interface GanttViewProps {
 	projects: any[];
 	onJumpToDate?: (date: Date) => void;
 	onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void;
+	onCreateItem?: (item: Partial<Item>) => Promise<string | undefined> | string | undefined;
+	onReloadItems?: () => Promise<void> | void;
 	onDeleteItem?: (id: string) => Promise<void> | void;
 	renderItemTitle: (item: Item) => string;
 	// Context Props for QuantityEngine
@@ -110,7 +113,7 @@ const GANTT_EXTERNAL_EVENTS_MAX = 2;
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
-	onUpdateItem, onDeleteItem,
+	onUpdateItem, onCreateItem, onReloadItems, onDeleteItem,
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
 	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
@@ -123,7 +126,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	// R-042-Y2: 横スクロール左端・右端の sentinel。
 	// 追加ロード中（isLoadingMore=true）は enabled=false で二重発火を抑止する。
 	// R-050: 上限到達時（24 ヶ月超）はメモリ保護のため発火停止。
-	const sentinelEnabled = !!onLoadMore && !isLoadingMore && !limitReached;
+	// Gantt keeps manual range buttons; automatic edge sentinels can repeatedly fire when an edge stays visible.
+	const sentinelEnabled = false;
 	const setBeforeRef = useLazyLoadSentinel({
 		enabled: sentinelEnabled,
 		onIntersect: () => onLoadMore?.('before', LAZY_LOAD_MONTHS),
@@ -143,6 +147,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const [timeInputValue, setTimeInputValue] = useState('');
 	const timeInputRef = useRef<HTMLInputElement>(null);
 	const [itemContextMenu, setItemContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
+	const [inlineInsert, setInlineInsert] = useState<{ itemId: string; position: 'before' | 'after'; title: string } | null>(null);
+	const inlineInsertRef = useRef<HTMLInputElement>(null);
+	const inlineInsertSubmittingRef = useRef(false);
 
 	// scrollRefが渡された場合はそちらを優先する実効ref
 	const effectiveScrollRef = scrollRef || scrollContainerRef;
@@ -182,6 +189,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		}
 	}, [editingTimeItemId]);
 
+	useEffect(() => {
+		if (inlineInsert && inlineInsertRef.current) {
+			inlineInsertRef.current.focus();
+		}
+	}, [inlineInsert]);
+
 	const handleTimeEditConfirm = useCallback(async (itemId: string) => {
 		const minutes = parseTimeInput(timeInputValue);
 		if (minutes !== null) {
@@ -197,6 +210,11 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	}, []);
 
 	const closeItemContextMenu = useCallback(() => setItemContextMenu(null), []);
+
+	const startInlineInsert = useCallback((itemId: string, position: 'before' | 'after') => {
+		setInlineInsert({ itemId, position, title: '' });
+		closeItemContextMenu();
+	}, [closeItemContextMenu]);
 
 	const handleContextMenuDelete = useCallback(async (itemId: string) => {
 		try {
@@ -399,6 +417,52 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		return hierarchicalWrappers;
 	}, [items, projects, showGroups, focusedProjectId, visibleDependencies]);
 
+	const submitInlineInsert = useCallback(async () => {
+		if (inlineInsertSubmittingRef.current) return;
+		if (!inlineInsert || !inlineInsert.title.trim()) {
+			setInlineInsert(null);
+			return;
+		}
+		const sourceItem = items.find(i => i.id === inlineInsert.itemId);
+		if (!sourceItem) {
+			setInlineInsert(null);
+			return;
+		}
+
+		inlineInsertSubmittingRef.current = true;
+		try {
+			const projectId = sourceItem.projectId || focusedProjectId || undefined;
+			const parentId = sourceItem.parentId || projectId || undefined;
+			const newItemId = await onCreateItem?.({
+				title: inlineInsert.title.trim(),
+				status: 'inbox',
+				tenantId: sourceItem.tenantId || focusedTenantId || null,
+				projectId,
+				parentId,
+				estimatedMinutes: 0,
+			} as Partial<Item>);
+
+			if (newItemId) {
+				const orderedItemIds = transformedItems
+					.filter((w): w is Extract<HierarchicalWrapper, { type: 'item' }> => w.type === 'item')
+					.map(w => w.item.id);
+				const sourceIndex = orderedItemIds.indexOf(sourceItem.id);
+				const insertIndex = sourceIndex < 0
+					? orderedItemIds.length
+					: sourceIndex + (inlineInsert.position === 'after' ? 1 : 0);
+				const nextOrder = [...orderedItemIds];
+				nextOrder.splice(insertIndex, 0, newItemId);
+				await ApiClient.reorderItems(nextOrder.map((id, index) => ({ id, order: index + 1 }))).catch(() => undefined);
+			}
+			await onReloadItems?.();
+		} catch (error) {
+			console.error('Inline insert failed', error);
+		} finally {
+			inlineInsertSubmittingRef.current = false;
+			setInlineInsert(null);
+		}
+	}, [inlineInsert, items, focusedProjectId, focusedTenantId, onCreateItem, onReloadItems, transformedItems]);
+
 	// Calculate detailed allocations using QuantityEngine
 	const allocationMap = useMemo(() => {
 		if (!capacityConfig || !currentUserId) return new Map();
@@ -465,6 +529,47 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			};
 		}
 		return baseStyle;
+	};
+
+	const renderInlineInsertRow = (sourceItem: Item, position: 'before' | 'after', depth: number) => {
+		if (!inlineInsert || inlineInsert.itemId !== sourceItem.id || inlineInsert.position !== position) return null;
+		return (
+			<div
+				key={`inline-insert-${position}-${sourceItem.id}`}
+				className="gantt-row-cv flex h-7 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30"
+			>
+				<div className="sticky left-0 z-20 w-64 shrink-0 bg-indigo-50 dark:bg-indigo-950 border-r border-indigo-200 dark:border-indigo-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+					<input
+						ref={inlineInsertRef}
+						type="text"
+						value={inlineInsert.title}
+						onChange={(e) => setInlineInsert({ ...inlineInsert, title: e.target.value })}
+						onKeyDown={(e) => {
+							e.stopPropagation();
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								submitInlineInsert();
+							} else if (e.key === 'Escape') {
+								setInlineInsert(null);
+							}
+						}}
+						onBlur={() => {
+							if (inlineInsertSubmittingRef.current) return;
+							if (inlineInsert.title.trim()) submitInlineInsert();
+							else setInlineInsert(null);
+						}}
+						style={{ marginLeft: `${depth * 16}px` }}
+						placeholder={position === 'before' ? '前に追加...' : '後に追加...'}
+						className="w-full h-5 px-2 text-xs rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
+					/>
+				</div>
+				<div className="flex">
+					{allDays.map(date => (
+						<div key={`inline-${position}-${sourceItem.id}-${date.toDateString()}`} className="w-6 flex-shrink-0 border-r border-indigo-100/70 dark:border-indigo-900/50" />
+					))}
+				</div>
+			</div>
+		);
 	};
 
 	return (
@@ -740,6 +845,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const done = isItemDone(item);
 
 							return (
+								<React.Fragment key={`row-fragment-${item.id}`}>
+								{renderInlineInsertRow(item, 'before', depth)}
 								<div
 									key={item.id}
 									data-item-id={item.id}
@@ -903,6 +1010,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 										})}
 									</div>
 								</div>
+								{renderInlineInsertRow(item, 'after', depth)}
+								</React.Fragment>
 							);
 						})}
 					</div>
@@ -918,6 +1027,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					onOpenDetail: (id) => { onItemClick?.(items.find(i => i.id === id)!); closeItemContextMenu(); },
 					onMakeProject: async (id) => { await onUpdateItem?.(id, { isProject: true } as any); closeItemContextMenu(); },
 					onResolveYes: async (id) => { await onUpdateItem?.(id, { status: 'focus' } as any); closeItemContextMenu(); },
+					onInsertBefore: (id) => startInlineInsert(id, 'before'),
+					onInsertAfter: (id) => startInlineInsert(id, 'after'),
 					onMarkDone: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
 					onResolveNo: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
 					onDelete: (id) => { handleContextMenuDelete(id); closeItemContextMenu(); },

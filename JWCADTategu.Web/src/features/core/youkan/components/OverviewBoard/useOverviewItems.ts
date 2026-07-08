@@ -36,13 +36,16 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			...(executionItem ? [executionItem] : []),
 			...(gdbLog || [])
 		];
+		const allItems = Array.from(
+			new Map(allItemsRaw.filter(Boolean).map(item => [String(item.id), item])).values()
+		);
 
 		// 2. Build Hierarchy using Common Logic
 		// R-048: OverviewBoard では依存関係を考慮しない（フロー/ガント画面でのみ /dependencies を取得するため）
 		const hierarchicalWrappers = buildHierarchicalList({
 			activeProjectId: activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null),
 			allProjects: viewModelProjects,
-			allItems: allItemsRaw,
+			allItems,
 			showGroups: true,
 			hideCompleted,
 			dependencies: [],

@@ -302,5 +302,6 @@ describe('useExternalEvents', () => {
             await waitFor(() => expect(result.current.loading).toBe(false));
             expect(typeof result.current.loadMore).toBe('function');
         });
+
     });
 });

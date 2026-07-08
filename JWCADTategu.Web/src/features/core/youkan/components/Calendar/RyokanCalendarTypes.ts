@@ -33,6 +33,9 @@ export interface RyokanCalendarProps {
     focusedTenantId?: string | null; // Keep as string for selection
     focusedProjectId?: string | null;
     currentUserId?: string | null;
+    currentUserIsCompanyAccount?: boolean;
+    useTeamCapacity?: boolean;
+    teamCapacityTenantId?: string | null;
     joinedTenants?: JoinedTenant[]; // [Modified] Rich object
     // [NEW] Capacity Editing
     tenantProfiles?: Map<string, any>;
@@ -47,12 +50,18 @@ export interface RyokanCalendarProps {
     selectionMode?: 'due' | 'prep' | null; // For styling/behavior
     disablePressureLines?: boolean; // [NEW] Disable yellow pressure lines
     onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void; // [NEW] For drag updates
+    onCreateItem?: (item: Partial<Item>) => Promise<string | undefined> | string | undefined;
+    onReloadItems?: () => Promise<void> | void;
     onDeleteItem?: (id: string) => Promise<void> | void;
     // [NEW] Phase 24: Gantt Header integration
     onVisibleMonthChange?: (date: Date) => void; // Reports which month is currently in view
     onOpenDailySettings?: (date: Date) => void; // Opens DailyCapacityEditor for the given date
     showGroups?: boolean; // [NEW] Toggle project grouping in Gantt
     forceScroll?: boolean; // 明示的ナビゲーション時にrange内でもスクロール強制
+    /** Initial month span on each side of focusDate. Detail calendars can keep this smaller than the full calendar. */
+    initialRangeMonths?: number;
+    /** Disable automatic range prepend/append on scroll. Use this for embedded detail calendars where scroll must stay immediate. */
+    disableRangeExtension?: boolean;
     /** R-034 Phase 2: Google カレンダー外部イベント（date キー -> events） */
     externalEventsByDate?: Map<string, ExternalEvent[]>;
     /** R-034 Phase 2: グリッドビューのセル内に表示する最大件数（デフォルト 3） */

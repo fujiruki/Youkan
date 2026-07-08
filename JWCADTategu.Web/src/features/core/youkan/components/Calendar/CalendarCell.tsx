@@ -92,7 +92,7 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
             className={cn(
                 "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full group",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[80px] h-full border-r flex flex-col p-1 border-b border-slate-100 dark:border-slate-800",
-                volumeOnly && rowHeight && `h-[${rowHeight}px] min-h-0`,
+                volumeOnly && rowHeight && "min-h-0",
                 monthBoundaryTop ? "border-t-[3px] border-t-slate-500 dark:border-t-slate-400" : "",
                 monthBoundaryBottom ? "border-b-[3px] border-b-slate-500 dark:border-b-slate-400" : "",
                 monthBoundaryLeft ? "border-l-[3px] border-l-slate-500 dark:border-l-slate-400" : "",
@@ -114,6 +114,9 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
                     ? "bg-blue-50/50 dark:bg-blue-900/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,1)]" // [FIX] Make border solid and visible
                     : ""
             )}
+            style={{
+                height: volumeOnly && rowHeight ? `${rowHeight}px` : undefined,
+            }}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
         >

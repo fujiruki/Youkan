@@ -47,19 +47,24 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
     });
 
     // R-049: 実装は tenantProfiles を参照しなくなっており、テスト期待と乖離。R-051 候補として保留。
-    it.skip('Scenario 2: Daily Exception Override', () => {
-        // Setup: Mon=8h, Exception on 2026-02-09 = 0h (Sick day)
-        const profile = createProfile({ 1: 480 }, { '2026-02-09': 0 });
+    it('Scenario 2: Daily Exception Override', () => {
+        // Setup: Mon=8h, company exception on 2026-02-09 = 0h (Unavailable for tenant-A)
+        const profile = createProfile({ 1: 480 });
         const context = { ...baseContext };
         context.tenantProfiles = new Map([['tenant-A', profile]]);
         context.focusedTenantId = 'tenant-A';
+        context.capacityConfig = {
+            ...mockConfig,
+            defaultCompanyWeeklyPattern: { 1: { 'tenant-A': 480 } },
+            dailyCompanyExceptions: { '2026-02-09': { 'tenant-A': 0 } },
+        };
 
         const targetDate = new Date('2026-02-09T00:00:00');
         expect(QuantityEngine.calculateCapacityForDate(targetDate, context)).toBe(0);
     });
 
     // R-049: tenantProfiles 廃止に伴う期待値乖離。R-051 候補として保留。
-    it.skip('Scenario 3: Multi-Tenant Aggregation (All Mode)', () => {
+    it('Scenario 3: All Mode uses the personal total capacity without summing tenant allocations', () => {
         // Setup: Tenant A (Mon=8h), Tenant B (Mon=2h)
         const profileA = createProfile({ 1: 480 });
         const profileB = createProfile({ 1: 120 });
@@ -73,10 +78,18 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
             ['tenant-A', profileA],
             ['tenant-B', profileB]
         ]);
-        context.filterMode = 'all'; // Summation
+        context.filterMode = 'all';
+        context.capacityConfig = {
+            ...mockConfig,
+            standardWeeklyPattern: { 1: 480 },
+            defaultCompanyWeeklyPattern: {
+                1: { 'tenant-A': 360, 'tenant-B': 120 },
+            },
+        };
 
         const monday = new Date('2026-02-09T00:00:00');
-        expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(600); // 480 + 120
+        // All mode is the user's one total work pool. Summing tenant allocations would double-count time.
+        expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(480);
     });
 
     it('Scenario 4: Single Tenant Focus', () => {
@@ -110,9 +123,15 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
 
     describe('Company Capacity Allocation (New Logic)', () => {
         // R-049: joinedTenants 合算ロジック未実装。R-051 候補として保留。
-        it.skip('Scenario 6: Company Specific Weekly Pattern (A社:1h, B社:2h)', () => {
+    it('Scenario 6: Company Specific Weekly Pattern (A社:1h, B社:2h)', () => {
             const context: QuantityContext = {
                 ...baseContext,
+                filterMode: 'company',
+                currentUser: {
+                    id: 'test-user',
+                    isCompanyAccount: false,
+                    joinedTenants: [{ id: 'company-A', name: 'A' }, { id: 'company-B', name: 'B' }],
+                },
                 capacityConfig: {
                     ...mockConfig,
                     defaultCompanyWeeklyPattern: {
@@ -128,7 +147,6 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
             // B社指定での取得
             expect(QuantityEngine.calculateCapacityForDate(monday, context, 'company-B')).toBe(120);
             // 指定なし（合計）: 既存のjoinedTenantsを参照するため、適宜設定が必要
-            context.currentUser!.joinedTenants = [{ id: 'company-A', name: 'A' }, { id: 'company-B', name: 'B' }];
             expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(180); // 60 + 120
         });
 
@@ -166,6 +184,185 @@ describe('QuantityEngine.calculateCapacityForDate', () => {
             const monday = new Date('2026-02-09T00:00:00');
             // Company Weekly (480) should win over Profile (300)
             expect(QuantityEngine.calculateCapacityForDate(monday, context, 'company-A')).toBe(480);
+        });
+
+        it('filterMode ごとに総量・会社合計・個人残量を分母として返す', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                currentUser: {
+                    id: 'test-user',
+                    isCompanyAccount: false,
+                    joinedTenants: [
+                        { id: 'company-A', name: 'A' },
+                        { id: 'company-B', name: 'B' },
+                    ],
+                },
+                capacityConfig: {
+                    ...mockConfig,
+                    standardWeeklyPattern: { 1: 480 },
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 60, 'company-B': 120 },
+                    },
+                },
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, { ...context, filterMode: 'all' })).toBe(480);
+            expect(QuantityEngine.calculateCapacityForDate(monday, { ...context, filterMode: 'company' })).toBe(180);
+            expect(QuantityEngine.calculateCapacityForDate(monday, { ...context, filterMode: 'personal' })).toBe(300);
+            expect(QuantityEngine.calculateCapacityForDate(monday, { ...context, filterMode: 'company-A' }, 'company-A')).toBe(60);
+        });
+
+        it('日次総量例外がある日は personal 分母も総量例外から会社配分を差し引く', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                currentUser: {
+                    id: 'test-user',
+                    isCompanyAccount: false,
+                    joinedTenants: [{ id: 'company-A', name: 'A' }],
+                },
+                filterMode: 'personal',
+                capacityConfig: {
+                    ...mockConfig,
+                    exceptions: { '2026-02-09': 240 },
+                    dailyCompanyExceptions: {
+                        '2026-02-09': { 'company-A': 90 },
+                    },
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 120 },
+                    },
+                },
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(150);
+        });
+
+        it('会社/チームスコープでは主力メンバーの dailyCapacityMinutes 合計を分母にする', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                useTeamCapacity: true,
+                members: [
+                    { id: 'm1', userId: 'u1', display_name: 'Core 1', role: 'member', isCore: true, dailyCapacityMinutes: 300 },
+                    { id: 'm2', userId: 'u2', display_name: 'Core 2', role: 'member', isCore: true, dailyCapacityMinutes: 180 },
+                    { id: 'm3', userId: 'u3', display_name: 'Helper', role: 'member', isCore: false, dailyCapacityMinutes: 480 },
+                ],
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(480);
+        });
+
+        it('会社/チームスコープでも休日は分母を0にする', () => {
+            const sunday = new Date('2026-02-15T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                useTeamCapacity: true,
+                capacityConfig: {
+                    ...mockConfig,
+                    holidays: [{ type: 'weekly', value: '0' }],
+                },
+                members: [
+                    { id: 'm1', userId: 'u1', display_name: 'Core 1', role: 'member', isCore: true, dailyCapacityMinutes: 300 },
+                ],
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(sunday, context)).toBe(0);
+        });
+
+        it('会社/チームスコープではメンバー別の曜日パターンと日別例外を合算する', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const tuesday = new Date('2026-02-10T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                useTeamCapacity: true,
+                members: [
+                    {
+                        id: 'm1',
+                        userId: 'u1',
+                        display_name: 'Core 1',
+                        role: 'member',
+                        isCore: true,
+                        dailyCapacityMinutes: 480,
+                        capacityProfile: {
+                            standardWeeklyPattern: { 1: 300, 2: 240 },
+                            exceptions: { '2026-02-09': 120 },
+                        },
+                    },
+                    {
+                        id: 'm2',
+                        userId: 'u2',
+                        display_name: 'Core 2',
+                        role: 'member',
+                        isCore: true,
+                        dailyCapacityMinutes: 480,
+                        capacityProfile: {
+                            standardWeeklyPattern: { 1: 180, 2: 180 },
+                            exceptions: {},
+                        },
+                    },
+                ],
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(300);
+            expect(QuantityEngine.calculateCapacityForDate(tuesday, context)).toBe(420);
+        });
+
+        it('会社/チームスコープでは対象テナントの会社別配分を最優先する', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                useTeamCapacity: true,
+                teamCapacityTenantId: 'company-A',
+                members: [
+                    {
+                        id: 'm1',
+                        userId: 'u1',
+                        display_name: 'Core 1',
+                        role: 'member',
+                        isCore: true,
+                        dailyCapacityMinutes: 480,
+                        capacityProfile: {
+                            standardWeeklyPattern: { 1: 480 },
+                            exceptions: {},
+                            defaultCompanyWeeklyPattern: { 1: { 'company-A': 90, 'company-B': 240 } },
+                        },
+                    },
+                    {
+                        id: 'm2',
+                        userId: 'u2',
+                        display_name: 'Core 2',
+                        role: 'member',
+                        isCore: true,
+                        dailyCapacityMinutes: 480,
+                        capacityProfile: {
+                            standardWeeklyPattern: { 1: 480 },
+                            exceptions: {},
+                            defaultCompanyWeeklyPattern: { 1: { 'company-A': 120 } },
+                            dailyCompanyExceptions: { '2026-02-09': { 'company-A': 0 } },
+                        },
+                    },
+                ],
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(90);
+        });
+
+        it('個別テナント filterMode ではその会社の明示配分を分母にする', () => {
+            const monday = new Date('2026-02-09T00:00:00');
+            const context: QuantityContext = {
+                ...baseContext,
+                filterMode: 'company-A',
+                capacityConfig: {
+                    ...mockConfig,
+                    standardWeeklyPattern: { 1: 480 },
+                    defaultCompanyWeeklyPattern: {
+                        1: { 'company-A': 90, 'company-B': 120 },
+                    },
+                },
+            };
+
+            expect(QuantityEngine.calculateCapacityForDate(monday, context)).toBe(90);
         });
     });
 });

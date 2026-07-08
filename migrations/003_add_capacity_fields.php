@@ -27,6 +27,13 @@ try {
         echo "daily_capacity_minutes already exists.\n";
     }
 
+    if (!in_array('capacity_profile', $columns)) {
+        echo "Adding capacity_profile column...\n";
+        $pdo->exec("ALTER TABLE memberships ADD COLUMN capacity_profile TEXT DEFAULT NULL");
+    } else {
+        echo "capacity_profile already exists.\n";
+    }
+
     echo "Migration completed successfully.\n";
 
 } catch (PDOException $e) {

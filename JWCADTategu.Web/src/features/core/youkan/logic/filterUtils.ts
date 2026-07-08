@@ -1,4 +1,5 @@
 import { FilterMode } from '../types';
+import { isItemDone } from './statusUtils';
 
 /** filterMode がテナントID（UUID/文字列）かを判定する型ガード */
 export const isTenantFilter = (filterMode: FilterMode): filterMode is string =>
@@ -25,5 +26,5 @@ export const applyGanttCompletedFilter = <T extends { status?: string }>(
     showCompleted: boolean
 ): T[] => {
     if (showCompleted) return items;
-    return items.filter(item => item.status !== 'done');
+    return items.filter(item => !isItemDone(item));
 };

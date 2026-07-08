@@ -7,7 +7,7 @@ import { RyokanCalendar } from '../../youkan/components/Calendar/RyokanCalendar'
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../auth/providers/AuthProvider';
 import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetailModal';
-import { Item } from '../../youkan/types';
+import { FilterMode, Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
 import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
 import { CalendarToggleButton } from '../../youkan/components/Calendar/CalendarToggleButton';
@@ -21,6 +21,21 @@ interface Props {
 	activeProjectId?: string | null;
 	activeTenantId?: string | null;
 }
+
+export const isDisplayableCalendarItem = (item: Pick<Item, 'deletedAt' | 'isArchived' | 'status'>): boolean => {
+	if (item.deletedAt) return false;
+	if (item.isArchived) return false;
+	const status = item.status as string | undefined;
+	if (status === 'archive' || status === 'trash' || status === 'someday') return false;
+	return true;
+};
+
+export const matchesCalendarFilterMode = (item: Pick<Item, 'tenantId' | 'domain'>, filterMode: FilterMode): boolean => {
+	if (filterMode === 'all') return true;
+	if (filterMode === 'personal') return (!item.tenantId || item.tenantId === '') && item.domain !== 'business';
+	if (filterMode === 'company') return !!item.tenantId || item.domain === 'business';
+	return item.tenantId === filterMode;
+};
 
 export const VolumeCalendarScreen: React.FC<Props> = ({
 	activeProjectId,
@@ -49,23 +64,25 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		handleUpdateCapacityException
 	} = useVolumeCalendarViewModel({
 		projectId: activeProjectId,
-		tenantId: activeTenantId
+		tenantId: activeTenantId,
+		viewMode
 	});
 
 	const filterByMode = React.useCallback((item: Item) => {
-		if (filterMode === 'all') return true;
-		if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
-		if (filterMode === 'company') return !!item.tenantId;
-		return item.tenantId === filterMode;
+		return matchesCalendarFilterMode(item, filterMode);
 	}, [filterMode]);
 
+	const filterDisplayableItem = React.useCallback((item: Item) => {
+		return isDisplayableCalendarItem(item);
+	}, []);
+
 	const items = React.useMemo(() => {
-		return (rawItems || []).filter(filterByMode);
-	}, [rawItems, filterByMode]);
+		return (rawItems || []).filter(filterDisplayableItem).filter(filterByMode);
+	}, [rawItems, filterDisplayableItem, filterByMode]);
 
 	const filteredCompletedItems = React.useMemo(() => {
-		return (completedItems || []).filter(filterByMode);
-	}, [completedItems, filterByMode]);
+		return (completedItems || []).filter(filterDisplayableItem).filter(filterByMode);
+	}, [completedItems, filterDisplayableItem, filterByMode]);
 
 	// R-034 Phase 2 / R-039 Phase 3 UX / R-042-Y1: Google カレンダー外部イベントを取得
 	// 取得対象ビューの判定は useExternalEvents 内部で「表示するビュー」設定（ykn_external_events_views）に基づき行う
@@ -116,6 +133,16 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 			await refresh();
 		} catch (e) {
 			console.error('Update failed', e);
+		}
+	};
+
+	const handleCreateItem = async (item: Partial<Item>) => {
+		try {
+			const result = await ApiClient.createItem(item);
+			return result.id;
+		} catch (e) {
+			console.error('Create failed', e);
+			throw e;
 		}
 	};
 
@@ -210,11 +237,17 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					projects={projects || []}
 					focusedProjectId={activeProjectId}
 					focusedTenantId={activeTenantId}
+					filterMode={filterMode}
 					currentUserId={auth.user?.id}
+					currentUserIsCompanyAccount={auth.user?.accountType === 'tenant'}
+					useTeamCapacity={auth.user?.accountType === 'tenant' || !!auth.tenant?.id}
+					teamCapacityTenantId={activeTenantId || auth.tenant?.id || null}
 					onItemClick={setSelectedItem}
 					displayMode={viewMode}
 					focusDate={currentDate}
 					onUpdateItem={handleUpdate}
+					onCreateItem={handleCreateItem}
+					onReloadItems={refresh}
 					capacityConfig={capacityConfig}
 					onUpdateCapacityException={handleUpdateCapacityException}
 					joinedTenants={auth.joinedTenants}

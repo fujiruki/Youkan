@@ -206,6 +206,10 @@ export class ApiClient {
 		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('PUT', `/items/${id}`, updates);
 	}
 
+	public static async reorderItems(items: { id: string; order: number }[]): Promise<{ success: boolean }> {
+		return this.request<{ success: boolean }>('POST', '/items?action=reorder_focus', { items });
+	}
+
 	public static async deleteItem(id: string): Promise<{ success: boolean }> {
 		return this.request<{ success: boolean }>('DELETE', `/items/${id}`);
 	}
@@ -380,6 +384,7 @@ export class ApiClient {
 		if (updates.isCore !== undefined) payload.is_core = updates.isCore;
 		if (updates.isDefaultAssignee !== undefined) payload.is_default_assignee = updates.isDefaultAssignee;
 		if (updates.dailyCapacityMinutes !== undefined) payload.daily_capacity_minutes = updates.dailyCapacityMinutes;
+		if (updates.capacityProfile !== undefined) payload.capacity_profile = updates.capacityProfile;
 		if (updates.role !== undefined) payload.role = updates.role;
 
 		return this.request('PUT', `/tenant/members/${id}`, payload);

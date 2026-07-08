@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, FolderPlus, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Edit2, FolderPlus, CheckCircle2, AlertCircle, Trash2, ListPlus } from 'lucide-react';
 
 export interface ContextMenuAction {
 	label: string;
@@ -13,6 +13,8 @@ export interface ItemContextMenuCallbacks {
 	onOpenDetail: (id: string) => void;
 	onMakeProject: (id: string) => void;
 	onResolveYes: (id: string) => void;
+	onInsertBefore?: (id: string) => void;
+	onInsertAfter?: (id: string) => void;
 	onMarkDone?: (id: string) => void;
 	onResolveNo: (id: string) => void;
 	onDelete: (id: string) => void;
@@ -33,6 +35,16 @@ export function buildItemContextMenuActions(
 			icon: <FolderPlus size={14} />,
 			onClick: () => callbacks.onMakeProject(itemId),
 		},
+		...(callbacks.onInsertBefore ? [{
+			label: '前に挿入',
+			icon: <ListPlus size={14} />,
+			onClick: () => callbacks.onInsertBefore!(itemId),
+		}] : []),
+		...(callbacks.onInsertAfter ? [{
+			label: '後に挿入',
+			icon: <ListPlus size={14} />,
+			onClick: () => callbacks.onInsertAfter!(itemId),
+		}] : []),
 		{
 			label: '今日やる (Done Today)',
 			icon: <CheckCircle2 size={14} className="text-green-500" />,

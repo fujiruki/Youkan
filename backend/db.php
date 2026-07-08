@@ -102,6 +102,17 @@ function getDB() {
         if (!in_array('daily_overrides', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN daily_overrides TEXT DEFAULT NULL"); // JSON for calendar-specific capacity overrides
         }
+
+        $membershipCols = $pdo->query("PRAGMA table_info(memberships)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('is_core', $membershipCols)) {
+            $pdo->exec("ALTER TABLE memberships ADD COLUMN is_core INTEGER DEFAULT 0");
+        }
+        if (!in_array('daily_capacity_minutes', $membershipCols)) {
+            $pdo->exec("ALTER TABLE memberships ADD COLUMN daily_capacity_minutes INTEGER DEFAULT 480");
+        }
+        if (!in_array('capacity_profile', $membershipCols)) {
+            $pdo->exec("ALTER TABLE memberships ADD COLUMN capacity_profile TEXT DEFAULT NULL");
+        }
         if (!in_array('updated_at', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN updated_at INTEGER DEFAULT NULL");
         }
@@ -242,6 +253,9 @@ function ensureTables($pdo) {
             tenant_id TEXT,
             role TEXT DEFAULT 'member',
             joined_at INTEGER,
+            is_core INTEGER DEFAULT 0,
+            daily_capacity_minutes INTEGER DEFAULT 480,
+            capacity_profile TEXT DEFAULT NULL,
             PRIMARY KEY (user_id, tenant_id),
             FOREIGN KEY(user_id) REFERENCES users(id),
             FOREIGN KEY(tenant_id) REFERENCES tenants(id)

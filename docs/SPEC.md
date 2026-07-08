@@ -34,6 +34,7 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 | ファイル | 内容 |
 |:--|:--|
 | [sddd/rules.md](sddd/rules.md) | SdDDワークフロー・役割定義・禁止事項 |
+| [AGENT_LOOP_ENGINEERING.md](AGENT_LOOP_ENGINEERING.md) | Agent loop engineering による進め方・検証・引き継ぎルール |
 
 ---
 

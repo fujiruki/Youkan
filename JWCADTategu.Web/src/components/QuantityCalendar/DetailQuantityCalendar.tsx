@@ -52,7 +52,7 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 	googleCalendars,
 	hideExternalEventTime = true,
 }) => {
-	const [isVolumeOnly, setIsVolumeOnly] = React.useState(false);
+	const [isVolumeOnly, setIsVolumeOnly] = React.useState(true);
 
 	const [filterMode, setFilterMode] = React.useState<FilterMode>(() => {
 		if (_item) {
@@ -184,6 +184,8 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 					externalEventsByDate={externalEventsByDate}
 					googleCalendars={googleCalendars}
 					hideExternalEventTime={hideExternalEventTime}
+					initialRangeMonths={1}
+					disableRangeExtension={true}
 				/>
 			</div>
 		</div>

@@ -72,4 +72,34 @@ describe('useOverviewItems', () => {
         expect(headers[0].project?.title).toBe('Company Project A');
         expect(headers[1].project?.title).toBe('Personal Project B');
     });
+
+    it('focus items in gdbActive are included once even if they also appear in Today lists', () => {
+        const focusItem = {
+            id: 'focus-1',
+            title: 'C サウナ',
+            status: 'focus',
+            projectId: 'p1',
+            createdAt: 5000,
+            updatedAt: 5000,
+            statusUpdatedAt: 5000,
+            focusOrder: 0,
+            isEngaged: false,
+            interrupt: false,
+            weight: 1
+        } as Item;
+        const viewModel = {
+            ...mockViewModel,
+            gdbActive: [focusItem],
+            gdbPreparation: [],
+            gdbIntent: [],
+            gdbLog: [],
+            todayCandidates: [focusItem],
+            todayCommits: [],
+            executionItem: null
+        };
+
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+        const matches = result.current.filter(w => w.type === 'item' && w.item.id === 'focus-1');
+        expect(matches).toHaveLength(1);
+    });
 });

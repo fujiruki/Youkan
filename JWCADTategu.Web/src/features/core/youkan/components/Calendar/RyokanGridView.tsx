@@ -215,12 +215,13 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                     })}
                 </div>
 
-                {/* Background Volume Curve - Moved here to cover full grid area */}
-                <div className="absolute inset-0 pointer-events-none z-0">
-                    <svg className="w-full h-full opacity-30 dark:opacity-20 overflow-visible">
-                        <VolumeCurve allDays={allDays} metrics={metrics} />
-                    </svg>
-                </div>
+                {!volumeOnly && (
+                    <div className="absolute inset-0 pointer-events-none z-0">
+                        <svg className="w-full h-full opacity-30 dark:opacity-20 overflow-visible">
+                            <VolumeCurve allDays={allDays} metrics={metrics} />
+                        </svg>
+                    </div>
+                )}
             </div>
             {/* R-042-Y3: after 方向ロード中のスケルトン（sentinel 直前・グリッド本体直下に挿入） */}
             {isLoadingMore && loadDirection === 'after' && (

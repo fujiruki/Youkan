@@ -62,19 +62,21 @@ describe('applyGanttCompletedFilter (R-036)', () => {
         { id: '3', status: 'done' },
         { id: '4', status: 'waiting' },
         { id: '5', status: 'done' },
+        { id: '6', status: 'completed' },
+        { id: '7', status: 'log' },
     ];
 
     it('showCompleted=true のときは done を除外しない（全件返す）', () => {
         const result = applyGanttCompletedFilter(items, true);
-        expect(result).toHaveLength(5);
-        expect(result.map(i => i.id)).toEqual(['1', '2', '3', '4', '5']);
+        expect(result).toHaveLength(7);
+        expect(result.map(i => i.id)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
     });
 
     it('showCompleted=false のときは status=done を除外する', () => {
         const result = applyGanttCompletedFilter(items, false);
         expect(result).toHaveLength(3);
         expect(result.map(i => i.id)).toEqual(['1', '2', '4']);
-        expect(result.every(i => i.status !== 'done')).toBe(true);
+        expect(result.every(i => !['done', 'completed', 'log'].includes(i.status))).toBe(true);
     });
 
     it('入力が空配列でも安全に動く', () => {

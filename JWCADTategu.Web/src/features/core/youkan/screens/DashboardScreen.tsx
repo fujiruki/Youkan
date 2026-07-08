@@ -89,7 +89,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	} = vm;
 
 	// R-029: stream モードではプロジェクト（isProject=true）を非表示
-	const inboxItems = useMemo(() => rawInboxItems.filter(i => i.isProject !== true), [rawInboxItems]);
+	const inboxItems = useMemo(() => rawInboxItems.filter(i => i.isProject !== true && i.status !== 'focus'), [rawInboxItems]);
 	const pendingItems = useMemo(() => rawPendingItems.filter(i => i.isProject !== true), [rawPendingItems]);
 	const waitingItems = useMemo(() => rawWaitingItems.filter(i => i.isProject !== true), [rawWaitingItems]);
 
@@ -155,7 +155,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	const activeFocusItem = queueItems.length > 0 ? queueItems[0] : null;
 	const remainingQueue = queueItems.slice(1);
 	const unifiedAllItems = useMemo(() => {
-		return [
+		const merged = [
 			...(activeExecutionItem ? [activeExecutionItem] : []),
 			...todayCommits.filter(i => i.id !== activeExecutionItem?.id),
 			...todayCandidates.filter(i => i.id !== activeExecutionItem?.id),
@@ -164,6 +164,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			...waitingItems,
 			...(gdbLog || [])
 		].filter(item => item != null && item.status !== 'someday');
+		return Array.from(new Map(merged.map(item => [String(item.id), item])).values());
 	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
 
 	// R-065: 右上「完了非表示」ボタン（FilterContext.hideCompleted）でガント完了表示を制御
@@ -466,7 +467,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					item={selectedItem}
 					onClose={() => {
 						setSelectedItem(null);
-						handleRefresh();
+						window.setTimeout(handleRefresh, 0);
 					}}
 					onDelete={async (id: string) => {
 						await deleteItem(id);

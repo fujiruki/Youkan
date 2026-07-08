@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { QuantityEngine } from './QuantityEngine';
+import { QuantityEngine, QuantityContext } from './QuantityEngine';
 import { ExternalEvent, DEFAULT_ALL_DAY_WEIGHT_MINUTES } from '../types/externalEvent';
 
 const buildTimedEvent = (
@@ -77,5 +77,36 @@ describe('QuantityEngine.calculateExternalVolume', () => {
         const result = QuantityEngine.calculateExternalVolume(map);
         expect(result.get('2026-06-03')).toBe(60);
         expect(result.get('2026-06-04')).toBe(DEFAULT_ALL_DAY_WEIGHT_MINUTES);
+    });
+});
+
+describe('QuantityEngine.calculateMetrics externalEvents integration', () => {
+    const context: QuantityContext = {
+        items: [],
+        members: [],
+        capacityConfig: {
+            defaultDailyMinutes: 480,
+            holidays: [],
+            exceptions: {},
+        },
+        filterMode: 'all',
+        currentUser: {
+            id: 'user-1',
+            isCompanyAccount: false,
+            joinedTenants: [],
+        },
+    };
+
+    it('YYYY-MM-DD key の externalEvents を量感分子と intensity に反映する', () => {
+        const map = new Map<string, ExternalEvent[]>();
+        map.set('2026-06-03', [buildTimedEvent('2026-06-03', 10, 120)]);
+
+        const day = new Date(2026, 5, 3);
+        const metrics = QuantityEngine.calculateMetrics([day], context, map);
+        const metric = metrics.get(day.toDateString());
+
+        expect(metric?.volumeMinutes).toBe(120);
+        expect(metric?.ratio).toBe(0.25);
+        expect(metric?.intensity).toBeGreaterThan(0);
     });
 });

@@ -17,6 +17,7 @@ type MockRyokanCalendarProps = {
     focusedProjectId?: string;
     filterMode?: string;
     items?: Item[];
+    volumeOnly?: boolean;
     externalEventsByDate?: Map<string, ExternalEvent[]>;
 };
 
@@ -36,6 +37,7 @@ vi.mock('../../../features/core/youkan/components/Calendar/RyokanCalendar', () =
                 'data-focused-project-id': props.focusedProjectId ?? '__undefined__',
                 'data-filter-mode': props.filterMode ?? '',
                 'data-items-count': String(props.items?.length ?? 0),
+                'data-volume-only': String(props.volumeOnly ?? false),
                 'data-external-count': String(externalCount),
             });
         },
@@ -72,6 +74,18 @@ describe('DetailQuantityCalendar — 量感母集団フィルタ (R-062)', () =>
     });
 
     describe('focusedTenantId/focusedProjectId は常に undefined', () => {
+        it('詳細カレンダーはデフォルトで量感のみ表示になる', () => {
+            render(
+                <DetailQuantityCalendar
+                    item={null}
+                    globalFilter="all"
+                />
+            );
+
+            const cal = screen.getByTestId('mock-ryokan-calendar');
+            expect(cal.getAttribute('data-volume-only')).toBe('true');
+        });
+
         it('アイテムが projectId を持っていても focusedProjectId は undefined で渡る', () => {
             const item = makeItem({ projectId: 'proj-123', tenantId: undefined });
 

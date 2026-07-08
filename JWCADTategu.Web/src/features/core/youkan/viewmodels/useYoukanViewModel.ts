@@ -150,7 +150,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			const activeRaw = (Array.isArray(shelf.active) ? shelf.active : []).filter(Boolean);
 			setGdbActiveRaw(
 				activeRaw
-					.filter(i => i.status !== 'focus' && i.status !== 'someday')
+					.filter(i => i.status !== 'someday')
 					.sort(compareFocusItems)
 			);
 			const intentRaw = (Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean);

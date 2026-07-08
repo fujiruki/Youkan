@@ -225,9 +225,14 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
 	// Footer Menu Logic
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const isClosingRef = React.useRef(false);
 
 	const dateInputRef = React.useRef<HTMLInputElement>(null);
 	const titleInputRef = React.useRef<HTMLInputElement>(null);
+
+	React.useEffect(() => {
+		isClosingRef.current = false;
+	}, [item?.id]);
 
 	React.useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -329,9 +334,21 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		}
 	};
 
-	const handleClose = async () => {
-		await saveChanges();
+	const handleClose = () => {
+		isClosingRef.current = true;
+		if (!item) {
+			onClose();
+			return;
+		}
+
+		const updates = getPendingChanges();
 		onClose();
+
+		if (Object.keys(updates).length > 0) {
+			const itemId = item.id;
+			void (onUpdate ? onUpdate(itemId, updates) : ApiClient.updateItem(itemId, updates))
+				.catch(error => console.error('[DecisionDetailModal] Failed to save on close', error));
+		}
 	};
 
 	const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
@@ -398,6 +415,11 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	return (
 		<div
 			className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
+			onMouseDownCapture={(e) => {
+				if (e.target === e.currentTarget) {
+					isClosingRef.current = true;
+				}
+			}}
 			onClick={handleClose}
 		>
 			<div
@@ -555,9 +577,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								value={editedTitle}
 								onChange={(e) => setEditedTitle(e.target.value)}
 								onBlur={async () => {
+									if (isClosingRef.current) return;
 									// editedTitle が item.title と異なれば常に保存（空文字・空白のみも許容）
 									if (editedTitle !== item.title) {
-										await onUpdate?.(item.id, { title: editedTitle });
+										void onUpdate?.(item.id, { title: editedTitle });
 									}
 								}}
 								onKeyDown={(e) => {
@@ -602,6 +625,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								</button>
 							)}
 							<button
+								onMouseDown={() => {
+									isClosingRef.current = true;
+								}}
 								onClick={handleClose}
 								className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
 							>
@@ -802,9 +828,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 									value={note}
 									onChange={(e) => setNote(e.target.value)}
 									onBlur={async () => {
+										if (isClosingRef.current) return;
 										const updates = { memo: note };
-										if (onUpdate) await onUpdate(item.id, updates);
-										else ApiClient.updateItem(item.id, updates);
+										void (onUpdate ? onUpdate(item.id, updates) : ApiClient.updateItem(item.id, updates));
 									}}
 									placeholder="メモ..."
 									rows={2}

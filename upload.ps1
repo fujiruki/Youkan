@@ -141,7 +141,20 @@ Write-Host "`n[4/4] Uploading & Deploying to Server..." -ForegroundColor Yellow
 # SSH/SCPコマンドの共通オプション（タイムアウト設定）
 # 注意: -v (verbose) は stderr に大量出力し、PowerShell の $ErrorActionPreference="Stop" と
 #        衝突するため、通常時は使用しない。デバッグ時のみ手動で追加すること。
-$sshOpts = "-o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=15"
+$sshOpts = @(
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "ConnectTimeout=30",
+    "-o", "ServerAliveInterval=15",
+    "-p", $serverPort,
+    "-i", $sshKeyPath
+)
+$scpOpts = @(
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "ConnectTimeout=30",
+    "-o", "ServerAliveInterval=15",
+    "-P", $serverPort,
+    "-i", $sshKeyPath
+)
 
 $sshCommandMkdir = "mkdir -p $remoteDir"
 
@@ -162,24 +175,24 @@ $logFile = "deploy_debug.log"
 "--- Deployment log started at $(Get-Date) ---" | Out-File $logFile -Encoding utf8
 
 try {
-    $sshBase = "ssh $sshOpts -p $serverPort -i $sshKeyPath $serverUser@$serverHost"
-    $scpBase = "scp $sshOpts -P $serverPort -i $sshKeyPath"
-
     # リモートディレクトリの作成
     Write-Host "   → Ensuring remote directory exists (Log: $logFile)..." -ForegroundColor Cyan
-    Invoke-SshSafe -Command "$sshBase `"$sshCommandMkdir`"" -LogFile $logFile
+    & ssh @sshOpts "$serverUser@$serverHost" $sshCommandMkdir 2>&1 | Tee-Object -Append $logFile
+    if ($LASTEXITCODE -ne 0) { throw "SSH mkdir failed (ExitCode: $LASTEXITCODE). Check $logFile for details." }
     Write-Host "   ✓ Remote directory ready" -ForegroundColor Green
     
     # アップロード
     Write-Host "   → Uploading archive..." -ForegroundColor Cyan
     $uploadStart = Get-Date
-    Invoke-SshSafe -Command "$scpBase $archiveName $serverUser@${serverHost}:$remoteDir/$archiveName" -LogFile $logFile
+    & scp @scpOpts $archiveName "${serverUser}@${serverHost}:$remoteDir/$archiveName" 2>&1 | Tee-Object -Append $logFile
+    if ($LASTEXITCODE -ne 0) { throw "SCP upload failed (ExitCode: $LASTEXITCODE). Check $logFile for details." }
     $uploadTime = ((Get-Date) - $uploadStart).TotalSeconds
     Write-Host "   ✓ Upload completed ($([math]::Round($uploadTime, 1))s)" -ForegroundColor Green
     
     # 展開 & パーミッション設定
     Write-Host "   → Extracting & setting permissions..." -ForegroundColor Cyan
-    Invoke-SshSafe -Command "$sshBase `"$sshCommandExtract`"" -LogFile $logFile
+    & ssh @sshOpts "$serverUser@$serverHost" $sshCommandExtract 2>&1 | Tee-Object -Append $logFile
+    if ($LASTEXITCODE -ne 0) { throw "SSH extract failed (ExitCode: $LASTEXITCODE). Check $logFile for details." }
     Write-Host "   ✓ Extraction & permissions completed" -ForegroundColor Green
     
     # 成功メッセージ

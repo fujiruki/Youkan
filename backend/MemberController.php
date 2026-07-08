@@ -17,7 +17,7 @@ class MemberController extends BaseController {
             
             if (!$this->currentTenantId) {
                 // If NO tenant (Personal Account), return ONLY the current user as a virtual team
-                $sql = "SELECT id as user_id, email, 'owner' as role, 1 as is_core, daily_capacity_minutes, display_name FROM users WHERE id = ?";
+                $sql = "SELECT id as user_id, email, 'owner' as role, 1 as is_core, daily_capacity_minutes, display_name, preferences FROM users WHERE id = ?";
                 $stmt = $this->pdo->prepare($sql);
                 $stmt->execute([$this->currentUserId]);
                 $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -28,7 +28,8 @@ class MemberController extends BaseController {
                         m.user_id, 
                         m.role, 
                         m.is_core, 
-                        u.daily_capacity_minutes,
+                        m.daily_capacity_minutes,
+                        m.capacity_profile,
                         u.display_name,
                         u.email
                     FROM memberships m
@@ -49,7 +50,8 @@ class MemberController extends BaseController {
                     'email' => $row['email'] ?? null,
                     'role' => $row['role'],
                     'isCore' => (bool)$row['is_core'],
-                    'dailyCapacityMinutes' => (int)$row['daily_capacity_minutes']
+                    'dailyCapacityMinutes' => (int)$row['daily_capacity_minutes'],
+                    'capacityProfile' => $this->decodeCapacityProfile($row['capacity_profile'] ?? null, $row['preferences'] ?? null)
                 ];
             }, $members);
 
@@ -100,6 +102,11 @@ class MemberController extends BaseController {
                 $params[] = (int)$data['daily_capacity_minutes'];
             }
 
+            if (array_key_exists('capacity_profile', $data)) {
+                $updates[] = "capacity_profile = ?";
+                $params[] = $data['capacity_profile'] === null ? null : json_encode($data['capacity_profile'], JSON_UNESCAPED_UNICODE);
+            }
+
             if (empty($updates)) {
                 http_response_code(400);
                 echo json_encode(['error' => 'No fields to update']);
@@ -118,5 +125,21 @@ class MemberController extends BaseController {
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
         }
+    }
+
+    private function decodeCapacityProfile($profileJson, $preferencesJson = null) {
+        if ($profileJson) {
+            $decoded = json_decode($profileJson, true);
+            if (is_array($decoded)) return $decoded;
+        }
+
+        if ($preferencesJson) {
+            $prefs = json_decode($preferencesJson, true);
+            if (is_array($prefs) && isset($prefs['capacity_profile']) && is_array($prefs['capacity_profile'])) {
+                return $prefs['capacity_profile'];
+            }
+        }
+
+        return null;
     }
 }

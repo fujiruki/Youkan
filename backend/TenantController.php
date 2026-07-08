@@ -53,7 +53,7 @@ class TenantController extends BaseController {
         // Let's allow everyone in tenant to see who else is in tenant.
         
         $stmt = $this->pdo->prepare("
-            SELECT u.id, u.email, u.display_name, m.role, m.joined_at, m.is_core, u.daily_capacity_minutes
+            SELECT u.id, u.email, u.display_name, m.role, m.joined_at, m.is_core, m.daily_capacity_minutes, m.capacity_profile
             FROM memberships m
             JOIN users u ON u.id = m.user_id
             WHERE m.tenant_id = ?
@@ -61,7 +61,27 @@ class TenantController extends BaseController {
         ");
         $stmt->execute([$this->currentTenantId]);
         
-        $this->sendJSON($stmt->fetchAll(PDO::FETCH_ASSOC));
+        $members = array_map(function($row) {
+            $profile = null;
+            if (!empty($row['capacity_profile'])) {
+                $decoded = json_decode($row['capacity_profile'], true);
+                if (is_array($decoded)) $profile = $decoded;
+            }
+
+            return [
+                'id' => $row['id'],
+                'userId' => $row['id'],
+                'email' => $row['email'],
+                'display_name' => $row['display_name'],
+                'role' => $row['role'],
+                'joined_at' => $row['joined_at'],
+                'isCore' => (bool)$row['is_core'],
+                'dailyCapacityMinutes' => (int)$row['daily_capacity_minutes'],
+                'capacityProfile' => $profile,
+            ];
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+        $this->sendJSON($members);
     }
 
     private function updateMember($memberId) {
@@ -83,6 +103,10 @@ class TenantController extends BaseController {
         if (isset($input['daily_capacity_minutes'])) {
             $updates[] = "daily_capacity_minutes = ?";
             $params[] = intval($input['daily_capacity_minutes']);
+        }
+        if (array_key_exists('capacity_profile', $input)) {
+            $updates[] = "capacity_profile = ?";
+            $params[] = $input['capacity_profile'] === null ? null : json_encode($input['capacity_profile'], JSON_UNESCAPED_UNICODE);
         }
         if (isset($input['role'])) {
             $updates[] = "role = ?";

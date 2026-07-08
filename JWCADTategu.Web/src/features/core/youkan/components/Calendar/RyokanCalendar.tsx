@@ -36,12 +36,12 @@ const getStartOfToday = () => {
 
 export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
 	items, completedItems = [], onItemClick, capacityConfig, members,
-	layoutMode = 'panorama', displayMode: propDisplayMode, filterMode: _filterMode = 'all',
+	layoutMode = 'panorama', displayMode: propDisplayMode, filterMode = 'all',
 	onSelectDate, selectedDate, prepDate, focusDate,
 	workDays = 1,
 	rowHeight: propRowHeight,
 	projects = [],
-	focusedTenantId, focusedProjectId, currentUserId, joinedTenants = [],
+	focusedTenantId, focusedProjectId, currentUserId, currentUserIsCompanyAccount, useTeamCapacity, teamCapacityTenantId, joinedTenants = [],
 	onUpdateCapacityException,
 	volumeOnly = false,
 	targetItemId,
@@ -50,6 +50,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	onDateClick,
 	disablePressureLines = false,
 	onUpdateItem, // [NEW]
+	onCreateItem,
+	onReloadItems,
 	onDeleteItem,
 	onVisibleMonthChange, // [NEW Phase 24]
 	onOpenDailySettings, // [NEW Phase 24]
@@ -63,6 +65,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	loadedRange: _loadedRange,
 	googleCalendars = [],
 	hideExternalEventTime = false,
+	initialRangeMonths,
+	disableRangeExtension = false,
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -93,6 +97,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const [externalMoreState, setExternalMoreState] = useState<{ date: Date; events: ExternalEvent[] } | null>(null);
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const visibleMonthRafRef = useRef<number | null>(null);
 
 	const [allDays, setAllDays] = useState<Date[]>([]);
 	const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
@@ -296,7 +301,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 
 		// mini モードは初期 range を ±1ヶ月に縮小（約 90 セル）
 		// スクロールによる自動拡張（handleScroll）は既存挙動のまま
-		const rangeMonths = isMini ? 1 : 2;
+		const rangeMonths = initialRangeMonths ?? (isMini ? 1 : 2);
 
 		// Start: N months back, align to start of week
 		const start = new Date(anchor.getFullYear(), anchor.getMonth() - rangeMonths, 1);
@@ -315,7 +320,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (range && (anchor < range.start || anchor > range.end)) {
 			setHasInitialScrolled(false);
 		}
-	}, [today.getTime(), focusDate?.getTime(), forceScroll, isMini]);
+	}, [today.getTime(), focusDate?.getTime(), forceScroll, isMini, initialRangeMonths]);
 
 	// Update allDays when range changes
 	React.useEffect(() => {
@@ -390,12 +395,18 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	}, [completedItems]);
 
 	// Handle Infinite Scroll Extension
-	const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const container = e.currentTarget;
 		const { scrollTop, scrollHeight, clientHeight } = container;
 
-		// [NEW Phase 24] Detect visible month
-		detectVisibleMonth(container);
+		if (onVisibleMonthChange && !isMini && visibleMonthRafRef.current === null) {
+			visibleMonthRafRef.current = requestAnimationFrame(() => {
+				visibleMonthRafRef.current = null;
+				detectVisibleMonth(container);
+			});
+		}
+
+		if (isMini || disableRangeExtension) return;
 
 		// Upward extension
 		if (scrollTop < 200 && range) {
@@ -428,22 +439,32 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				return { ...prev, end: newEnd };
 			});
 		}
-	};
+	}, [detectVisibleMonth, disableRangeExtension, isMini, onVisibleMonthChange, range]);
+
+	React.useEffect(() => {
+		return () => {
+			if (visibleMonthRafRef.current !== null) {
+				cancelAnimationFrame(visibleMonthRafRef.current);
+			}
+		};
+	}, []);
 
 	const qCtx = useMemo(() => ({
 		items,
 		members: members || [],
 		capacityConfig: capacityConfig || { defaultDailyMinutes: 480, holidays: [], exceptions: {} },
-		// filterMode removed: QuantityEngine no longer needs it
+		filterMode,
 		focusedTenantId,
 		focusedProjectId,
 		currentUser: {
 			id: currentUserId || '',
-			isCompanyAccount: (currentUserId?.length || 0) > 20,
+			isCompanyAccount: currentUserIsCompanyAccount ?? false,
 			// [Modified] joinedTenants is already JoinedTenant[], pass directly
 			joinedTenants: joinedTenants
-		}
-	}), [items, capacityConfig, members, focusedTenantId, focusedProjectId, currentUserId, joinedTenants]);
+		},
+		useTeamCapacity,
+		teamCapacityTenantId
+	}), [items, capacityConfig, members, filterMode, focusedTenantId, focusedProjectId, currentUserId, currentUserIsCompanyAccount, useTeamCapacity, teamCapacityTenantId, joinedTenants]);
 
 	const metrics = useMemo(
 		() => QuantityEngine.calculateMetrics(allDays, qCtx, externalEventsByDate),
@@ -739,6 +760,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onJumpToDate={handleGanttJumpToDate}
 						renderItemTitle={renderItemTitle}
 						onUpdateItem={onUpdateItem}
+						onCreateItem={onCreateItem}
+						onReloadItems={onReloadItems}
 						onDeleteItem={onDeleteItem}
 						// Context Props
 						capacityConfig={capacityConfig}

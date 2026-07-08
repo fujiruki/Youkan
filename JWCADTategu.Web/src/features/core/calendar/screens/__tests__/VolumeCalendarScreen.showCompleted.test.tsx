@@ -12,10 +12,10 @@ import type { FilterMode } from '../../../youkan/types';
  * hideCompleted=true  → 完了を非表示（showCompleted=false 相当）
  */
 
-const filterByMode = (item: Pick<Item, 'tenantId'>, filterMode: FilterMode): boolean => {
+const filterByMode = (item: Pick<Item, 'tenantId' | 'domain'>, filterMode: FilterMode): boolean => {
     if (filterMode === 'all') return true;
-    if (filterMode === 'personal') return !item.tenantId || item.tenantId === '';
-    if (filterMode === 'company') return !!item.tenantId;
+    if (filterMode === 'personal') return (!item.tenantId || item.tenantId === '') && item.domain !== 'business';
+    if (filterMode === 'company') return !!item.tenantId || item.domain === 'business';
     return item.tenantId === filterMode;
 };
 
@@ -38,11 +38,12 @@ const computeVisibleGanttItems = (
 };
 
 describe('R-065: VolumeCalendarScreen で hideCompleted（右上ボタン）に統一', () => {
-    const makeItem = (id: string, status: string, tenantId?: string): Item => ({
+    const makeItem = (id: string, status: string, tenantId?: string, domain?: Item['domain']): Item => ({
         id,
         title: id,
         status,
         tenantId: tenantId || '',
+        domain,
     } as Item);
 
     const rawItems: Item[] = [

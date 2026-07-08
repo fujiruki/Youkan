@@ -54,8 +54,8 @@ class CalendarController extends BaseController {
         $sql = "
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
-                items.created_by, items.assigned_to, items.project_id, items.status,
-                items.is_project,
+                items.created_by, items.assigned_to, items.parent_id, items.project_id, items.status, items.sort_order,
+                items.is_project, items.is_archived, items.deleted_at,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -67,9 +67,11 @@ class CalendarController extends BaseController {
                     OR
                     (items.prep_date >= ? AND items.prep_date <= ?)
                 )
-                AND items.status NOT IN ('decision_rejected', 'archive', 'done', 'someday')  -- R-028: someday はキャパシティ除外
+                AND items.status NOT IN ('decision_rejected', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
+                AND COALESCE(items.is_archived, 0) = 0
                 AND items.deleted_at IS NULL
                 AND items.is_project = 0
+            ORDER BY items.sort_order ASC, items.created_at ASC, items.id ASC
         ";
 
         array_push($sqlParams, $rangeStart, $rangeEnd, $rangeStart, $rangeEnd);
@@ -138,6 +140,8 @@ class CalendarController extends BaseController {
         // [FIX] Loosened filter to include items created by self but not yet assigned (Inbox)
         $tenantId = $params['tenantId'] ?? null;
         $projectId = $params['projectId'] ?? null;
+        $mode = $params['mode'] ?? 'range';
+        $isGanttMode = ($mode === 'gantt');
         $tenantClause = "";
         $sqlParams = [$targetUserId, $this->currentUserId];
 
@@ -147,16 +151,30 @@ class CalendarController extends BaseController {
         }
 
         // プロジェクトフォーカス時は、日付未設定アイテムも同プロジェクトなら取得対象に含める
-        $projectClause = "";
+        $projectMembershipClause = "";
+        $projectMembershipParams = [];
         if ($projectId) {
-            $projectClause = " OR items.project_id = ?";
+            $projectIds = $this->getProjectDescendantIds($projectId);
+            if (empty($projectIds)) {
+                $projectIds = [$projectId];
+            }
+            $projectPlaceholders = implode(',', array_fill(0, count($projectIds), '?'));
+            $projectMembershipClause = "items.id IN ($projectPlaceholders) OR items.project_id IN ($projectPlaceholders) OR items.parent_id IN ($projectPlaceholders)";
+            $projectMembershipParams = array_merge($projectIds, $projectIds, $projectIds);
         }
+
+        $dateClause = $isGanttMode ? ($projectId ? $projectMembershipClause : "1 = 1") : "
+                    (items.due_date >= ? AND items.due_date <= ?)
+                    OR
+                    (items.prep_date >= ? AND items.prep_date <= ?)
+                    " . ($projectId ? "OR $projectMembershipClause" : "") . "
+        ";
 
         $sql = "
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
-                items.status, items.created_by, items.assigned_to, items.project_id,
-                items.is_project,
+                items.status, items.created_by, items.assigned_to, items.parent_id, items.project_id, items.sort_order,
+                items.is_project, items.is_archived, items.deleted_at,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -164,19 +182,20 @@ class CalendarController extends BaseController {
                 (items.assigned_to = ? OR (items.assigned_to IS NULL AND items.created_by = ?))
                 $tenantClause
                 AND (
-                    (items.due_date >= ? AND items.due_date <= ?)
-                    OR
-                    (items.prep_date >= ? AND items.prep_date <= ?)
-                    $projectClause
+                    $dateClause
                 )
-                AND items.status NOT IN ('decision_rejected', 'archive', 'done', 'someday')  -- R-028: someday はキャパシティ除外
+                AND items.status NOT IN ('decision_rejected', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
+                AND COALESCE(items.is_archived, 0) = 0
                 AND items.deleted_at IS NULL
                 AND items.is_project = 0
+            ORDER BY items.sort_order ASC, items.created_at ASC, items.id ASC
         ";
 
-        array_push($sqlParams, $startDate, $endDate, $startDate, $endDate);
+        if (!$isGanttMode) {
+            array_push($sqlParams, $startDate, $endDate, $startDate, $endDate);
+        }
         if ($projectId) {
-            $sqlParams[] = $projectId;
+            $sqlParams = array_merge($sqlParams, $projectMembershipParams);
         }
 
         $stmt = $this->pdo->prepare($sql);
@@ -243,9 +262,9 @@ class CalendarController extends BaseController {
         $sql = "
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date,
-                items.status, items.created_by, items.assigned_to, items.project_id,
+                items.status, items.created_by, items.assigned_to, items.parent_id, items.project_id,
                 items.completed_at, items.estimated_minutes, items.work_days,
-                items.is_project,
+                items.is_project, items.is_archived, items.deleted_at,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -256,6 +275,7 @@ class CalendarController extends BaseController {
                 AND items.completed_at <= ?
                 $tenantClause
                 AND items.deleted_at IS NULL
+                AND COALESCE(items.is_archived, 0) = 0
                 AND items.is_project = 0
             ORDER BY items.completed_at DESC
         ";

@@ -1,4 +1,4 @@
-import { Item, Member, CapacityConfig } from '../types';
+import { Item, Member, CapacityConfig, FilterMode } from '../types';
 import { isHoliday as baseIsHoliday } from './capacity';
 import { safeParseDate, normalizeDateKey } from './dateUtils';
 import { ExternalEvent, DEFAULT_ALL_DAY_WEIGHT_MINUTES } from '../types/externalEvent';
@@ -25,7 +25,7 @@ export interface QuantityContext {
     items: Item[];
     members: Member[];
     capacityConfig: CapacityConfig;
-    // filterMode removed: filtering is done upstream by ViewModel
+    filterMode?: FilterMode;
     focusedTenantId?: string | null;
     focusedProjectId?: string | null;
     tenantProfiles?: Map<string, any>; // [NEW] Capacity Profiles (Map<tenantId, Profile>)
@@ -34,6 +34,8 @@ export interface QuantityContext {
         isCompanyAccount: boolean;
         joinedTenants: { id: string; name: string }[];
     } | null;
+    useTeamCapacity?: boolean;
+    teamCapacityTenantId?: string | null;
 }
 
 /**
@@ -82,7 +84,8 @@ export class QuantityEngine {
 
             // Step 2: Get Volume
             const taskVolume = volumeMap.get(dateKey) || 0;
-            const externalVolume = externalVolumeMap.get(dateKey) || 0;
+            const ymdKey = this.formatDateKey(date);
+            const externalVolume = externalVolumeMap.get(dateKey) || externalVolumeMap.get(ymdKey) || 0;
             const volume = taskVolume + externalVolume;
             const completedVolume = completedVolumeMap.get(dateKey) || 0;
 
@@ -203,16 +206,26 @@ export class QuantityEngine {
      * Capacity Logic: Determine Denominator based on Matrix.
      */
     private static calculateCapacityForDate(date: Date, context: QuantityContext, forTenantId?: string | null, capacityCache?: Map<string, number>): number {
-        const { capacityConfig, focusedTenantId, currentUser } = context;
+        const { capacityConfig, focusedTenantId, currentUser, filterMode = 'all', useTeamCapacity } = context;
 
         if (!currentUser) return 0;
 
         const dateKey = this.formatDateKey(date);
-        const targetId = forTenantId !== undefined ? forTenantId : focusedTenantId;
-        const cacheKey = `${dateKey}|${targetId ?? ''}`;
+        const filterTenantId = this.getTenantIdFromFilterMode(filterMode);
+        const targetId = forTenantId !== undefined ? forTenantId : (focusedTenantId ?? filterTenantId);
+        const isTeamScope = useTeamCapacity || currentUser.isCompanyAccount;
+        const cacheKey = `${dateKey}|${targetId ?? ''}|${filterMode}|${isTeamScope ? 'team' : 'self'}`;
 
         if (capacityCache?.has(cacheKey)) {
             return capacityCache.get(cacheKey)!;
+        }
+
+        let result: number;
+
+        if (isTeamScope) {
+            result = this.calculateTeamCapacityForDate(date, context);
+            capacityCache?.set(cacheKey, result);
+            return result;
         }
 
         const isHol = this.checkIsHoliday(date, context);
@@ -220,8 +233,6 @@ export class QuantityEngine {
 
         // --- Core Allocation Logic (Company Specific Priority) ---
         // Priority 1: Specific Context (フィルタで絞り込まれている、または特定の会社枠を表示したい場合)
-        let result: number;
-
         if (targetId) {
             const companyException = capacityConfig.dailyCompanyExceptions?.[dateKey];
             if (companyException && companyException[targetId] !== undefined) {
@@ -256,16 +267,107 @@ export class QuantityEngine {
             // Fall back to personal standard capacity.
         }
 
-        // --- Fallback Logic: Personal Standard Capacity (Molecule of Reality) ---
-        // 会社枠に設定がない、または Private アイテムの場合。
+        if (!targetId && filterMode === 'company') {
+            result = this.calculateCompanyCapacityTotalForDate(date, context, capacityCache);
+            capacityCache?.set(cacheKey, result);
+            return result;
+        }
+
+        if (!targetId && filterMode === 'personal') {
+            const total = this.calculateTotalCapacityForDate(date, context);
+            const companyTotal = this.calculateCompanyCapacityTotalForDate(date, context, capacityCache);
+            result = Math.max(total - companyTotal, 0);
+            capacityCache?.set(cacheKey, result);
+            return result;
+        }
+
+        // --- Fallback Logic: Total Standard Capacity ---
         if (isHol) {
             capacityCache?.set(cacheKey, 0);
             return 0;
         }
 
-        // standardWeeklyPattern -> defaultDailyMinutes
+        result = this.calculateTotalCapacityForDate(date, context);
+        capacityCache?.set(cacheKey, result);
+        return result;
+    }
+
+    private static calculateTotalCapacityForDate(date: Date, context: QuantityContext): number {
+        const { capacityConfig } = context;
+        const dateKey = this.formatDateKey(date);
+        if (capacityConfig.exceptions && capacityConfig.exceptions[dateKey] !== undefined) {
+            return capacityConfig.exceptions[dateKey];
+        }
+        if (this.checkIsHoliday(date, context)) return 0;
+        const dayOfWeek = date.getDay();
         const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-        result = weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
+        return weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
+    }
+
+    private static calculateCompanyCapacityTotalForDate(date: Date, context: QuantityContext, capacityCache?: Map<string, number>): number {
+        const { currentUser } = context;
+        if (!currentUser) return 0;
+
+        const tenantIds = currentUser.joinedTenants?.map(t => t.id).filter(Boolean) || [];
+        if (tenantIds.length === 0) return 0;
+
+        return tenantIds.reduce((sum, tenantId) => {
+            return sum + this.calculateDefinedCompanyCapacityForDate(date, context, tenantId, capacityCache);
+        }, 0);
+    }
+
+    private static calculateTeamCapacityForDate(date: Date, context: QuantityContext): number {
+        if (this.checkIsHoliday(date, context)) return 0;
+
+        const coreMembers = (context.members || []).filter(member => member.isCore);
+        return coreMembers.reduce((sum, member) => {
+            return sum + this.calculateMemberTeamCapacityForDate(date, member, context.teamCapacityTenantId);
+        }, 0);
+    }
+
+    private static getTenantIdFromFilterMode(filterMode: FilterMode): string | null {
+        if (filterMode === 'all' || filterMode === 'company' || filterMode === 'personal') return null;
+        return typeof filterMode === 'string' && filterMode ? filterMode : null;
+    }
+
+    private static calculateMemberTeamCapacityForDate(date: Date, member: Member, tenantId?: string | null): number {
+        const profile = member.capacityProfile;
+        const dateKey = this.formatDateKey(date);
+        const dayOfWeek = date.getDay();
+
+        if (profile && tenantId) {
+            const companyException = profile.dailyCompanyExceptions?.[dateKey]?.[tenantId];
+            if (companyException !== undefined) return Math.max(companyException, 0);
+
+            const companyWeekly = profile.defaultCompanyWeeklyPattern?.[dayOfWeek]?.[tenantId];
+            if (companyWeekly !== undefined) return Math.max(companyWeekly, 0);
+        }
+
+        const exception = profile?.exceptions?.[dateKey];
+        if (exception !== undefined) return Math.max(exception, 0);
+
+        const weekly = profile?.standardWeeklyPattern?.[dayOfWeek];
+        if (weekly !== undefined) return Math.max(weekly, 0);
+
+        return Math.max(member.dailyCapacityMinutes || 0, 0);
+    }
+
+    private static calculateDefinedCompanyCapacityForDate(date: Date, context: QuantityContext, tenantId: string, capacityCache?: Map<string, number>): number {
+        const dateKey = this.formatDateKey(date);
+        const cacheKey = `${dateKey}|defined-company|${tenantId}`;
+        if (capacityCache?.has(cacheKey)) return capacityCache.get(cacheKey)!;
+
+        const { capacityConfig } = context;
+        const dayOfWeek = date.getDay();
+        const dailyException = capacityConfig.dailyCompanyExceptions?.[dateKey];
+        if (dailyException && dailyException[tenantId] !== undefined) {
+            const result = dailyException[tenantId];
+            capacityCache?.set(cacheKey, result);
+            return result;
+        }
+
+        const weeklyValue = capacityConfig.defaultCompanyWeeklyPattern?.[dayOfWeek]?.[tenantId];
+        const result = weeklyValue !== undefined ? weeklyValue : 0;
         capacityCache?.set(cacheKey, result);
         return result;
     }

@@ -7,7 +7,34 @@ import { useCapacityConfig } from '../../youkan/hooks/useCapacityConfig';
 interface FilterProps {
 	projectId?: string | null;
 	tenantId?: string | null;
+	viewMode?: string;
 }
+
+export const buildCalendarItemsQuery = ({
+	start,
+	end,
+	projectId,
+	tenantId,
+	viewMode,
+}: {
+	start: string;
+	end: string;
+	projectId?: string | null;
+	tenantId?: string | null;
+	viewMode?: string;
+}) => {
+	let itemQuery = `/calendar/items?start_date=${start}&end_date=${end}`;
+	if (viewMode === 'gantt') {
+		itemQuery += `&mode=gantt`;
+	}
+	if (tenantId) {
+		itemQuery += `&tenantId=${tenantId}`;
+	}
+	if (projectId) {
+		itemQuery += `&projectId=${projectId}`;
+	}
+	return itemQuery;
+};
 
 export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 	const [currentDate, setCurrentDate] = useState(new Date());
@@ -18,7 +45,7 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const { projectId, tenantId } = filters;
+	const { projectId, tenantId, viewMode } = filters;
 
 	// [NEW] Use shared capacity hook
 	const { capacityConfig, refreshCapacityConfig, toggleHoliday, updateCapacityConfig } = useCapacityConfig();
@@ -26,18 +53,16 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		try {
-			const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-			const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+			// RyokanCalendar initially renders current month +/- 2 months.
+			// Fetch the same buffered window so adjacent visible cells and backward allocations are populated.
+			const start = format(startOfMonth(subMonths(currentDate, 2)), 'yyyy-MM-dd');
+			const end = format(endOfMonth(addMonths(currentDate, 2)), 'yyyy-MM-dd');
 
 			// Build Query Params
-			let itemQuery = `/calendar/items?start_date=${start}&end_date=${end}`;
+			let itemQuery = buildCalendarItemsQuery({ start, end, projectId, tenantId, viewMode });
 			let completedQuery = `/calendar/completed?start_date=${start}&end_date=${end}`;
 			if (tenantId) {
-				itemQuery += `&tenantId=${tenantId}`;
 				completedQuery += `&tenantId=${tenantId}`;
-			}
-			if (projectId) {
-				itemQuery += `&projectId=${projectId}`;
 			}
 
 			const [fetchedItems, fetchedCompleted, rawMembers, fetchedProjects] = await Promise.all([
@@ -62,7 +87,7 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 		} finally {
 			setLoading(false);
 		}
-	}, [currentDate, projectId, tenantId, refreshCapacityConfig]);
+	}, [currentDate, projectId, tenantId, viewMode, refreshCapacityConfig]);
 
 	useEffect(() => {
 		loadData();
