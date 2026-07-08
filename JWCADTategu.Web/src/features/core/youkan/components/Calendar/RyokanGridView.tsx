@@ -104,7 +104,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     return (
         <div
             ref={scrollRef}
-            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide relative flex flex-col gap-4"
+            className="w-full h-full overflow-auto p-4 bg-slate-50 dark:bg-slate-900/50 scrollbar-hide relative flex flex-col gap-4 overscroll-contain [touch-action:pan-y] [will-change:scroll-position]"
             onClick={onBackgroundClick}
             onScroll={onScroll}
         >

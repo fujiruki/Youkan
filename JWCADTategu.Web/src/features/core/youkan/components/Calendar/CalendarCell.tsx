@@ -90,7 +90,8 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
             ref={cellRef}
             data-date={normalizeDateKey(date)}
             className={cn(
-                "calendar-cell relative flex-shrink-0 transition-all duration-300 w-full group",
+                "calendar-cell relative flex-shrink-0 w-full group",
+                volumeOnly ? "[content-visibility:auto] [contain:layout_paint_style] transition-none" : "transition-all duration-300",
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[80px] h-full border-r flex flex-col p-1 border-b border-slate-100 dark:border-slate-800",
                 volumeOnly && rowHeight && "min-h-0",
                 monthBoundaryTop ? "border-t-[3px] border-t-slate-500 dark:border-t-slate-400" : "",
@@ -122,7 +123,10 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
         >
             {/* Heatmap Background */}
             <div
-                className="absolute inset-0 pointer-events-none transition-opacity duration-500"
+                className={cn(
+                    "absolute inset-0 pointer-events-none",
+                    volumeOnly ? "transition-none" : "transition-opacity duration-500"
+                )}
                 style={{
                     backgroundColor: 'var(--cal-bg-color)',
                     opacity: `calc(var(--cal-bg-max-opacity) * ${(displayIntensity || 0) / 100})`

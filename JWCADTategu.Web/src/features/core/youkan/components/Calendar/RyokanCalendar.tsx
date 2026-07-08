@@ -441,6 +441,12 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 	}, [detectVisibleMonth, disableRangeExtension, isMini, onVisibleMonthChange, range]);
 
+	const scrollHandler = useMemo(() => {
+		const needsVisibleMonthSync = !!onVisibleMonthChange && !isMini;
+		const needsRangeExtension = !isMini && !disableRangeExtension;
+		return needsVisibleMonthSync || needsRangeExtension ? handleScroll : undefined;
+	}, [disableRangeExtension, handleScroll, isMini, onVisibleMonthChange]);
+
 	React.useEffect(() => {
 		return () => {
 			if (visibleMonthRafRef.current !== null) {
@@ -702,7 +708,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						projects={projects}
 						renderItemTitle={renderItemTitle}
 						scrollRef={scrollContainerRef}
-						onScroll={handleScroll}
+						onScroll={scrollHandler}
 						onBackgroundClick={resetHighlights}
 						externalEventsByDate={externalEventsByDate}
 						externalEventsMaxVisible={externalEventsMaxVisible}
@@ -726,7 +732,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						prepDate={prepDate}
 						commitPeriod={commitPeriodDates}
 						scrollRef={scrollContainerRef}
-						onScroll={handleScroll}
+						onScroll={scrollHandler}
 						projects={projects}
 						renderItemTitle={renderItemTitle}
 						pressureConnections={pressureConnections}
