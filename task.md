@@ -413,8 +413,8 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] 型拡張: `Item.assigneeKind`、`ApiClient.getAllItems()` の `scope:'team'`/`assigned_to` オプション追加（`src/features/core/youkan/types.ts`, `src/api/client.ts`）
 - [x] 純粋ロジック `logic/assigneeViewBuckets.ts` のテストを先に書く（今日/明日/今週バケット分類、所要時間合計、未完了/詰まり/待ち集計）→ Red確認
 - [x] `assigneeViewBuckets.ts` 実装 → Green確認
-- [ ] ViewModel `hooks/useAssigneeView.ts` のテストを先に書く（デフォルト本人分表示、管理者のみ切替候補取得、403/404フォールバック）→ Red確認
-- [ ] `useAssigneeView.ts` 実装 → Green確認
+- [x] ViewModel `hooks/useAssigneeView.ts` のテストを先に書く（デフォルト本人分表示、管理者のみ切替候補取得、403/404フォールバック）→ Red確認
+- [x] `useAssigneeView.ts` 実装 → Green確認
 - [ ] View `screens/AssigneeViewScreen.tsx` 実装（§13.4レイアウト、案件名とセット表示、管理者のみチップ表示）
 - [ ] `ViewState` に `assigneeView` 追加、`App.tsx` にルーティング追加、会社コンテキスト限定の導線追加（メニュー）
 - [ ] 既存テスト破壊なし確認（`npm.cmd run test -- --run`）
