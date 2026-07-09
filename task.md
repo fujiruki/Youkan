@@ -415,9 +415,9 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `assigneeViewBuckets.ts` 実装 → Green確認
 - [x] ViewModel `hooks/useAssigneeView.ts` のテストを先に書く（デフォルト本人分表示、管理者のみ切替候補取得、403/404フォールバック）→ Red確認
 - [x] `useAssigneeView.ts` 実装 → Green確認
-- [ ] View `screens/AssigneeViewScreen.tsx` 実装（§13.4レイアウト、案件名とセット表示、管理者のみチップ表示）
-- [ ] `ViewState` に `assigneeView` 追加、`App.tsx` にルーティング追加、会社コンテキスト限定の導線追加（メニュー）
-- [ ] 既存テスト破壊なし確認（`npm.cmd run test -- --run`）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] master マージ・push（**upload.ps1によるデプロイは行わない**）
-- [ ] 指揮AIへ完了報告（400語以内。アクセス経路・テスト結果・実機確認が必要な点）
+- [x] View `screens/AssigneeViewScreen.tsx` 実装（§13.4レイアウト、案件名とセット表示、管理者のみチップ表示）
+- [x] `ViewState` に `assigneeView` 追加、`App.tsx` にルーティング追加、会社コンテキスト限定の導線追加（メニュー）
+- [x] 既存テスト破壊なし確認（`npm.cmd run test -- --run`）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] master マージ・push（**upload.ps1によるデプロイは行わない**）
+- [x] 指揮AIへ完了報告（400語以内。アクセス経路・テスト結果・実機確認が必要な点）

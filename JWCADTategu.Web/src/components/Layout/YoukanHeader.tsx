@@ -40,7 +40,7 @@ interface Tenant {
 // type FilterMode = 'all' | 'personal' | 'company'; // [REMOVED] Use from types.ts
 
 interface YoukanHeaderProps {
-	currentView: 'youkan' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings' | 'archive' | 'trash' | 'flows';
+	currentView: 'youkan' | 'today' | 'history' | 'settings' | 'customers' | 'companySettings' | 'dashboard' | 'userlist' | 'projects' | 'calendar' | 'planning' | 'personalSettings' | 'archive' | 'trash' | 'flows' | 'assigneeView';
 	onNavigateToToday: () => void;
 	onNavigateToDashboard: () => void;
 	onNavigateToHistory: () => void;
@@ -52,6 +52,7 @@ interface YoukanHeaderProps {
 	onNavigateToCompanySettings?: () => void;
 	onNavigateToPersonalSettings?: () => void;
 	onNavigateToFlows?: () => void;
+	onNavigateToAssigneeView?: () => void;
 	user?: AuthUser | null;
 	tenant?: Tenant | null;
 	joinedTenants?: Tenant[];
@@ -76,6 +77,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	onNavigateToCompanySettings,
 	onNavigateToPersonalSettings,
 	onNavigateToFlows,
+	onNavigateToAssigneeView,
 	user,
 	tenant,
 	joinedTenants = [],
@@ -174,6 +176,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				onNavigateToCalendar={onNavigateToCalendar ? () => { onNavigateToCalendar(); setMenuOpen(false); } : undefined}
 				onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
 				onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
+				onNavigateToAssigneeView={onNavigateToAssigneeView ? () => { onNavigateToAssigneeView(); setMenuOpen(false); } : undefined}
 				onLogout={() => {
 					localStorage.removeItem(YOUKAN_KEYS.TOKEN);
 					localStorage.removeItem(YOUKAN_KEYS.USER);

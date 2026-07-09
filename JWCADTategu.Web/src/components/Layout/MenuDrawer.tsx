@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2, Sparkles } from 'lucide-react';
+import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2, Sparkles, ListChecks } from 'lucide-react';
 import { DEBUG_INFO } from '../../config/debug';
 
 interface AuthUser {
@@ -34,6 +34,7 @@ export interface MenuDrawerProps {
 	tenant?: Tenant | null;
 	onNavigateToCompanySettings?: () => void;
 	onNavigateToPersonalSettings?: () => void;
+	onNavigateToAssigneeView?: () => void;
 	joinedTenants?: Tenant[];
 	onSwitchTenant?: (tenantId: string | null) => void;
 	onOpenForAi?: () => void;
@@ -53,6 +54,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 	tenant,
 	onNavigateToCompanySettings,
 	onNavigateToPersonalSettings,
+	onNavigateToAssigneeView,
 	joinedTenants = [],
 	onSwitchTenant,
 	onOpenForAi,
@@ -170,6 +172,10 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 						)}
 						{tenant && onNavigateToCompanySettings && (
 							<MenuItem icon={<Building size={18} />} label="社員登録・メンバー管理" onClick={onNavigateToCompanySettings} />
+						)}
+						{/* R-050 Phase1: 担当者別ビュー（会社コンテキスト限定） */}
+						{tenant && onNavigateToAssigneeView && (
+							<MenuItem icon={<ListChecks size={18} />} label="担当者別ビュー" onClick={onNavigateToAssigneeView} />
 						)}
 						{/* Admin Access (Owner only) */}
 						{tenant?.role === 'owner' && (
