@@ -160,9 +160,11 @@ class BaseController {
         $item['siteName'] = $item['site_name'] ?? $item['site'] ?? null;
         $item['grossProfitTarget'] = (int)($item['gross_profit_target'] ?? 0);
 
-        // Assignee Info
-        $item['assigneeName'] = $item['assignee_name'] ?? null;
-        $item['assigneeColor'] = $item['assignee_color'] ?? null;
+        // Assignee Info (R-050 Phase1: u_ プレフィックス判定を一覧系に横展開)
+        $assigneeInfo = $this->resolveAssigneeInfo($item['assignedTo']);
+        $item['assigneeName'] = $assigneeInfo['name'];
+        $item['assigneeColor'] = $assigneeInfo['color'];
+        $item['assigneeKind'] = $assigneeInfo['kind'];
 
         // Dates & Trash
         $item['deletedAt'] = isset($item['deleted_at']) ? (int)$item['deleted_at'] : null;
@@ -187,6 +189,70 @@ class BaseController {
         }
 
         return $item;
+    }
+
+    /**
+     * assigned_to の値域解決（R-050 Phase1、docs/SPEC/04_データ設計.md §3.8）
+     * u_ プレフィックス形式は users テーブル、それ以外は assignees テーブルから解決する。
+     * どちらにも一致しない場合は孤児データとしてログ出力し、未割当（null）扱いにする。
+     */
+    protected function resolveAssigneeInfo($assignedTo) {
+        if (empty($assignedTo)) {
+            return ['name' => null, 'color' => null, 'kind' => null];
+        }
+
+        if (strpos((string)$assignedTo, 'u_') === 0) {
+            $stmt = $this->pdo->prepare("SELECT display_name, email FROM users WHERE id = ?");
+            $stmt->execute([$assignedTo]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user) {
+                return ['name' => $user['display_name'] ?: $user['email'], 'color' => null, 'kind' => 'user'];
+            }
+            error_log("[R-050] orphaned assigned_to (u_ prefix, not found in users): $assignedTo");
+            return ['name' => null, 'color' => null, 'kind' => null];
+        }
+
+        $stmt = $this->pdo->prepare("SELECT name, color FROM assignees WHERE id = ?");
+        $stmt->execute([$assignedTo]);
+        $assignee = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($assignee) {
+            return ['name' => $assignee['name'], 'color' => $assignee['color'], 'kind' => 'assignee'];
+        }
+
+        error_log("[R-050] orphaned assigned_to (not found in assignees): $assignedTo");
+        return ['name' => null, 'color' => null, 'kind' => null];
+    }
+
+    /**
+     * 管理者スコープの権限判定（R-050 Phase1、docs/SPEC/04_データ設計.md §5.3 4番目のルール）
+     * JWTの role は信頼せず、対象テナントに対する role を都度 memberships から取得する。
+     * 本人指定は常に許可。他者指定は owner/admin のみ許可し、対象がテナントに実在しない場合もエラーにする。
+     */
+    protected function assertAdminScopeAllowed($tenantId, $targetAssignedTo) {
+        if ((string)$targetAssignedTo === (string)$this->currentUserId) {
+            return;
+        }
+
+        $stmt = $this->pdo->prepare("SELECT role FROM memberships WHERE user_id = ? AND tenant_id = ?");
+        $stmt->execute([$this->currentUserId, $tenantId]);
+        $role = $stmt->fetchColumn();
+
+        if ($role !== 'owner' && $role !== 'admin') {
+            $this->sendError(403, 'Access Denied: Admin scope requires owner/admin role');
+            return;
+        }
+
+        if (strpos((string)$targetAssignedTo, 'u_') === 0) {
+            $checkStmt = $this->pdo->prepare("SELECT 1 FROM memberships WHERE user_id = ? AND tenant_id = ?");
+            $checkStmt->execute([$targetAssignedTo, $tenantId]);
+        } else {
+            $checkStmt = $this->pdo->prepare("SELECT 1 FROM assignees WHERE id = ? AND tenant_id = ?");
+            $checkStmt->execute([$targetAssignedTo, $tenantId]);
+        }
+
+        if (!$checkStmt->fetchColumn()) {
+            $this->sendError(404, 'Assignee not found in tenant');
+        }
     }
 
     /**

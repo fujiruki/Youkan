@@ -18,7 +18,7 @@ class ItemController extends BaseController {
             if ($id) {
                 // Single item retrieval - requires permission check
                 $this->show($id);
-            } elseif ($scope === 'aggregated' || $scope === 'personal' || $scope === 'company' || $scope === 'dashboard') {
+            } elseif ($scope === 'aggregated' || $scope === 'personal' || $scope === 'company' || $scope === 'dashboard' || $scope === 'team') {
                 // scope指定時はgetMyItemsで処理（project_idフィルタも内部で対応）
                 $this->getMyItems();
             } elseif ($projectId) {
@@ -186,6 +186,46 @@ class ItemController extends BaseController {
              $stmt->execute(array_merge($tenantIds, [$this->currentUserId, $this->currentUserId]));
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
              
+             $this->sendJSON(array_map(function($row) {
+                 $item = $this->mapItemRow($row);
+                 $item['tenantName'] = $row['tenant_name'];
+                 $item['tenantId'] = $row['tenant_id'];
+                 return $item;
+             }, $items));
+
+        } elseif ($scope === 'team') {
+             // R-050 Phase1: 管理者向け担当者別ビュー（画面2）
+             // ?scope=team&assigned_to=<id> で任意の担当者のアイテムを取得する。
+             // 管理者判定・テナント所属確認は assertAdminScopeAllowed() が行う。
+             $targetAssignedTo = $_GET['assigned_to'] ?? null;
+             if (!$targetAssignedTo) {
+                 $this->sendError(400, 'assigned_to is required for scope=team');
+                 return;
+             }
+
+             $tenantId = $this->currentTenantId;
+             if (empty($tenantId)) {
+                 $this->sendError(400, 'Company context required for scope=team');
+                 return;
+             }
+
+             $this->assertAdminScopeAllowed($tenantId, $targetAssignedTo);
+
+             $sql = "
+                 SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name
+                 FROM items
+                 LEFT JOIN items parent ON items.parent_id = parent.id
+                 LEFT JOIN items proj ON items.project_id = proj.id
+                 LEFT JOIN tenants t ON items.tenant_id = t.id
+                 WHERE items.tenant_id = ?
+                 AND items.assigned_to = ?
+                 $filterClause
+                 ORDER BY items.updated_at DESC
+             ";
+             $stmt = $this->pdo->prepare($sql);
+             $stmt->execute([$tenantId, $targetAssignedTo]);
+             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
              $this->sendJSON(array_map(function($row) {
                  $item = $this->mapItemRow($row);
                  $item['tenantName'] = $row['tenant_name'];
