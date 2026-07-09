@@ -373,3 +373,27 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - YuiHaruFujita 共有カレンダー
 - door.fujita@gmail.com の予定
 - 青年部商工会の全イベント（絆感謝運動 以外も）
+
+---
+
+## R-050 Phase1 バックエンド実装（担当者別ビュー・2026-07-09）
+
+**ブランチ**: `feature/R-050-phase1-assignee-view`（基点: master `ec5dfb0`）
+**会議録**: `docs/kaigi/2026-07-09-R050テナント型AI中枢設計.md`（8節ステップ2）
+**仕様**: `docs/SPEC/04_データ設計.md` §5.3（可視性ルール4番目）/ §3.8（assigned_to値域整理）
+**目的**: 画面2「担当者別ビュー」着手前提の2点（管理者スコープ新設／assigned_to ID空間表示バグ是正）をバックエンドに実装する
+
+### サブタスク
+
+- [x] worktree 作成（`git fetch && git checkout -b feature/R-050-phase1-assignee-view master` を worktree 内で実行）
+- [x] `backend/tests/test_admin_scope_assignee_view.php` 新規作成（テストケース1〜5、TDD Red）
+- [x] テスト実行して失敗を確認（Red）・コミット
+- [x] (a) 管理者スコープ新設: `ItemController.php`/`TodayController.php` の一覧系に `assigned_to`+`scope=team` 相当のクエリパラメータ対応を追加。`memberships.role IN ('owner','admin')` で判定（`TenantController.php` のパターンに合わせる）。非管理者が他者指定で403、テナント外ユーザー指定でエラー
+- [x] (b) assigned_to ID空間解決ロジックの横展開（`getAssigneeEmail()` の `u_` 判定パターンを一覧系クエリへ）。孤児データは「未割当」+ `error_log()`
+- [x] `assigneeKind: 'user' | 'assignee' | null` フィールドをレスポンスに追加
+- [x] テスト実行して成功を確認（Green）
+- [x] 既存の関連テスト（`feature_dashboard_scope.php`, `test_cascade_operations.php` 等の主要 backend/tests）が壊れていないことを確認
+- [x] フロントエンド vitest 破壊なし確認（`npm.cmd run test -- --run`）
+- [x] `docs/handover/R-050-phase1-backend.md` 作成（新設エンドポイント・パラメータ・レスポンス例 JSON、次のフロント実装Agent向け）
+- [x] `git diff --stat master..HEAD` で変更範囲確認 → master マージ・push（デプロイはしない）
+- [x] 指揮AIへ完了報告（変更ファイル・テスト結果・handoverパス）

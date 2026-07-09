@@ -20,6 +20,8 @@ class TodayController extends BaseController {
         $this->authenticate();
         $tenantId = $this->currentTenantId;
         $projectId = $_GET['project_id'] ?? null;
+        $scope = $_GET['scope'] ?? '';
+        $targetAssignedTo = $_GET['assigned_to'] ?? null;
 
         // [Fix] Context Switch: If Project Focus, use Project's Tenant
         if ($projectId) {
@@ -38,27 +40,39 @@ class TodayController extends BaseController {
         // [New] Auto-reset "Intent Boost" items from previous days
         $this->resetExpiredBoosts();
 
-        // Aggregated Scope Logic (similar to ItemController)
-        $tenantIds = $this->joinedTenants ?: [];
-        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
-            $tenantIds[] = $this->currentTenantId;
+        if ($scope === 'team' && $targetAssignedTo) {
+            // R-050 Phase1: 管理者向け担当者別ビュー（画面2）
+            if (empty($tenantId)) {
+                $this->sendError(400, 'Company context required for scope=team');
+                return;
+            }
+            $this->assertAdminScopeAllowed($tenantId, $targetAssignedTo);
+
+            $ownershipFilter = " (items.tenant_id = ? AND items.assigned_to = ?) ";
+            $params = [$tenantId, $targetAssignedTo];
+        } else {
+            // Aggregated Scope Logic (similar to ItemController)
+            $tenantIds = $this->joinedTenants ?: [];
+            if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+                $tenantIds[] = $this->currentTenantId;
+            }
+
+            $placeholders = '';
+            if (!empty($tenantIds)) {
+                $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+            }
+
+            // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
+            $ownershipFilter = " (
+                -- 1. Personal Items (ownership required)
+                ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
+                OR
+                -- 2. Company Items (ownership required)
+                (" . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . " AND (items.assigned_to = ? OR items.created_by = ?))
+            ) ";
+
+            $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
         }
-
-        $placeholders = '';
-        if (!empty($tenantIds)) {
-            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
-        }
-
-        // [FIX 2026-02-04] Context-based Visibility for ProjectFocused Mode
-        $ownershipFilter = " (
-            -- 1. Personal Items (ownership required)
-            ((items.tenant_id IS NULL OR items.tenant_id = '') AND (items.created_by = ? OR items.assigned_to = ?))
-            OR
-            -- 2. Company Items (ownership required)
-            (" . ($placeholders ? "items.tenant_id IN ($placeholders)" : "0") . " AND (items.assigned_to = ? OR items.created_by = ?))
-        ) ";
-
-        $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds, [$this->currentUserId, $this->currentUserId]);
 
         // [NEW] Project Membership Filter (for ProjectFocused mode) - UUID only
         if ($projectId) {
