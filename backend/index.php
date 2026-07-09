@@ -417,28 +417,34 @@ if (preg_match('#^(/api)?/history/timeline$#', $path) && $method === 'GET') {
     exit;
 }
 
-// Stock Routes (v6 Enterprise)
-require_once 'StockController.php';
-
-if (preg_match('#^(/api)?/stocks$#', $path)) {
-    $controller = new StockController();
-    if ($method === 'GET') {
-        $controller->index();
-    } elseif ($method === 'POST') {
-        $controller->create();
-    }
-    exit;
-}
-if (preg_match('#^(/api)?/stocks/([^/]+)$#', $path, $matches) && ($method === 'PUT' || $method === 'PATCH')) {
-    $controller = new StockController();
-    $controller->update($matches[2]);
-    exit;
-}
-if (preg_match('#^(/api)?/stocks/([^/]+)/assign$#', $path, $matches) && $method === 'POST') {
-    $controller = new StockController();
-    $controller->assign($matches[2]);
-    exit;
-}
+// Stock Routes (v6 Enterprise) — [R-069] セキュリティ修正により無効化
+// StockController の各メソッドは authenticate() を一切呼んでおらず、テナントIDスコープ
+// チェックも無く、未認証で到達可能だった（assign() は任意の userId で items へ直接INSERT可能）。
+// フロントエンドの useStocks フック(呼び出し元 DispatchScreen.tsx)はどの画面からもルーティング
+// されておらず死蔵コードであることを確認済みのため、実装を直すのではなくルート自体を無効化する。
+// 将来 Stock 機能を再導入する場合は、ItemController.php 等と同様に authenticate() と
+// currentTenantId によるスコープ制限を StockController に実装してから再度有効化すること。
+// require_once 'StockController.php';
+//
+// if (preg_match('#^(/api)?/stocks$#', $path)) {
+//     $controller = new StockController();
+//     if ($method === 'GET') {
+//         $controller->index();
+//     } elseif ($method === 'POST') {
+//         $controller->create();
+//     }
+//     exit;
+// }
+// if (preg_match('#^(/api)?/stocks/([^/]+)$#', $path, $matches) && ($method === 'PUT' || $method === 'PATCH')) {
+//     $controller = new StockController();
+//     $controller->update($matches[2]);
+//     exit;
+// }
+// if (preg_match('#^(/api)?/stocks/([^/]+)/assign$#', $path, $matches) && $method === 'POST') {
+//     $controller = new StockController();
+//     $controller->assign($matches[2]);
+//     exit;
+// }
 
 // Backup & Restore Routes
 require_once 'BackupController.php';
