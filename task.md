@@ -397,3 +397,27 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `docs/handover/R-050-phase1-backend.md` 作成（新設エンドポイント・パラメータ・レスポンス例 JSON、次のフロント実装Agent向け）
 - [x] `git diff --stat master..HEAD` で変更範囲確認 → master マージ・push（デプロイはしない）
 - [x] 指揮AIへ完了報告（変更ファイル・テスト結果・handoverパス）
+
+---
+
+## R-050 Phase1 フロントエンド実装（担当者別ビュー・2026-07-09）
+
+**ブランチ**: `feature/R-050-phase1-assignee-view-ui`（基点: master `322caf1`）
+**会議録**: `docs/kaigi/2026-07-09-R050テナント型AI中枢設計.md`（8節ステップ3）
+**バックエンド引き継ぎ**: `docs/handover/R-050-phase1-backend.md`
+**仕様**: `docs/spec/03_画面設計.md` §8, §13（担当者別ビュー）
+
+### サブタスク
+
+- [x] worktree 作成（`git fetch && git checkout -b feature/R-050-phase1-assignee-view-ui master` を worktree 内で実行）
+- [x] 型拡張: `Item.assigneeKind`、`ApiClient.getAllItems()` の `scope:'team'`/`assigned_to` オプション追加（`src/features/core/youkan/types.ts`, `src/api/client.ts`）
+- [x] 純粋ロジック `logic/assigneeViewBuckets.ts` のテストを先に書く（今日/明日/今週バケット分類、所要時間合計、未完了/詰まり/待ち集計）→ Red確認
+- [x] `assigneeViewBuckets.ts` 実装 → Green確認
+- [ ] ViewModel `hooks/useAssigneeView.ts` のテストを先に書く（デフォルト本人分表示、管理者のみ切替候補取得、403/404フォールバック）→ Red確認
+- [ ] `useAssigneeView.ts` 実装 → Green確認
+- [ ] View `screens/AssigneeViewScreen.tsx` 実装（§13.4レイアウト、案件名とセット表示、管理者のみチップ表示）
+- [ ] `ViewState` に `assigneeView` 追加、`App.tsx` にルーティング追加、会社コンテキスト限定の導線追加（メニュー）
+- [ ] 既存テスト破壊なし確認（`npm.cmd run test -- --run`）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] master マージ・push（**upload.ps1によるデプロイは行わない**）
+- [ ] 指揮AIへ完了報告（400語以内。アクセス経路・テスト結果・実機確認が必要な点）

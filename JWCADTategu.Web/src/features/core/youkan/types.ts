@@ -155,6 +155,7 @@ export interface Item {
     assignedTo?: string;     // 外注先の担当者ID
     assigneeName?: string;   // [NEW] Joined from assignees table
     assigneeColor?: string;  // [NEW] Joined from assignees table
+    assigneeKind?: 'user' | 'assignee' | null; // [NEW][R-050] assigned_to の解決元種別
     delegation?: DelegationInfo; // 外注詳細情報
 
     // --- Reference ---

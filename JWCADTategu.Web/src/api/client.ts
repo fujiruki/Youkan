@@ -155,13 +155,14 @@ export class ApiClient {
 		}
 	}
 
-	public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company', parentId?: string, project_id?: string, show_archived?: boolean, show_trash?: boolean }): Promise<JudgableItem[]> {
+	public static async getAllItems(options?: { scope?: 'aggregated' | 'dashboard' | 'personal' | 'company' | 'team', parentId?: string, project_id?: string, show_archived?: boolean, show_trash?: boolean, assigned_to?: string }): Promise<JudgableItem[]> {
 		const params = new URLSearchParams();
 		if (options?.scope) params.append('scope', options.scope);
 		if (options?.parentId) params.append('parent_id', options.parentId);
 		if (options?.project_id) params.append('project_id', options.project_id);
 		if (options?.show_archived) params.append('show_archived', '1');
 		if (options?.show_trash) params.append('show_trash', '1');
+		if (options?.assigned_to) params.append('assigned_to', options.assigned_to);
 
 		const query = params.toString() ? `?${params.toString()}` : '';
 		return this.request<JudgableItem[]>('GET', `/items${query}`);
