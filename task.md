@@ -421,3 +421,21 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `git diff --stat master..HEAD` で変更範囲確認
 - [x] master マージ・push（**upload.ps1によるデプロイは行わない**）
 - [x] 指揮AIへ完了報告（400語以内。アクセス経路・テスト結果・実機確認が必要な点）
+
+---
+
+## R-050 Phase1 バグ修正: 会社アカウントログイン時の管理者スコープ403（2026-07-10）
+
+**ブランチ**: `fix/R-050-phase1-tenant-account-admin-scope`（基点: master）
+**引き継ぎ**: `docs/handover/R-050-phase1-backend.md`
+**症状**: 会社アカウント（`account_type=tenant`）でログインし `scope=team&assigned_to=<他者>` を呼ぶと、`assertAdminScopeAllowed()` が `memberships` をテナントID自身の `user_id` で検索してしまい該当行がなく常に403になる
+
+### サブタスク
+
+- [x] `BaseController::assertAdminScopeAllowed()` を読み、原因を確定する（`account_type=tenant` かつ `sub`=対象テナントID の場合に `memberships` 行が存在しない）
+- [x] `backend/tests/test_admin_scope_assignee_view.php` に会社アカウント（tenant型）ログインのテストケースを追加し、Red確認
+- [x] `assertAdminScopeAllowed()` を修正: `account_type=tenant` かつ `sub` が対象テナントIDと一致する場合はowner相当として許可。テナント分離は維持
+- [x] 既存のuser型テストケースが壊れていないことを確認、Green確認
+- [x] 既存backendテスト・vitest回帰確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認 → master マージ・push（**デプロイは行わない**）
+- [x] 指揮AIへ完了報告（400語以内）

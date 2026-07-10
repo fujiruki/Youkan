@@ -233,13 +233,20 @@ class BaseController {
             return;
         }
 
-        $stmt = $this->pdo->prepare("SELECT role FROM memberships WHERE user_id = ? AND tenant_id = ?");
-        $stmt->execute([$this->currentUserId, $tenantId]);
-        $role = $stmt->fetchColumn();
+        // 会社アカウント（tenant型ログイン）は memberships に自身の行を持たない設計のため、
+        // 対象テナント自身としてログイン中であれば owner 相当として role 再クエリを省略する。
+        $isTenantAccountItself = ($this->currentUser['account_type'] ?? 'user') === 'tenant'
+            && (string)$this->currentUserId === (string)$tenantId;
 
-        if ($role !== 'owner' && $role !== 'admin') {
-            $this->sendError(403, 'Access Denied: Admin scope requires owner/admin role');
-            return;
+        if (!$isTenantAccountItself) {
+            $stmt = $this->pdo->prepare("SELECT role FROM memberships WHERE user_id = ? AND tenant_id = ?");
+            $stmt->execute([$this->currentUserId, $tenantId]);
+            $role = $stmt->fetchColumn();
+
+            if ($role !== 'owner' && $role !== 'admin') {
+                $this->sendError(403, 'Access Denied: Admin scope requires owner/admin role');
+                return;
+            }
         }
 
         if (strpos((string)$targetAssignedTo, 'u_') === 0) {
