@@ -97,6 +97,46 @@ function makeController($pdo, $userId, $tenantId, $joinedTenants) {
     };
 }
 
+// 会社アカウント（tenant型ログイン）用のテストハーネス
+// sub = tenant_id = currentUserId = currentTenantId となる状態を再現する
+function makeControllerAsTenant($pdo, $tenantId, $joinedTenants) {
+    return new class($pdo, $tenantId, $joinedTenants) extends ItemController {
+        private $mockInput = [];
+        private $lastResponse = null;
+        private $lastError = null;
+
+        public function __construct($pdo, $tenantId, $joinedTenants) {
+            $this->pdo = $pdo;
+            $this->currentUserId = $tenantId;
+            $this->currentTenantId = $tenantId;
+            $this->joinedTenants = $joinedTenants;
+            $this->currentUser = [
+                'sub' => $tenantId,
+                'account_type' => 'tenant',
+                'tenant_id' => $tenantId,
+                'role' => 'owner',
+            ];
+        }
+
+        protected function getInput() { return $this->mockInput; }
+        protected function sendJSON($data) { $this->lastResponse = $data; }
+        protected function sendError($code, $msg) {
+            $this->lastError = ['code' => $code, 'message' => $msg];
+            throw new Exception("ERROR $code: $msg");
+        }
+        protected function authenticate() {}
+
+        public function getLastResponse() { return $this->lastResponse; }
+        public function getLastError() { return $this->lastError; }
+
+        public function callGetMyItems() {
+            $ref = new ReflectionMethod('ItemController', 'getMyItems');
+            $ref->setAccessible(true);
+            $ref->invoke($this);
+        }
+    };
+}
+
 $passed = 0;
 $failed = 0;
 
@@ -182,6 +222,33 @@ $ctrl = makeController($pdo, $testAdmin, $testTenantA, [$testTenantA]);
 $orphanInfo = $ctrl->callResolveAssigneeInfo('u_r050_orphan_ghost');
 assert_equal('assigneeName = null（孤児データ）', $orphanInfo['name'], null);
 assert_equal('assigneeKind = null（孤児データ）', $orphanInfo['kind'], null);
+
+// ============================================================
+// テスト6: 会社アカウント（tenant型ログイン）が scope=team で他者の担当分を取得できる
+// ============================================================
+echo "\n=== テスト6: 会社アカウント(tenant型)が scope=team で他者の担当分を取得できる ===\n";
+$_GET = ['scope' => 'team', 'assigned_to' => $testAssignee];
+$ctrl = makeControllerAsTenant($pdo, $testTenantA, [$testTenantA]);
+$ctrl->callGetMyItems();
+$resp = $ctrl->getLastResponse();
+$ids = $resp ? array_column($resp, 'id') : [];
+assert_true('会社アカウントのレスポンスにr050_item_assigneeが含まれる', in_array('r050_item_assignee', $ids));
+
+// ============================================================
+// テスト7: 会社アカウントでもテナント分離は維持される（他テナントのユーザーを指定するとエラー）
+// ============================================================
+echo "\n=== テスト7: 会社アカウントでも他テナント所属ユーザーを指定するとエラー ===\n";
+$_GET = ['scope' => 'team', 'assigned_to' => $testOutsider];
+$ctrl = makeControllerAsTenant($pdo, $testTenantA, [$testTenantA]);
+$errTenantMismatch = false;
+try {
+    $ctrl->callGetMyItems();
+} catch (Exception $e) {
+    if (strpos($e->getMessage(), 'ERROR 404') !== false || strpos($e->getMessage(), 'ERROR 400') !== false) {
+        $errTenantMismatch = true;
+    }
+}
+assert_true('会社アカウントでも他テナントユーザー指定でエラー', $errTenantMismatch);
 
 // --- 後片付け ---
 cleanup($pdo, $testTenantA, $testTenantB, $testAdmin, $testMember, $testAssignee, $testOutsider);
