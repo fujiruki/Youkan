@@ -141,3 +141,20 @@ GET /api/today?scope=team&assigned_to=u_697b2af132f4f
 - 既存backendテスト: `test_cascade_operations.php`(47 passed) / `test_someday_status.php`(15 passed) / `test_today_sort_order.php`(3 passed) / `test_calendar_routing.php`(7 passed) / `test_created_at_mapping.php`(8 passed) / `test_project_title_fallback.php`(6 passed) / `test_reorder_focus_sort_order.php`(2 passed) いずれも回帰なし
 - `feature_dashboard_scope.php` / `test_real_project_title_join.php`(1 failed) / `test_completed_at.php`(database is locked) は master（本ブランチ着手前）でも同一の挙動・失敗であることを `git stash` 比較で確認済み。本タスクの変更に起因しない既存の問題
 - フロントエンドvitest: `npm.cmd run test -- --run` → 705 passed / 14 skipped / 0 failed（1件の unhandled error は `DecisionDetailModal` 関連の既存非同期テストで、本タスクの変更対象外）
+
+---
+
+## 8. Phase1完了状況とデプロイ判断への申し送り（2026-07-10時点）
+
+以下がすべてmasterへマージ・push済み。
+
+1. 本ドキュメントのバックエンド実装: `feature/R-050-phase1-assignee-view` ブランチ、マージコミット `322caf1`
+2. フロントエンド実装（担当者別ビュー画面 `AssigneeViewScreen`）: `feature/R-050-phase1-assignee-view-ui` ブランチ、マージコミット `67e2586`
+3. 実機検証（claude-in-chromeでブラウザ操作）で発見したバグ修正: `fix/R-050-phase1-tenant-account-admin-scope` ブランチ、マージコミット `ce65aa2`
+   - 症状: 会社アカウント（テナント自身ログイン、`account_type=tenant`）で管理者スコープ切替が403になる
+   - 原因: `BaseController::assertAdminScopeAllowed()` が `memberships` テーブルを `user_id=currentUserId` で検索するが、会社アカウントログイン時は `currentUserId` がテナントID自身で `memberships` に行がないため
+   - 修正後、会社アカウント・ユーザーアカウント両方で200を確認、テナント分離（他テナントのID指定で404）も維持されていることを確認済み
+
+これにより担当者別ビュー（画面2）はエンドツーエンドで動作する状態になっている。
+
+**未実施事項**: 本番デプロイ（`upload.ps1`）はまだ実施していない。次回セッションで本番デプロイを判断する際は、上記3コミットがすべてmasterに含まれていること（`git log --oneline` で確認可能）を前提に、`docs/request_log.md` R-050エントリと `docs/SPEC/06_変更履歴.md`（2026-07-10エントリ）を最終状態の参照元とすること。
