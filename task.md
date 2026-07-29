@@ -439,3 +439,37 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] 既存backendテスト・vitest回帰確認
 - [x] `git diff --stat master..HEAD` で変更範囲確認 → master マージ・push（**デプロイは行わない**）
 - [x] 指揮AIへ完了報告（400語以内）
+
+---
+
+## R-070 詳細画面カレンダー操作の再レンダリング崩壊修正＋R-068実装（2026-07-29）
+
+**ブランチ**: `fix/R-070-calendar-rerender-optimization`
+**要望**: `docs/requests_log.md` R-070
+**目的**: アイテム詳細画面の「納期」クリック・フィルタ切替時にカレンダーグリッド全体が10秒以上固まる不具合を解消し、あわせてR-068（量感カレンダー本体のスクロール性能改善）を実装する
+
+### 背景（調査済み・実装Agentは再調査不要）
+
+- `RyokanCalendar.tsx` の `handleDayAction`（約531行目）が `useCallback` でラップされておらず、再レンダリングのたびに新しい関数参照が生成される
+- `RyokanGridView.tsx` の `handleCellAction`（約87-90行目）も連鎖的に新規参照になり、`React.memo` 済みの全 `CalendarCell` のメモ化が毎回崩壊してフル再レンダリングされる
+- `RyokanGridView.tsx` の `externalEvents={externalEventsByDate?.get(toYmdKey(date)) || []}`（約207行目）もイベント無し日で毎回新規空配列を生成しメモ化を崩している
+- `VolumeCalendarScreen.tsx`（量感カレンダー本体）は詳細画面内カレンダーと異なり `disableRangeExtension` 相当のスクロール最適化が未適用（R-068未着手の原因）
+
+### サブタスク
+
+- [ ] worktree 作成（`git fetch && git checkout -b fix/R-070-calendar-rerender-optimization master` を worktree 内で実行）
+- [ ] 失敗するテストを先に書く（可能なら React Profiler 相当のレンダー回数計測 or `CalendarCell` の再レンダリング回数をモックで検証するテスト）→ Red確認
+- [ ] `RyokanCalendar.tsx` の `handleDayAction` を `useCallback` 化
+- [ ] `RyokanGridView.tsx` の `externalEvents` インライン `|| []` を安定参照（モジュールスコープの定数配列 or useMemo）に置換
+- [ ] `VolumeCalendarScreen.tsx` に詳細画面カレンダー同様のスクロール最適化（`disableRangeExtension` 相当、または `ed3695a` で行った装飾トランジション抑制・不要ペイント範囲抑制）を適用
+- [ ] テスト Green 確認・既存テスト回帰なし確認（vitest全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認（想定より大きい差分やsqlite/log/tsbuildinfo混入がないか）
+- [ ] chrome-devtools MCP で実機検証（本番 or dev環境）:
+  - 詳細画面「納期」クリック時のレンダリング/応答速度（Before/After）
+  - フィルタ切替時（Before/After）
+  - 量感カレンダー本体のスクロール（Before/After）
+  - スクリーンショットまたは計測ログを添付
+- [ ] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
+- [ ] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
+- [ ] **指揮AIのレビュー後、master へマージ・push**
+- [ ] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）

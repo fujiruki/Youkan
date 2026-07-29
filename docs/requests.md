@@ -1,7 +1,7 @@
 # Requests
 
 - **【最優先】R-050案** テナント型AI中枢・担当者割り振り・業務ディスパッチ機能
-  - **2026-07-09 kaigi2会議で意思決定済み。Phase1（画面2: 担当者別ビュー）は仕様確定・着手中のため `docs/request_log.md` に移記した。**
+  - **2026-07-09 kaigi2会議で意思決定済み。Phase1（画面2: 担当者別ビュー）は仕様確定・着手中のため `docs/requests_log.md` に移記した。**
   - 会議結論の全文: `docs/kaigi/2026-07-09-R050テナント型AI中枢設計.md`
   - Phase1確定仕様: `docs/SPEC/04_データ設計.md` §3.8（assigned_to値域整理・assigneeKind型）、§5.3（可視性ルール4番目・管理者スコープ）
   - Phase2以降（会社ディスパッチダッシュボード・AI割り振り提案・社員向けToday画面・担当者×日付マトリクス・プロジェクト内担当編集・meta.dispatchスキーマ等）の原文・ビジョン・少数意見は `docs/reference/vision/R050_Tenant_AI_Business_OS.md` に保存。次回Phase2以降の着手判断時に参照すること。
@@ -59,26 +59,26 @@
   - pending（外的要因待ち）と someday（自発的延期）を文言・色・アイコンで厳密差別化
   - ガント・カレンダーは非表示（期限なきもの）、パノラマに専用バケット追加
   - 既存遺物 `judgmentStatus.someday` をメイン status に統合
-  - **→ R-028 として request_log.md に移記済み（2026-05-04）**
+  - **→ R-028 として requests_log.md に移記済み（2026-05-04）**
 
 - **【高】R-029** 3バグ複合修正（R-028デプロイ後の不具合）
   - 修正1: 登録と集中（stream）画面でプロジェクトアイテム（is_project=1）が Inbox/Pending/Waiting に混在表示される
   - 修正2: パノラマの「💭 いつかやる」バケットが空のまま（`getGdbShelf` レスポンスに `someday` キーが無いため）
   - 修正3: 3階層以上プロジェクトフォーカス時に孫アイテムが表示されない（`BaseController::getProjectDescendantIds()` の WITH RECURSIVE 初期行で `parent_id` を評価していないため）
-  - **→ R-029 として request_log.md に移記済み（2026-05-04）**
+  - **→ R-029 として requests_log.md に移記済み（2026-05-04）**
 
 - **【高】R-031** ForAI機能＋タスク読み上げ機能（目玉機能復活）
   - F-19: 現フィルタで表示中のアイテムを markdown 形式に変換し、クリップボードコピーまたは md ダウンロードできる ForAI機能
   - F-20: Web Speech API（無料）で優先順位順にタスクを読み上げる。歌詞型スクロール、一時停止/再生/10秒戻る
   - 過去仕様書: `docs/SPEC/archives/ForAI機能.md`, `読み上げ機能.md`, `20260202_Youkanの概要と用語.md`
-  - **→ R-031 として request_log.md に移記済み（2026-05-07）**
+  - **→ R-031 として requests_log.md に移記済み（2026-05-07）**
 
 - **【高】R-030** 階層ラッパー型分離・virtual-header- 概念の根本撤廃
   - 発端: 全体一覧で「フローチャートで表示」を押すと、プロジェクト名のところに `virtual-header-{realId}` という生IDが表示される
   - 根本原因: `hierarchy.ts` でヘッダーWrapperに `item: { ...proj, id: 'virtual-header-${proj.id}' }` という偽装IDを持たせていたことで、12箇所で `.replace('virtual-header-', '')` を直書きする散在コードが生まれ、剥がし忘れがフロー画面のコア機能崩壊（プロジェクトフィルタ・新規作成・依存関係）を引き起こした
   - 解決策: `HierarchicalWrapper` を discriminated union 化し、ヘッダー型は `item: Item` を持たず `projectId` / `projectTitle` / `project` フィールドで情報を保持。React key は既存の `wrapper.id`（`header-${proj.id}` 形式）を使うため衝突なし
   - 副次効果: `OverviewItem.tsx` の `onNavigateToFlow` バグ（偽装IDがフロー画面に伝搬していた）が型分離により自動解消
-  - **→ R-030 として request_log.md に移記済み（2026-05-05）**
+  - **→ R-030 として requests_log.md に移記済み（2026-05-05）**
 
 
 

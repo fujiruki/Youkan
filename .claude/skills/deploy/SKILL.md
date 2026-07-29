@@ -53,7 +53,7 @@ cd /c/Fujiruki/Projects/Youkan && powershell.exe -File upload.ps1
 
 ### 5. 記録
 
-- 検証で問題なければ `docs/request_log.md` の該当 R 番号の対応状況を「完了（YYYY-MM-DDデプロイ済み）」に更新してコミット
+- 検証で問題なければ `docs/requests_log.md` の該当 R 番号の対応状況を「完了（YYYY-MM-DDデプロイ済み）」に更新してコミット
 
 ## 注意事項
 

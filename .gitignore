@@ -1,6 +1,10 @@
 # Claude Code worktrees（並列 Agent 用）
 .claude/worktrees/
 
+# SdDD / CodeGraph の再生成できるローカルデータ
+.sddd/
+.codegraph/
+
 # ビルド成果物・キャッシュ
 *.tsbuildinfo
 

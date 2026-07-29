@@ -25,7 +25,7 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 | ファイル | 役割 |
 |:--|:--|
 | [requests.md](requests.md) | 未対応の要望一覧 |
-| [request_log.md](request_log.md) | 全リクエストの対応履歴 |
+| [requests_log.md](requests_log.md) | 全リクエストの対応履歴 |
 
 ---
 
