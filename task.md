@@ -507,7 +507,7 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] バックエンド: 送信内容を `backend/data/requests_sub.md` に追記（日時・ユーザー・本文・画像相対パスをMarkdownエントリとして整形）、画像は `backend/data/requests_sub_uploads/{uuid}.{ext}` に保存。`backend/data/` ディレクトリが無ければ作成する
 - [x] **重要**: `upload.ps1` の `Copy-Item -Path $backendDir -Exclude` リストに `data`（`backend/data/` ディレクトリ）を追加する。これを忘れると次回デプロイで本番の蓄積データが消失する（`.gitignore` には既に追加済み、コードは別途このタスクで対応）
 - [x] TDD: バックエンド（PHP内蔵サーバーでの統合テスト、認証必須であること・本文必須であること・画像サイズ上限・requests_sub.mdへの追記フォーマットを検証）とフロントエンド（モーダルの表示・送信・エラー処理・クリップボード貼り付け）の両方でテストを先に書きRed確認→実装→Green確認
-- [ ] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
-- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+- [x] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
