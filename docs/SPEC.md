@@ -33,7 +33,10 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 
 | ファイル | 内容 |
 |:--|:--|
-| [sddd/rules.md](sddd/rules.md) | SdDDワークフロー・役割定義・禁止事項 |
+| [../SDDD.md](../SDDD.md) | SdDD正本ルール（要望・仕様・タスクのライフサイクル） |
+| [../CLAUDE.md](../CLAUDE.md) | Claude Codeアダプター（禁止事項・声かけ・スラッシュコマンド） |
+| [collaboration.md](collaboration.md) | worktree分離・複数Agent運用 |
+| [automation.md](automation.md) | ダッシュボード連携・Agent完了判定 |
 | [AGENT_LOOP_ENGINEERING.md](AGENT_LOOP_ENGINEERING.md) | Agent loop engineering による進め方・検証・引き継ぎルール |
 
 ---
@@ -62,6 +65,8 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 
 ```
 Youkan/
+├── SDDD.md               # SdDD正本ルール
+├── CLAUDE.md             # Claude Codeアダプター
 ├── JWCADTategu.Web/     # フロントエンド（React + Vite）
 │   └── src/
 │       ├── features/core/youkan/   # Youkanコア機能
@@ -70,10 +75,11 @@ Youkan/
 ├── backend/              # バックエンド（PHP + SQLite）
 ├── docs/                 # 仕様書群
 │   ├── SPEC.md           # ← このファイル（目次）
-│   ├── spec/             # SdDD仕様書（01〜06）
-│   ├── sddd/rules.md     # SdDDルール
+│   ├── SPEC/             # SdDD仕様書（01〜06）
+│   ├── collaboration.md  # worktree分離・複数Agent運用
+│   ├── automation.md     # ダッシュボード連携・Agent完了判定
 │   ├── requests.md       # 未対応要望
-│   ├── request_log.md    # 対応履歴
+│   ├── requests_log.md   # 対応履歴
 │   ├── handover/         # Agent引き継ぎ
 │   ├── reference/        # 参照資料
 │   └── 99_Archive/       # 旧ドキュメント（SdDD導入前）

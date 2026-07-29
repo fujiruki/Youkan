@@ -12,6 +12,9 @@
 backend/jbwos.sqlite
 backend/php_errors.log
 
+# 改善要望送信フォーム（R-071）: サーバーローカルの環境固有データ
+backend/data/
+
 # デプロイ・スモークテスト出力
 deploy_debug.log
 smoke_*.txt

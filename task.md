@@ -471,4 +471,43 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
 - [x] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
 - [x] **指揮AIのレビュー後、master へマージ・push**（レビューOK確認後、`fix/R-070-calendar-rerender-optimization` は master の直後のコミットで分岐しており差分無しだったため、fast-forwardで `origin/master` へ反映。コミット `7a35940`）
-- [ ] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）
+- [x] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）→ 発注者確認済み（R-050込みで一緒にデプロイ）。デプロイAgent起動→`upload.ps1`のSSHクライアント互換性バグ（post-quantum鍵交換警告が致命的エラー扱いされる）で失敗、修正待ち
+
+---
+
+## upload.ps1 SSH互換性バグ修正（2026-07-29）
+
+**背景**: R-070/R-068+R-050 Phase1デプロイ時に発覚。ローカルのOpenSSHクライアント（10.2p1）が出す `** WARNING: connection is not using a post-quantum key exchange algorithm.` という新しい警告が、`$ErrorActionPreference = "Stop"` 下の直接 `& ssh`/`& scp` 呼び出し（`upload.ps1` 180/187/194行目付近）でPowerShellのNativeCommandErrorとして扱われ、デプロイ全体が中断する。スクリプト内には既にこの種の問題を回避するための `Invoke-SshSafe` 関数（`cmd /c` 経由）が用意されているが、実際のmkdir/scp/extract呼び出しではまだ使われていない。
+
+### サブタスク
+- [ ] `upload.ps1` の該当箇所（mkdir/scp/展開コマンド）を `Invoke-SshSafe` 経由に統一する
+- [ ] ローカルで再現確認（同じ警告が出ても処理が継続すること）
+- [ ] `git diff --stat` で変更範囲確認（`upload.ps1` のみであることを確認）
+- [ ] R-070/R-068+R-050 Phase1のデプロイを再実行し、`.claude/skills/deploy/SKILL.md` の手順通り本番検証まで完了させる
+- [ ] `docs/requests_log.md` のR-070・R-050該当行を「完了（2026-07-29デプロイ済み）」に更新
+- [ ] 指揮AIへ完了報告
+
+---
+
+## R-071 改善要望送信フォーム実装（2026-07-29）
+
+**ブランチ**: `feature/R-071-improvement-request-form`
+**要望**: `docs/requests_log.md` R-071
+**仕様**: `docs/SPEC/02_機能仕様.md` F-23, `docs/SPEC/03_画面設計.md` §14, `docs/SPEC/04_データ設計.md` §3.9
+
+### サブタスク
+
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-071-improvement-request-form master` をworktree内で実行）
+- [ ] フロント: `YoukanHeader.tsx` のロゴを `text-sm`→`text-[7px]` に縮小し、「改善要望を送る」ボタンを隣に配置（PC、`hidden md:flex` 内）
+- [ ] フロント: `MenuDrawer.tsx` の「ツール」セクションに同機能のメニュー項目を追加（スマホ）
+- [ ] フロント: `ImprovementRequestModal.tsx` 新規作成（`SimpleModal`ベース、`ForAiModal.tsx`をテンプレート）。本文テキスト（必須）＋画像1枚（任意、5MB上限、`image/png`/`image/jpeg`/`image/webp`、クリップボード貼り付け対応）
+- [ ] フロント: `ApiClient.submitImprovementRequest()` を `src/api/client.ts` に追加（画像添付時は`FormData`、`restoreDatabase`/`restoreItems`と同様の手動`fetch`パターン）
+- [ ] バックエンド: `ImprovementRequestController.php` 新規作成。`BaseController` を継承し `authenticate()` 必須（`SideMemoController.php`の無認証パターンは踏襲しないこと。R-069で無認証エンドポイントの脆弱性を踏んだばかりのため要注意）
+- [ ] バックエンド: `backend/index.php` に `POST /improvement-requests` ルーティング追加
+- [ ] バックエンド: 送信内容を `backend/data/requests_sub.md` に追記（日時・ユーザー・本文・画像相対パスをMarkdownエントリとして整形）、画像は `backend/data/requests_sub_uploads/{uuid}.{ext}` に保存。`backend/data/` ディレクトリが無ければ作成する
+- [ ] **重要**: `upload.ps1` の `Copy-Item -Path $backendDir -Exclude` リストに `data`（`backend/data/` ディレクトリ）を追加する。これを忘れると次回デプロイで本番の蓄積データが消失する（`.gitignore` には既に追加済み、コードは別途このタスクで対応）
+- [ ] TDD: バックエンド（PHP内蔵サーバーでの統合テスト、認証必須であること・本文必須であること・画像サイズ上限・requests_sub.mdへの追記フォーマットを検証）とフロントエンド（モーダルの表示・送信・エラー処理・クリップボード貼り付け）の両方でテストを先に書きRed確認→実装→Green確認
+- [ ] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
