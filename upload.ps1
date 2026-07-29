@@ -91,7 +91,9 @@ New-Item -ItemType Directory -Path $deployTmp | Out-Null
 if (Test-Path $backendDir) {
     Write-Host "   → Copying backend directory ($backendDir)..." -ForegroundColor Cyan
     # [FIX] Exclude database / log / .env から本番のデータ・秘密鍵を保護
-    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log", ".env"
+    # [R-071] data（改善要望送信フォームの蓄積データ: requests_sub.md / requests_sub_uploads/）も除外し、
+    #         デプロイのたびに本番の蓄積データが上書き消失しないようにする
+    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log", ".env", "data"
     Write-Host "   ✓ Backend files copied" -ForegroundColor Green
 }
 else {

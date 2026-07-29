@@ -460,6 +460,15 @@ if (preg_match('#^(/api)?/restore$#', $path) && $method === 'POST') {
     exit;
 }
 
+// Improvement Request Routes (R-071: 改善要望送信フォーム)
+require_once 'ImprovementRequestController.php';
+
+if (preg_match('#^(/api)?/improvement-requests$#', $path) && $method === 'POST') {
+    $controller = new ImprovementRequestController();
+    $controller->create();
+    exit;
+}
+
 // Items Backup & Restore Routes (User's personal items as JSON)
 require_once 'ItemsBackupController.php';
 
