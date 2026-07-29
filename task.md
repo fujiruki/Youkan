@@ -470,5 +470,5 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
   - 根本原因の再レンダリング崩壊は自動テストで定量実証（無関係な状態変化でのCalendarCell再レンダリング数が旧実装:35件相当→修正後:0件）
 - [x] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
 - [x] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
-- [ ] **指揮AIのレビュー後、master へマージ・push**
+- [x] **指揮AIのレビュー後、master へマージ・push**（レビューOK確認後、`fix/R-070-calendar-rerender-optimization` は master の直後のコミットで分岐しており差分無しだったため、fast-forwardで `origin/master` へ反映。コミット `7a35940`）
 - [ ] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）
