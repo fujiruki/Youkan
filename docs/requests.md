@@ -6,10 +6,6 @@
   - Phase1確定仕様: `docs/SPEC/04_データ設計.md` §3.8（assigned_to値域整理・assigneeKind型）、§5.3（可視性ルール4番目・管理者スコープ）
   - Phase2以降（会社ディスパッチダッシュボード・AI割り振り提案・社員向けToday画面・担当者×日付マトリクス・プロジェクト内担当編集・meta.dispatchスキーマ等）の原文・ビジョン・少数意見は `docs/reference/vision/R050_Tenant_AI_Business_OS.md` に保存。次回Phase2以降の着手判断時に参照すること。
 
-- **【高】R-068** 量感カレンダー本体（グリッド表示）のスクロール性能改善
-  - 背景: R-066（2026-07-07 量感カレンダー/ガント改善）のうち、詳細画面カレンダーのスクロール性能は `ed3695a`（2026-07-08）で改善済み。量感カレンダー本体（グリッド表示）は未着手のまま残っている
-  - 原因調査（スクロール中の再レンダリング範囲・装飾トランジション・DOM量など）を行い、改善策を実装する
-
 - **【低】R-067** アーカイブ除外のバックエンド防御強化（`is_archived`）
   - 背景: R-066 の表示条件整理で判明。`backend/GdbController.php`・`backend/TodayController.php` の SQL は `items.deleted_at IS NULL` でゴミ箱アイテムは除外しているが、`is_archived` によるアーカイブアイテムの除外条件がない
   - 現状はフロント側 `hierarchy.ts:231`（`if (item.isArchived) return false`）と `VolumeCalendarScreen.tsx:27` の `isDisplayableCalendarItem` でカバーされており実害なし。ただし将来のリグレッションリスクとして、該当 SQL に `AND COALESCE(items.is_archived,0)=0` を追加する価値がある

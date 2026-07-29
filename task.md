@@ -457,19 +457,18 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 
 ### サブタスク
 
-- [ ] worktree 作成（`git fetch && git checkout -b fix/R-070-calendar-rerender-optimization master` を worktree 内で実行）
-- [ ] 失敗するテストを先に書く（可能なら React Profiler 相当のレンダー回数計測 or `CalendarCell` の再レンダリング回数をモックで検証するテスト）→ Red確認
-- [ ] `RyokanCalendar.tsx` の `handleDayAction` を `useCallback` 化
-- [ ] `RyokanGridView.tsx` の `externalEvents` インライン `|| []` を安定参照（モジュールスコープの定数配列 or useMemo）に置換
-- [ ] `VolumeCalendarScreen.tsx` に詳細画面カレンダー同様のスクロール最適化（`disableRangeExtension` 相当、または `ed3695a` で行った装飾トランジション抑制・不要ペイント範囲抑制）を適用
-- [ ] テスト Green 確認・既存テスト回帰なし確認（vitest全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認（想定より大きい差分やsqlite/log/tsbuildinfo混入がないか）
-- [ ] chrome-devtools MCP で実機検証（本番 or dev環境）:
-  - 詳細画面「納期」クリック時のレンダリング/応答速度（Before/After）
-  - フィルタ切替時（Before/After）
-  - 量感カレンダー本体のスクロール（Before/After）
-  - スクリーンショットまたは計測ログを添付
-- [ ] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
-- [ ] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
+- [x] worktree 作成（`git fetch && git checkout -b fix/R-070-calendar-rerender-optimization master` を worktree 内で実行）
+- [x] 失敗するテストを先に書く（`CalendarCell` の再レンダリング回数を `React.memo` ラッパーでカウントするテストを新規3ファイル作成）→ Red確認
+- [x] `RyokanCalendar.tsx` の `handleDayAction` を `useCallback` 化（依存先 `resetHighlights` も `useCallback` 化）
+- [x] `RyokanGridView.tsx` の `externalEvents` インライン `|| []` を安定参照（モジュールスコープの定数配列 `EMPTY_EXTERNAL_EVENTS`）に置換
+- [x] `VolumeCalendarScreen.tsx` に詳細画面カレンダー同様のスクロール最適化（`scrollOptimized` 新規propを追加し `RyokanCalendarProps`/`RyokanGridView`/`CalendarCell` に配線。装飾トランジション抑制・`content-visibility`+`contain`による不要ペイント範囲抑制、可変高さ用 `contain-intrinsic-size` フォールバック付き）を適用
+- [x] テスト Green 確認・既存テスト回帰なし確認（vitest全件: 122ファイル732件 all green、14 skip）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（想定より大きい差分やsqlite/log/tsbuildinfo混入なし。8ファイル+300/-8行の小さい差分）
+- [x] chrome-devtools MCP で実機検証（dev環境 localhost:5173/8000）:
+  - デバッグユーザーアカウントでログイン、量感カレンダーグリッド表示・詳細画面カレンダー（DecisionDetailModal埋め込み）のフィルタ切替（全て/会社）が視覚的破綻なく動作、コンソールエラーなしを確認
+  - 合成スクロールベンチマーク（プログラム的scrollTop駆動・rAFフレーム計測）を実施したが、既存デバッグデータのアイテム数が少なく本番相当の負荷差は再現しにくかった（詳細は完了報告参照）
+  - 根本原因の再レンダリング崩壊は自動テストで定量実証（無関係な状態変化でのCalendarCell再レンダリング数が旧実装:35件相当→修正後:0件）
+- [x] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
+- [x] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
 - [ ] **指揮AIのレビュー後、master へマージ・push**
 - [ ] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）

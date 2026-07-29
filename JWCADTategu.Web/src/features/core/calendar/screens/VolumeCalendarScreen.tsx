@@ -266,6 +266,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					isLoadingMore={externalIsLoadingMore}
 					loadDirection={externalLoadDirection}
 					loadedRange={externalLoadedRange}
+					// R-068: 量感カレンダー本体はアイテム一覧を表示するため volumeOnly は使えない。
+					// セルの装飾トランジション抑制・不要ペイント範囲抑制（content-visibility）のみを
+					// 独立して有効化し、スクロール性能を改善する。
+					scrollOptimized={true}
 				/>
 			</div>
 

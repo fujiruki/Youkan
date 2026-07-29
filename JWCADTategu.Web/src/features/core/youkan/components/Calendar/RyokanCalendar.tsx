@@ -67,6 +67,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	hideExternalEventTime = false,
 	initialRangeMonths,
 	disableRangeExtension = false,
+	scrollOptimized = false,
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -521,14 +522,19 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (onSelectDate) onSelectDate(date);
 	}, [onSelectDate]);
 
-	const resetHighlights = () => {
+	// [R-070] setState のみに依存するため useCallback で安定化し、handleDayAction の
+	// 依存配列に含めても参照が毎回変わらないようにする。
+	const resetHighlights = useCallback(() => {
 		setPressureConnections([]);
 		setFlashingItemIds(new Set());
 		setSelectedSigns([]);
 		setSelectedDateCompleted(null);
-	};
+	}, []);
 
-	const handleDayAction = (date: Date, actionType: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => {
+	// [R-070] useCallback でラップし、無関係な再レンダリングのたびに新しい関数参照が
+	// 生成されるのを防ぐ。これにより RyokanGridView.handleCellAction の参照も安定し、
+	// React.memo 済みの CalendarCell 全件が毎回再レンダリングされる問題を解消する。
+	const handleDayAction = useCallback((date: Date, actionType: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => {
 		const dateKey = normalizeDateKey(date);
 		const metric = metrics.get(dateKey);
 		const signs = metric?.contributingItems || [];
@@ -646,7 +652,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			setFlashingItemIds(newFlashingIds);
 			setSelectedSigns([]);
 		}
-	};
+	}, [metrics, completedByDate, onDateClick, resetHighlights, onSelectDate, volumeOnly, disablePressureLines, allDays]);
 
 	// [NEW] Commit Period Calculation (Priority: Prop > Simple workDays logic)
 	const commitPeriodDates = useMemo(() => {
@@ -739,6 +745,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						onBackgroundClick={resetHighlights}
 						flashingIds={flashingItemIds}
 						volumeOnly={volumeOnly}
+						scrollOptimized={scrollOptimized}
 						targetItemId={targetItemId}
 						rowHeight={rowHeight}
 						completedByDate={completedByDate}

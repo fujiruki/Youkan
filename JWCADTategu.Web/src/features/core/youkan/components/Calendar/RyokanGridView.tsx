@@ -13,6 +13,14 @@ import { Skeleton } from '../../../../../shared/components/Skeleton';
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
 
+/**
+ * R-070: イベントの無い日に渡す externalEvents の安定参照。
+ * `|| []` のようにインラインで新規配列を生成すると、CalendarCell（React.memo）の
+ * props が毎レンダリング変化してメモ化が崩壊するため、モジュールスコープの
+ * 定数を再利用する。
+ */
+const EMPTY_EXTERNAL_EVENTS: ExternalEvent[] = [];
+
 const isSameDate = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
         d1.getMonth() === d2.getMonth() &&
@@ -44,6 +52,8 @@ interface GridViewProps {
     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
     flashingIds: Set<string>;
     volumeOnly?: boolean;
+    /** R-068: 量感カレンダー本体のスクロール性能改善用。volumeOnly に依存せずセルの装飾トランジション・不要ペイント範囲を抑制する */
+    scrollOptimized?: boolean;
     targetItemId?: string;
     rowHeight?: number;
     completedByDate?: Map<string, Item[]>;
@@ -71,6 +81,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     onScroll,
     flashingIds,
     volumeOnly = false,
+    scrollOptimized = false,
     targetItemId,
     rowHeight,
     completedByDate,
@@ -197,6 +208,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 projects={projects}
                                 renderItemTitle={renderItemTitle}
                                 volumeOnly={volumeOnly}
+                                scrollOptimized={scrollOptimized}
                                 isTarget={isTarget}
                                 targetItem={targetItem}
                                 rowHeight={rowHeight}
@@ -204,7 +216,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 monthBoundaryTop={monthBoundaryTop}
                                 monthBoundaryBottom={monthBoundaryBottom}
                                 monthBoundaryLeft={monthBoundaryLeft}
-                                externalEvents={externalEventsByDate?.get(toYmdKey(date)) || []}
+                                externalEvents={externalEventsByDate?.get(toYmdKey(date)) || EMPTY_EXTERNAL_EVENTS}
                                 onExternalEventClick={onExternalEventClick}
                                 onExternalEventsMoreClick={onExternalEventsMoreClick}
                                 externalEventsMaxVisible={externalEventsMaxVisible}

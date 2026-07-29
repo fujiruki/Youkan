@@ -62,6 +62,8 @@ export interface RyokanCalendarProps {
     initialRangeMonths?: number;
     /** Disable automatic range prepend/append on scroll. Use this for embedded detail calendars where scroll must stay immediate. */
     disableRangeExtension?: boolean;
+    /** R-068: グリッドビューのセルで装飾トランジション抑制・不要ペイント範囲抑制（content-visibility）を有効化する。volumeOnly に依存せず量感カレンダー本体のスクロール性能改善に使う。 */
+    scrollOptimized?: boolean;
     /** R-034 Phase 2: Google カレンダー外部イベント（date キー -> events） */
     externalEventsByDate?: Map<string, ExternalEvent[]>;
     /** R-034 Phase 2: グリッドビューのセル内に表示する最大件数（デフォルト 3） */

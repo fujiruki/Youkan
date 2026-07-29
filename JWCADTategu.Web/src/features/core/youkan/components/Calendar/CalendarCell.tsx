@@ -28,6 +28,8 @@ interface CalendarCellProps {
     projects?: any[];
     renderItemTitle: (item: Item) => string;
     volumeOnly?: boolean;
+    /** R-068: volumeOnly に依存せず、装飾トランジション抑制・不要ペイント範囲抑制（content-visibility）を有効化する */
+    scrollOptimized?: boolean;
     isTarget?: boolean;
     targetItem?: Item;
     rowHeight?: number;
@@ -51,7 +53,7 @@ interface CalendarCellProps {
 
 const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
-    volumeOnly = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
+    volumeOnly = false, scrollOptimized = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
     externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3,
     googleCalendars = [], hideExternalEventTime = false
 }, ref) => {
@@ -84,6 +86,18 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
     // Fallback: If isTarget is true but no matching item found in metric (e.g. no capacity yet), we might still want to show it if passed via targetItem
     const effectiveOverlayItem = overlayItem || (isTarget && targetItem ? targetItem : null);
 
+    // [R-068] volumeOnly（詳細画面の量感のみ表示）または scrollOptimized（量感カレンダー本体）の
+    // どちらでも、装飾トランジション抑制・不要ペイント範囲抑制（content-visibility）を有効化する。
+    // volumeOnly は rowHeight で明示的な高さを持つため contain-intrinsic-size は不要。
+    // scrollOptimized 単独（volumeOnly=false）はセル高さが可変のため、レイアウトジャンプを
+    // 抑えるフォールバックサイズを contain-intrinsic-size で与える。
+    const isPerfOptimized = volumeOnly || scrollOptimized;
+    const perfCellClass = volumeOnly
+        ? "[content-visibility:auto] [contain:layout_paint_style] transition-none"
+        : scrollOptimized
+            ? "[content-visibility:auto] [contain:layout_paint_style] [contain-intrinsic-size:auto_80px] transition-none"
+            : "transition-all duration-300";
+
 
     return (
         <div
@@ -91,7 +105,7 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
             data-date={normalizeDateKey(date)}
             className={cn(
                 "calendar-cell relative flex-shrink-0 w-full group",
-                volumeOnly ? "[content-visibility:auto] [contain:layout_paint_style] transition-none" : "transition-all duration-300",
+                perfCellClass,
                 isMini ? "h-10 border-b flex items-center px-4" : "min-h-[80px] h-full border-r flex flex-col p-1 border-b border-slate-100 dark:border-slate-800",
                 volumeOnly && rowHeight && "min-h-0",
                 monthBoundaryTop ? "border-t-[3px] border-t-slate-500 dark:border-t-slate-400" : "",
@@ -125,7 +139,7 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
             <div
                 className={cn(
                     "absolute inset-0 pointer-events-none",
-                    volumeOnly ? "transition-none" : "transition-opacity duration-500"
+                    isPerfOptimized ? "transition-none" : "transition-opacity duration-500"
                 )}
                 style={{
                     backgroundColor: 'var(--cal-bg-color)',
