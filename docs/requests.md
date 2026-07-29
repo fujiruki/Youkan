@@ -79,3 +79,8 @@
   - 解決策: `HierarchicalWrapper` を discriminated union 化し、ヘッダー型は `item: Item` を持たず `projectId` / `projectTitle` / `project` フィールドで情報を保持。React key は既存の `wrapper.id`（`header-${proj.id}` 形式）を使うため衝突なし
   - 副次効果: `OverviewItem.tsx` の `onNavigateToFlow` バグ（偽装IDがフロー画面に伝搬していた）が型分離により自動解消
   - **→ R-030 として request_log.md に移記済み（2026-05-05）**
+
+
+
+- 2026/07/25
+ ホーム画面のタイトルの文字をさらに50%サイズにして、そしてその横に「改善要望を送る」ボタンをおいてほしい。押すと、改善してほしいという要望を送ることができて、それをrequests_sub.mdに追記していく形で記録しておいてほしい。それが送信された日時も併記。私達はたまにそのファイルを読んで、その機能いいね、requests.mdに書き写そう、ということをしたい
