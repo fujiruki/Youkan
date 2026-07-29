@@ -471,7 +471,7 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `docs/requests_log.md` R-070 の対応状況を更新（実装内容・テスト結果）
 - [x] 指揮AIへ完了報告（変更内容・テスト結果・実機検証結果を明示）
 - [x] **指揮AIのレビュー後、master へマージ・push**（レビューOK確認後、`fix/R-070-calendar-rerender-optimization` は master の直後のコミットで分岐しており差分無しだったため、fast-forwardで `origin/master` へ反映。コミット `7a35940`）
-- [x] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）→ 発注者確認済み（R-050込みで一緒にデプロイ）。デプロイAgent起動→`upload.ps1`のSSHクライアント互換性バグ（post-quantum鍵交換警告が致命的エラー扱いされる）で失敗、修正待ち
+- [x] **指揮AIの指示があり次第、`upload.ps1` で本番デプロイ・本番chrome-devtools検証・task.md更新**（自動デプロイしない。R-050 Phase1が未デプロイのままmasterに乗っているため、デプロイ実行前に指揮AIに確認を取る）→ 発注者確認済み（R-050込みで一緒にデプロイ）。デプロイAgent起動→`upload.ps1`のSSHクライアント互換性バグ（post-quantum鍵交換警告が致命的エラー扱いされる）で失敗、修正待ち→ 下記「upload.ps1 SSH互換性バグ修正」で修正後、2026-07-29に本番デプロイ・実機検証完了（詳細は同セクション参照）
 
 ---
 
@@ -480,12 +480,12 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 **背景**: R-070/R-068+R-050 Phase1デプロイ時に発覚。ローカルのOpenSSHクライアント（10.2p1）が出す `** WARNING: connection is not using a post-quantum key exchange algorithm.` という新しい警告が、`$ErrorActionPreference = "Stop"` 下の直接 `& ssh`/`& scp` 呼び出し（`upload.ps1` 180/187/194行目付近）でPowerShellのNativeCommandErrorとして扱われ、デプロイ全体が中断する。スクリプト内には既にこの種の問題を回避するための `Invoke-SshSafe` 関数（`cmd /c` 経由）が用意されているが、実際のmkdir/scp/extract呼び出しではまだ使われていない。
 
 ### サブタスク
-- [ ] `upload.ps1` の該当箇所（mkdir/scp/展開コマンド）を `Invoke-SshSafe` 経由に統一する
-- [ ] ローカルで再現確認（同じ警告が出ても処理が継続すること）
-- [ ] `git diff --stat` で変更範囲確認（`upload.ps1` のみであることを確認）
-- [ ] R-070/R-068+R-050 Phase1のデプロイを再実行し、`.claude/skills/deploy/SKILL.md` の手順通り本番検証まで完了させる
-- [ ] `docs/requests_log.md` のR-070・R-050該当行を「完了（2026-07-29デプロイ済み）」に更新
-- [ ] 指揮AIへ完了報告
+- [x] `upload.ps1` の該当箇所（mkdir/scp/展開コマンド）を `Invoke-SshSafe` 経由に統一する（180/187/194行目付近の直接 `& ssh`/`& scp` 呼び出し3箇所を、`ssh`/`scp` オプションを文字列化した `$sshOptsStr`/`$scpOptsStr` を使い `Invoke-SshSafe -Command "..." -LogFile $logFile` 経由に置換。未使用になった配列版 `$sshOpts`/`$scpOpts` は削除）
+- [x] ローカルで再現確認（同じ警告が出ても処理が継続すること）: 修正前の直接 `& ssh` 呼び出しで post-quantum 警告により `$ErrorActionPreference=Stop` 環境下で例外がスローされることを再現した上で、`Invoke-SshSafe` 経由（`cmd /c "... 2>&1"`）では同じ警告が出ても正常終了することを実サーバー相手に確認（`&&` を含むリモートコマンドが cmd.exe の二重引用符内で区切り文字として誤解釈されないことも実機で検証）
+- [x] `git diff --stat` で変更範囲確認（`upload.ps1` のみ、1 file changed, 10 insertions(+), 23 deletions(-)）
+- [x] R-070/R-068+R-050 Phase1のデプロイを再実行し、`.claude/skills/deploy/SKILL.md` の手順通り本番検証まで完了させる（`DEPLOYMENT SUCCESSFUL!` 確認。chrome-devtools MCPで `https://door-fujita.com/contents/Youkan/` を ignoreCache:true でリロードし fjt.suntree@gmail.com でログイン、量感カレンダーのプログラム的スクロール検証・アイテム詳細「納期」クリックの即時反応・会社テナントコンテキストでの「担当者別ビュー」画面遷移を確認。consoleエラーは既存の別件Google連携500エラーのみで新規エラーなし）
+- [x] `docs/requests_log.md` のR-070・R-050該当行を「完了（2026-07-29デプロイ済み）」に更新
+- [x] 指揮AIへ完了報告
 
 ---
 
