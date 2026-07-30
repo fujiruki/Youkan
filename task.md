@@ -522,16 +522,16 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 
 ### サブタスク
 
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-073-due-status-blur-bug master` をworktree内で実行）
-- [ ] 失敗するテストを先に書く: `SmartDateInput`で、既存値と同じ文字列のままブラーした場合に`onChange`が呼ばれないことを検証するテスト → Red確認
-- [ ] `SmartDateInput.tsx`の`handleBlur()`に差分チェックを追加（パース結果が既存値と同じなら`onChange`を呼ばない）
-- [ ] Green確認
-- [ ] `DecisionDetailModal.tsx`の`dueStatus: 'confirmed'`送信箇所（`SmartDateInput`の`onChange`、`handleSideCalendarSelectDate`の計2箇所）が、修正後も日付が実際に変わった場合には正しく`confirmed`を送信することを確認するテストも追加（既存の正常系デグレを防ぐ）
-- [ ] 既存テスト回帰なし確認（vitest全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPで実機検証（dev環境）: 詳細画面の「納期」フィールドをクリック→何も変えず他要素へフォーカス移動→`due_status`が変化しないことを確認。実際に日付を変更した場合は`confirmed`になることも確認
-- [ ] `docs/requests_log.md` R-073の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-073-due-status-blur-bug master` をworktree内で実行）
+- [x] 失敗するテストを先に書く: `SmartDateInput`で、既存値と同じ文字列のままブラーした場合に`onChange`が呼ばれないことを検証するテスト → Red確認
+- [x] `SmartDateInput.tsx`の`handleBlur()`に差分チェックを追加（パース結果が既存値と同じなら`onChange`を呼ばない）
+- [x] Green確認
+- [x] `DecisionDetailModal.tsx`の`dueStatus: 'confirmed'`送信箇所（`SmartDateInput`の`onChange`、`handleSideCalendarSelectDate`の計2箇所）が、修正後も日付が実際に変わった場合には正しく`confirmed`を送信することを確認するテストも追加（既存の正常系デグレを防ぐ）
+- [x] 既存テスト回帰なし確認（vitest全件）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（dev環境）: 詳細画面の「納期」フィールドをクリック→何も変えず他要素へフォーカス移動→`due_status`が変化しないことを確認。実際に日付を変更した場合は`confirmed`になることも確認
+- [x] `docs/requests_log.md` R-073の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
 
 ---
 
