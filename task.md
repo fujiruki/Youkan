@@ -511,3 +511,51 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [ ] `git diff --stat master..HEAD` で変更範囲確認
 - [ ] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+
+---
+
+## R-073 due_status意図しない変化の修正（2026-07-31）
+
+**ブランチ**: `fix/R-073-due-status-blur-bug`
+**要望**: `docs/requests_log.md` R-073
+**仕様**: `docs/SPEC/04_データ設計.md` §4.5
+
+### サブタスク
+
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-073-due-status-blur-bug master` をworktree内で実行）
+- [ ] 失敗するテストを先に書く: `SmartDateInput`で、既存値と同じ文字列のままブラーした場合に`onChange`が呼ばれないことを検証するテスト → Red確認
+- [ ] `SmartDateInput.tsx`の`handleBlur()`に差分チェックを追加（パース結果が既存値と同じなら`onChange`を呼ばない）
+- [ ] Green確認
+- [ ] `DecisionDetailModal.tsx`の`dueStatus: 'confirmed'`送信箇所（`SmartDateInput`の`onChange`、`handleSideCalendarSelectDate`の計2箇所）が、修正後も日付が実際に変わった場合には正しく`confirmed`を送信することを確認するテストも追加（既存の正常系デグレを防ぐ）
+- [ ] 既存テスト回帰なし確認（vitest全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPで実機検証（dev環境）: 詳細画面の「納期」フィールドをクリック→何も変えず他要素へフォーカス移動→`due_status`が変化しないことを確認。実際に日付を変更した場合は`confirmed`になることも確認
+- [ ] `docs/requests_log.md` R-073の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+
+---
+
+## R-072 Google OAuth失効検知・再連携UX実装（2026-07-31）
+
+**ブランチ**: `fix/R-072-google-oauth-invalidation-detection`
+**要望**: `docs/requests_log.md` R-072
+**仕様**: `docs/SPEC/03_画面設計.md` §12.1, `docs/SPEC/04_データ設計.md` §3.6
+
+### 注意（スコープ外）
+
+Google Cloud Console側のOAuth同意画面を「テスト中」から「本番公開」へ切り替える作業は、Googleアカウントを持つ発注者本人のみが行える。このタスクはコード側の検知・UX実装のみを対象とし、Google Cloud Consoleの設定変更は含まない。
+
+### サブタスク
+
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-072-google-oauth-invalidation-detection master` をworktree内で実行）
+- [ ] DBマイグレーション: `user_google_oauth`テーブルに`invalidated_at INTEGER`・`last_error TEXT`カラムを追加するマイグレーションスクリプトを作成（既存の`migrate_v28_google_calendar.php`等の命名・実行パターンに倣う）
+- [ ] 失敗するテストを先に書く: `GoogleCalendarService::refreshAccessToken()`が`invalid_grant`エラーを受け取った際に`invalidated_at`/`last_error`を記録することを検証するテスト → Red確認
+- [ ] `GoogleCalendarService.php`の`refreshAccessToken()`を修正し、Googleのエラーレスポンスから`error === 'invalid_grant'`を判別して`user_google_oauth`に記録する
+- [ ] `GoogleCalendarController.php`: `invalidated_at`が非NULLの間は自動同期（`getEvents()`裏側のリフレッシュ試行）をスキップし既存キャッシュのみ返すよう修正。連携状態を返すエンドポイント（設定画面が読む箇所）のレスポンスに失効有無を含める
+- [ ] フロント: `GoogleCalendarSection.tsx`で、失効状態を検知したら「Google 側で連携が解除されました。再連携してください」表示に切り替え、「今すぐ更新」ボタンを「Google で再ログイン」（`POST /api/google/oauth/start`を叩く）に変更する
+- [ ] Green確認
+- [ ] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPで実機検証（本番は現在invalid_grant状態のはずなので、実際に失効表示・再連携導線が出ることを確認できる可能性が高い。再連携までは実施せず表示確認に留める）
+- [ ] `docs/requests_log.md` R-072の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ。あわせて「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」と発注者への案内文言を報告に含める）
