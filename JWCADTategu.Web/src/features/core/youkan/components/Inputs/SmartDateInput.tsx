@@ -75,18 +75,35 @@ export const SmartDateInput: React.FC<SmartDateInputProps> = ({
         return null;
     };
 
+    const isSameDate = (a: Date | null, b: Date | null) => {
+        if (a === b) return true;
+        if (!a || !b) return false;
+        return (
+            a.getFullYear() === b.getFullYear() &&
+            a.getMonth() === b.getMonth() &&
+            a.getDate() === b.getDate()
+        );
+    };
+
     const handleBlur = () => {
         setIsFocused(false);
-        const parsed = handleSmartParse(inputValue);
-        // Only update if valid. If empty string, consider clearing? 
+
+        // 空文字の場合はクリア操作。既存値がnullでなければonChangeを呼ぶ（差分がある場合のみ）
         if (inputValue.trim() === '') {
-            onChange(null);
+            if (value !== null) {
+                onChange(null);
+            }
             setInputValue('');
             return;
         }
 
+        const parsed = handleSmartParse(inputValue);
+
         if (parsed && isValid(parsed)) {
-            onChange(parsed);
+            // パース結果が既存値と同じ場合は変更なしとみなし、onChangeを呼ばない
+            if (!isSameDate(parsed, value)) {
+                onChange(parsed);
+            }
             setInputValue(format(parsed, 'yyyy/MM/dd'));
         } else {
             // Revert to valid value or clear if invalid
