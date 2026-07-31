@@ -122,3 +122,53 @@ describe('DecisionDetailModal — R-037 タイトル編集欄 常時表示', () 
         });
     });
 });
+
+describe('DecisionDetailModal — R-073 納期フィールドのブラー時 due_status 意図しない変化防止', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const getDueDateInput = (): HTMLInputElement => {
+        // 納期欄・マイ期限欄の両方が同じ placeholder を使うため、DOM順で先頭（納期欄）を取得する
+        return screen.getAllByPlaceholderText("YYYY/MM/DD or 'tomorrow'")[0] as HTMLInputElement;
+    };
+
+    it('納期を変更せずクリックしてブラーしても、dueStatus: confirmed は送信されない', async () => {
+        const onUpdate = vi.fn().mockResolvedValue(undefined);
+        renderModal({ due_date: '2026-07-31', dueStatus: null }, onUpdate);
+
+        await waitFor(() => {
+            expect(getDueDateInput()).toBeTruthy();
+        });
+
+        const dueInput = getDueDateInput();
+        fireEvent.focus(dueInput);
+        fireEvent.blur(dueInput);
+
+        const calledWithConfirmed = onUpdate.mock.calls.some(
+            (call) => call[1] && (call[1] as { dueStatus?: string }).dueStatus === 'confirmed'
+        );
+        expect(calledWithConfirmed).toBe(false);
+    });
+
+    it('納期を実際に変更してブラーすると、due_date と dueStatus: confirmed が送信される', async () => {
+        const onUpdate = vi.fn().mockResolvedValue(undefined);
+        const { item } = renderModal({ due_date: '2026-07-31', dueStatus: null }, onUpdate);
+
+        await waitFor(() => {
+            expect(getDueDateInput()).toBeTruthy();
+        });
+
+        const dueInput = getDueDateInput();
+        fireEvent.focus(dueInput);
+        fireEvent.change(dueInput, { target: { value: '2026/08/15' } });
+        fireEvent.blur(dueInput);
+
+        await waitFor(() => {
+            expect(onUpdate).toHaveBeenCalledWith(
+                item.id,
+                expect.objectContaining({ due_date: '2026-08-15', dueStatus: 'confirmed' })
+            );
+        });
+    });
+});
