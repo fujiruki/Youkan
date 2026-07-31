@@ -361,6 +361,34 @@ export class ApiClient {
 		return this.request('GET', '/health', undefined, true);
 	}
 
+	// --- Improvement Request API (R-071) ---
+	public static async submitImprovementRequest(content: string, image?: File): Promise<{ success: boolean }> {
+		const formData = new FormData();
+		formData.append('content', content);
+		if (image) {
+			formData.append('image', image);
+		}
+
+		const token = localStorage.getItem(YOUKAN_KEYS.TOKEN);
+		const headers: HeadersInit = {};
+		if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		}
+
+		const response = await fetch(`${API_BASE}/improvement-requests`, {
+			method: 'POST',
+			headers,
+			body: formData,
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			throw new Error(errorData.error || `API Error: ${response.status}`);
+		}
+
+		return response.json();
+	}
+
 	// --- User API ---
 	public static async getUserProfile(): Promise<{ id: string; email: string; display_name: string; birthday: string; daily_capacity_minutes: number; non_working_hours: any; preferences: any }> {
 		return this.request('GET', '/user/profile');

@@ -46,6 +46,20 @@ describe('MenuDrawer', () => {
         expect(defaultProps.onNavigateToSettings).toHaveBeenCalled();
     });
 
+    it('renders 改善要望を送る 導線 when onOpenImprovementRequest is provided（R-071）', () => {
+        const onOpenImprovementRequest = vi.fn();
+        render(<MenuDrawer {...defaultProps} isOpen={true} onOpenImprovementRequest={onOpenImprovementRequest} />);
+        const item = screen.getByText('改善要望を送る');
+        expect(item).toBeInTheDocument();
+        fireEvent.click(item);
+        expect(onOpenImprovementRequest).toHaveBeenCalled();
+    });
+
+    it('does not render 改善要望を送る when onOpenImprovementRequest is not provided（R-071）', () => {
+        render(<MenuDrawer {...defaultProps} isOpen={true} />);
+        expect(screen.queryByText('改善要望を送る')).not.toBeInTheDocument();
+    });
+
     it('calls onClose when backdrop is clicked', () => {
         render(<MenuDrawer {...defaultProps} isOpen={true} />);
         // Assuming backdrop has a specific class or role, for now let's assume it's the first div wrapper logic

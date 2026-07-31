@@ -18,6 +18,8 @@ import { useViewMode } from '../../features/core/youkan/contexts/ViewModeContext
 import { ForAiButton } from '../../features/core/youkan/components/ForAi/ForAiButton';
 import { ForAiModal } from '../../features/core/youkan/components/ForAi/ForAiModal';
 import { MobileFilterButton } from '../../features/core/youkan/components/Filter/MobileFilterButton';
+import { ImprovementRequestButton } from '../../features/core/youkan/components/ImprovementRequest/ImprovementRequestButton';
+import { ImprovementRequestModal } from '../../features/core/youkan/components/ImprovementRequest/ImprovementRequestModal';
 
 
 // Basic types needed for props
@@ -90,6 +92,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [isForAiOpen, setIsForAiOpen] = useState(false);
 	const [isSpeechOpen, setIsSpeechOpen] = useState(false);
+	const [isImprovementRequestOpen, setIsImprovementRequestOpen] = useState(false);
 	const isMobile = useIsMobile();
 	const { filterMode, setFilterMode, hideCompleted, toggleCompleted } = useFilter();
 	const { dashboardViewMode, setDashboardViewMode, projectViewMode, setProjectViewMode, calendarViewMode, setCalendarViewMode } = useViewMode();
@@ -188,10 +191,13 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				joinedTenants={joinedTenants}
 				onSwitchTenant={onSwitchTenant}
 				onOpenForAi={() => { setIsForAiOpen(true); setMenuOpen(false); }}
+				onOpenImprovementRequest={() => { setIsImprovementRequestOpen(true); setMenuOpen(false); }}
 			/>
 			{isForAiOpen && <ForAiModal isOpen={true} onClose={() => setIsForAiOpen(false)} />}
 			{/* R-031: SpeechView (Agent-Speech) */}
 			{isSpeechOpen && <SpeechView isOpen={true} onClose={() => setIsSpeechOpen(false)} />}
+			{/* R-071: 改善要望送信フォーム */}
+			{isImprovementRequestOpen && <ImprovementRequestModal isOpen={true} onClose={() => setIsImprovementRequestOpen(false)} />}
 
 			{/* 層1: グローバルバー (Global Bar) - Flexboxレイアウト */}
 			<div className="bg-slate-900 px-4 py-1.5 flex items-center justify-between border-b border-slate-700/50 w-full z-40 relative h-10 gap-4">
@@ -240,13 +246,17 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 					)}
 
 					{/* Logo (Desktop) */}
-					<button
-						onClick={onNavigateToDashboard}
-						className="flex items-center gap-1 hover:opacity-80 transition-opacity shrink-0"
-					>
-						<span className="text-lg">⚡</span>
-						<span className="text-sm font-black text-slate-400 italic tracking-tighter">Youkan</span>
-					</button>
+					<div className="flex items-center gap-1 shrink-0">
+						<button
+							onClick={onNavigateToDashboard}
+							className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+						>
+							<span className="text-lg">⚡</span>
+							<span className="text-[7px] font-black text-slate-400 italic tracking-tighter">Youkan</span>
+						</button>
+						{/* R-071: 改善要望送信フォーム（PC） */}
+						<ImprovementRequestButton onClick={() => setIsImprovementRequestOpen(true)} />
+					</div>
 
 					{/* Time Progress */}
 					<div className="w-32 lg:w-40 shrink-0">

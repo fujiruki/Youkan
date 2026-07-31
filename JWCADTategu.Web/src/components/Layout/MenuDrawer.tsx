@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2, Sparkles, ListChecks } from 'lucide-react';
+import { X, Clock, Settings, Users, BookOpen, LogOut, Building, User, Wrench, Briefcase, Trash2, Sparkles, ListChecks, MessageSquarePlus } from 'lucide-react';
 import { DEBUG_INFO } from '../../config/debug';
 
 interface AuthUser {
@@ -38,6 +38,7 @@ export interface MenuDrawerProps {
 	joinedTenants?: Tenant[];
 	onSwitchTenant?: (tenantId: string | null) => void;
 	onOpenForAi?: () => void;
+	onOpenImprovementRequest?: () => void;
 }
 
 export const MenuDrawer: React.FC<MenuDrawerProps> = ({
@@ -58,6 +59,7 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 	joinedTenants = [],
 	onSwitchTenant,
 	onOpenForAi,
+	onOpenImprovementRequest,
 }) => {
 	if (!isOpen) return null;
 
@@ -198,6 +200,14 @@ export const MenuDrawer: React.FC<MenuDrawerProps> = ({
 								icon={<Sparkles size={18} />}
 								label="AIへ状況を渡す"
 								onClick={onOpenForAi}
+							/>
+						)}
+						{/* R-071: 改善要望送信フォーム（スマホ導線） */}
+						{onOpenImprovementRequest && (
+							<MenuItem
+								icon={<MessageSquarePlus size={18} />}
+								label="改善要望を送る"
+								onClick={onOpenImprovementRequest}
 							/>
 						)}
 						<MenuItem

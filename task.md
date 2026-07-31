@@ -497,20 +497,20 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 
 ### サブタスク
 
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-071-improvement-request-form master` をworktree内で実行）
-- [ ] フロント: `YoukanHeader.tsx` のロゴを `text-sm`→`text-[7px]` に縮小し、「改善要望を送る」ボタンを隣に配置（PC、`hidden md:flex` 内）
-- [ ] フロント: `MenuDrawer.tsx` の「ツール」セクションに同機能のメニュー項目を追加（スマホ）
-- [ ] フロント: `ImprovementRequestModal.tsx` 新規作成（`SimpleModal`ベース、`ForAiModal.tsx`をテンプレート）。本文テキスト（必須）＋画像1枚（任意、5MB上限、`image/png`/`image/jpeg`/`image/webp`、クリップボード貼り付け対応）
-- [ ] フロント: `ApiClient.submitImprovementRequest()` を `src/api/client.ts` に追加（画像添付時は`FormData`、`restoreDatabase`/`restoreItems`と同様の手動`fetch`パターン）
-- [ ] バックエンド: `ImprovementRequestController.php` 新規作成。`BaseController` を継承し `authenticate()` 必須（`SideMemoController.php`の無認証パターンは踏襲しないこと。R-069で無認証エンドポイントの脆弱性を踏んだばかりのため要注意）
-- [ ] バックエンド: `backend/index.php` に `POST /improvement-requests` ルーティング追加
-- [ ] バックエンド: 送信内容を `backend/data/requests_sub.md` に追記（日時・ユーザー・本文・画像相対パスをMarkdownエントリとして整形）、画像は `backend/data/requests_sub_uploads/{uuid}.{ext}` に保存。`backend/data/` ディレクトリが無ければ作成する
-- [ ] **重要**: `upload.ps1` の `Copy-Item -Path $backendDir -Exclude` リストに `data`（`backend/data/` ディレクトリ）を追加する。これを忘れると次回デプロイで本番の蓄積データが消失する（`.gitignore` には既に追加済み、コードは別途このタスクで対応）
-- [ ] TDD: バックエンド（PHP内蔵サーバーでの統合テスト、認証必須であること・本文必須であること・画像サイズ上限・requests_sub.mdへの追記フォーマットを検証）とフロントエンド（モーダルの表示・送信・エラー処理・クリップボード貼り付け）の両方でテストを先に書きRed確認→実装→Green確認
-- [ ] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
-- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-071-improvement-request-form master` をworktree内で実行）
+- [x] フロント: `YoukanHeader.tsx` のロゴを `text-sm`→`text-[7px]` に縮小し、「改善要望を送る」ボタンを隣に配置（PC、`hidden md:flex` 内）
+- [x] フロント: `MenuDrawer.tsx` の「ツール」セクションに同機能のメニュー項目を追加（スマホ）
+- [x] フロント: `ImprovementRequestModal.tsx` 新規作成（`SimpleModal`ベース、`ForAiModal.tsx`をテンプレート）。本文テキスト（必須）＋画像1枚（任意、5MB上限、`image/png`/`image/jpeg`/`image/webp`、クリップボード貼り付け対応）
+- [x] フロント: `ApiClient.submitImprovementRequest()` を `src/api/client.ts` に追加（画像添付時は`FormData`、`restoreDatabase`/`restoreItems`と同様の手動`fetch`パターン）
+- [x] バックエンド: `ImprovementRequestController.php` 新規作成。`BaseController` を継承し `authenticate()` 必須（`SideMemoController.php`の無認証パターンは踏襲しないこと。R-069で無認証エンドポイントの脆弱性を踏んだばかりのため要注意）
+- [x] バックエンド: `backend/index.php` に `POST /improvement-requests` ルーティング追加
+- [x] バックエンド: 送信内容を `backend/data/requests_sub.md` に追記（日時・ユーザー・本文・画像相対パスをMarkdownエントリとして整形）、画像は `backend/data/requests_sub_uploads/{uuid}.{ext}` に保存。`backend/data/` ディレクトリが無ければ作成する
+- [x] **重要**: `upload.ps1` の `Copy-Item -Path $backendDir -Exclude` リストに `data`（`backend/data/` ディレクトリ）を追加する。これを忘れると次回デプロイで本番の蓄積データが消失する（`.gitignore` には既に追加済み、コードは別途このタスクで対応）
+- [x] TDD: バックエンド（PHP内蔵サーバーでの統合テスト、認証必須であること・本文必須であること・画像サイズ上限・requests_sub.mdへの追記フォーマットを検証）とフロントエンド（モーダルの表示・送信・エラー処理・クリップボード貼り付け）の両方でテストを先に書きRed確認→実装→Green確認
+- [x] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
 
 ---
 
