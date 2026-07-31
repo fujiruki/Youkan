@@ -127,6 +127,12 @@ class GoogleCalendarController extends BaseController {
                 $this->service->getCalendarList($this->currentUserId);
             }
             $events = $this->service->getEvents($this->currentUserId, $from, $to);
+        } catch (GoogleOAuthInvalidGrantException $e) {
+            // R-072: invalidated_at は GoogleCalendarService::refreshAccessToken() が既に記録済み。
+            // ここでは生の500エラーではなく、再連携を促す専用メッセージを返す。
+            error_log('refresh failed (invalid_grant): ' . $e->getMessage());
+            $this->sendError(409, 'Google 側で連携が解除されました。再連携してください');
+            return;
         } catch (\Throwable $e) {
             error_log('refresh failed: ' . $e->getMessage());
             $this->sendError(500, 'Google から取得に失敗: ' . $e->getMessage());
@@ -182,14 +188,16 @@ class GoogleCalendarController extends BaseController {
     /**
      * 自動同期を走らせるべきかを判定する。
      * - OAuth 連携が無い → false（同期するものが無い）
+     * - [R-072] invalidated_at が非NULL（失効中） → false（無駄な Google API コール・エラー連発を防ぐ）
      * - last_sync_at が AUTO_SYNC_TTL_SEC より古い → true
      * - user_google_calendars が 1 行も無い (R-041 移行直後) → true
      */
     private function shouldAutoSync(string $userId): bool {
-        $stmt = $this->pdo->prepare("SELECT last_sync_at FROM user_google_oauth WHERE user_id = ?");
+        $stmt = $this->pdo->prepare("SELECT last_sync_at, invalidated_at FROM user_google_oauth WHERE user_id = ?");
         $stmt->execute([$userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return false; // 未連携
+        if (!empty($row['invalidated_at'])) return false; // R-072: 失効中は自動同期をスキップし既存キャッシュのみ返す
 
         $lastSync = (int)($row['last_sync_at'] ?? 0);
         if ($lastSync <= 0) return true;
@@ -216,6 +224,11 @@ class GoogleCalendarController extends BaseController {
         try {
             // Google から最新を取り込み（upsert + 論理削除）
             $list = $this->service->getCalendarList($this->currentUserId);
+        } catch (GoogleOAuthInvalidGrantException $e) {
+            // R-072: invalidated_at は GoogleCalendarService::refreshAccessToken() が既に記録済み。
+            error_log('listCalendars failed (invalid_grant): ' . $e->getMessage());
+            $this->sendError(409, 'Google 側で連携が解除されました。再連携してください');
+            return;
         } catch (\Throwable $e) {
             error_log('listCalendars failed: ' . $e->getMessage());
             $this->sendError(500, 'Google からカレンダー一覧取得に失敗: ' . $e->getMessage());

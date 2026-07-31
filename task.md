@@ -547,15 +547,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 
 ### サブタスク
 
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-072-google-oauth-invalidation-detection master` をworktree内で実行）
-- [ ] DBマイグレーション: `user_google_oauth`テーブルに`invalidated_at INTEGER`・`last_error TEXT`カラムを追加するマイグレーションスクリプトを作成（既存の`migrate_v28_google_calendar.php`等の命名・実行パターンに倣う）
-- [ ] 失敗するテストを先に書く: `GoogleCalendarService::refreshAccessToken()`が`invalid_grant`エラーを受け取った際に`invalidated_at`/`last_error`を記録することを検証するテスト → Red確認
-- [ ] `GoogleCalendarService.php`の`refreshAccessToken()`を修正し、Googleのエラーレスポンスから`error === 'invalid_grant'`を判別して`user_google_oauth`に記録する
-- [ ] `GoogleCalendarController.php`: `invalidated_at`が非NULLの間は自動同期（`getEvents()`裏側のリフレッシュ試行）をスキップし既存キャッシュのみ返すよう修正。連携状態を返すエンドポイント（設定画面が読む箇所）のレスポンスに失効有無を含める
-- [ ] フロント: `GoogleCalendarSection.tsx`で、失効状態を検知したら「Google 側で連携が解除されました。再連携してください」表示に切り替え、「今すぐ更新」ボタンを「Google で再ログイン」（`POST /api/google/oauth/start`を叩く）に変更する
-- [ ] Green確認
-- [ ] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPで実機検証（本番は現在invalid_grant状態のはずなので、実際に失効表示・再連携導線が出ることを確認できる可能性が高い。再連携までは実施せず表示確認に留める）
-- [ ] `docs/requests_log.md` R-072の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ。あわせて「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」と発注者への案内文言を報告に含める）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-072-google-oauth-invalidation-detection master` をworktree内で実行）
+- [x] DBマイグレーション: `user_google_oauth`テーブルに`invalidated_at INTEGER`・`last_error TEXT`カラムを追加するマイグレーションスクリプトを作成（既存の`migrate_v28_google_calendar.php`等の命名・実行パターンに倣う） → `backend/migrate_v30_google_oauth_invalidation.php`
+- [x] 失敗するテストを先に書く: `GoogleCalendarService::refreshAccessToken()`が`invalid_grant`エラーを受け取った際に`invalidated_at`/`last_error`を記録することを検証するテスト → Red確認
+- [x] `GoogleCalendarService.php`の`refreshAccessToken()`を修正し、Googleのエラーレスポンスから`error === 'invalid_grant'`を判別して`user_google_oauth`に記録する（`GoogleOAuthInvalidGrantException`で呼び出し元へも通知。リフレッシュ成功時・再連携（`exchangeCodeForTokens`）時は失効状態を自動クリア）
+- [x] `GoogleCalendarController.php`: `invalidated_at`が非NULLの間は自動同期（`getEvents()`裏側のリフレッシュ試行）をスキップし既存キャッシュのみ返すよう修正。連携状態を返すエンドポイント（`GET /google/oauth/status`）のレスポンスに`invalidated`フィールドを含める。`refresh()`/`listCalendars()`もinvalid_grant時は再連携を促す専用メッセージ（409）を返すよう改善
+- [x] フロント: `GoogleCalendarSection.tsx`で、失効状態を検知したら「Google 側で連携が解除されました。再連携してください」表示に切り替え、「今すぐ更新」ボタンを「Google で再ログイン」（`POST /api/google/oauth/start`を叩く）に変更する
+- [x] Green確認
+- [x] 既存テスト回帰なし確認（vitest全件、PHPテスト全件）。PHP: GoogleCalendarServiceTest 15/15・GoogleCalendarControllerTest 16/16 green、他既存テストの一部失敗（QuantityServiceTest等）はR-072と無関係の既存事象と確認済み（stashしてR-072変更を除いても同一失敗を確認）。vitest: 734 passed/749（1件失敗はuseAssigneeViewの既存の日付境界依存の無関係テスト、14 skip）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（本番は現在invalid_grant状態のはずなので、実際に失効表示・再連携導線が出ることを確認できる可能性が高い。再連携までは実施せず表示確認に留める）→ 本番は未デプロイ状態のためinvalidatedフィールド自体が無く確認不可（想定通り）。dev環境（localhost:5173/8000、デバッグユーザー fjt.suntree@gmail.com）でDBに疑似的な`invalidated_at`を手動投入し、個人設定画面のGoogleカレンダー連携セクションで「Google 側で連携が解除されました。再連携してください」表示と「Google で再ログイン」ボタン（クリックで実際のGoogle OAuth同意画面へ正しく遷移することを確認、ログインは未実施）を確認。検証後は疑似データを削除済み
+- [x] `docs/requests_log.md` R-072の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ。あわせて「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」と発注者への案内文言を報告に含める）

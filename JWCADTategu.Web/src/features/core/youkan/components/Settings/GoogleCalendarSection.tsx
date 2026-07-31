@@ -220,6 +220,8 @@ export const GoogleCalendarSection: React.FC = () => {
     }
 
     const connected = !!status?.connected;
+    // R-072: リフレッシュトークン失効検知。true の間は再連携導線を表示する
+    const invalidated = connected && !!status?.invalidated;
 
     return (
         <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
@@ -258,6 +260,11 @@ export const GoogleCalendarSection: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-5">
+                    {invalidated && (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                            Google 側で連携が解除されました。再連携してください
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
                             <span className="text-slate-500 dark:text-slate-400">連携アカウント:</span>
@@ -282,20 +289,35 @@ export const GoogleCalendarSection: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={handleRefresh}
-                            disabled={isRefreshing || cooldownRemaining > 0}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isRefreshing ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <RefreshCcw className="w-4 h-4" />
-                            )}
-                            {cooldownRemaining > 0
-                                ? `更新待機中 (${cooldownRemaining}s)`
-                                : '今すぐ更新'}
-                        </button>
+                        {invalidated ? (
+                            <button
+                                onClick={handleStartOAuth}
+                                disabled={isStarting}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isStarting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <RefreshCcw className="w-4 h-4" />
+                                )}
+                                Google で再ログイン
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleRefresh}
+                                disabled={isRefreshing || cooldownRemaining > 0}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isRefreshing ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <RefreshCcw className="w-4 h-4" />
+                                )}
+                                {cooldownRemaining > 0
+                                    ? `更新待機中 (${cooldownRemaining}s)`
+                                    : '今すぐ更新'}
+                            </button>
+                        )}
 
                         <button
                             onClick={handleRevoke}

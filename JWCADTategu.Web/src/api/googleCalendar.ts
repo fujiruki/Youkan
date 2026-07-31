@@ -8,6 +8,8 @@ export interface GoogleOAuthStatus {
     connected: boolean;
     email?: string;
     lastSyncAt?: number;
+    /** R-072: リフレッシュトークン失効検知。true の間は再連携導線を表示する */
+    invalidated?: boolean;
 }
 
 export interface GoogleCalendarRefreshResponse {

@@ -196,6 +196,85 @@ describe('GoogleCalendarSection', () => {
         (window as any).location = originalLocation;
     });
 
+    // R-072: Google OAuth失効検知・再連携UX
+    describe('R-072: 失効検知・再連携UX', () => {
+        it('失効時: 「Google 側で連携が解除されました。再連携してください」が表示され、「今すぐ更新」は表示されない', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+                invalidated: true,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            expect(
+                screen.getByText(/Google 側で連携が解除されました。再連携してください/)
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /今すぐ更新/ })
+            ).toBeNull();
+            expect(
+                screen.getByRole('button', { name: /Google で再ログイン/ })
+            ).toBeInTheDocument();
+        });
+
+        it('失効時: 「Google で再ログイン」クリックで startOAuth → window.location.href に authUrl を代入', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+                invalidated: true,
+            });
+            const startSpy = vi
+                .spyOn(GoogleCalendarApi, 'startOAuth')
+                .mockResolvedValue({ authUrl: 'https://accounts.google.com/o/oauth2/auth?relogin' });
+
+            const originalLocation = window.location;
+            const hrefSetter = vi.fn();
+            delete (window as any).location;
+            (window as any).location = {
+                ...originalLocation,
+                href: '',
+                assign: vi.fn(),
+            };
+            Object.defineProperty(window.location, 'href', {
+                set: hrefSetter,
+                get: () => '',
+                configurable: true,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            fireEvent.click(screen.getByRole('button', { name: /Google で再ログイン/ }));
+            await flushPromises();
+
+            expect(startSpy).toHaveBeenCalled();
+            expect(hrefSetter).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth?relogin');
+
+            (window as any).location = originalLocation;
+        });
+
+        it('非失効の連携済み時: 失効メッセージは表示されず、「今すぐ更新」ボタンが表示される', async () => {
+            vi.spyOn(GoogleCalendarApi, 'getStatus').mockResolvedValue({
+                connected: true,
+                email: 'door.fujita@gmail.com',
+                lastSyncAt: 1700000000,
+                invalidated: false,
+            });
+
+            render(<GoogleCalendarSection />);
+            await flushPromises();
+
+            expect(
+                screen.queryByText(/Google 側で連携が解除されました/)
+            ).toBeNull();
+            expect(screen.getByRole('button', { name: /今すぐ更新/ })).toBeInTheDocument();
+        });
+    });
+
     // R-039 Phase 3 UX: 表示するビューの設定セクション
     describe('R-039 Phase 3 UX: 表示するビュー', () => {
         const STORAGE_KEY = 'ykn_external_events_views';

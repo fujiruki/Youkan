@@ -69,7 +69,9 @@ class GoogleCalendarControllerTest {
                 primary_calendar_email TEXT,
                 primary_calendar_id TEXT,
                 last_sync_at INTEGER,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                invalidated_at INTEGER,
+                last_error TEXT
             )
         ");
         $this->pdo->exec("
@@ -135,6 +137,11 @@ class GoogleCalendarControllerTest {
         $this->testGetEventsTriggersAutoSyncWhenStale();
         $this->testGetEventsSkipsAutoSyncWhenFresh();
         $this->testGetEventsFallsBackToCacheOnSyncFailure();
+        // [R-072] OAuth 失効検知・再連携UX
+        $this->testStatusReflectsInvalidatedFlag();
+        $this->testStatusInvalidatedFalseWhenNotInvalidated();
+        $this->testGetEventsSkipsAutoSyncWhenInvalidated();
+        $this->testRefreshReturnsFriendlyErrorOnInvalidGrant();
         echo "All tests passed!\n";
     }
 
@@ -454,6 +461,88 @@ class GoogleCalendarControllerTest {
         $events = $res['body']['events'] ?? [];
         $titles = array_column($events, 'title');
         assert(in_array('既存キャッシュ', $titles, true), '既存キャッシュが返ること: ' . json_encode($titles, JSON_UNESCAPED_UNICODE));
+        echo " OK\n";
+    }
+    // ===== [R-072] Google OAuth 失効検知・再連携UX =====
+
+    private function testStatusReflectsInvalidatedFlag(): void {
+        echo "  [Test] GET /google/oauth/status reflects invalidated=true when invalidated_at is set...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_email, primary_calendar_id, last_sync_at, created_at, invalidated_at, last_error) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), 'haruki@example.com', 'primary', $now - 100000, $now - 200000, $now - 10, 'invalid_grant: 期限切れ']);
+
+        $res = $this->captureResponse(fn() => $this->controller->status());
+        assert($res['body']['connected'] === true, 'connected should stay true');
+        assert($res['body']['invalidated'] === true, 'invalidated should be true: ' . json_encode($res['body']));
+        echo " OK\n";
+    }
+
+    private function testStatusInvalidatedFalseWhenNotInvalidated(): void {
+        echo "  [Test] GET /google/oauth/status reflects invalidated=false when healthy...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_email, primary_calendar_id, last_sync_at, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), 'haruki@example.com', 'primary', $now - 100, $now - 1000]);
+
+        $res = $this->captureResponse(fn() => $this->controller->status());
+        assert($res['body']['connected'] === true);
+        assert($res['body']['invalidated'] === false, 'invalidated should be false: ' . json_encode($res['body']));
+        echo " OK\n";
+    }
+
+    private function testGetEventsSkipsAutoSyncWhenInvalidated(): void {
+        echo "  [Test] GET /events skips auto-sync when invalidated_at is set (no wasted Google API calls)...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $this->pdo->prepare("DELETE FROM external_events_cache")->execute();
+
+        $now = time();
+        // last_sync_at は古い（本来なら自動同期対象）が invalidated_at がセットされているためスキップされるべき
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at, invalidated_at, last_error) VALUES (?, ?, 'primary', ?, ?, ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now - 86400, $now - 86400, $now - 100, 'invalid_grant']);
+
+        $this->pdo->prepare("INSERT INTO external_events_cache (id, user_id, calendar_id, event_id, start_at, end_at, all_day, title, location, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+            ->execute([
+                'google:primary:kept', 'user-1', 'primary', 'kept',
+                strtotime('2026-06-15 09:00:00'),
+                strtotime('2026-06-15 10:00:00'),
+                0, '既存キャッシュ（失効中）', null, $now,
+            ]);
+
+        $callsBefore = count($this->http->calls);
+        $_GET['from'] = '2026-06-01';
+        $_GET['to'] = '2026-06-30';
+        $res = $this->captureResponse(fn() => $this->controller->getEvents());
+        $callsAfter = count($this->http->calls);
+
+        assert($callsAfter === $callsBefore, '失効中は Google API を叩かないはず。呼び出し数: ' . ($callsAfter - $callsBefore));
+        $events = $res['body']['events'] ?? [];
+        $titles = array_column($events, 'title');
+        assert(in_array('既存キャッシュ（失効中）', $titles, true), '既存キャッシュが返るはず: ' . json_encode($titles, JSON_UNESCAPED_UNICODE));
+        echo " OK\n";
+    }
+
+    private function testRefreshReturnsFriendlyErrorOnInvalidGrant(): void {
+        echo "  [Test] POST /google/calendar/refresh returns a friendly message on invalid_grant (not a raw 500 dump)...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        // クールダウンを回避するため十分に古い last_sync_at
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, last_sync_at, created_at) VALUES (?, ?, ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('1//dead'), $now - 3600, $now - 7200]);
+
+        // user_google_calendars が空 → getCalendarList() 経由で refreshAccessToken が呼ばれ invalid_grant を返す
+        $this->http->enqueue(400, ['error' => 'invalid_grant', 'error_description' => 'expired']);
+
+        $res = $this->captureResponse(fn() => $this->controller->refresh());
+        assert($res['status'] !== null && $res['status'] !== 500, '生の500ではなく専用のステータスを返すべき: ' . var_export($res['status'], true));
+        $message = $res['body']['error'] ?? '';
+        assert(strpos($message, '再連携') !== false, "再連携を促すメッセージであるべき: $message");
+
+        // invalidated_at が記録されているか
+        $row = $this->pdo->query("SELECT invalidated_at FROM user_google_oauth WHERE user_id='user-1'")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['invalidated_at'] > 0, 'invalidated_at should be recorded via refresh() failure path');
         echo " OK\n";
     }
 }

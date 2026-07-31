@@ -11,6 +11,12 @@
 require_once __DIR__ . '/CryptoService.php';
 require_once __DIR__ . '/HttpClient.php';
 
+/**
+ * R-072: Google のリフレッシュトークンが invalid_grant で失効したことを示す例外。
+ * 呼び出し元（コントローラ）はこれを catch して再連携導線を返すために使う。
+ */
+class GoogleOAuthInvalidGrantException extends \RuntimeException {}
+
 class GoogleCalendarService {
     public const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
     public const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -128,13 +134,16 @@ class GoogleCalendarService {
         $now = time();
 
         // UPSERT
+        // R-072: 再連携時は過去の失効状態（invalidated_at/last_error）をクリアする
         $stmt = $this->pdo->prepare("
             INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_email, primary_calendar_id, created_at)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 encrypted_refresh_token = excluded.encrypted_refresh_token,
                 primary_calendar_email = excluded.primary_calendar_email,
-                primary_calendar_id = excluded.primary_calendar_id
+                primary_calendar_id = excluded.primary_calendar_id,
+                invalidated_at = NULL,
+                last_error = NULL
         ");
         $stmt->execute([$userId, $encrypted, $email, $calendarId, $now]);
 
@@ -170,13 +179,51 @@ class GoogleCalendarService {
             'body' => $body,
         ]);
         if ($res['status'] !== 200) {
+            // R-072: Google のエラーレスポンスが invalid_grant（リフレッシュトークン失効）の場合は
+            // 失効を DB に記録し、呼び出し元が判別できる専用例外を投げる。
+            $errorPayload = json_decode($res['body'], true);
+            $errorCode = is_array($errorPayload) ? ($errorPayload['error'] ?? null) : null;
+            if ($errorCode === 'invalid_grant') {
+                $message = 'GoogleCalendarService: refresh failed with invalid_grant: ' . $res['body'];
+                $this->markInvalidated($userId, $message);
+                throw new GoogleOAuthInvalidGrantException($message);
+            }
             throw new \RuntimeException('GoogleCalendarService: refresh failed: ' . $res['body']);
         }
         $tokens = json_decode($res['body'], true);
         if (empty($tokens['access_token'])) {
             throw new \RuntimeException('GoogleCalendarService: refresh returned no access_token');
         }
+        // リフレッシュが成功したら、過去に記録された失効状態をクリアする（自己復旧）
+        $this->clearInvalidated($userId);
         return $tokens['access_token'];
+    }
+
+    /**
+     * R-072: invalid_grant 検知時に失効を記録する。
+     */
+    private function markInvalidated(string $userId, string $message): void {
+        $this->pdo->prepare("UPDATE user_google_oauth SET invalidated_at = ?, last_error = ? WHERE user_id = ?")
+            ->execute([time(), $message, $userId]);
+    }
+
+    /**
+     * R-072: リフレッシュ成功時に過去の失効記録をクリアする。
+     */
+    private function clearInvalidated(string $userId): void {
+        $this->pdo->prepare("UPDATE user_google_oauth SET invalidated_at = NULL, last_error = NULL WHERE user_id = ? AND invalidated_at IS NOT NULL")
+            ->execute([$userId]);
+    }
+
+    /**
+     * R-072: 現在失効中（invalidated_at が非NULL）かどうかを返す。
+     * 未連携ユーザーは false を返す。
+     */
+    public function isInvalidated(string $userId): bool {
+        $stmt = $this->pdo->prepare("SELECT invalidated_at FROM user_google_oauth WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row !== false && !empty($row['invalidated_at']);
     }
 
     /**
@@ -596,7 +643,7 @@ class GoogleCalendarService {
      * 認証状態（連携済みか・最終同期）を返す。設定画面 UI で使用。
      */
     public function getConnectionStatus(string $userId): ?array {
-        $stmt = $this->pdo->prepare("SELECT primary_calendar_email, primary_calendar_id, last_sync_at, created_at FROM user_google_oauth WHERE user_id = ?");
+        $stmt = $this->pdo->prepare("SELECT primary_calendar_email, primary_calendar_id, last_sync_at, created_at, invalidated_at FROM user_google_oauth WHERE user_id = ?");
         $stmt->execute([$userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
@@ -606,6 +653,8 @@ class GoogleCalendarService {
             'calendar_id' => $row['primary_calendar_id'],
             'last_sync_at' => isset($row['last_sync_at']) ? (int)$row['last_sync_at'] : null,
             'connected_at' => (int)$row['created_at'],
+            // R-072: リフレッシュトークン失効検知。true の間は設定画面が再連携導線を表示する
+            'invalidated' => !empty($row['invalidated_at']),
         ];
     }
 }

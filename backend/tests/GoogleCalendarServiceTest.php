@@ -25,7 +25,9 @@ class GoogleCalendarServiceTest {
                 primary_calendar_email TEXT,
                 primary_calendar_id TEXT,
                 last_sync_at INTEGER,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                invalidated_at INTEGER,
+                last_error TEXT
             )
         ");
         $this->pdo->exec("
@@ -90,6 +92,11 @@ class GoogleCalendarServiceTest {
         $this->testGetEventsRespectsIsEnabled();
         $this->testGetEventsCacheKeyPerCalendar();
         $this->testUpdateCalendarEnabled();
+        // [R-072] OAuth 失効検知・再連携UX
+        $this->testRefreshAccessTokenInvalidGrantRecordsInvalidation();
+        $this->testRefreshAccessTokenSuccessClearsInvalidation();
+        $this->testExchangeCodeForTokensClearsInvalidation();
+        $this->testIsInvalidatedHelper();
         echo "All tests passed!\n";
     }
 
@@ -485,6 +492,92 @@ class GoogleCalendarServiceTest {
         assert($fail === false, '他ユーザー行は更新されない');
         $other2 = $this->pdo->query("SELECT is_enabled FROM user_google_calendars WHERE id=$otherRowId")->fetch(PDO::FETCH_ASSOC);
         assert((int)$other2['is_enabled'] === 1, '他ユーザー行は依然として変更されない');
+        echo " OK\n";
+    }
+    // ===== [R-072] Google OAuth 失効検知・再連携UX =====
+
+    private function testRefreshAccessTokenInvalidGrantRecordsInvalidation(): void {
+        echo "  [Test] refreshAccessToken records invalidated_at/last_error on invalid_grant...";
+        $userId = 'user-invalid-grant';
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, created_at) VALUES (?, ?, ?)")
+            ->execute([$userId, $this->crypto->encrypt('1//revoked'), time()]);
+
+        $this->http->enqueue(400, [
+            'error' => 'invalid_grant',
+            'error_description' => 'Token has been expired or revoked.',
+        ]);
+
+        $threw = false;
+        try {
+            $this->service->refreshAccessToken($userId);
+        } catch (GoogleOAuthInvalidGrantException $e) {
+            $threw = true;
+        }
+        assert($threw, 'refreshAccessToken should throw GoogleOAuthInvalidGrantException on invalid_grant');
+
+        $row = $this->pdo->query("SELECT invalidated_at, last_error FROM user_google_oauth WHERE user_id='$userId'")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['invalidated_at'] > 0, 'invalidated_at should be recorded');
+        assert(strpos($row['last_error'], 'invalid_grant') !== false, 'last_error should mention invalid_grant: ' . $row['last_error']);
+        echo " OK\n";
+    }
+
+    private function testRefreshAccessTokenSuccessClearsInvalidation(): void {
+        echo "  [Test] refreshAccessToken success clears previous invalidation...";
+        $userId = 'user-recovered';
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, created_at, invalidated_at, last_error) VALUES (?, ?, ?, ?, ?)")
+            ->execute([$userId, $this->crypto->encrypt('1//rt'), $now, $now - 10, 'invalid_grant: 過去のエラー']);
+
+        $this->http->enqueue(200, [
+            'access_token' => 'ya29.recovered',
+            'expires_in' => 3600,
+        ]);
+
+        $accessToken = $this->service->refreshAccessToken($userId);
+        assert($accessToken === 'ya29.recovered', 'access token mismatch');
+
+        $row = $this->pdo->query("SELECT invalidated_at, last_error FROM user_google_oauth WHERE user_id='$userId'")->fetch(PDO::FETCH_ASSOC);
+        assert($row['invalidated_at'] === null, 'invalidated_at should be cleared after successful refresh');
+        assert($row['last_error'] === null, 'last_error should be cleared after successful refresh');
+        echo " OK\n";
+    }
+
+    private function testExchangeCodeForTokensClearsInvalidation(): void {
+        echo "  [Test] exchangeCodeForTokens (re-連携) clears invalidated_at/last_error...";
+        $userId = 'user-relogin';
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, created_at, invalidated_at, last_error) VALUES (?, ?, ?, ?, ?)")
+            ->execute([$userId, $this->crypto->encrypt('1//old'), $now - 1000, $now - 10, 'invalid_grant: 期限切れ']);
+
+        $this->http->enqueue(200, [
+            'access_token' => 'ya29.relogin',
+            'refresh_token' => '1//new_refresh',
+            'expires_in' => 3600,
+        ]);
+        $this->http->enqueue(200, ['email' => 'relogin@example.com']);
+        $this->http->enqueue(200, ['id' => 'relogin@example.com']);
+
+        $this->service->exchangeCodeForTokens($userId, 'auth-code-relogin');
+
+        $row = $this->pdo->query("SELECT invalidated_at, last_error FROM user_google_oauth WHERE user_id='$userId'")->fetch(PDO::FETCH_ASSOC);
+        assert($row['invalidated_at'] === null, '再連携で invalidated_at はクリアされるべき');
+        assert($row['last_error'] === null, '再連携で last_error はクリアされるべき');
+        echo " OK\n";
+    }
+
+    private function testIsInvalidatedHelper(): void {
+        echo "  [Test] isInvalidated reflects invalidated_at presence...";
+        $userIdOk = 'user-ok';
+        $userIdBad = 'user-bad';
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, created_at) VALUES (?, ?, ?)")
+            ->execute([$userIdOk, $this->crypto->encrypt('1//ok'), $now]);
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, created_at, invalidated_at, last_error) VALUES (?, ?, ?, ?, ?)")
+            ->execute([$userIdBad, $this->crypto->encrypt('1//bad'), $now, $now, 'invalid_grant']);
+
+        assert($this->service->isInvalidated($userIdOk) === false, '正常な連携は false のはず');
+        assert($this->service->isInvalidated($userIdBad) === true, '失効中は true のはず');
+        assert($this->service->isInvalidated('user-not-exist') === false, '未連携ユーザーは false のはず');
         echo " OK\n";
     }
 }
