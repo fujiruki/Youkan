@@ -511,6 +511,8 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] `git diff --stat master..HEAD` で変更範囲確認
 - [x] chrome-devtools MCPで実機検証（dev環境）: ボタン押下→モーダル表示→本文入力＋画像貼り付け→送信→トースト表示を確認。スマホ幅でMenuDrawer経由の導線も確認
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-07-31、`fd83028`をmasterに反映）
+- [x] 本番chrome-devtools MCP検証: ヘッダーロゴ縮小表示・「改善要望を送る」ボタン→モーダル→送信→トースト表示を確認。送信されたテストデータは`backend/data/requests_sub.md`から削除して原状回復済み
 
 ---
 
@@ -532,6 +534,8 @@ R-042-Y2 で配置した sentinel が scrollRef 直下に `absolute left-0/right
 - [x] chrome-devtools MCPで実機検証（dev環境）: 詳細画面の「納期」フィールドをクリック→何も変えず他要素へフォーカス移動→`due_status`が変化しないことを確認。実際に日付を変更した場合は`confirmed`になることも確認
 - [x] `docs/requests_log.md` R-073の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-07-31、`fd83028`をmasterに反映）
+- [x] 本番chrome-devtools MCP検証: 既存アイテム詳細画面で納期欄をクリック→変更せず他要素へブラー→ネットワークタブでPUT/PATCHが発生しないことを確認
 
 ---
 
@@ -559,3 +563,7 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCPで実機検証（本番は現在invalid_grant状態のはずなので、実際に失効表示・再連携導線が出ることを確認できる可能性が高い。再連携までは実施せず表示確認に留める）→ 本番は未デプロイ状態のためinvalidatedフィールド自体が無く確認不可（想定通り）。dev環境（localhost:5173/8000、デバッグユーザー fjt.suntree@gmail.com）でDBに疑似的な`invalidated_at`を手動投入し、個人設定画面のGoogleカレンダー連携セクションで「Google 側で連携が解除されました。再連携してください」表示と「Google で再ログイン」ボタン（クリックで実際のGoogle OAuth同意画面へ正しく遷移することを確認、ログインは未実施）を確認。検証後は疑似データを削除済み
 - [x] `docs/requests_log.md` R-072の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIの指示を待つ。あわせて「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」と発注者への案内文言を報告に含める）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-07-31、`fd83028`をmasterに反映）
+- [x] デプロイ後に`backend/migrate_v30_google_oauth_invalidation.php`をSSH経由で実行（Migration v30 completed successfully.）
+- [x] 本番chrome-devtools MCP検証: 個人設定画面のGoogleカレンダー連携セクションで「Google 側で連携が解除されました。再連携してください」表示と「Google で再ログイン」ボタンを確認
+- [ ] 発注者へ「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」の案内（指揮AI/発注者対応、Agentスコープ外）
