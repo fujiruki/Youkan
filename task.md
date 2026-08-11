@@ -597,3 +597,36 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 - [ ] 指揮AIのレビュー後、master マージ（本番デプロイは行わない、指揮AIが別途判断）
 - [ ] Tabキー→目安時間欄→Enter連鎖の実ブラウザ目視確認（chrome-devtools MCPが空いたタイミング、または発注者による確認を推奨）
+
+---
+
+## R-075 フローチャート/モーダル文字入力遅延の原因調査・修正（2026-08-12・Codex委譲）
+
+**要望**: `docs/requests_log.md` R-075（発注者からCodexへの調査委譲指定あり）
+**症状**: フローチャート画面を開いている状態で、その上に表示される詳細画面モーダル・改善要望モーダル内のテキスト入力が1文字あたり約1秒かかる
+**委譲方針**: `codex:codex-rescue` エージェントに調査・修正を委譲（指揮AIはコード直接編集しない原則を維持しつつ、独立したパフォーマンスデバッグのため機密情報・MCP不要と判断）
+- [x] Codexへ調査・修正を委譲。共通根因は`SimpleModal.tsx`・`DecisionDetailModal.tsx`の`backdrop-blur-sm`と特定・除去
+- [x] 修正内容をTDDで検証（新規18件green、既存回帰なし。stash比較で既存の無関係な失敗と確認済み）
+- [x] `docs/requests_log.md` R-075の対応状況を更新
+- [x] 指揮AIレビュー・承認、専用マージAgentによりmasterマージ・push完了（コミット`b301fb6`）
+- [ ] 実ブラウザでのミリ秒計測は未実施（自動レンダーカウントのみで背景再レンダー0回を確認）。本番デプロイ後に体感確認を推奨
+
+---
+
+## R-076 ガントチャート依存関係順ソート（2026-08-12）
+
+**ブランチ**: `fix/R-076-gantt-dependency-sort`
+**要望**: `docs/requests_log.md` R-076（改善要望フォーム経由、発注者指定で即日実装・デプロイ）
+**仕様**: `docs/SPEC/02_機能仕様.md` F-25
+**背景**: 依存関係A→B（AがBの前提）がある場合、ガントチャート一覧でAがBより上に表示されるようにする。既存の並び順ロジックは `JWCADTategu.Web/src/features/core/youkan/logic/sorting.ts`（`compareGanttListItems` 等、日付・createdAtベース）にある
+
+### サブタスク
+- [x] worktree作成
+- [x] 既存の `sorting.ts`/`RyokanGanttView.tsx` を調査し、要件自体はR-015（`sortWithDependencies`、Kahn's algorithm）で実装済みと判明
+- [x] 失敗するテストを先に書く: 循環依存（A→B→A等）でトポロジカルソートに解決できないノードが結果配列から静かに欠落するバグを発見 → Red確認
+- [x] `sortWithDependencies`に循環フォールバック処理を追加（データ消失防止・安全側）
+- [x] Green確認・既存テスト回帰なし確認（vitest全件127ファイル774件中773 pass・14 skip、既存の無関係な1件のみ）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（3ファイル・85行）
+- [x] claude-in-chrome MCPで実機検証（chrome-devtools MCPは他Agent使用中のため代替）: 依存関係追加後にA→B順へ反転することをスクリーンショットで確認
+- [x] `docs/requests_log.md` R-076の対応状況を更新
+- [x] 指揮AIレビュー・承認、masterマージ・push完了（コミット`4761d64`）
