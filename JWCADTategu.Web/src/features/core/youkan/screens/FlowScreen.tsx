@@ -18,6 +18,7 @@ import {
   type OnSelectionChangeFunc,
   type OnNodesChange,
   BackgroundVariant,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
@@ -47,6 +48,23 @@ const dependencyRepo = new DependencyRepository();
 
 const OVERLAP_THRESHOLD = 40;
 const EDGE_INSERT_THRESHOLD = 50;
+
+const DEPENDENCY_EDGE_STYLE = { stroke: '#6366f1', strokeWidth: 2 };
+const DEPENDENCY_EDGE_HIGHLIGHT_STYLE = { stroke: '#3b82f6', strokeWidth: 4 };
+const DEPENDENCY_EDGE_MARKER_END = { type: MarkerType.ArrowClosed };
+
+// 依存関係からedgeを構築する唯一の変換ロジック（描画箇所全てがここを通る）
+function dependencyToEdge(dep: Dependency, isHighlighted: boolean): Edge {
+  return {
+    id: dep.id,
+    source: dep.sourceItemId,
+    target: dep.targetItemId,
+    animated: false,
+    interactionWidth: 20,
+    markerEnd: DEPENDENCY_EDGE_MARKER_END,
+    style: isHighlighted ? DEPENDENCY_EDGE_HIGHLIGHT_STYLE : DEPENDENCY_EDGE_STYLE,
+  };
+}
 
 interface FlowScreenProps {
   activeProjectId?: string;
@@ -83,6 +101,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
   const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
+  const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
 
   const fetchData = useCallback(async () => {
     const [itemsResult, depsResult] = await Promise.allSettled([
@@ -223,23 +243,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           onEstimatedMinutesChange: handleEstimatedMinutesChange,
           onStartEditing: handleStartEditing,
           onContextMenu: handleItemContextMenu,
+          onChainCreate: (itemId: string) => createNodeBelowRef.current(itemId, 0),
         },
       } satisfies Node;
     });
 
-    const newEdges: Edge[] = dependencies.map((dep) => {
-      const isEdgeHighlighted = highlightEdgeId === dep.id;
-      return {
-        id: dep.id,
-        source: dep.sourceItemId,
-        target: dep.targetItemId,
-        animated: true,
-        interactionWidth: 20,
-        style: isEdgeHighlighted
-          ? { stroke: '#3b82f6', strokeWidth: 4 }
-          : { stroke: '#6366f1', strokeWidth: 2 },
-      };
-    });
+    const newEdges: Edge[] = dependencies.map((dep) => dependencyToEdge(dep, highlightEdgeId === dep.id));
 
     setNodes([...groupNodes, ...itemNodes]);
     setEdges(newEdges);
@@ -256,6 +265,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     const newMeta = { ...currentMeta, ...metaUpdate };
     await ApiClient.updateItem(itemId, { meta: newMeta } as Partial<Item>);
   }, [allItems]);
+
+  // 依存関係の作成をローカルstateへ直接反映する（dependencies変更を検知して
+  // nodes/edgesを再構築する派生useEffectはisDragging中スキップされるため、
+  // それだけに頼るとedgeが描画されないまま取り残されることがある。onConnect
+  // と同様にedgesへも即時反映することで、派生useEffectの実行タイミングに
+  // 依存せずedgeの描画を保証する）
+  const appendDependencyToState = useCallback((dep: Dependency) => {
+    setDependencies((prev) => [...prev, dep]);
+    setEdges((eds) => (eds.some((e) => e.id === dep.id) ? eds : [...eds, dependencyToEdge(dep, false)]));
+  }, [setEdges]);
 
   useEffect(() => {
     if (isDragging.current) return;
@@ -325,6 +344,11 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           ...prev.filter((d) => d.id !== oldEdgeId),
           dep1!, dep2!,
         ]);
+        setEdges((eds) => [
+          ...eds.filter((e) => e.id !== oldEdgeId),
+          dependencyToEdge(dep1!, false),
+          dependencyToEdge(dep2!, false),
+        ]);
 
         const sourcePos = nodePositions.get(oldEdgeSource);
         const targetPos = nodePositions.get(oldEdgeTarget);
@@ -355,7 +379,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         return false;
       }
     },
-    [edges, getNodePositions, updateItemMeta, showToast, setDependencies, setAllItems]
+    [edges, getNodePositions, updateItemMeta, showToast, setDependencies, setEdges, setAllItems]
   );
 
   const onNodeDragStart: OnNodeDrag = useCallback((_event, _node, nodes) => {
@@ -446,7 +470,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       if (overlappingNode) {
         try {
           const dep = await dependencyRepo.createDependency(overlappingNode.id, draggedNode.id);
-          setDependencies((prev) => [...prev, dep]);
+          appendDependencyToState(dep);
           const sourceTitle = (overlappingNode.data as Record<string, unknown>)?.item
             ? ((overlappingNode.data as Record<string, unknown>).item as Item).title
             : overlappingNode.id;
@@ -464,6 +488,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
                 try {
                   await dependencyRepo.deleteDependency(dep.id);
                   setDependencies((prev) => prev.filter((d) => d.id !== dep.id));
+                  setEdges((eds) => eds.filter((e) => e.id !== dep.id));
                 } catch (e) {
                   console.error('[FlowScreen] 取り消し失敗:', e);
                 }
@@ -536,7 +561,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         });
       });
     },
-    [nodes, updateItemMeta, showToast, setNodes, handleEdgeInsert, placedItems, setAllItems]
+    [nodes, updateItemMeta, showToast, setNodes, setEdges, handleEdgeInsert, placedItems, setAllItems, appendDependencyToState]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -549,8 +574,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
             {
               ...connection,
               id: dep.id,
-              animated: true,
-              style: { stroke: '#6366f1', strokeWidth: 2 },
+              animated: false,
+              markerEnd: DEPENDENCY_EDGE_MARKER_END,
+              style: DEPENDENCY_EDGE_STYLE,
             },
             eds
           )
@@ -785,15 +811,24 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         const newItemId = await createNewItem(parentX + offsetX, parentY + 120);
         if (newItemId) {
           const dep = await dependencyRepo.createDependency(parentNodeId, newItemId);
-          setDependencies((prev) => [...prev, dep]);
+          appendDependencyToState(dep);
         }
+        return newItemId;
       } catch (err) {
         console.error('[FlowScreen] ノード追加失敗:', err);
         showToast({ type: 'error', title: 'ノード追加失敗', message: String(err), duration: 5000 });
+        return null;
       }
     },
-    [allItems, showToast, createNewItem]
+    [allItems, showToast, createNewItem, appendDependencyToState]
   );
+
+  // R-074: ノードデータの onChainCreate はコンポーネント冒頭の edge 構築 useEffect から
+  // 参照されるが、createNodeBelow はそれより後方で定義されるため ref 経由で受け渡す
+  // （TDZ回避。createNodeBelow を前方へ移動する再構成より安全で差分も小さい）
+  useEffect(() => {
+    createNodeBelowRef.current = createNodeBelow;
+  }, [createNodeBelow]);
 
   const handleOpenItemInternal = useCallback((item: Item) => {
     if (onOpenItem) {
@@ -967,7 +1002,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   }, [handleKeyDown]);
 
   return (
-    <div className="h-full w-full relative" ref={reactFlowWrapper} tabIndex={0}>
+    <div className="h-full w-full relative" ref={reactFlowWrapper} tabIndex={0} data-testid="flow-canvas-root">
       <ReactFlow
         nodes={nodes}
         edges={edges}
