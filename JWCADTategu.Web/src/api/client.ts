@@ -106,7 +106,8 @@ export class ApiClient {
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
-				const errorMessage = errorData.message || `API Error: ${response.status}`;
+				// バックエンド（BaseController::sendError）は { error: message } 形式で返す
+				const errorMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
 
 				this.log(`ERROR ${method} ${path} (${duration}ms)`, {
 					status: response.status,
@@ -115,7 +116,9 @@ export class ApiClient {
 					error: errorData
 				}, true);
 
-				throw new Error(errorMessage);
+				const apiError = new Error(errorMessage) as Error & { status?: number };
+				apiError.status = response.status;
+				throw apiError;
 			}
 
 			// Handle 204 No Content
