@@ -56,6 +56,29 @@ describe('ImprovementRequestModal', () => {
     expect(screen.getByRole('button', { name: '送信する' })).not.toBeDisabled();
   });
 
+  it('本文を5回変更しても背後の重い画面を再レンダリングしない', () => {
+    let backgroundRenderCount = 0;
+    const HeavyBackground = () => {
+      backgroundRenderCount++;
+      return <div data-testid="heavy-background" />;
+    };
+
+    render(
+      <>
+        <HeavyBackground />
+        <ImprovementRequestModal isOpen={true} onClose={vi.fn()} />
+      </>
+    );
+    const countAfterMount = backgroundRenderCount;
+    const textarea = screen.getByLabelText('本文');
+
+    for (const value of ['a', 'ab', 'abc', 'abcd', 'abcde']) {
+      fireEvent.change(textarea, { target: { value } });
+    }
+
+    expect(backgroundRenderCount).toBe(countAfterMount);
+  });
+
   it('送信成功でAPIが呼ばれ、トースト表示とモーダルクローズが行われる', async () => {
     const { ApiClient } = await import('@/api/client');
     const { useToast } = await import('@/contexts/ToastContext');

@@ -414,7 +414,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
+			data-youkan-modal-overlay
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
 			onMouseDownCapture={(e) => {
 				if (e.target === e.currentTarget) {
 					isClosingRef.current = true;
