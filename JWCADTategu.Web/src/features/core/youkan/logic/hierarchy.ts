@@ -109,8 +109,13 @@ const sortWithDependencies = (
 		}
 	}
 
-	// チェーンに属さないアイテムを通常ソート
-	const independentItems = items.filter(i => !inChain.has(i.id));
+	// R-076: 循環依存（トポロジカルソートで解決できなかったノード）は安全側フォールバックとして
+	// 依存制約を無視し、通常ソート扱いにする（データ消失・無限ループの防止）
+	const topoOrderSet = new Set(topoOrder);
+	const cyclicFallbackIds = new Set([...inChain].filter(id => !topoOrderSet.has(id)));
+
+	// チェーンに属さないアイテム（循環依存のフォールバック含む）を通常ソート
+	const independentItems = items.filter(i => !inChain.has(i.id) || cyclicFallbackIds.has(i.id));
 	independentItems.sort(compareFn);
 
 	// チェーンをグループ化（連結成分ごと）

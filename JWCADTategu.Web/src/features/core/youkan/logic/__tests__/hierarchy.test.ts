@@ -438,6 +438,83 @@ describe('buildHierarchicalList: 依存関係によるソート', () => {
     // 納期順: B(1月) → A(3月)
     expect(items.map(w => w.item.id)).toEqual(['B', 'A']);
   });
+
+  // R-076: 循環参照（依存関係の矢印がループしている）ガード
+  it('循環依存（A→B→A）があっても無限ループせず全アイテムが結果に含まれる', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const taskA = { ...makeItem('A', null, 'proj-1'), title: 'タスクA', due_date: '2026-03-01' };
+    const taskB = { ...makeItem('B', null, 'proj-1'), title: 'タスクB', due_date: '2026-01-01' };
+
+    const deps: Dependency[] = [
+      makeDep('dep-1', 'A', 'B'),
+      makeDep('dep-2', 'B', 'A'),
+    ];
+
+    const run = () => buildHierarchicalList({
+      allItems: [taskA, taskB],
+      allProjects: [project] as any,
+      showGroups: true,
+      dependencies: deps,
+    });
+
+    expect(run).not.toThrow();
+    const items = run().filter(w => w.type === 'item');
+    // データ消失しないこと（循環部分はフォールバックしても全件表示される）
+    expect(items.map(w => w.item.id).sort()).toEqual(['A', 'B']);
+  });
+
+  it('長い循環チェーン（A→B→C→A）があっても全アイテムが結果に含まれる', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    const taskA = { ...makeItem('A', null, 'proj-1'), title: 'タスクA', due_date: '2026-01-01' };
+    const taskB = { ...makeItem('B', null, 'proj-1'), title: 'タスクB', due_date: '2026-02-01' };
+    const taskC = { ...makeItem('C', null, 'proj-1'), title: 'タスクC', due_date: '2026-03-01' };
+
+    const deps: Dependency[] = [
+      makeDep('dep-1', 'A', 'B'),
+      makeDep('dep-2', 'B', 'C'),
+      makeDep('dep-3', 'C', 'A'),
+    ];
+
+    const run = () => buildHierarchicalList({
+      allItems: [taskC, taskB, taskA],
+      allProjects: [project] as any,
+      showGroups: true,
+      dependencies: deps,
+    });
+
+    expect(run).not.toThrow();
+    const items = run().filter(w => w.type === 'item');
+    expect(items.map(w => w.item.id).sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  it('循環依存グループと正常な依存チェーンが混在しても両方とも欠落しない', () => {
+    const project = makeProjectItem('proj-1', 'テストプロジェクト');
+    // 循環グループ: X <-> Y
+    const taskX = { ...makeItem('X', null, 'proj-1'), title: 'タスクX', due_date: '2026-01-01' };
+    const taskY = { ...makeItem('Y', null, 'proj-1'), title: 'タスクY', due_date: '2026-01-02' };
+    // 正常チェーン: A→B
+    const taskA = { ...makeItem('A', null, 'proj-1'), title: 'タスクA', due_date: '2026-02-01' };
+    const taskB = { ...makeItem('B', null, 'proj-1'), title: 'タスクB', due_date: '2026-02-02' };
+
+    const deps: Dependency[] = [
+      makeDep('dep-1', 'X', 'Y'),
+      makeDep('dep-2', 'Y', 'X'),
+      makeDep('dep-3', 'A', 'B'),
+    ];
+
+    const result = buildHierarchicalList({
+      allItems: [taskB, taskA, taskY, taskX],
+      allProjects: [project] as any,
+      showGroups: true,
+      dependencies: deps,
+    });
+
+    const items = result.filter(w => w.type === 'item');
+    expect(items.map(w => w.item.id).sort()).toEqual(['A', 'B', 'X', 'Y']);
+    // 正常な依存チェーンの順序は維持される
+    const ids = items.map(w => w.item.id);
+    expect(ids.indexOf('A')).toBeLessThan(ids.indexOf('B'));
+  });
 });
 
 describe('buildHierarchicalList: noDeadlineCreatedAsc オプション', () => {
