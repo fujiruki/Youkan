@@ -14,6 +14,7 @@ export interface FlowItemNodeData {
   onEstimatedMinutesChange?: (itemId: string, minutes: number) => void;
   onStartEditing?: (itemId: string) => void;
   onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
+  onChainCreate?: (itemId: string) => void;
 }
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
@@ -35,6 +36,9 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   const [isTimeEditing, setIsTimeEditing] = useState(false);
   const [timeInputValue, setTimeInputValue] = useState('');
   const timeInputRef = useRef<HTMLInputElement>(null);
+  // タイトル編集からTabで目安時間欄に来た場合のみtrue。
+  // この状態でEnterを押すと、目安時間確定に加えて次のノードを連鎖作成する
+  const [chainOnConfirm, setChainOnConfirm] = useState(false);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -84,9 +88,16 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
       } else if (e.key === 'Escape') {
         setEditValue(item.title);
         nodeData.onEditComplete?.(item.id);
+      } else if (e.key === 'Tab') {
+        // R-074: タイトル確定後、目安時間欄へフォーカス移動（連続追加フローの一環）
+        e.preventDefault();
+        handleSubmit();
+        setTimeInputValue(formatMinutes(item.estimatedMinutes) || '');
+        setChainOnConfirm(true);
+        setIsTimeEditing(true);
       }
     },
-    [handleSubmit, item.title, item.id, nodeData]
+    [handleSubmit, item.title, item.id, item.estimatedMinutes, nodeData]
   );
 
   const highlightRing = nodeData.isHighlighted ? 'ring-2 ring-blue-400 ring-offset-1' : '';
@@ -134,12 +145,19 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
               onChange={(e) => setTimeInputValue(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation();
-                if (e.key === 'Enter') { e.preventDefault(); handleTimeEditConfirm(); }
-                else if (e.key === 'Escape') { handleTimeEditCancel(); }
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleTimeEditConfirm();
+                  if (chainOnConfirm) {
+                    setChainOnConfirm(false);
+                    nodeData.onChainCreate?.(item.id);
+                  }
+                }
+                else if (e.key === 'Escape') { handleTimeEditCancel(); setChainOnConfirm(false); }
               }}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              onBlur={handleTimeEditConfirm}
+              onBlur={() => { handleTimeEditConfirm(); setChainOnConfirm(false); }}
               placeholder="1h"
               className="w-[3.5em] text-[9px] px-[0.2em] py-0 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-center"
             />

@@ -567,3 +567,33 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] デプロイ後に`backend/migrate_v30_google_oauth_invalidation.php`をSSH経由で実行（Migration v30 completed successfully.）
 - [x] 本番chrome-devtools MCP検証: 個人設定画面のGoogleカレンダー連携セクションで「Google 側で連携が解除されました。再連携してください」表示と「Google で再ログイン」ボタンを確認
 - [ ] 発注者へ「Google Cloud ConsoleでOAuth同意画面を本番公開へ切り替えてください」の案内（指揮AI/発注者対応、Agentスコープ外）
+
+---
+
+## R-074 フローチャート操作性・軽量化バンドル（2026-08-12）
+
+**ブランチ**: `fix/R-074-flow-operability`
+**要望**: `docs/requests_log.md` R-074
+**仕様**: `docs/SPEC/02_機能仕様.md` F-24
+**分析**: `docs/handover/R-074-analysis.md`
+
+### サブタスク
+
+- [x] worktree作成（`git fetch && git checkout -b fix/R-074-flow-operability master` をworktree内で実行）
+- [x] (1) 依存線描画バグ: 実機（claude-in-chrome、chrome-devtools MCPは他Agent使用中のため代替）で調査。根本原因は `createNodeBelow`/`handleEdgeInsert`/`onNodeDragStop`の重なり自動接続の3経路が`setDependencies`のみを呼び、`edges`state反映を`isDragging.current`ガード付きの派生useEffectに一任していたこと（`onConnect`のみ`setEdges`を直接呼んでおり無事だった）
+- [x] 失敗するテストを先に書く: `FlowScreen.enterEdge.test.tsx`（3件、`@xyflow/react`の`ReactFlow`をモックしprops捕捉）→ Red確認
+- [x] `dependencyToEdge()`（Dependency→Edge変換の単一関数）・`appendDependencyToState()`（setDependencies+setEdges同時更新）を新設し、4つの依存関係作成経路（onConnect/createNodeBelow/handleEdgeInsert/ドラッグ重なり接続）を統一
+- [x] Green確認
+- [x] (2) アニメーション廃止・矢印表示: `MarkerType`をimportし`dependencyToEdge()`で`animated:false`+`markerEnd:{type:MarkerType.ArrowClosed}`を設定（派生effect内・onConnect内の2箇所）
+- [x] (3) Enter連続追加UXフロー: 失敗するテストを先に書く: `FlowItemNode.chainCreate.test.tsx`（4件）→ Red確認
+- [x] `FlowItemNode.tsx`の`handleKeyDown`にTabケース追加（タイトル確定→目安時間欄オープン）、目安時間欄のEnterケースに`chainOnConfirm`state経由の`onChainCreate`呼び出しを追加（既存の`isNewNode`によるタイトル自動フォーカスは重複実装せず流用）
+- [x] `FlowScreen.tsx`に`createNodeBelowRef`（useRef）を追加しTDZを回避しつつ`onChainCreate`を配線
+- [x] Green確認
+- [x] 既存テスト回帰なし確認（vitest全件126ファイル778件中763 pass・14 skip、1件`useAssigneeView`の既存無関係失敗はmaster baselineでも同一と確認済み。`npm run build`成功）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証を試みたが他Agent（R-076担当）使用中のプロファイルロックで起動不可。claude-in-chrome MCPで代替検証: Enterキーでの新規ノード作成を複数回連続実施し毎回接続線（実線+矢印、アニメーションなし）が表示されることを確認。Tabキーでの目安時間欄フォーカス移動は、claude-in-chrome（CDPベース自動化拡張）経由のTabキー送信がブラウザネイティブなフォーカス走査を先に発火させ`FlowItemNode`のonKeyDownハンドラにTabキーイベントが到達しないことを一時デバッグログで確認（同じ入力欄でEnterキーは正常にハンドラへ到達することを確認済みのため、Tabキー特有の自動化ツール側の制約と判断。詳細は`docs/handover/R-074-analysis.md`参照）。Tab→目安時間→Enter連鎖の動作自体はVitestで実DOM操作によりRed→Green確認済み
+- [x] `docs/requests_log.md` R-074の対応状況を更新
+- [x] `docs/SPEC/02_機能仕様.md` にF-24追記
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [ ] 指揮AIのレビュー後、master マージ（本番デプロイは行わない、指揮AIが別途判断）
+- [ ] Tabキー→目安時間欄→Enter連鎖の実ブラウザ目視確認（chrome-devtools MCPが空いたタイミング、または発注者による確認を推奨）
