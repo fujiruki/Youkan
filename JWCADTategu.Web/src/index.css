@@ -33,6 +33,12 @@ body {
     @apply bg-slate-950 text-slate-200;
 }
 
+/* R-075: backdrop-filter 越しの常時 edge animation は、モーダル入力のたびに
+   Flow 全面の再合成を発生させる。モーダル表示中だけ止め、閉じたら自動再開する。 */
+body:has([data-youkan-modal-overlay]) .react-flow__edge.animated path {
+    animation-play-state: paused;
+}
+
 /* Form elements base styles */
 input,
 textarea,
