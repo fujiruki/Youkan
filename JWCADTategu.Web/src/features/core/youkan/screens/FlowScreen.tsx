@@ -227,30 +227,40 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
 
     const { groupNodes } = buildGroupNodes(placedItems);
 
-    const itemNodes: Node[] = placedItems.map((item) => {
-      const isHighlighted = highlightNodeId === item.id;
-      return {
-        id: item.id,
-        type: 'flowItem',
-        position: { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
-        data: {
-          item,
-          isEditing: editingNodeId === item.id,
-          isNewNode: newNodeId === item.id,
-          isHighlighted,
-          onTitleChange: handleTitleChange,
-          onEditComplete: handleEditComplete,
-          onEstimatedMinutesChange: handleEstimatedMinutesChange,
-          onStartEditing: handleStartEditing,
-          onContextMenu: handleItemContextMenu,
-          onChainCreate: (itemId: string) => createNodeBelowRef.current(itemId, 0),
-        },
-      } satisfies Node;
+    // R-080調査で判明した関連不具合(docs/handover/R-077-analysis.md 2.): このuseEffectは
+    // itemNodesを毎回ゼロから作り直すため、xyflowが内部管理するmeasured(計測済みサイズ)や
+    // selected(選択状態)を引き継がず消してしまう。measuredが消えると新規ノードが
+    // visibility:hiddenに固定され続け、タイトル欄へフォーカス・全選択できなくなる(R-080)。
+    // 直前のnodes状態から引き継いで復元する
+    setNodes((prevNodes) => {
+      const prevById = new Map(prevNodes.map((n) => [n.id, n]));
+      const itemNodes: Node[] = placedItems.map((item) => {
+        const isHighlighted = highlightNodeId === item.id;
+        const prev = prevById.get(item.id);
+        return {
+          id: item.id,
+          type: 'flowItem',
+          position: { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+          ...(prev?.measured ? { measured: prev.measured } : {}),
+          selected: prev?.selected ?? false,
+          data: {
+            item,
+            isEditing: editingNodeId === item.id,
+            isNewNode: newNodeId === item.id,
+            isHighlighted,
+            onTitleChange: handleTitleChange,
+            onEditComplete: handleEditComplete,
+            onEstimatedMinutesChange: handleEstimatedMinutesChange,
+            onStartEditing: handleStartEditing,
+            onContextMenu: handleItemContextMenu,
+            onChainCreate: (itemId: string) => createNodeBelowRef.current(itemId, 0),
+          },
+        } satisfies Node;
+      });
+      return [...groupNodes, ...itemNodes];
     });
 
     const newEdges: Edge[] = dependencies.map((dep) => dependencyToEdge(dep, highlightEdgeId === dep.id));
-
-    setNodes([...groupNodes, ...itemNodes]);
     setEdges(newEdges);
 
     if (prevProjectRef.current !== currentProjectId) {
