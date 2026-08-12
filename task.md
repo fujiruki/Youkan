@@ -775,12 +775,12 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - 依存関係が元々ない場合（sourceItemに前後の依存がない）は、単純に新規アイテムとsourceItemの間に1本の依存（前挿入ならnew→source、後挿入ならsource→new）を作成するだけでよい
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-084-insert-dependency-relink master` をworktree内で実行）
-- [ ] `DependencyRepository`の既存メソッド（作成・取得・削除）を確認し、上記要件を満たす繋ぎ変えロジックの実装方針を固める
-- [ ] 失敗するテストを先に書く: 要望原文の例（A→B→C、Bの後にDを挿入→A→B、B→D、D→Cになること）を含む複数ケース（前挿入・後挿入・依存なしの場合・分岐がある場合）→ Red確認
-- [ ] `submitInlineInsert()`に依存関係の繋ぎ変えロジックを実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認）
-- [ ] `docs/requests_log.md` R-084の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-084-insert-dependency-relink master` をworktree内で実行）
+- [x] `DependencyRepository`の既存メソッド（作成・取得・削除）を確認し、上記要件を満たす繋ぎ変えロジックの実装方針を固める（既存のcreateDependency/deleteDependencyをそのまま使い、繋ぎ変えは削除+作成の2ステップで実現）
+- [x] 失敗するテストを先に書く: 要望原文の例（A→B→C、Bの後にDを挿入→A→B、B→D、D→Cになること）を含む複数ケース（前挿入・後挿入・依存なしの場合・分岐がある場合）→ Red確認（5ケース全て失敗確認）
+- [x] `submitInlineInsert()`に依存関係の繋ぎ変えロジックを実装
+- [x] Green確認・既存テスト回帰なし確認（新規5件Green、全体795 passed/14 skipped、既存回帰なし）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認。要望原文の例A→B→C、Bの後にDを挿入→A→B、B→D、D→Cを実機操作＋API応答の両方で確認）
+- [x] `docs/requests_log.md` R-084の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
