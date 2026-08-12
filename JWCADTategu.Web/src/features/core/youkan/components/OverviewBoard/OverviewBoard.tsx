@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOverviewItems } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
 import { InlineAddRow } from './InlineAddRow';
@@ -6,11 +6,14 @@ import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../Common/ContextMenu';
 import { useItemContextMenu } from '../../hooks/useItemContextMenu';
+import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 import { useAuth } from '../../../auth/providers/AuthProvider';
 import { getSelectedTenantId } from '../../logic/filterUtils';
 import { getInlineAddInsertIndex } from './inlineAddPosition';
+import { Item } from '../../types';
 
 interface OverviewBoardProps {
 	viewModel: any;
@@ -65,6 +68,63 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		onDelete: (id) => viewModel.deleteItem(id)
 	});
 
+	// --- R-092: 前に挿入 / 後に挿入（ガントの submitInlineInsert と同等） ---
+	const [inlineInsert, setInlineInsert] = useState<{ itemId: string; position: 'before' | 'after' } | null>(null);
+	const inlineInsertSubmittingRef = useRef(false);
+
+	const findItemById = (id: string): Item | null => {
+		const w = items.find(w => (w.type === 'item' && w.item.id === id) || (w.type === 'header' && w.projectId === id));
+		if (!w) return null;
+		return w.type === 'item' ? w.item : w.project;
+	};
+
+	const startInlineInsert = (itemId: string, position: 'before' | 'after') => {
+		setInlineInsert({ itemId, position });
+		closeMenu();
+	};
+
+	const submitInlineInsert = async (title: string) => {
+		if (inlineInsertSubmittingRef.current || !inlineInsert) return;
+		const sourceItem = findItemById(inlineInsert.itemId);
+		if (!sourceItem) {
+			setInlineInsert(null);
+			return;
+		}
+
+		inlineInsertSubmittingRef.current = true;
+		try {
+			const newItemId = await viewModel.throwIn(title, sourceItem.tenantId, sourceItem.projectId);
+
+			if (newItemId) {
+				// R-084相当: 既存の依存関係を新規アイテム経由に繋ぎ変える（削除＋作成）
+				const repo = new DependencyRepository();
+				const existingDeps = await repo.getDependencies(sourceItem.id).catch(() => []);
+				const relevantDeps = inlineInsert.position === 'after'
+					? existingDeps.filter(d => d.sourceItemId === sourceItem.id)
+					: existingDeps.filter(d => d.targetItemId === sourceItem.id);
+
+				for (const dep of relevantDeps) {
+					await repo.deleteDependency(dep.id).catch(() => undefined);
+					if (inlineInsert.position === 'after') {
+						await repo.createDependency(newItemId, dep.targetItemId).catch(() => undefined);
+					} else {
+						await repo.createDependency(dep.sourceItemId, newItemId).catch(() => undefined);
+					}
+				}
+
+				await repo.createDependency(
+					inlineInsert.position === 'after' ? sourceItem.id : newItemId,
+					inlineInsert.position === 'after' ? newItemId : sourceItem.id
+				).catch(() => undefined);
+			}
+		} catch (error) {
+			console.error('Inline insert failed', error);
+		} finally {
+			inlineInsertSubmittingRef.current = false;
+			setInlineInsert(null);
+		}
+	};
+
 	const quickInputProjectContext = (() => {
 		if (activeProject) {
 			return {
@@ -91,21 +151,38 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 
 	// インライン入力行を挿入した描画用配列を構築
 	const buildRows = () => {
-		if (!inlineAddProjectId) return items;
+		let result = items;
 
-		const insertIdx = getInlineAddInsertIndex(items, inlineAddProjectId);
-		if (insertIdx === -1) return items;
+		if (inlineAddProjectId) {
+			const insertIdx = getInlineAddInsertIndex(items, inlineAddProjectId);
+			if (insertIdx !== -1) {
+				const header = items.find(w => w.type === 'header' && w.projectId === inlineAddProjectId);
+				const headerDepth = header ? header.depth : 0;
 
-		const header = items.find(w => w.type === 'header' && w.projectId === inlineAddProjectId);
-		const headerDepth = header ? header.depth : 0;
+				result = [...result];
+				result.splice(insertIdx, 0, {
+					id: `__inline-add-${inlineAddProjectId}`,
+					type: '__inlineAdd' as any,
+					projectId: inlineAddProjectId,
+					depth: headerDepth + 1,
+				} as any);
+			}
+		}
 
-		const result = [...items];
-		result.splice(insertIdx, 0, {
-			id: `__inline-add-${inlineAddProjectId}`,
-			type: '__inlineAdd' as any,
-			projectId: inlineAddProjectId,
-			depth: headerDepth + 1,
-		} as any);
+		if (inlineInsert) {
+			const targetIdx = result.findIndex(w => (w.type === 'item' && w.item.id === inlineInsert.itemId) || (w.type === 'header' && w.projectId === inlineInsert.itemId));
+			if (targetIdx !== -1) {
+				const target = result[targetIdx];
+				const insertAt = inlineInsert.position === 'before' ? targetIdx : targetIdx + 1;
+				result = [...result];
+				result.splice(insertAt, 0, {
+					id: `__inline-insert-${inlineInsert.position}-${inlineInsert.itemId}`,
+					type: '__inlineInsert' as any,
+					depth: target.depth,
+				} as any);
+			}
+		}
+
 		return result;
 	};
 
@@ -166,6 +243,19 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					</div>
 
 					{rows.map(wrapper => {
+						if ((wrapper as any).type === '__inlineInsert' && inlineInsert) {
+							const w = wrapper as any;
+							return (
+								<InlineAddRow
+									key={w.id}
+									depth={w.depth}
+									placeholder={inlineInsert.position === 'before' ? '前に追加...' : '後に追加...'}
+									onSubmit={(title) => { submitInlineInsert(title); }}
+									onCancel={() => setInlineInsert(null)}
+								/>
+							);
+						}
+
 						if ((wrapper as any).type === '__inlineAdd') {
 							const w = wrapper as any;
 							const header = items.find(h => h.type === 'header' && h.projectId === w.projectId);
@@ -214,50 +304,29 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					y={contextMenu.y}
 					itemId={contextMenu.targetId!}
 					onClose={closeMenu}
-					actions={[
-						{
-							label: 'プロジェクト化',
-							onClick: () => {
-								viewModel.projectizeItem(contextMenu.targetId!);
-							}
+					actions={buildItemContextMenuActions(contextMenu.targetId!, {
+						onOpenDetail: (id) => {
+							const item = findItemById(id);
+							if (item) onOpenItem(item);
 						},
-						{ separator: true },
-						{
-							label: '今日やる (Focus)',
-							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
+						onMakeProject: async (id) => {
+							await viewModel.projectizeItem(id);
 						},
-						{
-							label: 'とりかかる (Execute)',
-							onClick: () => { viewModel.setEngaged(contextMenu.targetId!, true); }
+						onResolveYes: async (id) => {
+							await viewModel.updateItem(id, { status: 'focus' });
 						},
-						{
-							label: '保留（外的要因待ち）(Pending)',
-							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'pending' }); }
+						onInsertBefore: (id) => startInlineInsert(id, 'before'),
+						onInsertAfter: (id) => startInlineInsert(id, 'after'),
+						onMarkDone: async (id) => {
+							await viewModel.updateItem(id, { status: 'done' });
 						},
-						{
-							label: '💭 いつかやる (Someday)',
-							onClick: () => { viewModel.moveToSomeday(contextMenu.targetId!); }
+						onResolveNo: async (id) => {
+							await viewModel.resolveDecision(id, 'no', 'history');
 						},
-						{
-							label: '待機 (Waiting)',
-							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'waiting' }); }
+						onDelete: (id) => {
+							viewModel.deleteItem(id);
 						},
-						{
-							label: '完了にする (d)',
-							shortcut: 'd',
-							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'done' }); }
-						},
-						{ separator: true },
-						{
-							label: 'アーカイブ',
-							onClick: () => { viewModel.archiveItem(contextMenu.targetId!); }
-						},
-						{
-							label: 'ゴミ箱 (Del)',
-							danger: true,
-							onClick: () => { viewModel.deleteItem(contextMenu.targetId!); }
-						}
-					].filter(Boolean) as any}
+					})}
 				/>
 			)}
 		</div>

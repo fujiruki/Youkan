@@ -4,9 +4,10 @@ interface InlineAddRowProps {
     depth: number;
     onSubmit: (title: string) => void;
     onCancel: () => void;
+    placeholder?: string;
 }
 
-export const InlineAddRow: React.FC<InlineAddRowProps> = ({ depth, onSubmit, onCancel }) => {
+export const InlineAddRow: React.FC<InlineAddRowProps> = ({ depth, onSubmit, onCancel, placeholder = 'Alt+D to add...' }) => {
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +44,7 @@ export const InlineAddRow: React.FC<InlineAddRowProps> = ({ depth, onSubmit, onC
                         if (!value.trim()) onCancel();
                     }, 150);
                 }}
-                placeholder="Alt+D to add..."
+                placeholder={placeholder}
                 className="w-full text-[0.9em] px-2 py-1 border border-blue-300 dark:border-blue-700 rounded bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
         </div>

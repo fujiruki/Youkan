@@ -1020,12 +1020,14 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - 挿入時はR-084相当の依存関係自動構築（既存の依存関係を新規アイテム経由に繋ぎ変える）も行う
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-092-overview-context-menu master` をworktree内で実行）
-- [ ] `buildItemContextMenuActions.tsx`・`ContextMenu.tsx`・`RyokanGanttView.tsx`の`submitInlineInsert`実装を確認する
-- [ ] 失敗するテストを先に書く: 全体一覧でアイテム右クリック→ガントと同じメニュー項目が表示されること、前後挿入でインライン入力・依存関係自動構築が行われることを検証するテスト → Red確認
-- [ ] `OverviewBoard.tsx`の右クリックメニューを`useItemContextMenu`から`buildItemContextMenuActions`ベースへ置き換え、挿入時の依存関係自動構築ロジックを実装
-- [ ] Green確認・既存テスト回帰なし確認（既存の`useItemContextMenu`のDeleteキー機能等、既存動作を壊さないこと）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧でメニュー表示・各項目動作・前後挿入・依存関係構築を確認）
-- [ ] `docs/requests_log.md` R-092の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-092-overview-context-menu master` をworktree内で実行）
+- [x] `buildItemContextMenuActions.tsx`・`ContextMenu.tsx`・`RyokanGanttView.tsx`の`submitInlineInsert`実装を確認する
+- [x] 失敗するテストを先に書く: 全体一覧でアイテム右クリック→ガントと同じメニュー項目が表示されること、前後挿入でインライン入力・依存関係自動構築が行われることを検証するテスト → Red確認
+- [x] `OverviewBoard.tsx`の右クリックメニューを`useItemContextMenu`から`buildItemContextMenuActions`ベースへ置き換え、挿入時の依存関係自動構築ロジックを実装
+- [x] Green確認・既存テスト回帰なし確認（既存の`useItemContextMenu`のDeleteキー機能等、既存動作を壊さないこと）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧でメニュー表示・各項目動作・前後挿入・依存関係構築を確認）
+- [x] `docs/requests_log.md` R-092の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+**完了報告（2026-08-13）**: 実装完了。詳細は指揮AIへの完了報告メッセージを参照。要件バレット中の「いつかやる/アーカイブ」はガント実装（`buildItemContextMenuActions`）に存在しないため含めず、ユーザー原文の「ガントとおなじ...項目も全部同じ」を優先しガントと完全一致のメニュー構成にした（指揮AIレビュー時に確認要）。
