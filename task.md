@@ -811,3 +811,50 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
 - [ ] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-085 フロー目安時間更新エラー「Database Error during update」の原因調査・修正（2026-08-12）
+
+**ブランチ**: `fix/R-085-estimated-minutes-update-error`
+**要望**: `docs/requests_log.md` R-085
+**仕様**: `docs/SPEC/02_機能仕様.md` F-32
+**優先度**: 高（実際にエラーが発生しているバグ報告）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- バックエンド: `backend/BaseController.php`の汎用update処理（277行目付近）がPDOExceptionを捕捉し500 "Database Error during update"を返している（323行目）。実際のSQLエラー詳細は`error_log()`（322行目 `[BaseController] Update Error on $table ($id): ...`）にのみ出力され、レスポンスには含まれない
+- フロントエンド: `PUT /items/{id}`は`FlowScreen.tsx`の`handleEstimatedMinutesChange`（214行目）から発行される
+- 発注者自身の仮説（要望原文）: ノード選択状態でのEnter（`onChainCreate`経由の新規ノード作成）とタイトル入力状態でのTab（目安時間欄への移動、R-074実装）が競合しているのではないか。「ノード選択状態とタイトル入力状態でTabの機能を切り替えたほうが良い」という提案も添えられている
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-085-estimated-minutes-update-error master` をworktree内で実行）
+- [ ] 本番またはdevのPHPエラーログ（`error_log`の出力先。本番はSSH経由、devはローカルのPHPビルトインサーバーの標準出力/ログファイル）を確認し、実際のSQLエラー内容を特定する（SQLite `database is locked`等の可能性が高いと推測されるが決めつけないこと）
+- [ ] 決めつけず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）で症状を再現する。発注者の仮説（Tab/Enterの競合）を軸に、新規ノード作成フロー（タイトル入力→Tab→目安時間入力→Enter）を実施し、目安時間更新PUTと新規ノード作成（POST /items等）が同時多発していないか、ネットワークタブで確認する
+- [ ] 原因が判明したら、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認
+- [ ] エラーメッセージ改善: 原因が完全には解消しきれない場合でも、`ApiClient`側で500エラー時のトースト文言を「通信エラーが発生しました。しばらくしてから再度お試しください」等、原因不明でもユーザーに分かりやすい文言に改善する
+- [ ] 発注者の提案（ノード選択状態とタイトル入力状態でTabの機能を切り替える）を採用するかどうかは、実機調査の結果次第で判断してよい（Tab/Enter競合が真因なら有力な解決策、別原因ならスコープ外にする）
+- [ ] 既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] 実機検証: 新規ノード作成→タイトル→Tab→目安時間→Enterのチェーン作成フローを複数回連続実施し、エラーが発生しないことを確認
+- [ ] `docs/requests_log.md` R-085の対応状況を更新
+- [ ] 指揮AIへ完了報告（原因究明の詳細を含める。masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-086 フローチャートでエッジ選択時の視覚的フィードバック強化（2026-08-12）
+
+**ブランチ**: `feature/R-086-edge-selection-glow`
+**要望**: `docs/requests_log.md` R-086
+**仕様**: `docs/SPEC/02_機能仕様.md` F-33
+**対象**: `FlowScreen.tsx`のedge選択状態・`dependencyToEdge()`（`@xyflow/react`のedge style）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-086-edge-selection-glow master` をworktree内で実行）
+- [ ] `@xyflow/react`のedge選択状態（`selected`プロパティ、`onEdgeClick`等）の既存実装を確認する
+- [ ] 失敗するテストを先に書く: エッジ選択時に発光表現用のstyle/className が付与されることを検証するテスト → Red確認
+- [ ] 実装: 選択中のedgeに`filter: drop-shadow(...)`等のグロー効果を付与するstyleを追加（xyflowの`selected`状態を利用）
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
+- [ ] `docs/requests_log.md` R-086の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
