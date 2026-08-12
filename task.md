@@ -858,3 +858,28 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
 - [ ] `docs/requests_log.md` R-086の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-087 ガントチャート日付ヘッダーに合計時間数を表示（2026-08-13）
+
+**ブランチ**: `feature/R-087-gantt-header-total-hours`
+**要望**: `docs/requests_log.md` R-087
+**仕様**: `docs/SPEC/02_機能仕様.md` F-34
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Calendar/RyokanGanttView.tsx`の日付ヘッダー列（590〜632行目付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 日付ヘッダー列は幅`w-6`(24px)の狭い列。曜日・日付・`CapacityBar`（R-034実装、4px高さのキャパ割合バー、`stats.capacity > 0`のときのみ表示）が縦に並んでいる
+- `stats.total`（分単位のその日の合計割当時間）は`dailyCapacityStats`から既に取得済みで`CapacityBar`の`totalMinutes`propに渡されている（627〜631行目）
+- 要望: CapacityBarの直下に、その日の合計時間数を「時間」単位のテキストで表示する
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-087-gantt-header-total-hours master` をworktree内で実行）
+- [ ] 分→時間の変換・表示形式を決める（幅24pxの狭い列に収まるシンプルな表記。例: 90分→"1.5h"、120分→"2h"、0分は非表示等）。既存の時間表示コンポーネント・ユーティリティ（`logic/`配下等）に類似の変換ロジックがないか確認し、あれば再利用する
+- [ ] 失敗するテストを先に書く: 合計時間数のテキストが正しい値・表記で表示されること（複数の分数パターン）→ Red確認
+- [ ] 実装: `CapacityBar`の直下（633行目のGoogleカレンダー予定表示の前）に時間数テキストを追加。`stats`が存在し`stats.total > 0`のときのみ表示する等、既存の条件分岐スタイルに合わせる
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ガント一覧表示で日付ヘッダーに合計時間数が表示されること、CapacityBarとの視覚的な収まりを確認）
+- [ ] `docs/requests_log.md` R-087の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
