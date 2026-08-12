@@ -792,6 +792,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認。要望原文の例A→B→C、Bの後にDを挿入→A→B、B→D、D→Cを実機操作＋API応答の両方で確認）
 - [x] `docs/requests_log.md` R-084の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: 分離した制御実験（BRANCHIN→SOURCE→AFTER）で「後に挿入」を実行し、入力エッジ（BRANCHIN→SOURCE）が維持され出力エッジのみ新規アイテム経由に繋ぎ変わることをAPI照会で確認
 
 ---
 
@@ -811,6 +813,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
 - [x] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: ネストルート（`/flows/{id}`）へ直接アクセス・リロードしてfaviconが200・image/svg+xmlで解決されることを確認
 
 ---
 
@@ -838,6 +842,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 実機検証: 新規ノード作成→タイトル→Tab→目安時間→Enterのチェーン作成フローを複数回連続実施し、エラーが発生しないことを確認（3回連続実施、全リクエスト200、コンソールエラーなし）
 - [x] `docs/requests_log.md` R-085の対応状況を更新
 - [x] 指揮AIへ完了報告（原因究明の詳細を含める。masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ前にSSHでWALモード・DB健全性を確認（2026-08-13）
+- [x] 本番実機検証: チェーン作成フローを5回連続実施。1回のみ「Database Error during update」の500を観測したが直後に同一リクエストが200で成功しデータ損失なし（詳細は`docs/requests_log.md` R-085参照。極低頻度の残存事象として申し送り）
 
 ---
 
@@ -849,15 +855,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **対象**: `FlowScreen.tsx`のedge選択状態・`dependencyToEdge()`（`@xyflow/react`のedge style）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-086-edge-selection-glow master` をworktree内で実行）
-- [ ] `@xyflow/react`のedge選択状態（`selected`プロパティ、`onEdgeClick`等）の既存実装を確認する
-- [ ] 失敗するテストを先に書く: エッジ選択時に発光表現用のstyle/className が付与されることを検証するテスト → Red確認
-- [ ] 実装: 選択中のedgeに`filter: drop-shadow(...)`等のグロー効果を付与するstyleを追加（xyflowの`selected`状態を利用）
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
-- [ ] `docs/requests_log.md` R-086の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-086-edge-selection-glow master` をworktree内で実行）
+- [x] `@xyflow/react`のedge選択状態（`selected`プロパティ、`onEdgeClick`等）の既存実装を確認する
+- [x] 失敗するテストを先に書く: エッジ選択時に発光表現用のstyle/className が付与されることを検証するテスト → Red確認
+- [x] 実装: 選択中のedgeに`filter: drop-shadow(...)`等のグロー効果を付与するstyleを追加（xyflowの`selected`状態を利用）
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
+- [x] `docs/requests_log.md` R-086の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: edgeクリックで`classList`に`selected`付与・`filter: drop-shadow(...)`（2重）が適用されることをDOM直接確認
 
 ---
 
@@ -883,3 +891,5 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ガント一覧表示で日付ヘッダーに合計時間数が表示されること、CapacityBarとの視覚的な収まりを確認）
 - [x] `docs/requests_log.md` R-087の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: ガント一覧の日付ヘッダーでCapacityBar直下に合計時間数（例: "8h"）表示を確認
