@@ -22,6 +22,16 @@ import { ImprovementRequestButton } from '../../features/core/youkan/components/
 import { ImprovementRequestModal } from '../../features/core/youkan/components/ImprovementRequest/ImprovementRequestModal';
 
 
+// R-083: 羊羹ロゴマーク（三分割スリット+Y字）。favicon（public/favicon.svg）と同一デザイン
+const YoukanMark: React.FC<{ size?: number }> = ({ size = 18 }) => (
+	<svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+		<rect x="2" y="2" width="28" height="28" rx="7" fill="#7A3A2E" />
+		<rect x="10.1" y="2" width="2.4" height="28" rx="1.2" fill="#F3E4D0" />
+		<rect x="19.5" y="2" width="2.4" height="28" rx="1.2" fill="#F3E4D0" />
+		<path d="M13.8,9 L16,15 M18.2,9 L16,15 M16,15 L16,23" stroke="#F3E4D0" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+	</svg>
+);
+
 // Basic types needed for props
 interface AuthUser {
 	id: string;
@@ -217,7 +227,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 						onClick={onNavigateToDashboard}
 						className="md:hidden flex items-center text-slate-100 hover:opacity-80 transition-opacity"
 					>
-						<span className="text-lg">⚡</span>
+						<YoukanMark size={18} />
 					</button>
 
 					<HealthCheck />
@@ -251,7 +261,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 							onClick={onNavigateToDashboard}
 							className="flex items-center gap-1 hover:opacity-80 transition-opacity"
 						>
-							<span className="text-lg">⚡</span>
+							<YoukanMark size={16} />
 							<span className="text-[7px] font-black text-slate-400 italic tracking-tighter">Youkan</span>
 						</button>
 						{/* R-071: 改善要望送信フォーム（PC） */}

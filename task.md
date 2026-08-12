@@ -739,14 +739,14 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **方針**: プロジェクト名「羊羹」をモチーフにしたシンプルな幾何学的SVGアイコン
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-083-logo-favicon master` をworktree内で実行）
-- [ ] 羊羹モチーフのSVGアイコンを2〜3案作成する（例: 角丸長方形＋切り分け線で断面を表現、羊羹の色（小豆色/抹茶色）を使った幾何学的アイコン等）。派手さより視認性重視、16x16でも潰れないシンプルな形状にする
-- [ ] 案をこのAgentのtranscript内にSVGコードとして提示し、指揮AIへ選定を依頼する（**この時点ではコミットせず一旦停止して指揮AIの選定を待つこと**）
-- [ ] 指揮AIが選定した案を採用し、`public/favicon.svg`（または適切なパス）として配置
-- [ ] `JWCADTategu.Web/index.html`の`<link rel="icon">`を新しいfaviconに差し替え
-- [ ] `YoukanHeader.tsx`のロゴ表示部分に同アイコンを追加（現在のテキストロゴ「Youkan」の左または代わりに配置。既存のヘッダーレイアウト・スマホ表示崩れがないか確認）
-- [ ] 既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ブラウザタブのfavicon表示、ヘッダーのロゴ表示、PC/スマホ両方の見た目を確認）
-- [ ] `docs/requests_log.md` R-083の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-083-logo-favicon master` をworktree内で実行）
+- [x] 羊羹モチーフのSVGアイコンを3案作成（三分割ブロック／小豆粒／抹茶カット）、Artifactでプレビュー公開し指揮AIへ提示
+- [x] 指揮AIが「三分割ブロック」を採用。追加修正（スリット貫通化・Y字追加）指示を受け2パターン（Y字置換／Y字内挿）を試作・再提示、「スリット維持＋Y字を内挿」で確定
+- [x] `public/favicon.svg`に配置
+- [x] `index.html`の`<link rel="icon">`を差し替え（devサーバー限定で`%BASE_URL%`が二重base化される不具合を発見し、単純な相対パス`href="favicon.svg"`に変更して解消）
+- [x] `YoukanHeader.tsx`にロゴを追加（`YoukanMark`コンポーネント新設、モバイル用⚡・デスクトップ用⚡の両方を置換）
+- [x] 既存テスト回帰なし確認（vitest 784 passed/0 failed/14 skipped）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCP・claude-in-chrome MCPで実機検証（favicon 200応答・image/svg+xml確認、PC/スマホ両方のヘッダーロゴ表示確認、コンソールエラーなし）
+- [x] `docs/requests_log.md` R-083の対応状況を更新（`docs/SPEC/02_機能仕様.md` F-30も実装完了に更新）
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
