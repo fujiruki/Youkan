@@ -1033,3 +1033,25 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **完了報告（2026-08-13）**: 実装完了。詳細は指揮AIへの完了報告メッセージを参照。要件バレット中の「いつかやる/アーカイブ」はガント実装（`buildItemContextMenuActions`）に存在しないため含めず、ユーザー原文の「ガントとおなじ...項目も全部同じ」を優先しガントと完全一致のメニュー構成にした（指揮AIレビュー時に確認要）。
 
 **方針転換（2026-08-13）**: 指揮AIレビュー後、発注者確認の結果「既存項目（いつかやる/アーカイブ/とりかかる/保留/待機）も残しつつ統合」を選択。`buildItemContextMenuActions`への全面置き換えを撤回し、元のハードコード配列アプローチに戻して「前に挿入 (a)」「後に挿入 (b)」の2項目のみ追加。挿入時の依存関係自動構築ロジック（`submitInlineInsert`/`DependencyRepository`）は変更なし。テスト9件Green・vitest回帰なし・tscビルド成功・実機検証済み（詳細は指揮AIへの再完了報告メッセージ参照）。
+
+---
+
+## R-093 技術的負債: vite.config.js/vite.config.d.tsの残骸削除（2026-08-13）
+
+**ブランチ**: `chore/R-093-remove-stale-vite-config-artifacts`
+**要望**: `docs/requests_log.md` R-093
+**対象**: `JWCADTategu.Web/vite.config.js`・`JWCADTategu.Web/vite.config.d.ts`
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 両ファイルの内容を`vite.config.ts`と比較済み。現状はほぼ同一内容（構文の新旧差のみ）で実害はない
+- Viteは設定ファイルを`vite.config.js` → `vite.config.ts`の順で探索するため、`.js`が存在すると`.ts`より優先される。将来`.ts`側だけを編集すると変更が反映されない不具合の温床になる
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b chore/R-093-remove-stale-vite-config-artifacts master` をworktree内で実行）
+- [ ] `git rm JWCADTategu.Web/vite.config.js JWCADTategu.Web/vite.config.d.ts`でgit管理から削除
+- [ ] `JWCADTategu.Web/.gitignore`に`vite.config.js`・`vite.config.d.ts`を追加（再発防止）
+- [ ] 削除後、`npm run dev`と`npm run build`の両方が`vite.config.ts`を正しく読み込み問題なく動作することを確認
+- [ ] 既存テスト回帰なし確認（vitest全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] `docs/requests_log.md` R-093の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）

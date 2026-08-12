@@ -11,6 +11,10 @@
   - 現状はフロント側 `hierarchy.ts:231`（`if (item.isArchived) return false`）と `VolumeCalendarScreen.tsx:27` の `isDisplayableCalendarItem` でカバーされており実害なし。ただし将来のリグレッションリスクとして、該当 SQL に `AND COALESCE(items.is_archived,0)=0` を追加する価値がある
   - 優先度低: バグではなく技術的負債の解消
 
+- **【低】R-093** 技術的負債: `vite.config.js`/`vite.config.d.ts`のコミット済み残骸を削除
+  - 複数Agent（R-081, R-086担当）が実機検証中に発見・報告。`JWCADTategu.Web/vite.config.js`・`vite.config.d.ts`という過去に`tsc`等で生成されたコンパイル済みファイルがgit管理下に残っており、Viteの設定ファイル探索順で`vite.config.ts`より優先して読み込まれる。現状は内容がほぼ同一のため実害はないが、将来`.ts`側を編集しても`.js`側が優先され反映されない不具合の原因になりうる
+  - **→ R-093 として requests_log.md に移記済み（2026-08-13）**
+
 - **【低】** Beaver（自作案件管理システム）連携: 案件からのタスク登録・引用
   - 2026-06-11 ユーザー発言: 「のちのちBeaverという自作の案件管理システムの案件からタスク登録とか引用できたらいいなとは思っているけど、いまはいい」
   - Beaver は `C:\Fujiruki\Projects\Beaver`（フロント 5178 / バック 8003）
