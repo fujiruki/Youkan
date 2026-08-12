@@ -72,8 +72,19 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
     }
   }, [isTimeEditing]);
 
+  // R-089: input要素にonKeyDown(Enter)とonBlurの両方からhandleTimeEditConfirmが
+  // 配線されている。Enter確定→保存完了→isTimeEditing=falseによりinput要素が
+  // DOMから削除されると、実ブラウザはフォーカス中要素の除去に伴いblurイベントを
+  // 発火する。このblurが古い(=削除される直前の)DOMノードに紐づいた
+  // handleTimeEditConfirmの古いクロージャを再度呼び出し、同一itemIdへの
+  // PUT /items/{id}が二重発火していた(本番PHPエラーログで同一item idへの
+  // リクエストが同一秒に2件記録され、後着側が"database is locked"で失敗)。
+  // 1回の編集セッション(開始→確定/キャンセル)につき確定は1回のみに制限するrefで防ぐ
+  const hasConfirmedRef = useRef(false);
+
   const handleTimeEditStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    hasConfirmedRef.current = false;
     setTimeInputValue(formatMinutes(item.estimatedMinutes) || '');
     setIsTimeEditing(true);
   }, [item.estimatedMinutes]);
@@ -83,6 +94,8 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   // PUT /items/{id}とチェーン作成のPOST /itemsがほぼ同時にSQLiteへ書き込みを
   // 試み、"database is locked" エラーの原因になっていた(本番PHPエラーログで確認済み)
   const handleTimeEditConfirm = useCallback(async () => {
+    if (hasConfirmedRef.current) return;
+    hasConfirmedRef.current = true;
     const minutes = parseTimeInput(timeInputValue);
     if (minutes !== null && minutes !== item.estimatedMinutes) {
       try {
@@ -96,6 +109,7 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   }, [timeInputValue, item.estimatedMinutes, item.id, nodeData]);
 
   const handleTimeEditCancel = useCallback(() => {
+    hasConfirmedRef.current = true;
     setIsTimeEditing(false);
   }, []);
 

@@ -21,7 +21,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
@@ -1052,6 +1052,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         onNodeDoubleClick={handleNodeDoubleClick}
         nodeTypes={nodeTypes}
         fitView
+        minZoom={0.05}
         deleteKeyCode={null}
         zoomOnDoubleClick={false}
         selectionKeyCode="Shift"
@@ -1100,6 +1101,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       >
         <span className="text-sm font-bold">?</span>
         <span>ヘルプ</span>
+      </button>
+      <button
+        onClick={() => fitView({ duration: 300, padding: 0.1 })}
+        className="absolute top-12 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10"
+        title="全体表示"
+      >
+        <Maximize size={12} />
+        <span>全体</span>
       </button>
       {isHelpOpen && (
         <div
