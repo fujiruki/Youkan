@@ -38,7 +38,7 @@ const areIdsMatching = (id1: any, id2: any): boolean => {
  * チェーンの位置は先頭アイテムの通常ソート位置で決まる。
  * 依存関係がないアイテムは通常のソート順を維持する。
  */
-const sortWithDependencies = (
+export const sortWithDependencies = (
 	items: Item[],
 	dependencies: Dependency[],
 	compareFn: (a: Item, b: Item) => number
@@ -366,8 +366,11 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 /**
  * BucketColumn用: アイテム配列を親子関係でフラット化する。
  * 循環参照を検出してスキップする。
+ *
+ * R-091: dependencies を渡すと、同一階層（ルート同士・同じ親を持つ子同士）内で
+ * 依存関係の前後の序列を崩さずに並べる。渡さない場合は従来通りの並び順を維持する。
  */
-export const sortItemsHierarchically = (allItems: Item[]): { item: Item; depth: number }[] => {
+export const sortItemsHierarchically = (allItems: Item[], dependencies: Dependency[] = []): { item: Item; depth: number }[] => {
 	const itemMap = new Map<string, Item>();
 	const childrenMap = new Map<string, Item[]>();
 	const roots: Item[] = [];
@@ -382,6 +385,15 @@ export const sortItemsHierarchically = (allItems: Item[]): { item: Item; depth: 
 		}
 	});
 
+	// 元の配列順を維持したいので、依存関係のないアイテム同士は入力順のまま比較する
+	const indexMap = new Map(allItems.map((item, i) => [item.id, i]));
+	const originalOrderCompare = (a: Item, b: Item) => (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0);
+
+	const orderedRoots = sortWithDependencies(roots, dependencies, originalOrderCompare);
+	childrenMap.forEach((children, parentId) => {
+		childrenMap.set(parentId, sortWithDependencies(children, dependencies, originalOrderCompare));
+	});
+
 	const result: { item: Item; depth: number }[] = [];
 	const visited = new Set<string>();
 
@@ -393,7 +405,7 @@ export const sortItemsHierarchically = (allItems: Item[]): { item: Item; depth: 
 		children.forEach(child => processItem(child, depth + 1));
 	};
 
-	roots.forEach(root => processItem(root, 0));
+	orderedRoots.forEach(root => processItem(root, 0));
 
 	// 循環参照でrootsに入らなかったアイテムをdepth 0で追加
 	allItems.forEach(item => {

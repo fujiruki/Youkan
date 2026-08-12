@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { Item } from '../../types';
+import { useEffect, useMemo, useState } from 'react';
+import { Dependency, Item } from '../../types';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { format } from 'date-fns';
 import { buildHierarchicalList } from '../../logic/hierarchy';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
@@ -10,7 +11,9 @@ export type OverviewItemWrapper =
 	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null }
 	| { id: string; type: 'header'; projectId: string; projectTitle: string; project: Item; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null };
 
-// R-048: /dependencies は起動時に呼ばないため OverviewBoard では取得しない（フロー/ガント画面のみで取得）
+// R-048: 起動時の /dependencies 多重取得を避けるため OverviewBoard では従来 dependencies: [] 固定だった。
+// R-091: 依存関係順ソートを全体一覧にも展開するため、画面表示時に1回だけ取得する方針に変更（R-048を上書き）。
+// items（gdbActive等）の変化のたびには再取得しない（マウント時1回のみ）。
 export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
@@ -23,6 +26,14 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 		todayCommits,
 		executionItem
 	} = viewModel;
+
+	const [dependencies, setDependencies] = useState<Dependency[]>([]);
+	useEffect(() => {
+		const repo = new DependencyRepository();
+		repo.getDependencies().then(setDependencies).catch(() => {
+			// 取得失敗時は空配列のまま（従来の並び順にフォールバック）
+		});
+	}, []);
 
 	return useMemo(() => {
 		// 1. Gather all tasks from ALL zones（someday はデフォルト除外）
@@ -41,14 +52,14 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 		);
 
 		// 2. Build Hierarchy using Common Logic
-		// R-048: OverviewBoard では依存関係を考慮しない（フロー/ガント画面でのみ /dependencies を取得するため）
+		// R-091: 依存関係のあるタスクは前後の序列を崩さずに並べる
 		const hierarchicalWrappers = buildHierarchicalList({
 			activeProjectId: activeProject?.cloudId || (activeProject?.id ? String(activeProject.id) : null),
 			allProjects: viewModelProjects,
 			allItems,
 			showGroups: true,
 			hideCompleted,
-			dependencies: [],
+			dependencies,
 			noDeadlineCreatedAsc: true,
 		});
 
@@ -83,5 +94,5 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			return wrapper as OverviewItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday, dependencies]);
 };

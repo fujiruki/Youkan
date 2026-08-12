@@ -989,16 +989,16 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - **重要な設計判断**: 全体一覧で依存関係を反映するには`/dependencies`の追加取得が必要になり、R-048で意図的に避けた起動時APIコストが増える可能性がある。影響が大きい場合（例: 常時ポーリング等の重い処理が必要になる）は実装前に指揮AIへ確認すること。単純に画面表示時に1回取得する程度であれば問題ないと判断してよい
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-091-dependency-sort-all-views master` をworktree内で実行）
-- [ ] グリッドビュー・タイムラインビューの現在の並び順ロジックを調査し、依存関係を考慮しているか確認する
-- [ ] 各画面（全体一覧・状況把握・グリッド・タイムライン）で`dependencies`を取得し`buildHierarchicalList`（または各画面のソートロジック）に正しく渡すよう対応する。グリッド・タイムラインが`buildHierarchicalList`を使っていない場合は、それぞれの並び替えロジックに`sortWithDependencies`相当の処理を適用する（`sortWithDependencies`を`export`して共通利用可能にする）
-- [ ] 失敗するテストを先に書く: 各画面で依存関係のあるタスクが順序通りに並ぶことを検証するテスト → Red確認
-- [ ] 実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係のあるタスクを作成し、全体一覧・状況把握・グリッド・タイムラインそれぞれで前後の序列が保たれることを確認）
-- [ ] `docs/requests_log.md` R-091の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-091-dependency-sort-all-views master` をworktree内で実行）
+- [x] グリッドビュー・タイムラインビューの現在の並び順ロジックを調査し、依存関係を考慮しているか確認する（結果: 両ビューとも独自の並び替えロジックを持たず、`RyokanCalendar.tsx`が`QuantityEngine.calculateMetrics()`で作る共通の`metrics.contributingItems`をそのまま`CalendarCell`で描画しているだけだった。依存関係は未考慮）
+- [x] 各画面（全体一覧・状況把握・グリッド・タイムライン）で`dependencies`を取得し`buildHierarchicalList`（または各画面のソートロジック）に正しく渡すよう対応する。グリッド・タイムラインが`buildHierarchicalList`を使っていない場合は、それぞれの並び替えロジックに`sortWithDependencies`相当の処理を適用する（`sortWithDependencies`を`export`して共通利用可能にする）
+- [x] 失敗するテストを先に書く: 各画面で依存関係のあるタスクが順序通りに並ぶことを検証するテスト → Red確認
+- [x] 実装
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係のあるタスクを作成し、全体一覧・状況把握・グリッド・タイムラインそれぞれで前後の序列が保たれることを確認）
+- [x] `docs/requests_log.md` R-091の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 

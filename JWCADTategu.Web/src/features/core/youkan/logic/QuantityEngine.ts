@@ -1,7 +1,8 @@
-import { Item, Member, CapacityConfig, FilterMode } from '../types';
+import { Item, Member, CapacityConfig, FilterMode, Dependency } from '../types';
 import { isHoliday as baseIsHoliday } from './capacity';
 import { safeParseDate, normalizeDateKey } from './dateUtils';
 import { ExternalEvent, DEFAULT_ALL_DAY_WEIGHT_MINUTES } from '../types/externalEvent';
+import { sortWithDependencies } from './hierarchy';
 
 export interface QuantityMetric {
     date: Date;
@@ -36,6 +37,8 @@ export interface QuantityContext {
     } | null;
     useTeamCapacity?: boolean;
     teamCapacityTenantId?: string | null;
+    /** R-091: 同一日に依存関係のあるアイテムが混在する場合、依存元→依存先の順で contributingItems を並べる */
+    dependencies?: Dependency[];
 }
 
 /**
@@ -154,7 +157,7 @@ export class QuantityEngine {
         completedVolumeMap: Map<string, number>,
         contributorsMap: Map<string, Item[]>
     } {
-        const { items, focusedTenantId, focusedProjectId } = context;
+        const { items, focusedTenantId, focusedProjectId, dependencies = [] } = context;
         const volumeMap = new Map<string, number>();
         const completedVolumeMap = new Map<string, number>();
         const contributorsMap = new Map<string, Item[]>();
@@ -198,6 +201,16 @@ export class QuantityEngine {
                 });
             }
         });
+
+        // R-091: 同一日のcontributingItemsは挿入順のままだと依存元/依存先の前後関係が保証されない。
+        // 元の並び順（items配列上の位置）はタイブレークとして維持しつつ、依存チェーンだけ前後を強制する。
+        if (dependencies.length > 0) {
+            const indexMap = new Map(relevantItems.map((item, i) => [item.id, i]));
+            const originalOrderCompare = (a: Item, b: Item) => (indexMap.get(a.id) ?? 0) - (indexMap.get(b.id) ?? 0);
+            contributorsMap.forEach((dayItems, key) => {
+                contributorsMap.set(key, sortWithDependencies(dayItems, dependencies, originalOrderCompare));
+            });
+        }
 
         return { volumeMap, completedVolumeMap, contributorsMap };
     }

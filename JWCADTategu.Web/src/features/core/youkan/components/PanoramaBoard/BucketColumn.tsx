@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ItemCard } from './ItemCard';
-import { Item } from '../../types';
+import { Item, Dependency } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { sortItemsHierarchically, buildHierarchicalList } from '../../logic/hierarchy';
 
@@ -24,6 +24,8 @@ interface BucketColumnProps {
     headerRight?: React.ReactNode;
     showGroups?: boolean;
     allProjects?: Item[];
+    /** R-091: 依存関係のあるタスクは前後の序列を崩さずに並べる */
+    dependencies?: Dependency[];
 }
 
 export const BucketColumn: React.FC<BucketColumnProps> = ({
@@ -42,7 +44,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
     rowHeight = 12,
     headerRight,
     showGroups = false,
-    allProjects = []
+    allProjects = [],
+    dependencies = []
 }) => {
     const MAX_VISIBLE = 5;
     const [expanded, setExpanded] = React.useState(false);
@@ -64,6 +67,7 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                 allItems: visibleItems,
                 allProjects,
                 showGroups: true,
+                dependencies,
             }).map(w => {
                 if (w.type === 'header') {
                     return { item: w.project as Item, depth: w.depth, type: w.type as 'header', projectTitle: w.projectTitle, projectId: w.projectId };
@@ -71,8 +75,8 @@ export const BucketColumn: React.FC<BucketColumnProps> = ({
                 return { item: w.item, depth: w.depth, type: w.type as 'item', projectTitle: undefined, projectId: undefined };
             });
         }
-        return sortItemsHierarchically(visibleItems).map(x => ({ ...x, type: 'item' as const, projectTitle: undefined, projectId: undefined }));
-    }, [visibleItems, showGroups, allProjects]);
+        return sortItemsHierarchically(visibleItems, dependencies).map(x => ({ ...x, type: 'item' as const, projectTitle: undefined, projectId: undefined }));
+    }, [visibleItems, showGroups, allProjects, dependencies]);
 
     return (
         <div className={cn(
