@@ -91,3 +91,7 @@ typings/
 # Production
 dist
 build
+
+# tscの誤コンパイルで生成されるvite.config残骸（vite.config.tsより優先探索されてしまうため）
+vite.config.js
+vite.config.d.ts
