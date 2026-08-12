@@ -14,6 +14,10 @@ interface OverviewItemProps {
 	onUpdateEstimatedMinutes?: (itemId: string, minutes: number) => void;
 	onNavigateToFlow?: (projectId: string) => void;
 	titleLimit?: number;
+	/** R-094-B: 前後挿入の連鎖入力で、作成直後にこの行の目安時間欄を自動的に編集状態にする */
+	autoStartTimeEdit?: boolean;
+	/** R-094-B: 自動編集状態が確定/取消で終了したことを親へ通知（次のインライン行へフォーカスを渡すため） */
+	onAutoTimeEditDone?: () => void;
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -74,12 +78,16 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	onStartInlineAdd,
 	onUpdateEstimatedMinutes,
 	onNavigateToFlow,
-	titleLimit
+	titleLimit,
+	autoStartTimeEdit,
+	onAutoTimeEditDone
 }) => {
 	const isHeader = wrapper.type === 'header';
 	const [isTimeEditing, setIsTimeEditing] = useState(false);
 	const [timeInputValue, setTimeInputValue] = useState('');
 	const timeInputRef = useRef<HTMLInputElement>(null);
+	// R-089と同型の二重確定防止（Enter確定→input除去→blur発火で再確定されるのを防ぐ）
+	const hasConfirmedRef = useRef(false);
 
 	useEffect(() => {
 		if (isTimeEditing && timeInputRef.current) {
@@ -87,6 +95,15 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 			timeInputRef.current.select();
 		}
 	}, [isTimeEditing]);
+
+	useEffect(() => {
+		if (autoStartTimeEdit && !isHeader) {
+			hasConfirmedRef.current = false;
+			setTimeInputValue('');
+			setIsTimeEditing(true);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [autoStartTimeEdit]);
 
 	if (isHeader) {
 		const { depth, project, projectId, projectTitle } = wrapper;
@@ -148,11 +165,14 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 
 	const handleTimeEditStart = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		hasConfirmedRef.current = false;
 		setTimeInputValue(formatMinutes(item.estimatedMinutes));
 		setIsTimeEditing(true);
 	};
 
 	const handleTimeEditConfirm = () => {
+		if (hasConfirmedRef.current) return;
+		hasConfirmedRef.current = true;
 		const trimmed = timeInputValue.trim();
 		if (trimmed === '') {
 			onUpdateEstimatedMinutes?.(item.id, 0);
@@ -163,10 +183,13 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 			}
 		}
 		setIsTimeEditing(false);
+		if (autoStartTimeEdit) onAutoTimeEditDone?.();
 	};
 
 	const handleTimeEditCancel = () => {
+		hasConfirmedRef.current = true;
 		setIsTimeEditing(false);
+		if (autoStartTimeEdit) onAutoTimeEditDone?.();
 	};
 
 	return (
@@ -227,6 +250,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 				{!isDone && isTimeEditing && (
 					<input
 						ref={timeInputRef}
+						data-testid={`estimate-input-${item.id}`}
 						type="text"
 						value={timeInputValue}
 						onChange={(e) => setTimeInputValue(e.target.value)}

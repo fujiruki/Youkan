@@ -5,15 +5,18 @@ interface InlineAddRowProps {
     onSubmit: (title: string) => void;
     onCancel: () => void;
     placeholder?: string;
+    autoFocus?: boolean;
 }
 
-export const InlineAddRow: React.FC<InlineAddRowProps> = ({ depth, onSubmit, onCancel, placeholder = 'Alt+D to add...' }) => {
+export const InlineAddRow: React.FC<InlineAddRowProps> = ({ depth, onSubmit, onCancel, placeholder = 'Alt+D to add...', autoFocus = true }) => {
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // R-094-B: 連鎖入力中は目安時間欄にフォーカスを譲るため、autoFocusがtrueになった
+    // タイミング（マウント時／目安時間確定でチェーンが進んだ時の両方）でフォーカスする
     useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+        if (autoFocus) inputRef.current?.focus();
+    }, [autoFocus]);
 
     const handleSubmit = () => {
         const trimmed = value.trim();

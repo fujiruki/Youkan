@@ -70,6 +70,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	// --- R-092: 前に挿入 / 後に挿入（ガントの submitInlineInsert と同等） ---
 	const [inlineInsert, setInlineInsert] = useState<{ itemId: string; position: 'before' | 'after' } | null>(null);
 	const inlineInsertSubmittingRef = useRef(false);
+	// R-094-B: タイトル確定直後、この行の目安時間欄を自動編集状態にする（連続入力チェーン）
+	const [chainAutoEditItemId, setChainAutoEditItemId] = useState<string | null>(null);
 
 	const findItemById = (id: string): Item | null => {
 		const w = items.find(w => (w.type === 'item' && w.item.id === id) || (w.type === 'header' && w.projectId === id));
@@ -90,21 +92,23 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 			return;
 		}
 
+		const position = inlineInsert.position;
 		inlineInsertSubmittingRef.current = true;
+		let newItemId: string | null = null;
 		try {
-			const newItemId = await viewModel.throwIn(title, sourceItem.tenantId, sourceItem.projectId);
+			newItemId = await viewModel.throwIn(title, sourceItem.tenantId, sourceItem.projectId);
 
 			if (newItemId) {
 				// R-084相当: 既存の依存関係を新規アイテム経由に繋ぎ変える（削除＋作成）
 				const repo = new DependencyRepository();
 				const existingDeps = await repo.getDependencies(sourceItem.id).catch(() => []);
-				const relevantDeps = inlineInsert.position === 'after'
+				const relevantDeps = position === 'after'
 					? existingDeps.filter(d => d.sourceItemId === sourceItem.id)
 					: existingDeps.filter(d => d.targetItemId === sourceItem.id);
 
 				for (const dep of relevantDeps) {
 					await repo.deleteDependency(dep.id).catch(() => undefined);
-					if (inlineInsert.position === 'after') {
+					if (position === 'after') {
 						await repo.createDependency(newItemId, dep.targetItemId).catch(() => undefined);
 					} else {
 						await repo.createDependency(dep.sourceItemId, newItemId).catch(() => undefined);
@@ -112,15 +116,22 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 				}
 
 				await repo.createDependency(
-					inlineInsert.position === 'after' ? sourceItem.id : newItemId,
-					inlineInsert.position === 'after' ? newItemId : sourceItem.id
+					position === 'after' ? sourceItem.id : newItemId,
+					position === 'after' ? newItemId : sourceItem.id
 				).catch(() => undefined);
 			}
 		} catch (error) {
 			console.error('Inline insert failed', error);
 		} finally {
 			inlineInsertSubmittingRef.current = false;
-			setInlineInsert(null);
+			if (newItemId) {
+				// R-094-B: 連続入力チェーン。作成行の目安時間欄を自動編集状態にしつつ、
+				// 次の挿入位置（今作成した行の前/後）に新しい空インライン行を出す
+				setChainAutoEditItemId(newItemId);
+				setInlineInsert({ itemId: newItemId, position });
+			} else {
+				setInlineInsert(null);
+			}
 		}
 	};
 
@@ -249,6 +260,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 									key={w.id}
 									depth={w.depth}
 									placeholder={inlineInsert.position === 'before' ? '前に追加...' : '後に追加...'}
+									// R-094-B: 直前に作成した行の目安時間欄が編集中の間はこの行へフォーカスを奪わない
+									autoFocus={chainAutoEditItemId !== inlineInsert.itemId}
 									onSubmit={(title) => { submitInlineInsert(title); }}
 									onCancel={() => setInlineInsert(null)}
 								/>
@@ -289,6 +302,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 								onUpdateEstimatedMinutes={(itemId, minutes) => {
 									viewModel.updateItem(itemId, { estimatedMinutes: minutes });
 								}}
+								autoStartTimeEdit={(wrapper as any).type === 'item' && (wrapper as any).item.id === chainAutoEditItemId}
+								onAutoTimeEditDone={() => setChainAutoEditItemId(null)}
 								onNavigateToFlow={onNavigateToFlow}
 							/>
 						);
