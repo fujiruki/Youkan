@@ -783,15 +783,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - 依存関係が元々ない場合（sourceItemに前後の依存がない）は、単純に新規アイテムとsourceItemの間に1本の依存（前挿入ならnew→source、後挿入ならsource→new）を作成するだけでよい
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-084-insert-dependency-relink master` をworktree内で実行）
-- [ ] `DependencyRepository`の既存メソッド（作成・取得・削除）を確認し、上記要件を満たす繋ぎ変えロジックの実装方針を固める
-- [ ] 失敗するテストを先に書く: 要望原文の例（A→B→C、Bの後にDを挿入→A→B、B→D、D→Cになること）を含む複数ケース（前挿入・後挿入・依存なしの場合・分岐がある場合）→ Red確認
-- [ ] `submitInlineInsert()`に依存関係の繋ぎ変えロジックを実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認）
-- [ ] `docs/requests_log.md` R-084の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-084-insert-dependency-relink master` をworktree内で実行）
+- [x] `DependencyRepository`の既存メソッド（作成・取得・削除）を確認し、上記要件を満たす繋ぎ変えロジックの実装方針を固める（既存のcreateDependency/deleteDependencyをそのまま使い、繋ぎ変えは削除+作成の2ステップで実現）
+- [x] 失敗するテストを先に書く: 要望原文の例（A→B→C、Bの後にDを挿入→A→B、B→D、D→Cになること）を含む複数ケース（前挿入・後挿入・依存なしの場合・分岐がある場合）→ Red確認（5ケース全て失敗確認）
+- [x] `submitInlineInsert()`に依存関係の繋ぎ変えロジックを実装
+- [x] Green確認・既存テスト回帰なし確認（新規5件Green、全体795 passed/14 skipped、既存回帰なし）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認。要望原文の例A→B→C、Bの後にDを挿入→A→B、B→D、D→Cを実機操作＋API応答の両方で確認）
+- [x] `docs/requests_log.md` R-084の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 
@@ -803,14 +803,14 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **背景**: 当初`%BASE_URL%favicon.svg`を使おうとしたが、Vite devサーバー限定でbase接頭辞が二重付与される不具合があり、それを避けるため単純な相対パスに変更した経緯がある（`docs/requests_log.md` R-083参照）。今回は本番のSPAネストルート直接アクセス時に別の問題が発生している
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-083-favicon-nested-route master` をworktree内で実行）
-- [ ] `index.html`の`<link rel="icon">`をこのプロジェクト固定のAppID絶対パス`/contents/Youkan/favicon.svg`に変更する（`docs/development_env.md`でAppID固定と確認済みのため、`import.meta.env.BASE_URL`等の動的解決は不要、直書きでシンプルに解決する）
-- [ ] devサーバーとビルド後の両方で、ルート直下・ネストルート（`/contents/Youkan/flows/xxx`相当のURLを直接開く）双方でfaviconが200・image/svg+xmlで解決されることを確認
-- [ ] 既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
-- [ ] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-083-favicon-nested-route master` をworktree内で実行）
+- [x] `index.html`の`<link rel="icon">`をこのプロジェクト固定のAppID絶対パス`/contents/Youkan/favicon.svg`に変更する（`docs/development_env.md`でAppID固定と確認済みのため、`import.meta.env.BASE_URL`等の動的解決は不要、直書きでシンプルに解決する）
+- [x] devサーバーとビルド後の両方で、ルート直下・ネストルート（`/contents/Youkan/flows/xxx`相当のURLを直接開く）双方でfaviconが200・image/svg+xmlで解決されることを確認
+- [x] 既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
+- [x] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 
@@ -858,3 +858,28 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
 - [ ] `docs/requests_log.md` R-086の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-087 ガントチャート日付ヘッダーに合計時間数を表示（2026-08-13）
+
+**ブランチ**: `feature/R-087-gantt-header-total-hours`
+**要望**: `docs/requests_log.md` R-087
+**仕様**: `docs/SPEC/02_機能仕様.md` F-34
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Calendar/RyokanGanttView.tsx`の日付ヘッダー列（590〜632行目付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 日付ヘッダー列は幅`w-6`(24px)の狭い列。曜日・日付・`CapacityBar`（R-034実装、4px高さのキャパ割合バー、`stats.capacity > 0`のときのみ表示）が縦に並んでいる
+- `stats.total`（分単位のその日の合計割当時間）は`dailyCapacityStats`から既に取得済みで`CapacityBar`の`totalMinutes`propに渡されている（627〜631行目）
+- 要望: CapacityBarの直下に、その日の合計時間数を「時間」単位のテキストで表示する
+
+### サブタスク
+- [x] worktree作成（`git fetch && git checkout -b feature/R-087-gantt-header-total-hours master` をworktree内で実行）
+- [x] 分→時間の変換・表示形式を決める（幅24pxの狭い列に収まるシンプルな表記。例: 90分→"1.5h"、120分→"2h"、0分は非表示等）。既存の時間表示コンポーネント・ユーティリティ（`logic/`配下等）に類似の変換ロジックがないか確認し、あれば再利用する
+- [x] 失敗するテストを先に書く: 合計時間数のテキストが正しい値・表記で表示されること（複数の分数パターン）→ Red確認
+- [x] 実装: `CapacityBar`の直下（633行目のGoogleカレンダー予定表示の前）に時間数テキストを追加。`stats`が存在し`stats.total > 0`のときのみ表示する等、既存の条件分岐スタイルに合わせる
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ガント一覧表示で日付ヘッダーに合計時間数が表示されること、CapacityBarとの視覚的な収まりを確認）
+- [x] `docs/requests_log.md` R-087の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）

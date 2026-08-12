@@ -52,9 +52,12 @@ const EDGE_INSERT_THRESHOLD = 50;
 const DEPENDENCY_EDGE_STYLE = { stroke: '#6366f1', strokeWidth: 2 };
 const DEPENDENCY_EDGE_HIGHLIGHT_STYLE = { stroke: '#3b82f6', strokeWidth: 4 };
 const DEPENDENCY_EDGE_MARKER_END = { type: MarkerType.ArrowClosed };
+// R-086: 選択中のedgeを発光させるグロー表現（drop-shadowを二重に重ねて光暈を強調）
+const DEPENDENCY_EDGE_SELECTED_GLOW = 'drop-shadow(0 0 4px #3b82f6) drop-shadow(0 0 8px #3b82f6)';
 
 // 依存関係からedgeを構築する唯一の変換ロジック（描画箇所全てがここを通る）
-function dependencyToEdge(dep: Dependency, isHighlighted: boolean): Edge {
+function dependencyToEdge(dep: Dependency, isHighlighted: boolean, isSelected: boolean = false): Edge {
+  const baseStyle = isHighlighted ? DEPENDENCY_EDGE_HIGHLIGHT_STYLE : DEPENDENCY_EDGE_STYLE;
   return {
     id: dep.id,
     source: dep.sourceItemId,
@@ -62,7 +65,8 @@ function dependencyToEdge(dep: Dependency, isHighlighted: boolean): Edge {
     animated: false,
     interactionWidth: 20,
     markerEnd: DEPENDENCY_EDGE_MARKER_END,
-    style: isHighlighted ? DEPENDENCY_EDGE_HIGHLIGHT_STYLE : DEPENDENCY_EDGE_STYLE,
+    selected: isSelected,
+    style: isSelected ? { ...baseStyle, filter: DEPENDENCY_EDGE_SELECTED_GLOW } : baseStyle,
   };
 }
 
@@ -260,14 +264,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       return [...groupNodes, ...itemNodes];
     });
 
-    const newEdges: Edge[] = dependencies.map((dep) => dependencyToEdge(dep, highlightEdgeId === dep.id));
+    const newEdges: Edge[] = dependencies.map((dep) =>
+      dependencyToEdge(dep, highlightEdgeId === dep.id, selectedEdgeIds.includes(dep.id))
+    );
     setEdges(newEdges);
 
     if (prevProjectRef.current !== currentProjectId) {
       prevProjectRef.current = currentProjectId ?? null;
       shouldFitViewRef.current = true;
     }
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
