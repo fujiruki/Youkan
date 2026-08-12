@@ -104,3 +104,38 @@ describe('FlowItemNode: R-085 目安時間保存とチェーン作成の同時�
         });
     });
 });
+
+/**
+ * R-089: R-085修正後も本番で低頻度（5回中1回程度）に同種の
+ * "Database Error during update" が再発していた残存事象。
+ *
+ * 実ブラウザでは、Enter確定→保存完了→isTimeEditing=falseになりinput要素が
+ * DOMから削除される際、フォーカスが当たっていた要素にblurイベントが発火する
+ * (フォーカス中の要素がDOMから除去された場合のUA標準挙動)。
+ * この時、onBlur={handleTimeEditConfirm}が再度呼ばれ、同一itemIdへ
+ * PUT /items/{id}が二重発火していた。本番PHPエラーログでも同一item idへの
+ * リクエストが同一秒に2件記録され、後着側が「database is locked」で
+ * 失敗していたことを確認済み。
+ */
+describe('FlowItemNode: R-089 Enter確定後のonBlur再発火による二重PUT防止', () => {
+    it('Enter確定直後にonBlurが発火しても、目安時間の保存は1回しか行わない', async () => {
+        const onEstimatedMinutesChange = vi.fn().mockResolvedValue(undefined);
+        const nodeData = renderNode({ onEstimatedMinutesChange });
+
+        const titleInput = screen.getByDisplayValue('既存タイトル') as HTMLInputElement;
+        fireEvent.keyDown(titleInput, { key: 'Tab' });
+
+        const timeInput = screen.getByPlaceholderText('1h') as HTMLInputElement;
+        fireEvent.change(timeInput, { target: { value: '30m' } });
+        fireEvent.keyDown(timeInput, { key: 'Enter' });
+        // 保存が完了する前(=input要素がまだDOM上に残っている段階)でも、
+        // 実ブラウザのDOM除去に伴うblur発火を模して直接blurイベントを発生させる
+        fireEvent.blur(timeInput);
+
+        await waitFor(() => {
+            expect(nodeData.onChainCreate).toHaveBeenCalledWith('item-1');
+        });
+
+        expect(onEstimatedMinutesChange).toHaveBeenCalledTimes(1);
+    });
+});

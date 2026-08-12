@@ -934,16 +934,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **背景**: R-085でSQLite「database is locked」の根本原因（WALモード未適用・未クローズカーソルによるロック競合）を修正し本番デプロイ済み。しかし本番実機検証でチェーン作成5回中1回、低頻度で同種の500エラーが再発した（直後のリトライで成功、データ損失なし）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-089-database-locked-residual master` をworktree内で実行）
-- [ ] `docs/requests_log.md` R-085の記載を読み、既存の対策（WALモード化・busy_timeout・トランザクションrollback修正・Enter時の目安時間保存→チェーン作成の逐次化）を把握する
-- [ ] 本番のPHPエラーログ（SSH経由）を確認し、直近で同種の「database is locked」エラーが再発していないか、発生時刻・頻度を確認する
-- [ ] busy_timeoutの設定値（現在5000ms）が短すぎる可能性、または目安時間更新以外の並行書き込み経路（例: 別ウィンドウでの同時操作、ポーリング等）がないか調査する。決めつけず、まず実機で低頻度事象の再現を試みる
-- [ ] 原因が特定できた場合は、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認
-- [ ] 原因特定に至らない場合でも、リトライ機構（フロントエンド側でのDatabase Errorに対する自動リトライ等）の追加を検討し、指揮AIに方針を確認してから実装する
-- [ ] 既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] `docs/requests_log.md` R-089の対応状況を更新（原因特定できたか・できなかったか、対応内容を明記）
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-089-database-locked-residual master` をworktree内で実行）
+- [x] `docs/requests_log.md` R-085の記載を読み、既存の対策（WALモード化・busy_timeout・トランザクションrollback修正・Enter時の目安時間保存→チェーン作成の逐次化）を把握する
+- [x] 本番のPHPエラーログ（SSH経由）を確認し、直近で同種の「database is locked」エラーが再発していないか、発生時刻・頻度を確認する（2026-08-13 01:29:04に同一item idへの`PUT /items/{id}`が同一秒に2件発火し後着側が失敗していることを特定）
+- [x] busy_timeoutの設定値、または目安時間更新以外の並行書き込み経路がないか調査 → 真因は`FlowItemNode.tsx`のEnter確定後、input要素DOM除去に伴う`blur`イベントが古いクロージャの`handleTimeEditConfirm`を再度呼び出し、同一itemIdへPUTが二重発火していたこと（PUT×POSTではなくPUT×PUTの新しい競合経路）
+- [x] 原因が特定できたため、失敗するテストを先に書く → Red確認 → 修正実装（編集セッション単位で確定を1回に制限する`hasConfirmedRef`ガード追加）→ Green確認
+- [x] 既存テスト回帰なし確認（vitest全件805 passed/14 skipped、失敗3件は既存の無関係事象）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（FlowItemNode.tsx +14、テスト +35の2ファイルのみ）
+- [x] `docs/requests_log.md` R-089の対応状況を更新（原因特定・修正実装済みを明記）
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 
