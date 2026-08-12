@@ -843,6 +843,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const dueDateObj = item.due_date ? new Date(item.due_date) : null;
 							const depth = wrapper.depth || 0;
 							const done = isItemDone(item);
+							// R-081: prep_date/due_dateとも未設定＝カレンダー未配置タスク
+							const isUnscheduled = !item.prep_date && !item.due_date;
 
 							return (
 								<React.Fragment key={`row-fragment-${item.id}`}>
@@ -858,7 +860,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 								>
 									{/* Sticky Title Column */}
 									<div
-										className="sticky left-0 z-10 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] gap-1"
+										data-testid={`gantt-title-cell-${item.id}`}
+										className={cn(
+											"sticky left-0 z-10 w-64 shrink-0 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] gap-1",
+											isUnscheduled ? "bg-amber-50 dark:bg-amber-900/20" : "bg-white dark:bg-slate-900"
+										)}
+										title={isUnscheduled ? "カレンダーに未配置（日付未設定）" : undefined}
 										onContextMenu={(e) => handleItemContextMenu(e, item.id)}
 									>
 										<div

@@ -41,10 +41,28 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   const [chainOnConfirm, setChainOnConfirm] = useState(false);
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
+    if (!isEditing || !inputRef.current) return;
+    const el = inputRef.current;
+    // R-080: 新規ノードはxyflowの初回計測が完了するまでノード要素に
+    // visibility:hiddenが付与される。その間にfocus()を呼んでも黙って失敗し
+    // 「タイトルが選択状態」にならない。計測完了(=styleの変化)を待ってから確定する。
+    // rAF/setTimeoutでのポーリングはバックグラウンドタブでスロットリングされ
+    // 遅延しうるため、DOM変化を直接監視するMutationObserverを使う
+    const tryFocus = () => {
+      if (window.getComputedStyle(el).visibility === 'hidden') return false;
+      el.focus();
+      el.select();
+      return true;
+    };
+    if (tryFocus()) return;
+
+    const target = el.closest('.react-flow__node') as HTMLElement | null;
+    if (!target) return;
+    const observer = new MutationObserver(() => {
+      if (tryFocus()) observer.disconnect();
+    });
+    observer.observe(target, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
   }, [isEditing]);
 
   useEffect(() => {
@@ -120,6 +138,8 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleSubmit}
             onKeyDown={handleKeyDown}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             className={`text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
           />
         ) : (
