@@ -683,27 +683,29 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **背景**: R-079とR-080はいずれも`FlowItemNode.tsx`/`FlowScreen.tsx`の近接箇所（ノード編集・選択状態管理）を触るため、ファイル競合防止のため1つのAgentにまとめて依頼する
 
 ### R-079: タイトル編集中のテキストボックス内ドラッグでノードが動いてしまう
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-079-080-flow-node-edit-ux master` をworktree内で実行）
-- [ ] `FlowItemNode.tsx`のタイトル編集用input要素のmousedown/pointerdownイベントで、xyflowのノードドラッグハンドラへの伝播が止まっているか確認（`stopPropagation`漏れが疑わしい、既存の目安時間input等は伝播を止めている実装があればそれを参考にする）
-- [ ] 失敗するテストを先に書く: タイトル編集input内でmousedown+dragした場合にノードのonDragイベントが発火しないことを検証するテスト → Red確認
-- [ ] 修正実装
-- [ ] Green確認
+- [x] worktree作成（`git fetch && git checkout -b fix/R-079-080-flow-node-edit-ux master` をworktree内で実行）
+- [x] `FlowItemNode.tsx`のタイトル編集用input要素のmousedown/pointerdownイベントで、xyflowのノードドラッグハンドラへの伝播が止まっているか確認（目安時間inputには`onMouseDown`/`onClick`のstopPropagationが既にあるのに、タイトルinputには漏れていたと判明）
+- [x] 失敗するテストを先に書く: タイトル編集input内でmousedownした場合に`stopPropagation`が呼ばれることを検証するテスト（`FlowItemNode.editUX.test.tsx`）→ Red確認
+- [x] 修正実装（タイトルinputに`onMouseDown`/`onClick`の`stopPropagation`を追加）
+- [x] Green確認
 
 ### R-080: Enter押下時、新規ノードのタイトル「新規アイテム」が選択状態になっていない
-- [ ] **着手前に必ず`docs/handover/R-077-analysis.md`の「今回スコープ外として残した関連不具合」を読むこと**。以下2点の既知バグが記録されている:
+- [x] **着手前に必ず`docs/handover/R-077-analysis.md`の「今回スコープ外として残した関連不具合」を読むこと**。以下2点の既知バグが記録されている:
   1. Tab確定後、目安時間欄にフォーカスが移らない（`FlowItemNode.tsx`）
   2. ノード作成・編集のたびにReactFlowの選択状態が失われる（`FlowScreen.tsx` 202〜260行目付近の派生useEffectが`itemNodes`再構築時に`selected`プロパティを保持していない）
-- [ ] まず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）でR-080の症状を再現する。決めつけて実装に入らない。R-074で実装済みの`isNewNode`による自動フォーカス＋全選択ロジックがなぜ効いていないのかを特定する
-- [ ] 原因が上記1./2.のいずれかと判明した場合はそれを修正、別原因ならその原因を`docs/handover/`に追記した上で修正
-- [ ] 失敗するテストを先に書く（原因判明後、症状を再現するテストケースを追加）→ Red確認
-- [ ] 修正実装 → Green確認
+- [x] まず実機（claude-in-chrome MCP→途中からchrome-devtools MCP、dev環境）でR-080の症状を再現。`document.activeElement`/`selectionStart`/`selectionEnd`をDOM直接観測し、新規ノードの`<input>`はマウントされ`select()`も試みられているのにフォーカスが乗らないことを確認
+- [x] 原因特定: 上記2.と同一メカニズム。xyflowはノード初回計測完了まで`visibility:hidden`を付与し、計測完了後に`measured`をnodes stateへ書き戻すが、`FlowScreen.tsx`の派生useEffectが`itemNodes`を毎回ゼロから再構築するため、`selected`だけでなく`measured`も握りつぶし、新規ノードが`visibility:hidden`に固定され続けフォーカスが黙って失敗していた
+- [x] 失敗するテストを先に書く: `FlowScreen.nodeRebuildState.test.tsx`（依存関係作成による再構築後もselected状態が保持されることを検証）・`FlowItemNode.editUX.test.tsx`（visibility:hidden中はfocus/selectを呼ばず、style変化後に呼ぶことを検証）→ Red確認
+- [x] 修正実装: `FlowScreen.tsx`の`setNodes`を直前状態からのupdater関数に変更しmeasured/selectedを引き継ぐ（根本原因の修正）。あわせて`FlowItemNode.tsx`にMutationObserverでvisibility:hidden解除を待ってからfocus/selectする防御的修正を追加 → Green確認
 
 ### 仕上げ（R-079/R-080共通）
-- [ ] 既存テスト回帰なし確認（vitest全件）
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] 実機検証: タイトル編集中のドラッグでテキスト選択ができ、ノードが動かないこと／Enterで新規ノード作成時にタイトルが選択状態になっていることの両方を確認
-- [ ] `docs/requests_log.md` R-079・R-080の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] 既存テスト回帰なし確認（vitest全件790 passed / 14 skipped / 0 failed、master merge後も同様）
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] 実機検証（chrome-devtools MCP）: タイトル編集中のinput内でmousedown→mousemove→mouseupしてもノードの`transform`が変化しないことを確認（R-079）。Enterで新規ノード作成後、`document.activeElement`が新規inputになり`selectionStart=0`/`selectionEnd=6`（「新規アイテム」全選択）であることを確認（R-080）
+- [x] `docs/requests_log.md` R-079・R-080の対応状況を更新
+- [x] `docs/SPEC/02_機能仕様.md` F-27のステータス更新・F-24にR-080修正の注記追加
+- [x] master最新化（`git fetch && git merge origin/master`でR-078/R-081/R-082を取り込み、コンフリクトなし）
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 
