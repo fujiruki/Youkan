@@ -893,3 +893,75 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 - [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
 - [x] 本番実機検証: ガント一覧の日付ヘッダーでCapacityBar直下に合計時間数（例: "8h"）表示を確認
+
+---
+
+## R-088 フロー空白部ダブルクリックの依存関係自動設定＋エッジ描画バグ修正（2026-08-13）
+
+**ブランチ**: `feature/R-088-pane-doubleclick-dependency`
+**要望**: `docs/requests_log.md` R-088
+**仕様**: `docs/SPEC/02_機能仕様.md` F-35
+**対象**: `JWCADTategu.Web/src/features/core/youkan/screens/FlowScreen.tsx`の`handlePaneDoubleClick`（858行目付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 発注者は原文で「ガントチャート」と呼んでいるが、該当のダブルクリック新規ノード作成機能は`RyokanGanttView.tsx`（ガント）には存在せず、`FlowScreen.tsx`（フローチャート）の`handlePaneDoubleClick`のみに存在する。フローチャート画面を対象として仕様化した
+- 現状`handlePaneDoubleClick`は`createNewItem(x, y)`で座標のみ渡してアイテムを作成しており、選択状態・依存関係は一切見ていない
+- 依存関係作成を行う既存の4経路（`onConnect`/`createNodeBelow`/`handleEdgeInsert`/ドラッグ重なり自動接続）は全て`appendDependencyToState()`（R-074新設、`setDependencies`+`setEdges`同時更新）を経由しており、これが「エッジが即座に反映される」ための必須パターン。新設する5つ目の経路も必ずこれを経由させること（別実装すると同種のedge非表示バグを再現する）
+
+### 要件
+- 選択ノード（`selectedNodeIds[0]`）がある状態でダブルクリック → クリック位置のY座標と選択ノードのY座標を比較
+  - クリック位置が選択ノードより上 → 「新規ノード→選択ノード」の依存関係を作成（新規が前提）
+  - クリック位置が選択ノードより下 → 「選択ノード→新規ノード」の依存関係を作成（選択ノードが前提）
+- 選択ノードがない状態でのダブルクリック → 依存関係なしで作成（現状維持）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-088-pane-doubleclick-dependency master` をworktree内で実行）
+- [ ] `appendDependencyToState()`・`selectedNodeIds`・`DependencyRepository`の既存実装を確認する
+- [ ] 失敗するテストを先に書く: 選択ノードあり・クリック位置が上/下・選択ノードなしの3パターンで依存関係が正しく作成されること、edgeが即座に反映されること → Red確認
+- [ ] `handlePaneDoubleClick`に依存関係自動設定ロジックを実装（`appendDependencyToState()`経由）
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（選択ノードの上/下でのダブルクリック、選択なしでのダブルクリック、いずれもedgeが即座に描画されリロード不要であることを確認）
+- [ ] `docs/requests_log.md` R-088の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-089 R-085低頻度残存事象の追加調査（2026-08-13）
+
+**ブランチ**: `fix/R-089-database-locked-residual`
+**要望**: `docs/requests_log.md` R-089
+**背景**: R-085でSQLite「database is locked」の根本原因（WALモード未適用・未クローズカーソルによるロック競合）を修正し本番デプロイ済み。しかし本番実機検証でチェーン作成5回中1回、低頻度で同種の500エラーが再発した（直後のリトライで成功、データ損失なし）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-089-database-locked-residual master` をworktree内で実行）
+- [ ] `docs/requests_log.md` R-085の記載を読み、既存の対策（WALモード化・busy_timeout・トランザクションrollback修正・Enter時の目安時間保存→チェーン作成の逐次化）を把握する
+- [ ] 本番のPHPエラーログ（SSH経由）を確認し、直近で同種の「database is locked」エラーが再発していないか、発生時刻・頻度を確認する
+- [ ] busy_timeoutの設定値（現在5000ms）が短すぎる可能性、または目安時間更新以外の並行書き込み経路（例: 別ウィンドウでの同時操作、ポーリング等）がないか調査する。決めつけず、まず実機で低頻度事象の再現を試みる
+- [ ] 原因が特定できた場合は、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認
+- [ ] 原因特定に至らない場合でも、リトライ機構（フロントエンド側でのDatabase Errorに対する自動リトライ等）の追加を検討し、指揮AIに方針を確認してから実装する
+- [ ] 既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] `docs/requests_log.md` R-089の対応状況を更新（原因特定できたか・できなかったか、対応内容を明記）
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-090 フローのズームアウト制限緩和＋「全体」ズーム・パンボタン新設（2026-08-13）
+
+**ブランチ**: `feature/R-090-flow-zoom-controls`
+**要望**: `docs/requests_log.md` R-090
+**仕様**: `docs/SPEC/02_機能仕様.md` F-36
+**対象**: `FlowScreen.tsx`の`ReactFlow`コンポーネント（`minZoom`等のprops）・ヘルプボタン周辺のUI
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-090-flow-zoom-controls master` をworktree内で実行）
+- [ ] `ReactFlow`コンポーネントの現在の`minZoom`設定値を確認し、より小さい値（遠くまでズームアウト可能）に変更する
+- [ ] ヘルプボタンの位置・実装を確認し、その直下に「全体」表示ボタン（クリックで`fitView`相当のズーム・パンを実行）を新設する
+- [ ] 失敗するテストを先に書く: 「全体」ボタンクリックで`fitView`（または同等の処理）が呼ばれることを検証するテスト → Red確認
+- [ ] 実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ズームアウトの範囲拡大、「全体」ボタンの配置・動作を確認）
+- [ ] `docs/requests_log.md` R-090の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
