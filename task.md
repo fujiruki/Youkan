@@ -1062,4 +1062,68 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
 - [x] 本番確認: トップ画面が通常通り表示・動作すること、新規コンソールエラーがないことを確認
 
+---
+
+## R-094-A ガントの前後挿入で連続インライン入力UX（2026-08-13）
+
+**ブランチ**: `feature/R-094a-gantt-chain-insert-ux`
+**要望**: `docs/requests_log.md` R-094
+**仕様**: `docs/SPEC/02_機能仕様.md` F-39
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Calendar/RyokanGanttView.tsx`の`submitInlineInsert`・インライン入力UI周辺（420〜465行目、535〜560行目付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- R-074（`FlowItemNode.tsx`/`FlowScreen.tsx`）に概念的に同一のチェーン作成UX（タイトル確定→Tab→目安時間欄フォーカス→Enter→次ノード作成）が既に実装済み。`chainOnConfirm` state・`onChainCreate`コールバックのパターンを参考にできる
+- 目安時間のインライン編集自体は既存機能（F-17）として`RyokanGanttView.tsx`に既に存在する（`timeInputRef`ベースの実装）。これを流用できる
+
+### 要件
+1. 「前に挿入」/「後に挿入」でインライン入力（タイトル欄）が出現
+2. タイトル入力→Enter確定 →
+   - 既存の`submitInlineInsert`ロジックでアイテム作成・依存関係構築を実行
+   - 作成された行に目安時間入力欄を表示しフォーカスする
+   - 同時に、次の挿入位置（今確定した行の続き）に新しい空のインライン入力行（タイトル欄）を出現させる
+3. 目安時間欄でEnter確定 → 目安時間を保存し、フォーカスを2で出現した新しいインライン行（タイトル欄）に移す
+4. 新しいインライン行に何も入力されないまま確定されず終わった場合（フォーカスが外れる等）、その行は保存されず消える
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-094a-gantt-chain-insert-ux master` をworktree内で実行）
+- [ ] 現在の`submitInlineInsert`・インライン入力UI・目安時間インライン編集の実装を詳しく確認する
+- [ ] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
+- [ ] 実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続でタイトル→目安時間→次タイトル…と入力し続けられること、途中で入力せず離脱すると空行が消えることを確認）
+- [ ] `docs/requests_log.md` R-094の対応状況を更新（ガント側の実装完了を明記）
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-094-B 全体一覧の前後挿入で連続インライン入力UX（2026-08-13）
+
+**ブランチ**: `feature/R-094b-overview-chain-insert-ux`
+**要望**: `docs/requests_log.md` R-094
+**仕様**: `docs/SPEC/02_機能仕様.md` F-39
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/OverviewBoard/OverviewBoard.tsx`の`submitInlineInsert`・`InlineAddRow`周辺（R-092で実装済み）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- R-074（`FlowItemNode.tsx`/`FlowScreen.tsx`）のチェーン作成UXパターンを参考にできる（R-094-Aと同じ参考元）
+- 目安時間のインライン編集自体は既存機能（F-17）として`OverviewItem.tsx`（151/216/224行目付近、`formatMinutes`ベース）に既に存在する。これを流用できる
+- R-092で実装済みの`submitInlineInsert`・`inlineInsert` state・`InlineAddRow`コンポーネントをベースに拡張する
+
+### 要件（R-094-Aと同じ、対象画面が全体一覧）
+1. 「前に挿入」/「後に挿入」でインライン入力（タイトル欄）が出現
+2. タイトル入力→Enter確定 → アイテム作成・依存関係構築（既存ロジック）＋作成行に目安時間欄を表示・フォーカス＋次の挿入位置に新しい空インライン行を出現
+3. 目安時間欄でEnter確定 → 保存＋フォーカスを新しいインライン行へ
+4. 新しいインライン行が未入力のまま終われば保存せず消える
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-094b-overview-chain-insert-ux master` をworktree内で実行）
+- [ ] 現在の`submitInlineInsert`・`InlineAddRow`・目安時間インライン編集（`OverviewItem.tsx`）の実装を詳しく確認する
+- [ ] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
+- [ ] 実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続入力の流れ、未入力行の消滅を確認）
+- [ ] `docs/requests_log.md` R-094の対応状況を更新（全体一覧側の実装完了を明記）
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
 **完了報告（2026-08-13）**: 実装完了。詳細は指揮AIへの完了報告メッセージを参照。
