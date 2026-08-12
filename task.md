@@ -915,15 +915,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - 選択ノードがない状態でのダブルクリック → 依存関係なしで作成（現状維持）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-088-pane-doubleclick-dependency master` をworktree内で実行）
-- [ ] `appendDependencyToState()`・`selectedNodeIds`・`DependencyRepository`の既存実装を確認する
-- [ ] 失敗するテストを先に書く: 選択ノードあり・クリック位置が上/下・選択ノードなしの3パターンで依存関係が正しく作成されること、edgeが即座に反映されること → Red確認
-- [ ] `handlePaneDoubleClick`に依存関係自動設定ロジックを実装（`appendDependencyToState()`経由）
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（選択ノードの上/下でのダブルクリック、選択なしでのダブルクリック、いずれもedgeが即座に描画されリロード不要であることを確認）
-- [ ] `docs/requests_log.md` R-088の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-088-pane-doubleclick-dependency master` をworktree内で実行）
+- [x] `appendDependencyToState()`・`selectedNodeIds`・`DependencyRepository`の既存実装を確認する
+- [x] 失敗するテストを先に書く: 選択ノードあり・クリック位置が上/下・選択ノードなしの3パターンで依存関係が正しく作成されること、edgeが即座に反映されること → Red確認
+- [x] `handlePaneDoubleClick`に依存関係自動設定ロジックを実装（`appendDependencyToState()`経由）
+- [x] Green確認・既存テスト回帰なし確認（vitest全件822件中1件失敗は`useAssigneeView.test.ts`で本タスク非関連・分岐元でも再現する既存の無関係な事象）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（2ファイル、+187/-2行）
+- [x] chrome-devtools MCPで実機検証（選択ノードの上/下でのダブルクリック、選択なしでのダブルクリック、いずれもedgeが即座に描画されリロード不要であることを確認。ページリロード後も永続化を確認。検証用テストノードは削除し原状回復済み）
+- [x] `docs/requests_log.md` R-088の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
 
