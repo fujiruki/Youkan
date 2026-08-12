@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useOverviewItems, OverviewItemWrapper } from '../useOverviewItems';
-import { Item, Project } from '../../../types';
+import { Item, Project, Dependency } from '../../../types';
+import { DependencyRepository } from '../../../repositories/DependencyRepository';
 
 // Mock Data (Projects as Items)
 const mockProjects: any[] = [
@@ -101,5 +102,40 @@ describe('useOverviewItems', () => {
         const { result } = renderHook(() => useOverviewItems(viewModel as any));
         const matches = result.current.filter(w => w.type === 'item' && w.item.id === 'focus-1');
         expect(matches).toHaveLength(1);
+    });
+
+    // R-091: 全体一覧でも依存関係のあるタスクの前後の序列を崩さずに並べる
+    it('依存関係のあるタスクは前後の序列を崩さずに並ぶ', async () => {
+        const succItem = { id: 'succ', title: 'タスクsucc', status: 'inbox', projectId: null, createdAt: 100, updatedAt: 100, statusUpdatedAt: 100, focusOrder: 0, isEngaged: false, interrupt: false, weight: 1 } as Item;
+        const predItem = { id: 'pred', title: 'タスクpred', status: 'inbox', projectId: null, createdAt: 200, updatedAt: 200, statusUpdatedAt: 200, focusOrder: 0, isEngaged: false, interrupt: false, weight: 1 } as Item;
+
+        const deps: Dependency[] = [
+            { id: 'dep-1', sourceItemId: 'pred', targetItemId: 'succ', createdAt: 0 },
+        ];
+        const spy = vi.spyOn(DependencyRepository.prototype, 'getDependencies').mockResolvedValue(deps);
+
+        const viewModel = {
+            gdbActive: [succItem, predItem], // あえて依存関係と逆順
+            gdbPreparation: [],
+            gdbIntent: [],
+            gdbLog: [],
+            allProjects: [],
+            todayCandidates: [],
+            todayCommits: [],
+            executionItem: null
+        };
+
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+
+        await waitFor(() => {
+            const ids = result.current.filter(w => w.type === 'item').map(w => w.item.id);
+            expect(ids).toContain('pred');
+            expect(ids).toContain('succ');
+        });
+
+        const ids = result.current.filter(w => w.type === 'item').map(w => w.item.id);
+        expect(ids.indexOf('pred')).toBeLessThan(ids.indexOf('succ'));
+
+        spy.mockRestore();
     });
 });

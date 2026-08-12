@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Item } from '../../types';
+import { Item, Dependency } from '../../types';
 import { QuantityEngine } from '../../logic/QuantityEngine';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -75,6 +76,16 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	React.useEffect(() => {
 		if (propDisplayMode) setDisplayMode(propDisplayMode);
 	}, [propDisplayMode]);
+
+	// R-091: グリッド/タイムラインの日別チップ・内訳パネルでも依存関係順を反映するため、
+	// 画面表示時に1回だけ取得する（ガントビューは自前で取得済みのため、gantt表示時の重複取得は許容する）
+	const [dependencies, setDependencies] = useState<Dependency[]>([]);
+	React.useEffect(() => {
+		const repo = new DependencyRepository();
+		repo.getDependencies().then(setDependencies).catch(() => {
+			// 取得失敗時は空配列のまま（従来の並び順にフォールバック）
+		});
+	}, []);
 
 	const today = useMemo(() => getStartOfToday(), []);
 	const isMini = layoutMode === 'mini';
@@ -470,8 +481,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			joinedTenants: joinedTenants
 		},
 		useTeamCapacity,
-		teamCapacityTenantId
-	}), [items, capacityConfig, members, filterMode, focusedTenantId, focusedProjectId, currentUserId, currentUserIsCompanyAccount, useTeamCapacity, teamCapacityTenantId, joinedTenants]);
+		teamCapacityTenantId,
+		dependencies
+	}), [items, capacityConfig, members, filterMode, focusedTenantId, focusedProjectId, currentUserId, currentUserIsCompanyAccount, useTeamCapacity, teamCapacityTenantId, joinedTenants, dependencies]);
 
 	const metrics = useMemo(
 		() => QuantityEngine.calculateMetrics(allDays, qCtx, externalEventsByDate),

@@ -31,6 +31,8 @@ import { QuickInputWidget } from '../Inputs/QuickInputWidget'; // [NEW]
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
 import { isCompanyContext as checkCompanyContext, getSelectedTenantId } from '../../logic/filterUtils';
+import { DependencyRepository } from '../../repositories/DependencyRepository';
+import { Dependency } from '../../types';
 
 
 interface PanoramaBoardProps {
@@ -67,6 +69,16 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const { joinedTenants } = useAuth(); // [RESTORED]
 	const { filterMode, setFilterMode } = useFilter();
+
+	// R-091: 状況把握でも依存関係のあるタスクの前後の序列を崩さずに並べるため、
+	// 画面表示時に1回だけ取得する
+	const [dependencies, setDependencies] = useState<Dependency[]>([]);
+	useEffect(() => {
+		const repo = new DependencyRepository();
+		repo.getDependencies().then(setDependencies).catch(() => {
+			// 取得失敗時は空配列のまま（従来の並び順にフォールバック）
+		});
+	}, []);
 
 	// [FIX] Determine Focused Project
 	const focusedProject = projectId ? allProjects.find(p => p.id === projectId) : null;
@@ -496,6 +508,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 									onCreateSubTask={vm.createSubTask}
 									showGroups={showGroups}
 									allProjects={allProjects as any}
+									dependencies={dependencies}
 									headerRight={
 										focusedProject ? (
 											<div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 border border-slate-200 dark:border-slate-600" >
@@ -561,6 +574,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 									onCreateSubTask={vm.createSubTask}
 									showGroups={showGroups}
 									allProjects={allProjects as any}
+									dependencies={dependencies}
 								/>
 							</div>
 						</section>
@@ -585,6 +599,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 									onCreateSubTask={vm.createSubTask}
 									showGroups={showGroups}
 									allProjects={allProjects as any}
+									dependencies={dependencies}
 								/>
 							</div>
 						</section>
@@ -609,6 +624,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 									onCreateSubTask={vm.createSubTask}
 									showGroups={showGroups}
 									allProjects={allProjects as any}
+									dependencies={dependencies}
 								/>
 							</div>
 						</section>
@@ -631,6 +647,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 									rowHeight={rowHeight}
 									showGroups={showGroups}
 									allProjects={allProjects as any}
+									dependencies={dependencies}
 								/>
 							</div>
 						</section>

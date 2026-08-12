@@ -472,3 +472,80 @@ describe('QuantityEngine Someday除外 (R-028)', () => {
         expect(contributingIds).toContain('f1');
     });
 });
+
+// R-091: グリッド/タイムラインの日別チップ・内訳パネルも依存関係順を反映する
+describe('QuantityEngine.calculateMetrics 依存関係順ソート (R-091)', () => {
+    const monday = new Date('2026-02-09T12:00:00');
+    const mondayKey = monday.toDateString();
+
+    const mockConfig: CapacityConfig = {
+        defaultDailyMinutes: 480,
+        holidays: [],
+        exceptions: {}
+    };
+
+    const baseContext: QuantityContext = {
+        items: [],
+        members: [],
+        capacityConfig: mockConfig,
+        filterMode: 'all',
+        currentUser: {
+            id: 'test-user',
+            isCompanyAccount: false,
+            joinedTenants: []
+        },
+        tenantProfiles: new Map()
+    };
+
+    const makeItem = (id: string, prepDate: string): any => ({
+        id,
+        title: `Item ${id}`,
+        status: 'focus',
+        focusOrder: 0,
+        isEngaged: false,
+        statusUpdatedAt: 0,
+        interrupt: false,
+        weight: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+        estimatedMinutes: 60,
+        prep_date: Math.floor(new Date(prepDate).getTime() / 1000)
+    });
+
+    it('同一日に依存関係のあるアイテムが混在する場合、依存元→依存先の順で並ぶ', () => {
+        // items配列の並びはあえて依存関係と逆順にする（元実装では挿入順のまま表示されバグを再現できる）
+        const succItem = makeItem('succ', '2026-02-09');
+        const predItem = makeItem('pred', '2026-02-09');
+
+        const ctx: QuantityContext = {
+            ...baseContext,
+            items: [succItem, predItem],
+            dependencies: [
+                { id: 'dep-1', sourceItemId: 'pred', targetItemId: 'succ', createdAt: 0 }
+            ]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday], ctx);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        const ids = metric!.contributingItems.map(i => i.id);
+        expect(ids.indexOf('pred')).toBeLessThan(ids.indexOf('succ'));
+    });
+
+    it('dependenciesを渡さない場合は従来通りの挿入順が維持される', () => {
+        const itemA = makeItem('a', '2026-02-09');
+        const itemB = makeItem('b', '2026-02-09');
+
+        const ctx: QuantityContext = {
+            ...baseContext,
+            items: [itemA, itemB]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday], ctx);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        expect(metric!.contributingItems.map(i => i.id)).toEqual(['a', 'b']);
+    });
+});

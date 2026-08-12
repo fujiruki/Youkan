@@ -72,6 +72,45 @@ describe('sortItemsHierarchically（BucketColumn用）', () => {
     const result = sortItemsHierarchically(items);
     expect(result.length).toBeLessThanOrEqual(3);
   });
+
+  // R-091: 状況把握（PanoramaBoard/BucketColumn, showGroups=false）でも依存関係順を維持する
+  it('R-091: dependenciesを渡すとルート階層で依存順（A→B）が維持される', () => {
+    const items = [
+      makeItem('B'),
+      makeItem('A'),
+    ];
+    const deps: Dependency[] = [
+      { id: 'dep-1', sourceItemId: 'A', targetItemId: 'B', createdAt: 0 },
+    ];
+    const result = sortItemsHierarchically(items, deps);
+    expect(result.map(r => r.item.id)).toEqual(['A', 'B']);
+  });
+
+  it('R-091: 同じ親を持つ子アイテム同士の依存順（A→B→C）も維持される', () => {
+    const items = [
+      makeItem('root'),
+      makeItem('C', 'root'),
+      makeItem('B', 'root'),
+      makeItem('A', 'root'),
+    ];
+    const deps: Dependency[] = [
+      { id: 'dep-1', sourceItemId: 'A', targetItemId: 'B', createdAt: 0 },
+      { id: 'dep-2', sourceItemId: 'B', targetItemId: 'C', createdAt: 0 },
+    ];
+    const result = sortItemsHierarchically(items, deps);
+    const childIds = result.filter(r => r.item.id !== 'root').map(r => r.item.id);
+    expect(childIds).toEqual(['A', 'B', 'C']);
+  });
+
+  it('R-091: dependenciesを渡さない場合は従来通りの並び順が維持される', () => {
+    const items = [
+      makeItem('A'),
+      makeItem('B', 'A'),
+      makeItem('C', 'A'),
+    ];
+    const result = sortItemsHierarchically(items);
+    expect(result.map(r => r.item.id)).toEqual(['A', 'B', 'C']);
+  });
 });
 
 describe('getHierarchicalProjects（ProjectRegistry用）', () => {
