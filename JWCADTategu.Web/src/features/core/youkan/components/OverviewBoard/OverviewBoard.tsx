@@ -6,7 +6,6 @@ import { ViewControls } from './ViewControls';
 import { QuickInputWidget } from '../Inputs/QuickInputWidget';
 import { ContextMenu } from '../Common/ContextMenu';
 import { useItemContextMenu } from '../../hooks/useItemContextMenu';
-import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { useFilter } from '../../contexts/FilterContext';
@@ -304,29 +303,60 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					y={contextMenu.y}
 					itemId={contextMenu.targetId!}
 					onClose={closeMenu}
-					actions={buildItemContextMenuActions(contextMenu.targetId!, {
-						onOpenDetail: (id) => {
-							const item = findItemById(id);
-							if (item) onOpenItem(item);
+					actions={[
+						{
+							label: 'プロジェクト化',
+							onClick: () => {
+								viewModel.projectizeItem(contextMenu.targetId!);
+							}
 						},
-						onMakeProject: async (id) => {
-							await viewModel.projectizeItem(id);
+						{
+							label: '前に挿入 (a)',
+							shortcut: 'a',
+							onClick: () => startInlineInsert(contextMenu.targetId!, 'before')
 						},
-						onResolveYes: async (id) => {
-							await viewModel.updateItem(id, { status: 'focus' });
+						{
+							label: '後に挿入 (b)',
+							shortcut: 'b',
+							onClick: () => startInlineInsert(contextMenu.targetId!, 'after')
 						},
-						onInsertBefore: (id) => startInlineInsert(id, 'before'),
-						onInsertAfter: (id) => startInlineInsert(id, 'after'),
-						onMarkDone: async (id) => {
-							await viewModel.updateItem(id, { status: 'done' });
+						{ separator: true },
+						{
+							label: '今日やる (Focus)',
+							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
 						},
-						onResolveNo: async (id) => {
-							await viewModel.resolveDecision(id, 'no', 'history');
+						{
+							label: 'とりかかる (Execute)',
+							onClick: () => { viewModel.setEngaged(contextMenu.targetId!, true); }
 						},
-						onDelete: (id) => {
-							viewModel.deleteItem(id);
+						{
+							label: '保留（外的要因待ち）(Pending)',
+							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'pending' }); }
 						},
-					})}
+						{
+							label: '💭 いつかやる (Someday)',
+							onClick: () => { viewModel.moveToSomeday(contextMenu.targetId!); }
+						},
+						{
+							label: '待機 (Waiting)',
+							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'waiting' }); }
+						},
+						{
+							label: '完了にする (d)',
+							shortcut: 'd',
+							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'done' }); }
+						},
+						{ separator: true },
+						{
+							label: 'アーカイブ',
+							onClick: () => { viewModel.archiveItem(contextMenu.targetId!); }
+						},
+						{
+							label: 'ゴミ箱 (Del)',
+							danger: true,
+							onClick: () => { viewModel.deleteItem(contextMenu.targetId!); }
+						}
+					].filter(Boolean) as any}
 				/>
 			)}
 		</div>

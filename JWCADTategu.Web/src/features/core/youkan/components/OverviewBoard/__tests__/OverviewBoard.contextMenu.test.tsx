@@ -5,8 +5,9 @@ import type { OverviewItemWrapper } from '../useOverviewItems';
 import type { Dependency } from '../../../types';
 
 /**
- * R-092: 全体一覧の右クリックメニューを、ガントと同じ buildItemContextMenuActions ベースの
- * メニューに置き換える。前/後挿入では R-084 相当の依存関係自動繋ぎ直しも行う。
+ * R-092: 全体一覧の右クリックメニューに「前に挿入 (a)」「後に挿入 (b)」を追加する。
+ * 既存の項目（プロジェクト化/今日やる/とりかかる/保留/いつかやる/待機/完了にする/アーカイブ/ゴミ箱）は
+ * すべて維持したまま統合する（発注者確認済み）。前/後挿入では R-084 相当の依存関係自動繋ぎ直しも行う。
  */
 
 const mockGetDependencies = vi.fn();
@@ -113,6 +114,9 @@ const createMockViewModel = (overrides: Record<string, any> = {}) => ({
 	updateItem: vi.fn(),
 	projectizeItem: vi.fn(),
 	resolveDecision: vi.fn(),
+	setEngaged: vi.fn(),
+	moveToSomeday: vi.fn(),
+	archiveItem: vi.fn(),
 	throwIn: vi.fn(),
 	todayCandidates: [],
 	todayCommits: [],
@@ -138,18 +142,39 @@ describe('R-092: OverviewBoard 右クリックメニュー（ガント同等）'
 		mockDeleteDependency.mockResolvedValue(undefined);
 	});
 
-	it('ガントと同じ項目一覧が表示される', () => {
+	it('既存項目を維持したまま前後挿入が追加されたメニューが表示される', () => {
 		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
 		rightClickItem('item-1');
 
-		expect(screen.getByText('詳細 / 名前変更')).toBeInTheDocument();
+		// 既存項目（維持）
 		expect(screen.getByText('プロジェクト化')).toBeInTheDocument();
+		expect(screen.getByText('今日やる (Focus)')).toBeInTheDocument();
+		expect(screen.getByText('とりかかる (Execute)')).toBeInTheDocument();
+		expect(screen.getByText('保留（外的要因待ち）(Pending)')).toBeInTheDocument();
+		expect(screen.getByText('💭 いつかやる (Someday)')).toBeInTheDocument();
+		expect(screen.getByText('待機 (Waiting)')).toBeInTheDocument();
+		expect(screen.getByText('完了にする (d)')).toBeInTheDocument();
+		expect(screen.getByText('アーカイブ')).toBeInTheDocument();
+		expect(screen.getByText('ゴミ箱 (Del)')).toBeInTheDocument();
+		// 新規追加項目
 		expect(screen.getByText('前に挿入 (a)')).toBeInTheDocument();
 		expect(screen.getByText('後に挿入 (b)')).toBeInTheDocument();
-		expect(screen.getByText('今日やる (Done Today)')).toBeInTheDocument();
-		expect(screen.getByText('完了にする (d)')).toBeInTheDocument();
-		expect(screen.getByText('断る (Rejected)')).toBeInTheDocument();
-		expect(screen.getByText('ゴミ箱 (Del)')).toBeInTheDocument();
+	});
+
+	it('「いつかやる」クリックで moveToSomeday が呼ばれる（既存機能の回帰なし）', () => {
+		const moveToSomeday = vi.fn();
+		render(<OverviewBoard viewModel={createMockViewModel({ moveToSomeday })} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+		fireEvent.click(screen.getByText('💭 いつかやる (Someday)'));
+		expect(moveToSomeday).toHaveBeenCalledWith('item-1');
+	});
+
+	it('「アーカイブ」クリックで archiveItem が呼ばれる（既存機能の回帰なし）', () => {
+		const archiveItem = vi.fn();
+		render(<OverviewBoard viewModel={createMockViewModel({ archiveItem })} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+		fireEvent.click(screen.getByText('アーカイブ'));
+		expect(archiveItem).toHaveBeenCalledWith('item-1');
 	});
 
 	it('「完了にする」クリックで status: done に更新される', () => {
