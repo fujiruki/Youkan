@@ -652,6 +652,15 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											capacityMinutes={stats.capacity}
 										/>
 									)}
+									{/* R-087: CapacityBar直下にその日の合計割当時間を表示 */}
+									{stats && stats.total > 0 && (
+										<span
+											data-testid={`gantt-daily-total-${dayKey}`}
+											className="text-[8px] leading-none mt-0.5 text-slate-400 dark:text-slate-500 font-mono whitespace-nowrap pointer-events-none"
+										>
+											{formatMinutes(stats.total)}
+										</span>
+									)}
 									{/* R-039 Phase 3 UX: Google カレンダー予定（最大 2 件＋他 N 件） */}
 									{dayEvents.length > 0 && (
 										<div
