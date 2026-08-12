@@ -36,14 +36,16 @@ export function buildItemContextMenuActions(
 			onClick: () => callbacks.onMakeProject(itemId),
 		},
 		...(callbacks.onInsertBefore ? [{
-			label: '前に挿入',
+			label: '前に挿入 (a)',
 			icon: <ListPlus size={14} />,
 			onClick: () => callbacks.onInsertBefore!(itemId),
+			shortcut: 'a',
 		}] : []),
 		...(callbacks.onInsertAfter ? [{
-			label: '後に挿入',
+			label: '後に挿入 (b)',
 			icon: <ListPlus size={14} />,
 			onClick: () => callbacks.onInsertAfter!(itemId),
+			shortcut: 'b',
 		}] : []),
 		{
 			label: '今日やる (Done Today)',

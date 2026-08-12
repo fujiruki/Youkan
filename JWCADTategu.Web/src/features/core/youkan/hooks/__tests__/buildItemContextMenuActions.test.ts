@@ -65,4 +65,36 @@ describe('buildItemContextMenuActions', () => {
 			expect(action.icon).toBeDefined();
 		});
 	});
+
+	it('onInsertBefore/onInsertAfterを渡すと、a/bキーのショートカット付きで挿入項目が追加される', () => {
+		const callbacks = {
+			...defaultCallbacks,
+			onInsertBefore: vi.fn(),
+			onInsertAfter: vi.fn(),
+		};
+		const actions = buildItemContextMenuActions('item-1', callbacks);
+
+		const insertBefore = actions.find(a => a.label.includes('前に挿入'));
+		const insertAfter = actions.find(a => a.label.includes('後に挿入'));
+
+		expect(insertBefore?.shortcut).toBe('a');
+		expect(insertBefore?.label).toContain('(a)');
+		expect(insertAfter?.shortcut).toBe('b');
+		expect(insertAfter?.label).toContain('(b)');
+	});
+
+	it('前に挿入(a)/後に挿入(b)のonClickが対応するコールバックを呼ぶ', () => {
+		const callbacks = {
+			...defaultCallbacks,
+			onInsertBefore: vi.fn(),
+			onInsertAfter: vi.fn(),
+		};
+		const actions = buildItemContextMenuActions('item-42', callbacks);
+
+		actions.find(a => a.label.includes('前に挿入'))!.onClick();
+		expect(callbacks.onInsertBefore).toHaveBeenCalledWith('item-42');
+
+		actions.find(a => a.label.includes('後に挿入'))!.onClick();
+		expect(callbacks.onInsertAfter).toHaveBeenCalledWith('item-42');
+	});
 });
