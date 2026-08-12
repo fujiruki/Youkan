@@ -641,15 +641,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **対象**: R-066で追加された「前に挿入」「後に挿入」の右クリックメニュー項目（ガント左列アイテム、対応するフロー画面の同等メニューがあれば両方）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-078-insert-menu-shortcuts master` をworktree内で実行）
-- [ ] R-066で追加された右クリックメニューの実装箇所を特定する（ガント・フロー両方）
-- [ ] 失敗するテストを先に書く: メニュー表示中に`a`キー押下で「前に挿入」、`b`キー押下で「後に挿入」が実行されることを検証するテスト → Red確認
-- [ ] キーボードショートカットを実装（メニュー項目のラベル横に`(a)`/`(b)`等の表示も追加すると発注者の意図に沿う）
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（右クリックメニュー表示→aキー/bキーでメニュー実行されることを確認）
-- [ ] `docs/requests_log.md` R-078の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-078-insert-menu-shortcuts master` をworktree内で実行）
+- [x] R-066で追加された右クリックメニューの実装箇所を特定する（ガント・フロー両方）
+- [x] 失敗するテストを先に書く: メニュー表示中に`a`キー押下で「前に挿入」、`b`キー押下で「後に挿入」が実行されることを検証するテスト → Red確認
+- [x] キーボードショートカットを実装（メニュー項目のラベル横に`(a)`/`(b)`等の表示も追加すると発注者の意図に沿う）
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（右クリックメニュー表示→aキー/bキーでメニュー実行されることを確認）
+- [x] `docs/requests_log.md` R-078の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: ガントでアイテムを右クリック→メニューに「前に挿入 (a)」「後に挿入 (b)」表示→a/bキーで実行されることを確認
 
 ---
 
@@ -663,15 +665,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **注意**: R-078 Agentも同じ`RyokanGanttView.tsx`を触る可能性がある。マージ時にコンフリクトが起きたら両方の変更を残すこと（指揮AI側でも最終確認する）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-081-gantt-unscheduled-highlight master` をworktree内で実行）
-- [ ] `RyokanGanttView.tsx`でタスクがカレンダー上に配置されているかどうかの既存の判定方法を確認する（`prep_date`/`due_date`が両方未設定のアイテムが「未配置」に相当するか、既存の類似ロジック・表現がないか調査してから決める）
-- [ ] 失敗するテストを先に書く: 未配置タスクの行に強調用クラス（背景色）が付与されること、配置済みタスクには付与されないことを検証するテスト → Red確認
-- [ ] 実装: タスク名列に軽い背景色強調（既存デザインを壊さない程度、例: `bg-amber-50`等の薄い色）を追加
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（未配置タスクの行が視覚的に区別できることを確認）
-- [ ] `docs/requests_log.md` R-081の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-081-gantt-unscheduled-highlight master` をworktree内で実行）
+- [x] `RyokanGanttView.tsx`でタスクがカレンダー上に配置されているかどうかの既存の判定方法を確認する（`prep_date`/`due_date`が両方未設定のアイテムが「未配置」に相当するか、既存の類似ロジック・表現がないか調査してから決める）
+- [x] 失敗するテストを先に書く: 未配置タスクの行に強調用クラス（背景色）が付与されること、配置済みタスクには付与されないことを検証するテスト → Red確認
+- [x] 実装: タスク名列に軽い背景色強調（既存デザインを壊さない程度、例: `bg-amber-50`等の薄い色）を追加
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（未配置タスクの行が視覚的に区別できることを確認）
+- [x] `docs/requests_log.md` R-081の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: ガント一覧で日付未配置タスク行の背景に`bg-amber-50`が付与されていることをDOM直接確認
 
 ---
 
@@ -706,6 +710,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] `docs/SPEC/02_機能仕様.md` F-27のステータス更新・F-24にR-080修正の注記追加
 - [x] master最新化（`git fetch && git merge origin/master`でR-078/R-081/R-082を取り込み、コンフリクトなし）
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: フロー画面でノードタイトル編集中のテキストボックス内ドラッグでノードが動かずテキスト選択されること（R-079）、Enterで新規ノード作成時タイトル「新規アイテム」が全選択状態になること（R-080）を確認
 
 ---
 
@@ -722,13 +728,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - モバイル版（`MobileBottomSheet`、1008〜1080行目）は変更不要
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-082-detail-menu-expand master` をworktree内で実行）
-- [ ] 失敗するテストを先に書く: PC表示時、「完了」「プロジェクトに変換」ボタンがFooter Action Barに独立ボタンとして表示され、クリックで即座に実行されること／その他メニュー（ポップオーバー）内には残り3項目（いつかやる/アーカイブ/ゴミ箱）のみが残ることを検証するテスト → Red確認
-- [ ] 実装: 「完了」「プロジェクトに変換（/解除）」ボタンをその他ボタンの隣に独立ボタンとして追加し、既存のonClickロジックを流用。ポップオーバー内の該当2項目は削除
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（PC幅で完了・プロジェクト化ボタンが独立表示され直接押せること、モバイル幅では従来通りその他メニュー経由のままであることを確認）
-- [ ] `docs/requests_log.md` R-082の対応状況を更新
+- [x] worktree作成（`git fetch && git checkout -b feature/R-082-detail-menu-expand master` をworktree内で実行）
+- [x] 失敗するテストを先に書く: PC表示時、「完了」「プロジェクトに変換」ボタンがFooter Action Barに独立ボタンとして表示され、クリックで即座に実行されること／その他メニュー（ポップオーバー）内には残り3項目（いつかやる/アーカイブ/ゴミ箱）のみが残ることを検証するテスト → Red確認
+- [x] 実装: 「完了」「プロジェクトに変換（/解除）」ボタンをその他ボタンの隣に独立ボタンとして追加し、既存のonClickロジックを流用。ポップオーバー内の該当2項目は削除
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（PC幅で完了・プロジェクト化ボタンが独立表示され直接押せること、モバイル幅では従来通りその他メニュー経由のままであることを確認）
+- [x] `docs/requests_log.md` R-082の対応状況を更新
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: 詳細画面PC幅で「その他...」の右に「プロジェクトに変換」「完了」の独立ボタンが表示されることを確認
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
