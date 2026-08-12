@@ -1085,15 +1085,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 4. 新しいインライン行に何も入力されないまま確定されず終わった場合（フォーカスが外れる等）、その行は保存されず消える
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-094a-gantt-chain-insert-ux master` をworktree内で実行）
-- [ ] 現在の`submitInlineInsert`・インライン入力UI・目安時間インライン編集の実装を詳しく確認する
-- [ ] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
-- [ ] 実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続でタイトル→目安時間→次タイトル…と入力し続けられること、途中で入力せず離脱すると空行が消えることを確認）
-- [ ] `docs/requests_log.md` R-094の対応状況を更新（ガント側の実装完了を明記）
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-094a-gantt-chain-insert-ux master` をworktree内で実行）
+- [x] 現在の`submitInlineInsert`・インライン入力UI・目安時間インライン編集の実装を詳しく確認する
+- [x] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
+- [x] 実装
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続でタイトル→目安時間→次タイトル…と入力し続けられること、途中で入力せず離脱すると空行が消えることを確認）
+- [x] `docs/requests_log.md` R-094の対応状況を更新（ガント側の実装完了を明記）
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: タイトル確定→目安時間欄自動フォーカス→確定→次の空行フォーカス→未入力離脱で消滅、の一連の流れをDOM/API照会で確認
 
 ---
 
@@ -1116,14 +1118,16 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 4. 新しいインライン行が未入力のまま終われば保存せず消える
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-094b-overview-chain-insert-ux master` をworktree内で実行）
-- [ ] 現在の`submitInlineInsert`・`InlineAddRow`・目安時間インライン編集（`OverviewItem.tsx`）の実装を詳しく確認する
-- [ ] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
-- [ ] 実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続入力の流れ、未入力行の消滅を確認）
-- [ ] `docs/requests_log.md` R-094の対応状況を更新（全体一覧側の実装完了を明記）
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-094b-overview-chain-insert-ux master` をworktree内で実行）
+- [x] 現在の`submitInlineInsert`・`InlineAddRow`・目安時間インライン編集（`OverviewItem.tsx`）の実装を詳しく確認する
+- [x] 失敗するテストを先に書く: タイトル確定→目安時間欄フォーカス→確定→次のインライン行フォーカス→未入力なら消える、の一連の流れを検証するテスト → Red確認
+- [x] 実装
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（連続入力の流れ、未入力行の消滅を確認）
+- [x] `docs/requests_log.md` R-094の対応状況を更新（全体一覧側の実装完了を明記）
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
+- [x] 本番実機検証: タイトル確定→目安時間欄自動フォーカス→確定→次の空行フォーカス→未入力離脱で消滅、の一連の流れをDOM/API照会で確認
 
 **完了報告（2026-08-13）**: 実装完了。詳細は指揮AIへの完了報告メッセージを参照。
