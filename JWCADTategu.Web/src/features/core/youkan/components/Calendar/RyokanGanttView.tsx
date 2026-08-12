@@ -443,6 +443,28 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			} as Partial<Item>);
 
 			if (newItemId) {
+				// R-084: 既存の依存関係を新規アイテム経由に繋ぎ変える（削除＋作成）。
+				// 「後に挿入」: source→Y を new→Y に繋ぎ変え、source→new を新規作成
+				// 「前に挿入」: X→source を X→new に繋ぎ変え、new→source を新規作成
+				const repo = new DependencyRepository();
+				const relevantDeps = inlineInsert.position === 'after'
+					? dependencies.filter(d => d.sourceItemId === sourceItem.id)
+					: dependencies.filter(d => d.targetItemId === sourceItem.id);
+
+				for (const dep of relevantDeps) {
+					await repo.deleteDependency(dep.id).catch(() => undefined);
+					if (inlineInsert.position === 'after') {
+						await repo.createDependency(newItemId, dep.targetItemId).catch(() => undefined);
+					} else {
+						await repo.createDependency(dep.sourceItemId, newItemId).catch(() => undefined);
+					}
+				}
+
+				await repo.createDependency(
+					inlineInsert.position === 'after' ? sourceItem.id : newItemId,
+					inlineInsert.position === 'after' ? newItemId : sourceItem.id
+				).catch(() => undefined);
+
 				const orderedItemIds = transformedItems
 					.filter((w): w is Extract<HierarchicalWrapper, { type: 'item' }> => w.type === 'item')
 					.map(w => w.item.id);
@@ -461,7 +483,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			inlineInsertSubmittingRef.current = false;
 			setInlineInsert(null);
 		}
-	}, [inlineInsert, items, focusedProjectId, focusedTenantId, onCreateItem, onReloadItems, transformedItems]);
+	}, [inlineInsert, items, dependencies, focusedProjectId, focusedTenantId, onCreateItem, onReloadItems, transformedItems]);
 
 	// Calculate detailed allocations using QuantityEngine
 	const allocationMap = useMemo(() => {
