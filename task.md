@@ -792,3 +792,22 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認）
 - [ ] `docs/requests_log.md` R-084の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-083バグ修正: フローチャートのネストルート直接アクセス時にfaviconが404になる（2026-08-12）
+
+**ブランチ**: `fix/R-083-favicon-nested-route`
+**発見経緯**: R-083本番デプロイ後の実機検証中にデプロイAgentが発見
+**症状**: `index.html`の`<link rel="icon" href="favicon.svg">`が相対パスのため、`https://door-fujita.com/contents/Youkan/flows/{id}`のようなネストしたルートへ直接アクセス・リロードすると、ブラウザが現在のURLパス基準（`/contents/Youkan/flows/favicon.svg`）でfaviconを解決しようとし404（SPAフォールバックでindex.htmlが返りcontent-type text/html）になる。ルート直下（`/contents/Youkan/`）では問題ない
+**背景**: 当初`%BASE_URL%favicon.svg`を使おうとしたが、Vite devサーバー限定でbase接頭辞が二重付与される不具合があり、それを避けるため単純な相対パスに変更した経緯がある（`docs/requests_log.md` R-083参照）。今回は本番のSPAネストルート直接アクセス時に別の問題が発生している
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-083-favicon-nested-route master` をworktree内で実行）
+- [ ] `index.html`の`<link rel="icon">`をこのプロジェクト固定のAppID絶対パス`/contents/Youkan/favicon.svg`に変更する（`docs/development_env.md`でAppID固定と確認済みのため、`import.meta.env.BASE_URL`等の動的解決は不要、直書きでシンプルに解決する）
+- [ ] devサーバーとビルド後の両方で、ルート直下・ネストルート（`/contents/Youkan/flows/xxx`相当のURLを直接開く）双方でfaviconが200・image/svg+xmlで解決されることを確認
+- [ ] 既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
+- [ ] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
