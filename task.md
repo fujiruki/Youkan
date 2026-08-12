@@ -630,3 +630,123 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] claude-in-chrome MCPで実機検証（chrome-devtools MCPは他Agent使用中のため代替）: 依存関係追加後にA→B順へ反転することをスクリーンショットで確認
 - [x] `docs/requests_log.md` R-076の対応状況を更新
 - [x] 指揮AIレビュー・承認、masterマージ・push完了（コミット`4761d64`）
+
+---
+
+## R-078 ガント/フロー右クリックメニューのキーボードショートカット追加（2026-08-12）
+
+**ブランチ**: `feature/R-078-insert-menu-shortcuts`
+**要望**: `docs/requests_log.md` R-078
+**仕様**: `docs/SPEC/02_機能仕様.md` F-26
+**対象**: R-066で追加された「前に挿入」「後に挿入」の右クリックメニュー項目（ガント左列アイテム、対応するフロー画面の同等メニューがあれば両方）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-078-insert-menu-shortcuts master` をworktree内で実行）
+- [ ] R-066で追加された右クリックメニューの実装箇所を特定する（ガント・フロー両方）
+- [ ] 失敗するテストを先に書く: メニュー表示中に`a`キー押下で「前に挿入」、`b`キー押下で「後に挿入」が実行されることを検証するテスト → Red確認
+- [ ] キーボードショートカットを実装（メニュー項目のラベル横に`(a)`/`(b)`等の表示も追加すると発注者の意図に沿う）
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（右クリックメニュー表示→aキー/bキーでメニュー実行されることを確認）
+- [ ] `docs/requests_log.md` R-078の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-081 ガントチャートで日付未配置タスクの視覚的強調（2026-08-12・優先）
+
+**ブランチ**: `feature/R-081-gantt-unscheduled-highlight`
+**要望**: `docs/requests_log.md` R-081
+**仕様**: `docs/SPEC/02_機能仕様.md` F-28
+**優先度**: 発注者指定で今回（R-078〜R-080）のデプロイに含める
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Calendar/RyokanGanttView.tsx`（一覧表示のタスク名列）
+**注意**: R-078 Agentも同じ`RyokanGanttView.tsx`を触る可能性がある。マージ時にコンフリクトが起きたら両方の変更を残すこと（指揮AI側でも最終確認する）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-081-gantt-unscheduled-highlight master` をworktree内で実行）
+- [ ] `RyokanGanttView.tsx`でタスクがカレンダー上に配置されているかどうかの既存の判定方法を確認する（`prep_date`/`due_date`が両方未設定のアイテムが「未配置」に相当するか、既存の類似ロジック・表現がないか調査してから決める）
+- [ ] 失敗するテストを先に書く: 未配置タスクの行に強調用クラス（背景色）が付与されること、配置済みタスクには付与されないことを検証するテスト → Red確認
+- [ ] 実装: タスク名列に軽い背景色強調（既存デザインを壊さない程度、例: `bg-amber-50`等の薄い色）を追加
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（未配置タスクの行が視覚的に区別できることを確認）
+- [ ] `docs/requests_log.md` R-081の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-079/R-080 フローチャート ノード編集UX不具合修正（2026-08-12）
+
+**ブランチ**: `fix/R-079-080-flow-node-edit-ux`
+**要望**: `docs/requests_log.md` R-079, R-080
+**仕様**: `docs/SPEC/02_機能仕様.md` F-27（R-079）
+**背景**: R-079とR-080はいずれも`FlowItemNode.tsx`/`FlowScreen.tsx`の近接箇所（ノード編集・選択状態管理）を触るため、ファイル競合防止のため1つのAgentにまとめて依頼する
+
+### R-079: タイトル編集中のテキストボックス内ドラッグでノードが動いてしまう
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-079-080-flow-node-edit-ux master` をworktree内で実行）
+- [ ] `FlowItemNode.tsx`のタイトル編集用input要素のmousedown/pointerdownイベントで、xyflowのノードドラッグハンドラへの伝播が止まっているか確認（`stopPropagation`漏れが疑わしい、既存の目安時間input等は伝播を止めている実装があればそれを参考にする）
+- [ ] 失敗するテストを先に書く: タイトル編集input内でmousedown+dragした場合にノードのonDragイベントが発火しないことを検証するテスト → Red確認
+- [ ] 修正実装
+- [ ] Green確認
+
+### R-080: Enter押下時、新規ノードのタイトル「新規アイテム」が選択状態になっていない
+- [ ] **着手前に必ず`docs/handover/R-077-analysis.md`の「今回スコープ外として残した関連不具合」を読むこと**。以下2点の既知バグが記録されている:
+  1. Tab確定後、目安時間欄にフォーカスが移らない（`FlowItemNode.tsx`）
+  2. ノード作成・編集のたびにReactFlowの選択状態が失われる（`FlowScreen.tsx` 202〜260行目付近の派生useEffectが`itemNodes`再構築時に`selected`プロパティを保持していない）
+- [ ] まず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）でR-080の症状を再現する。決めつけて実装に入らない。R-074で実装済みの`isNewNode`による自動フォーカス＋全選択ロジックがなぜ効いていないのかを特定する
+- [ ] 原因が上記1./2.のいずれかと判明した場合はそれを修正、別原因ならその原因を`docs/handover/`に追記した上で修正
+- [ ] 失敗するテストを先に書く（原因判明後、症状を再現するテストケースを追加）→ Red確認
+- [ ] 修正実装 → Green確認
+
+### 仕上げ（R-079/R-080共通）
+- [ ] 既存テスト回帰なし確認（vitest全件）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] 実機検証: タイトル編集中のドラッグでテキスト選択ができ、ノードが動かないこと／Enterで新規ノード作成時にタイトルが選択状態になっていることの両方を確認
+- [ ] `docs/requests_log.md` R-079・R-080の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-082 詳細画面「その他」メニューのボタン展開（PC・画面幅が広い時）（2026-08-12）
+
+**ブランチ**: `feature/R-082-detail-menu-expand`
+**要望**: `docs/requests_log.md` R-082
+**仕様**: `docs/SPEC/02_機能仕様.md` F-29
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Modal/DecisionDetailModal.tsx` Footer Action Bar（994〜1157行目付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- Footer Action Barは`useIsMobile()`でPC/モバイルを分岐している
+- 現在PC版（1081〜1157行目）は`isMenuOpen`のポップオーバー内に「プロジェクトに変換/解除」「完了」「💭いつかやる」「アーカイブ」「ゴミ箱」の5項目
+- モバイル版（`MobileBottomSheet`、1008〜1080行目）は変更不要
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-082-detail-menu-expand master` をworktree内で実行）
+- [ ] 失敗するテストを先に書く: PC表示時、「完了」「プロジェクトに変換」ボタンがFooter Action Barに独立ボタンとして表示され、クリックで即座に実行されること／その他メニュー（ポップオーバー）内には残り3項目（いつかやる/アーカイブ/ゴミ箱）のみが残ることを検証するテスト → Red確認
+- [ ] 実装: 「完了」「プロジェクトに変換（/解除）」ボタンをその他ボタンの隣に独立ボタンとして追加し、既存のonClickロジックを流用。ポップオーバー内の該当2項目は削除
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（PC幅で完了・プロジェクト化ボタンが独立表示され直接押せること、モバイル幅では従来通りその他メニュー経由のままであることを確認）
+- [ ] `docs/requests_log.md` R-082の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-083 Youkanロゴ・ファビコン作成（2026-08-12）
+
+**ブランチ**: `feature/R-083-logo-favicon`
+**要望**: `docs/requests_log.md` R-083
+**仕様**: `docs/SPEC/02_機能仕様.md` F-30
+**方針**: プロジェクト名「羊羹」をモチーフにしたシンプルな幾何学的SVGアイコン
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-083-logo-favicon master` をworktree内で実行）
+- [ ] 羊羹モチーフのSVGアイコンを2〜3案作成する（例: 角丸長方形＋切り分け線で断面を表現、羊羹の色（小豆色/抹茶色）を使った幾何学的アイコン等）。派手さより視認性重視、16x16でも潰れないシンプルな形状にする
+- [ ] 案をこのAgentのtranscript内にSVGコードとして提示し、指揮AIへ選定を依頼する（**この時点ではコミットせず一旦停止して指揮AIの選定を待つこと**）
+- [ ] 指揮AIが選定した案を採用し、`public/favicon.svg`（または適切なパス）として配置
+- [ ] `JWCADTategu.Web/index.html`の`<link rel="icon">`を新しいfaviconに差し替え
+- [ ] `YoukanHeader.tsx`のロゴ表示部分に同アイコンを追加（現在のテキストロゴ「Youkan」の左または代わりに配置。既存のヘッダーレイアウト・スマホ表示崩れがないか確認）
+- [ ] 既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ブラウザタブのfavicon表示、ヘッダーのロゴ表示、PC/スマホ両方の見た目を確認）
+- [ ] `docs/requests_log.md` R-083の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
