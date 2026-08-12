@@ -955,13 +955,13 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **対象**: `FlowScreen.tsx`の`ReactFlow`コンポーネント（`minZoom`等のprops）・ヘルプボタン周辺のUI
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-090-flow-zoom-controls master` をworktree内で実行）
-- [ ] `ReactFlow`コンポーネントの現在の`minZoom`設定値を確認し、より小さい値（遠くまでズームアウト可能）に変更する
-- [ ] ヘルプボタンの位置・実装を確認し、その直下に「全体」表示ボタン（クリックで`fitView`相当のズーム・パンを実行）を新設する
-- [ ] 失敗するテストを先に書く: 「全体」ボタンクリックで`fitView`（または同等の処理）が呼ばれることを検証するテスト → Red確認
-- [ ] 実装
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（ズームアウトの範囲拡大、「全体」ボタンの配置・動作を確認）
-- [ ] `docs/requests_log.md` R-090の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-090-flow-zoom-controls master` をworktree内で実行）
+- [x] `ReactFlow`コンポーネントの現在の`minZoom`設定値を確認し、より小さい値（遠くまでズームアウト可能）に変更する（未設定=既定0.5 → 明示的に0.05へ）
+- [x] ヘルプボタンの位置・実装を確認し、その直下に「全体」表示ボタン（クリックで`fitView`相当のズーム・パンを実行）を新設する
+- [x] 失敗するテストを先に書く: 「全体」ボタンクリックで`fitView`（または同等の処理）が呼ばれることを検証するテスト → Red確認
+- [x] 実装
+- [x] Green確認・既存テスト回帰なし確認（vitest全件822件中807 pass・14 skip、失敗1件`useAssigneeView.test.ts`は既存の日付境界依存の無関係な事象）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（FlowScreen.tsx +10/-1、テスト新規105行の2ファイルのみ）
+- [x] chrome-devtools MCPで実機検証（ズームアウトの範囲拡大、「全体」ボタンの配置・動作を確認）
+- [x] `docs/requests_log.md` R-090の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
