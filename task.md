@@ -970,3 +970,62 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 - [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
 - [x] 本番実機検証: ズームアウトでscale=0.05到達を確認。「全体」ボタンの視覚的な収まり確認はブラウザ表示ジオメトリ取得不可の環境都合で未実施（コードレベルではfitView呼び出しを確認済み）
+
+---
+
+## R-091 依存関係順ソートを全ビューへ展開（2026-08-13）
+
+**ブランチ**: `feature/R-091-dependency-sort-all-views`
+**要望**: `docs/requests_log.md` R-091
+**仕様**: `docs/SPEC/02_機能仕様.md` F-37
+**対象**: `JWCADTategu.Web/src/features/core/youkan/logic/hierarchy.ts`（共通ロジック）・`useOverviewItems.ts`（全体一覧）・`BucketColumn.tsx`（状況把握）・グリッドビュー・タイムラインビューの各実装
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- R-076で実装した依存関係考慮ソート（`hierarchy.ts`の`sortWithDependencies`、非export）は既に汎用ロジック。共通関数`buildHierarchicalList()`内部（`showGroups=false`時のみ）で`compareGanttListItems`を使って呼ばれている
+- `buildHierarchicalList()`はガント（`RyokanGanttView.tsx`）・全体一覧（`useOverviewItems.ts`）・状況把握（`BucketColumn.tsx`、showGroups=true時のみ）で共用されているが、`dependencies`引数の扱いが画面ごとに異なる:
+  - 全体一覧: `useOverviewItems.ts`45行目で`dependencies: []`固定（R-048のコメントに「OverviewBoardでは依存関係を考慮しない、起動時APIコスト削減のため」と明記あり）
+  - 状況把握: showGroups=trueのときのみ`buildHierarchicalList`使用、`dependencies`未指定（デフォルト非考慮）。showGroups=falseのときは別関数`sortItemsHierarchically`（依存関係非対応）を使用
+  - グリッドビュー・タイムラインビューの実装状況は未調査。実装Agentが調査すること
+- **重要な設計判断**: 全体一覧で依存関係を反映するには`/dependencies`の追加取得が必要になり、R-048で意図的に避けた起動時APIコストが増える可能性がある。影響が大きい場合（例: 常時ポーリング等の重い処理が必要になる）は実装前に指揮AIへ確認すること。単純に画面表示時に1回取得する程度であれば問題ないと判断してよい
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-091-dependency-sort-all-views master` をworktree内で実行）
+- [ ] グリッドビュー・タイムラインビューの現在の並び順ロジックを調査し、依存関係を考慮しているか確認する
+- [ ] 各画面（全体一覧・状況把握・グリッド・タイムライン）で`dependencies`を取得し`buildHierarchicalList`（または各画面のソートロジック）に正しく渡すよう対応する。グリッド・タイムラインが`buildHierarchicalList`を使っていない場合は、それぞれの並び替えロジックに`sortWithDependencies`相当の処理を適用する（`sortWithDependencies`を`export`して共通利用可能にする）
+- [ ] 失敗するテストを先に書く: 各画面で依存関係のあるタスクが順序通りに並ぶことを検証するテスト → Red確認
+- [ ] 実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係のあるタスクを作成し、全体一覧・状況把握・グリッド・タイムラインそれぞれで前後の序列が保たれることを確認）
+- [ ] `docs/requests_log.md` R-091の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-092 全体一覧の右クリックメニュー統一＋挿入時の依存関係自動構築（2026-08-13）
+
+**ブランチ**: `feature/R-092-overview-context-menu`
+**要望**: `docs/requests_log.md` R-092
+**仕様**: `docs/SPEC/02_機能仕様.md` F-38
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/OverviewBoard/OverviewBoard.tsx`・`OverviewItem.tsx`
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 全体一覧（`OverviewBoard.tsx`）は現状、ガントの`buildItemContextMenuActions`（完了/プロジェクト化/いつかやる/アーカイブ/削除/前に挿入/後に挿入等の多機能メニュー、R-078でショートカット対応済み）とは全くの別実装で、`useItemContextMenu.ts`という「削除（Delete）のみ」の簡易フックを使っている（`OverviewBoard.tsx`7〜8行目でimport、64行目で使用）
+- 要望を満たすには`OverviewBoard.tsx`の右クリックメニューを`buildItemContextMenuActions`ベース（`ContextMenu.tsx`共通コンポーネント）に置き換える必要がある
+- **注意**: 別のAgent（R-091担当）も`useOverviewItems.ts`（全体一覧の別ファイル）を並行して編集している可能性がある。あなたの変更は`OverviewBoard.tsx`・`OverviewItem.tsx`のコンテキストメニュー関連のスコープに留めること
+
+### 要件
+- 全体一覧のアイテム右クリックメニューを、ガントと同じ`buildItemContextMenuActions`ベースのメニュー（`ContextMenu.tsx`）に置き換える。項目は完了/プロジェクト化/いつかやる/アーカイブ/削除/前に挿入/後に挿入の全て
+- 前に挿入・後に挿入は、ガント（`RyokanGanttView.tsx`の`submitInlineInsert`）と同様のインライン入力方式で実装する（連続入力UXの高度化は本件のスコープ外、単発の挿入でよい）
+- 挿入時はR-084相当の依存関係自動構築（既存の依存関係を新規アイテム経由に繋ぎ変える）も行う
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-092-overview-context-menu master` をworktree内で実行）
+- [ ] `buildItemContextMenuActions.tsx`・`ContextMenu.tsx`・`RyokanGanttView.tsx`の`submitInlineInsert`実装を確認する
+- [ ] 失敗するテストを先に書く: 全体一覧でアイテム右クリック→ガントと同じメニュー項目が表示されること、前後挿入でインライン入力・依存関係自動構築が行われることを検証するテスト → Red確認
+- [ ] `OverviewBoard.tsx`の右クリックメニューを`useItemContextMenu`から`buildItemContextMenuActions`ベースへ置き換え、挿入時の依存関係自動構築ロジックを実装
+- [ ] Green確認・既存テスト回帰なし確認（既存の`useItemContextMenu`のDeleteキー機能等、既存動作を壊さないこと）
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧でメニュー表示・各項目動作・前後挿入・依存関係構築を確認）
+- [ ] `docs/requests_log.md` R-092の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
