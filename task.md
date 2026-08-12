@@ -641,15 +641,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **対象**: R-066で追加された「前に挿入」「後に挿入」の右クリックメニュー項目（ガント左列アイテム、対応するフロー画面の同等メニューがあれば両方）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-078-insert-menu-shortcuts master` をworktree内で実行）
-- [ ] R-066で追加された右クリックメニューの実装箇所を特定する（ガント・フロー両方）
-- [ ] 失敗するテストを先に書く: メニュー表示中に`a`キー押下で「前に挿入」、`b`キー押下で「後に挿入」が実行されることを検証するテスト → Red確認
-- [ ] キーボードショートカットを実装（メニュー項目のラベル横に`(a)`/`(b)`等の表示も追加すると発注者の意図に沿う）
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（右クリックメニュー表示→aキー/bキーでメニュー実行されることを確認）
-- [ ] `docs/requests_log.md` R-078の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-078-insert-menu-shortcuts master` をworktree内で実行）
+- [x] R-066で追加された右クリックメニューの実装箇所を特定する（ガント・フロー両方）
+- [x] 失敗するテストを先に書く: メニュー表示中に`a`キー押下で「前に挿入」、`b`キー押下で「後に挿入」が実行されることを検証するテスト → Red確認
+- [x] キーボードショートカットを実装（メニュー項目のラベル横に`(a)`/`(b)`等の表示も追加すると発注者の意図に沿う）
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（右クリックメニュー表示→aキー/bキーでメニュー実行されることを確認）
+- [x] `docs/requests_log.md` R-078の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: ガントでアイテムを右クリック→メニューに「前に挿入 (a)」「後に挿入 (b)」表示→a/bキーで実行されることを確認
 
 ---
 
@@ -663,15 +665,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **注意**: R-078 Agentも同じ`RyokanGanttView.tsx`を触る可能性がある。マージ時にコンフリクトが起きたら両方の変更を残すこと（指揮AI側でも最終確認する）
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-081-gantt-unscheduled-highlight master` をworktree内で実行）
-- [ ] `RyokanGanttView.tsx`でタスクがカレンダー上に配置されているかどうかの既存の判定方法を確認する（`prep_date`/`due_date`が両方未設定のアイテムが「未配置」に相当するか、既存の類似ロジック・表現がないか調査してから決める）
-- [ ] 失敗するテストを先に書く: 未配置タスクの行に強調用クラス（背景色）が付与されること、配置済みタスクには付与されないことを検証するテスト → Red確認
-- [ ] 実装: タスク名列に軽い背景色強調（既存デザインを壊さない程度、例: `bg-amber-50`等の薄い色）を追加
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（未配置タスクの行が視覚的に区別できることを確認）
-- [ ] `docs/requests_log.md` R-081の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b feature/R-081-gantt-unscheduled-highlight master` をworktree内で実行）
+- [x] `RyokanGanttView.tsx`でタスクがカレンダー上に配置されているかどうかの既存の判定方法を確認する（`prep_date`/`due_date`が両方未設定のアイテムが「未配置」に相当するか、既存の類似ロジック・表現がないか調査してから決める）
+- [x] 失敗するテストを先に書く: 未配置タスクの行に強調用クラス（背景色）が付与されること、配置済みタスクには付与されないことを検証するテスト → Red確認
+- [x] 実装: タスク名列に軽い背景色強調（既存デザインを壊さない程度、例: `bg-amber-50`等の薄い色）を追加
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（未配置タスクの行が視覚的に区別できることを確認）
+- [x] `docs/requests_log.md` R-081の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: ガント一覧で日付未配置タスク行の背景に`bg-amber-50`が付与されていることをDOM直接確認
 
 ---
 
@@ -706,6 +710,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] `docs/SPEC/02_機能仕様.md` F-27のステータス更新・F-24にR-080修正の注記追加
 - [x] master最新化（`git fetch && git merge origin/master`でR-078/R-081/R-082を取り込み、コンフリクトなし）
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: フロー画面でノードタイトル編集中のテキストボックス内ドラッグでノードが動かずテキスト選択されること（R-079）、Enterで新規ノード作成時タイトル「新規アイテム」が全選択状態になること（R-080）を確認
 
 ---
 
@@ -722,13 +728,15 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - モバイル版（`MobileBottomSheet`、1008〜1080行目）は変更不要
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b feature/R-082-detail-menu-expand master` をworktree内で実行）
-- [ ] 失敗するテストを先に書く: PC表示時、「完了」「プロジェクトに変換」ボタンがFooter Action Barに独立ボタンとして表示され、クリックで即座に実行されること／その他メニュー（ポップオーバー）内には残り3項目（いつかやる/アーカイブ/ゴミ箱）のみが残ることを検証するテスト → Red確認
-- [ ] 実装: 「完了」「プロジェクトに変換（/解除）」ボタンをその他ボタンの隣に独立ボタンとして追加し、既存のonClickロジックを流用。ポップオーバー内の該当2項目は削除
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（PC幅で完了・プロジェクト化ボタンが独立表示され直接押せること、モバイル幅では従来通りその他メニュー経由のままであることを確認）
-- [ ] `docs/requests_log.md` R-082の対応状況を更新
+- [x] worktree作成（`git fetch && git checkout -b feature/R-082-detail-menu-expand master` をworktree内で実行）
+- [x] 失敗するテストを先に書く: PC表示時、「完了」「プロジェクトに変換」ボタンがFooter Action Barに独立ボタンとして表示され、クリックで即座に実行されること／その他メニュー（ポップオーバー）内には残り3項目（いつかやる/アーカイブ/ゴミ箱）のみが残ることを検証するテスト → Red確認
+- [x] 実装: 「完了」「プロジェクトに変換（/解除）」ボタンをその他ボタンの隣に独立ボタンとして追加し、既存のonClickロジックを流用。ポップオーバー内の該当2項目は削除
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（PC幅で完了・プロジェクト化ボタンが独立表示され直接押せること、モバイル幅では従来通りその他メニュー経由のままであることを確認）
+- [x] `docs/requests_log.md` R-082の対応状況を更新
+- [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-12）
+- [x] 本番chrome-devtools MCP検証: 詳細画面PC幅で「その他...」の右に「プロジェクトに変換」「完了」の独立ボタンが表示されることを確認
 - [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 
 ---
@@ -784,3 +792,69 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認。要望原文の例A→B→C、Bの後にDを挿入→A→B、B→D、D→Cを実機操作＋API応答の両方で確認）
 - [x] `docs/requests_log.md` R-084の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-083バグ修正: フローチャートのネストルート直接アクセス時にfaviconが404になる（2026-08-12）
+
+**ブランチ**: `fix/R-083-favicon-nested-route`
+**発見経緯**: R-083本番デプロイ後の実機検証中にデプロイAgentが発見
+**症状**: `index.html`の`<link rel="icon" href="favicon.svg">`が相対パスのため、`https://door-fujita.com/contents/Youkan/flows/{id}`のようなネストしたルートへ直接アクセス・リロードすると、ブラウザが現在のURLパス基準（`/contents/Youkan/flows/favicon.svg`）でfaviconを解決しようとし404（SPAフォールバックでindex.htmlが返りcontent-type text/html）になる。ルート直下（`/contents/Youkan/`）では問題ない
+**背景**: 当初`%BASE_URL%favicon.svg`を使おうとしたが、Vite devサーバー限定でbase接頭辞が二重付与される不具合があり、それを避けるため単純な相対パスに変更した経緯がある（`docs/requests_log.md` R-083参照）。今回は本番のSPAネストルート直接アクセス時に別の問題が発生している
+
+### サブタスク
+- [x] worktree作成（`git fetch && git checkout -b fix/R-083-favicon-nested-route master` をworktree内で実行）
+- [x] `index.html`の`<link rel="icon">`をこのプロジェクト固定のAppID絶対パス`/contents/Youkan/favicon.svg`に変更する（`docs/development_env.md`でAppID固定と確認済みのため、`import.meta.env.BASE_URL`等の動的解決は不要、直書きでシンプルに解決する）
+- [x] devサーバーとビルド後の両方で、ルート直下・ネストルート（`/contents/Youkan/flows/xxx`相当のURLを直接開く）双方でfaviconが200・image/svg+xmlで解決されることを確認
+- [x] 既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（dev環境で、ネストしたURLへ直接アクセス・リロードしてfaviconが読み込めることを確認）
+- [x] `docs/requests_log.md` R-083の対応状況にこのバグ修正を追記
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-085 フロー目安時間更新エラー「Database Error during update」の原因調査・修正（2026-08-12）
+
+**ブランチ**: `fix/R-085-estimated-minutes-update-error`
+**要望**: `docs/requests_log.md` R-085
+**仕様**: `docs/SPEC/02_機能仕様.md` F-32
+**優先度**: 高（実際にエラーが発生しているバグ報告）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- バックエンド: `backend/BaseController.php`の汎用update処理（277行目付近）がPDOExceptionを捕捉し500 "Database Error during update"を返している（323行目）。実際のSQLエラー詳細は`error_log()`（322行目 `[BaseController] Update Error on $table ($id): ...`）にのみ出力され、レスポンスには含まれない
+- フロントエンド: `PUT /items/{id}`は`FlowScreen.tsx`の`handleEstimatedMinutesChange`（214行目）から発行される
+- 発注者自身の仮説（要望原文）: ノード選択状態でのEnter（`onChainCreate`経由の新規ノード作成）とタイトル入力状態でのTab（目安時間欄への移動、R-074実装）が競合しているのではないか。「ノード選択状態とタイトル入力状態でTabの機能を切り替えたほうが良い」という提案も添えられている
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-085-estimated-minutes-update-error master` をworktree内で実行）
+- [ ] 本番またはdevのPHPエラーログ（`error_log`の出力先。本番はSSH経由、devはローカルのPHPビルトインサーバーの標準出力/ログファイル）を確認し、実際のSQLエラー内容を特定する（SQLite `database is locked`等の可能性が高いと推測されるが決めつけないこと）
+- [ ] 決めつけず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）で症状を再現する。発注者の仮説（Tab/Enterの競合）を軸に、新規ノード作成フロー（タイトル入力→Tab→目安時間入力→Enter）を実施し、目安時間更新PUTと新規ノード作成（POST /items等）が同時多発していないか、ネットワークタブで確認する
+- [ ] 原因が判明したら、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認
+- [ ] エラーメッセージ改善: 原因が完全には解消しきれない場合でも、`ApiClient`側で500エラー時のトースト文言を「通信エラーが発生しました。しばらくしてから再度お試しください」等、原因不明でもユーザーに分かりやすい文言に改善する
+- [ ] 発注者の提案（ノード選択状態とタイトル入力状態でTabの機能を切り替える）を採用するかどうかは、実機調査の結果次第で判断してよい（Tab/Enter競合が真因なら有力な解決策、別原因ならスコープ外にする）
+- [ ] 既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] 実機検証: 新規ノード作成→タイトル→Tab→目安時間→Enterのチェーン作成フローを複数回連続実施し、エラーが発生しないことを確認
+- [ ] `docs/requests_log.md` R-085の対応状況を更新
+- [ ] 指揮AIへ完了報告（原因究明の詳細を含める。masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-086 フローチャートでエッジ選択時の視覚的フィードバック強化（2026-08-12）
+
+**ブランチ**: `feature/R-086-edge-selection-glow`
+**要望**: `docs/requests_log.md` R-086
+**仕様**: `docs/SPEC/02_機能仕様.md` F-33
+**対象**: `FlowScreen.tsx`のedge選択状態・`dependencyToEdge()`（`@xyflow/react`のedge style）
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-086-edge-selection-glow master` をworktree内で実行）
+- [ ] `@xyflow/react`のedge選択状態（`selected`プロパティ、`onEdgeClick`等）の既存実装を確認する
+- [ ] 失敗するテストを先に書く: エッジ選択時に発光表現用のstyle/className が付与されることを検証するテスト → Red確認
+- [ ] 実装: 選択中のedgeに`filter: drop-shadow(...)`等のグロー効果を付与するstyleを追加（xyflowの`selected`状態を利用）
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（エッジをクリックして選択→発光表現を確認、別要素クリックで解除されることを確認）
+- [ ] `docs/requests_log.md` R-086の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
