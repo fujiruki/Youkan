@@ -93,7 +93,10 @@ if (Test-Path $backendDir) {
     # [FIX] Exclude database / log / .env から本番のデータ・秘密鍵を保護
     # [R-071] data（改善要望送信フォームの蓄積データ: requests_sub.md / requests_sub_uploads/）も除外し、
     #         デプロイのたびに本番の蓄積データが上書き消失しないようにする
-    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.log", ".env", "data"
+    # [R-085] *.sqlite-wal / *.sqlite-shm（WALモード導入で生成される補助ファイル）も除外。
+    #         含めてしまうと、ローカルのdev用WALファイルが本番の未チェックポイントの
+    #         コミットを不正な内容で上書きしてしまう恐れがある
+    Copy-Item -Path $backendDir -Destination $deployTmp -Recurse -Exclude "*.sqlite", "*.sqlite-wal", "*.sqlite-shm", "*.log", ".env", "data"
     Write-Host "   ✓ Backend files copied" -ForegroundColor Green
 }
 else {
