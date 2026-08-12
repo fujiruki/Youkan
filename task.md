@@ -827,17 +827,17 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - 発注者自身の仮説（要望原文）: ノード選択状態でのEnter（`onChainCreate`経由の新規ノード作成）とタイトル入力状態でのTab（目安時間欄への移動、R-074実装）が競合しているのではないか。「ノード選択状態とタイトル入力状態でTabの機能を切り替えたほうが良い」という提案も添えられている
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-085-estimated-minutes-update-error master` をworktree内で実行）
-- [ ] 本番またはdevのPHPエラーログ（`error_log`の出力先。本番はSSH経由、devはローカルのPHPビルトインサーバーの標準出力/ログファイル）を確認し、実際のSQLエラー内容を特定する（SQLite `database is locked`等の可能性が高いと推測されるが決めつけないこと）
-- [ ] 決めつけず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）で症状を再現する。発注者の仮説（Tab/Enterの競合）を軸に、新規ノード作成フロー（タイトル入力→Tab→目安時間入力→Enter）を実施し、目安時間更新PUTと新規ノード作成（POST /items等）が同時多発していないか、ネットワークタブで確認する
-- [ ] 原因が判明したら、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認
-- [ ] エラーメッセージ改善: 原因が完全には解消しきれない場合でも、`ApiClient`側で500エラー時のトースト文言を「通信エラーが発生しました。しばらくしてから再度お試しください」等、原因不明でもユーザーに分かりやすい文言に改善する
-- [ ] 発注者の提案（ノード選択状態とタイトル入力状態でTabの機能を切り替える）を採用するかどうかは、実機調査の結果次第で判断してよい（Tab/Enter競合が真因なら有力な解決策、別原因ならスコープ外にする）
-- [ ] 既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] 実機検証: 新規ノード作成→タイトル→Tab→目安時間→Enterのチェーン作成フローを複数回連続実施し、エラーが発生しないことを確認
-- [ ] `docs/requests_log.md` R-085の対応状況を更新
-- [ ] 指揮AIへ完了報告（原因究明の詳細を含める。masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-085-estimated-minutes-update-error master` をworktree内で実行）
+- [x] 本番またはdevのPHPエラーログ（`error_log`の出力先。本番はSSH経由、devはローカルのPHPビルトインサーバーの標準出力/ログファイル）を確認し、実際のSQLエラー内容を特定する（SQLite `database is locked`等の可能性が高いと推測されるが決めつけないこと）→ 本番`php_errors.log`から報告時刻と一致する`SQLSTATE[HY000]: General error: 5 database is locked`を確認（PDO->commit()自体が失敗元。同種エラーが数ヶ月にわたり繰り返し発生していたことも判明）
+- [x] 決めつけず実機（chrome-devtools MCPまたはclaude-in-chrome MCP、dev環境）で症状を再現する。発注者の仮説（Tab/Enterの競合）を軸に、新規ノード作成フロー（タイトル入力→Tab→目安時間入力→Enter）を実施し、目安時間更新PUTと新規ノード作成（POST /items等）が同時多発していないか、ネットワークタブで確認する → `shouldIgnoreKeyEvent`によりTab/Enterの二重ノード作成は発生しないことをコード調査で確認。代わりに`FlowItemNode.tsx`のEnterハンドラが`onEstimatedMinutesChange`と`onChainCreate`をawaitなしで同時発火していることを特定。さらに`backend/tests/test_completed_at.php`がローカルで100%決定的に同エラーを再現することを発見し、真因（SQLite rollback journalモードでの未消費SELECTによるCOMMITブロック）を突き止めた
+- [x] 原因が判明したら、失敗するテストを先に書く → Red確認 → 修正実装 → Green確認（新規4件: `test_sqlite_wal_mode.php`, `test_update_entity_transaction_rollback.php`, `FlowItemNode.chainCreateSequencing.test.tsx`, `client.friendlyServerError.test.ts`）
+- [x] エラーメッセージ改善: 原因が完全には解消しきれない場合でも、`ApiClient`側で500エラー時のトースト文言を「通信エラーが発生しました。しばらくしてから再度お試しください」等、原因不明でもユーザーに分かりやすい文言に改善する
+- [x] 発注者の提案（ノード選択状態とタイトル入力状態でTabの機能を切り替える）を採用するかどうかは、実機調査の結果次第で判断してよい（Tab/Enter競合が真因なら有力な解決策、別原因ならスコープ外にする）→ 真因はTab/Enter競合ではなかったため不採用
+- [x] 既存テスト回帰なし確認（vitest 794 passed/1件既存無関係事象・14 skip、PHPテスト全件green）
+- [x] `git diff --stat master..HEAD` で変更範囲確認（ブランチ作成後にmasterが進んだため`git diff --stat`（working tree）で確認: 5ファイル+57/-16行、新規テスト4ファイル396行）
+- [x] 実機検証: 新規ノード作成→タイトル→Tab→目安時間→Enterのチェーン作成フローを複数回連続実施し、エラーが発生しないことを確認（3回連続実施、全リクエスト200、コンソールエラーなし）
+- [x] `docs/requests_log.md` R-085の対応状況を更新
+- [x] 指揮AIへ完了報告（原因究明の詳細を含める。masterへのマージは指揮AIのレビュー後）
 
 ---
 

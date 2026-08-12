@@ -107,13 +107,20 @@ export class ApiClient {
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
 				// バックエンド（BaseController::sendError）は { error: message } 形式で返す
-				const errorMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
+				const rawMessage = errorData.error || errorData.message || `API Error: ${response.status}`;
+				// [R-085] 500番台はDB接続エラー等の技術的な生メッセージがそのまま
+				// トーストに出てしまうため、原因を問わず利用者向けの文言に差し替える。
+				// 開発者向けの詳細（rawMessage）はこの下のログには引き続き残す。
+				const errorMessage = response.status >= 500
+					? '通信エラーが発生しました。しばらくしてから再度お試しください。'
+					: rawMessage;
 
 				this.log(`ERROR ${method} ${path} (${duration}ms)`, {
 					status: response.status,
 					url: `${API_BASE}${path}`,
 					requestBody: body,
-					error: errorData
+					error: errorData,
+					rawMessage
 				}, true);
 
 				const apiError = new Error(errorMessage) as Error & { status?: number };

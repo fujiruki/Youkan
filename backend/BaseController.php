@@ -320,6 +320,12 @@ class BaseController {
             return ['success' => true, 'count' => $stmt->rowCount()];
         } catch (PDOException $e) {
             error_log("[BaseController] Update Error on $table ($id): " . $e->getMessage());
+            // [R-085] sendError()はexitするため、呼び出し元(例: ItemController::update()の
+            // beginTransaction～catchブロック)のrollBack()には制御が戻らない。
+            // トランザクションを開いたまま終了しないよう、ここで確実にロールバックする
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             $this->sendError(500, 'Database Error during update');
         }
     }

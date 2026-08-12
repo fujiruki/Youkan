@@ -38,7 +38,18 @@ function getDB() {
     try {
         $pdo = new PDO('sqlite:' . $dbPath);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
+
+        // [R-085] デフォルトのrollback journalモードでは、あるコネクションの
+        // 未消費SELECT(読み取りカーソルを閉じずに放置)が共有ロックを保持したままになり、
+        // 別コネクションのCOMMIT(EXCLUSIVEロックへの昇格)を "database is locked" で
+        // 阻害する。本番PHPエラーログで確認された繰り返しのロックエラー、および
+        // ローカルでの100%決定的な再現(test_completed_at.php)の直接原因。
+        // WALモードは読み取りが書き込みを、書き込みが読み取りをブロックしない設計のため、
+        // この種の競合を構造的に解消する。ファイル単位の永続設定だが、接続毎に
+        // 設定を確認するコストは軽微なため、ここで都度保証する
+        $pdo->exec('PRAGMA journal_mode = WAL');
+        $pdo->exec('PRAGMA busy_timeout = 5000');
+
         if ($isNew) {
             initDB($pdo);
         } else {

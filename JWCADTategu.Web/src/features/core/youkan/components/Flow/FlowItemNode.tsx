@@ -11,7 +11,7 @@ export interface FlowItemNodeData {
   isHighlighted?: boolean;
   onTitleChange?: (itemId: string, newTitle: string) => void;
   onEditComplete?: (itemId: string) => void;
-  onEstimatedMinutesChange?: (itemId: string, minutes: number) => void;
+  onEstimatedMinutesChange?: (itemId: string, minutes: number) => void | Promise<void>;
   onStartEditing?: (itemId: string) => void;
   onContextMenu?: (e: React.MouseEvent, itemId: string) => void;
   onChainCreate?: (itemId: string) => void;
@@ -78,10 +78,19 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
     setIsTimeEditing(true);
   }, [item.estimatedMinutes]);
 
-  const handleTimeEditConfirm = useCallback(() => {
+  // R-085: 保存が完了するまで待ち合わせられるようPromiseを返す。
+  // 呼び出し元(Enterのチェーン作成)がawaitせず並行実行すると、目安時間の
+  // PUT /items/{id}とチェーン作成のPOST /itemsがほぼ同時にSQLiteへ書き込みを
+  // 試み、"database is locked" エラーの原因になっていた(本番PHPエラーログで確認済み)
+  const handleTimeEditConfirm = useCallback(async () => {
     const minutes = parseTimeInput(timeInputValue);
     if (minutes !== null && minutes !== item.estimatedMinutes) {
-      nodeData.onEstimatedMinutesChange?.(item.id, minutes);
+      try {
+        await nodeData.onEstimatedMinutesChange?.(item.id, minutes);
+      } catch {
+        // 呼び出し元(FlowScreen)で既にエラー表示・ログ済み。
+        // ここで止めるとチェーン作成(次ノード追加)まで巻き添えになるため握りつぶす
+      }
     }
     setIsTimeEditing(false);
   }, [timeInputValue, item.estimatedMinutes, item.id, nodeData]);
@@ -167,11 +176,12 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
                 e.stopPropagation();
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handleTimeEditConfirm();
-                  if (chainOnConfirm) {
-                    setChainOnConfirm(false);
-                    nodeData.onChainCreate?.(item.id);
-                  }
+                  const shouldChain = chainOnConfirm;
+                  if (shouldChain) setChainOnConfirm(false);
+                  // R-085: 目安時間の保存が完了してからチェーン作成する(同時書き込み防止)
+                  void handleTimeEditConfirm().then(() => {
+                    if (shouldChain) nodeData.onChainCreate?.(item.id);
+                  });
                 }
                 else if (e.key === 'Escape') { handleTimeEditCancel(); setChainOnConfirm(false); }
               }}

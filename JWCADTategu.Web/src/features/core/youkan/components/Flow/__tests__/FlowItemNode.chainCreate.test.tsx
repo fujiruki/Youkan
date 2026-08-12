@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowItemNode, type FlowItemNodeData } from '../FlowItemNode';
 import type { Item } from '../../../types';
@@ -70,7 +70,7 @@ describe('FlowItemNode: Enter連続追加UXフロー（R-074）', () => {
         expect(document.activeElement).toBe(timeInput);
     });
 
-    it('Tab経由で開いた目安時間欄にEnterを押すと、目安時間が保存されonChainCreateが呼ばれる', () => {
+    it('Tab経由で開いた目安時間欄にEnterを押すと、目安時間が保存されonChainCreateが呼ばれる', async () => {
         const nodeData = renderNode();
         const titleInput = screen.getByDisplayValue('既存タイトル') as HTMLInputElement;
         fireEvent.keyDown(titleInput, { key: 'Tab' });
@@ -80,10 +80,15 @@ describe('FlowItemNode: Enter連続追加UXフロー（R-074）', () => {
         fireEvent.keyDown(timeInput, { key: 'Enter' });
 
         expect(nodeData.onEstimatedMinutesChange).toHaveBeenCalledWith('item-1', 30);
-        expect(nodeData.onChainCreate).toHaveBeenCalledWith('item-1');
+        // R-085: onChainCreateは目安時間の保存(Promise)完了を待ってから呼ばれる
+        // (同時に呼ぶとPUT /items/{id}とPOST /itemsの並行書き込みでSQLiteが
+        //  "database is locked" になっていたため)
+        await waitFor(() => {
+            expect(nodeData.onChainCreate).toHaveBeenCalledWith('item-1');
+        });
     });
 
-    it('通常の目安時間クリック編集（Tab経由でない）ではEnterを押してもonChainCreateは呼ばれない', () => {
+    it('通常の目安時間クリック編集（Tab経由でない）ではEnterを押してもonChainCreateは呼ばれない', async () => {
         const nodeData = renderNode({ isNewNode: false, isEditing: false });
         const timeBadge = screen.getByText('--');
         fireEvent.click(timeBadge);
@@ -92,7 +97,9 @@ describe('FlowItemNode: Enter連続追加UXフロー（R-074）', () => {
         fireEvent.change(timeInput, { target: { value: '45m' } });
         fireEvent.keyDown(timeInput, { key: 'Enter' });
 
-        expect(nodeData.onEstimatedMinutesChange).toHaveBeenCalledWith('item-1', 45);
+        await waitFor(() => {
+            expect(nodeData.onEstimatedMinutesChange).toHaveBeenCalledWith('item-1', 45);
+        });
         expect(nodeData.onChainCreate).not.toHaveBeenCalled();
     });
 });
