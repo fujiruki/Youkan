@@ -1088,40 +1088,6 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 										className="absolute right-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-900 shadow-2xl rounded-xl border border-slate-200 dark:border-slate-800 p-2 z-50 overflow-hidden origin-bottom-right"
 									>
 										<div className="text-[10px] font-bold text-slate-400 px-2 py-1 mb-1 uppercase">場所・状態の変更</div>
-										{!isProject ? (
-											<button
-												onClick={async () => {
-													setIsProject(true);
-													setIsMenuOpen(false);
-													if (onUpdate) await onUpdate(item.id, { isProject: true });
-												}}
-												className="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded flex items-center gap-2"
-											>
-												<Folder size={14} /> プロジェクトに変換
-											</button>
-										) : (
-											<button
-												onClick={async () => {
-													setIsProject(false);
-													setIsMenuOpen(false);
-													if (onUpdate) await onUpdate(item.id, { isProject: false });
-												}}
-												className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded flex items-center gap-2"
-											>
-												<Folder size={14} /> プロジェクト解除
-											</button>
-										)}
-										<button
-											onClick={async () => {
-												if (onUpdate) await onUpdate(item.id, { status: 'done' });
-												else await ApiClient.updateItem(item.id, { status: 'done' });
-												setIsMenuOpen(false);
-												handleClose();
-											}}
-											className="w-full text-left px-3 py-2 text-xs font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded flex items-center gap-2"
-										>
-											<CheckCircle2 size={14} /> 完了 (Complete)
-										</button>
 										<button
 											onClick={async () => {
 												if (onUpdate) await onUpdate(item.id, { status: 'someday' as any });
@@ -1156,6 +1122,49 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							</AnimatePresence>
 						)}
 					</div>
+
+					{/* R-082: PC幅では「完了」「プロジェクトに変換」をその他ボタンの右に独立ボタンとして表示 */}
+					{!isMobile && (
+						<>
+							{!isProject ? (
+								<button
+									data-testid="footer-project-toggle-btn"
+									onClick={async () => {
+										setIsProject(true);
+										if (onUpdate) await onUpdate(item.id, { isProject: true });
+									}}
+									className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-all text-xs font-bold bg-white border-slate-200 hover:bg-blue-50 text-blue-600 dark:text-blue-400 hover:border-blue-300"
+								>
+									<Folder size={14} />
+									<span>プロジェクトに変換</span>
+								</button>
+							) : (
+								<button
+									data-testid="footer-project-toggle-btn"
+									onClick={async () => {
+										setIsProject(false);
+										if (onUpdate) await onUpdate(item.id, { isProject: false });
+									}}
+									className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-all text-xs font-bold bg-white border-slate-200 hover:bg-slate-50 text-slate-600 dark:text-slate-300 hover:border-slate-300"
+								>
+									<Folder size={14} />
+									<span>プロジェクト解除</span>
+								</button>
+							)}
+							<button
+								data-testid="footer-complete-btn"
+								onClick={async () => {
+									if (onUpdate) await onUpdate(item.id, { status: 'done' });
+									else await ApiClient.updateItem(item.id, { status: 'done' });
+									handleClose();
+								}}
+								className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-all text-xs font-bold bg-white border-slate-200 hover:bg-green-50 text-green-600 dark:text-green-400 hover:border-green-300"
+							>
+								<CheckCircle2 size={14} />
+								<span>完了</span>
+							</button>
+						</>
+					)}
 
 					{/* Someday Button */}
 					<button

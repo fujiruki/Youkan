@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { DecisionDetailModal } from './DecisionDetailModal';
 import { createMockItem } from '../../../../../test/testUtils';
@@ -170,5 +170,71 @@ describe('DecisionDetailModal — R-073 納期フィールドのブラー時 due
                 expect.objectContaining({ due_date: '2026-08-15', dueStatus: 'confirmed' })
             );
         });
+    });
+});
+
+describe('DecisionDetailModal — R-082 PC幅で「完了」「プロジェクトに変換」をその他メニューから独立ボタン化', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('PC表示時、「完了」ボタンがFooter Action Barに独立表示され、クリックで即座に完了処理される', async () => {
+        const onUpdate = vi.fn().mockResolvedValue(undefined);
+        const { item } = renderModal({ title: 'テストアイテム', status: 'inbox' }, onUpdate);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('decision-detail-title-input')).toBeInTheDocument();
+        });
+
+        const completeBtn = screen.getByTestId('footer-complete-btn');
+        fireEvent.click(completeBtn);
+
+        await waitFor(() => {
+            expect(onUpdate).toHaveBeenCalledWith(
+                item.id,
+                expect.objectContaining({ status: 'done' })
+            );
+        });
+    });
+
+    it('PC表示時、「プロジェクトに変換」ボタンがFooter Action Barに独立表示され、クリックで即座に変換処理される', async () => {
+        const onUpdate = vi.fn().mockResolvedValue(undefined);
+        const { item } = renderModal({ title: 'テストアイテム', isProject: false }, onUpdate);
+
+        await waitFor(() => {
+            expect(screen.getByTestId('decision-detail-title-input')).toBeInTheDocument();
+        });
+
+        const projectBtn = screen.getByTestId('footer-project-toggle-btn');
+        fireEvent.click(projectBtn);
+
+        await waitFor(() => {
+            expect(onUpdate).toHaveBeenCalledWith(
+                item.id,
+                expect.objectContaining({ isProject: true })
+            );
+        });
+    });
+
+    it('PC表示時、その他メニュー（ポップオーバー）内には「いつかやる」「アーカイブ」「ゴミ箱」のみが残り、「完了」「プロジェクトに変換」は含まれない', async () => {
+        renderModal({ title: 'テストアイテム' });
+
+        await waitFor(() => {
+            expect(screen.getByTestId('decision-detail-title-input')).toBeInTheDocument();
+        });
+
+        const menuBtn = screen.getByText('その他...');
+        fireEvent.click(menuBtn);
+
+        await waitFor(() => {
+            expect(screen.getByText('場所・状態の変更')).toBeInTheDocument();
+        });
+
+        const popover = screen.getByText('場所・状態の変更').closest('div')!.parentElement as HTMLElement;
+        expect(within(popover).getByText(/いつかやる/)).toBeInTheDocument();
+        expect(within(popover).getByText('アーカイブ')).toBeInTheDocument();
+        expect(within(popover).getByText('ゴミ箱')).toBeInTheDocument();
+        expect(within(popover).queryByText(/完了 \(Complete\)/)).not.toBeInTheDocument();
+        expect(within(popover).queryByText(/プロジェクトに変換/)).not.toBeInTheDocument();
     });
 });
