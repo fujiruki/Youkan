@@ -150,6 +150,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const [inlineInsert, setInlineInsert] = useState<{ itemId: string; position: 'before' | 'after'; title: string } | null>(null);
 	const inlineInsertRef = useRef<HTMLInputElement>(null);
 	const inlineInsertSubmittingRef = useRef(false);
+	// R-094-A: 前後挿入でタイトル確定した直後、作成されたアイテムがitems propへ反映
+	// (=onReloadItems完了・再レンダー)されるのを待ってから、続けて目安時間欄の編集へ
+	// 移行するために使う一時状態(R-074のchainOnConfirmと概念的に同一)
+	const [chainInsert, setChainInsert] = useState<{ itemId: string; position: 'before' | 'after' } | null>(null);
 
 	// scrollRefが渡された場合はそちらを優先する実効ref
 	const effectiveScrollRef = scrollRef || scrollContainerRef;
@@ -182,18 +186,30 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		originalDate: Date;
 	} | null>(null);
 
+	// R-094-A: チェーン作成でinlineInsertとeditingTimeItemIdが同時に更新されうるため、
+	// 1つのeffectにまとめてフォーカス優先順位を明示する(目安時間欄を優先し、
+	// 目安時間欄の編集が終わったら次のインライン行へフォーカスを譲る)
 	useEffect(() => {
 		if (editingTimeItemId && timeInputRef.current) {
 			timeInputRef.current.focus();
 			timeInputRef.current.select();
+			return;
 		}
-	}, [editingTimeItemId]);
-
-	useEffect(() => {
 		if (inlineInsert && inlineInsertRef.current) {
 			inlineInsertRef.current.focus();
 		}
-	}, [inlineInsert]);
+	}, [editingTimeItemId, inlineInsert]);
+
+	// R-094-A: チェーン作成で作られたアイテムがitems propへ反映され次第、
+	// 目安時間欄の編集状態へ移行し、同時に続きの挿入位置へ空のインライン行を出す
+	useEffect(() => {
+		if (!chainInsert) return;
+		if (!items.some(i => i.id === chainInsert.itemId)) return;
+		setTimeInputValue('');
+		setEditingTimeItemId(chainInsert.itemId);
+		setInlineInsert({ itemId: chainInsert.itemId, position: chainInsert.position, title: '' });
+		setChainInsert(null);
+	}, [chainInsert, items]);
 
 	const handleTimeEditConfirm = useCallback(async (itemId: string) => {
 		const minutes = parseTimeInput(timeInputValue);
@@ -475,13 +491,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				const nextOrder = [...orderedItemIds];
 				nextOrder.splice(insertIndex, 0, newItemId);
 				await ApiClient.reorderItems(nextOrder.map((id, index) => ({ id, order: index + 1 }))).catch(() => undefined);
+
+				// R-094-A: 連続インライン入力チェーンへ移行(items反映後に目安時間欄へフォーカス)
+				setChainInsert({ itemId: newItemId, position: inlineInsert.position });
 			}
 			await onReloadItems?.();
 		} catch (error) {
 			console.error('Inline insert failed', error);
 		} finally {
 			inlineInsertSubmittingRef.current = false;
-			setInlineInsert(null);
+			// R-094-A: このsubmit中にチェーン作成エフェクトが既に次の行へ差し替え済みの場合、
+			// ここでnullに戻すと(finallyの実行タイミングがエフェクト後にずれ込んだ際)
+			// 出現直後の次のインライン行を消してしまう。自分が開始した行のままなら閉じ、
+			// 既に差し替わっていれば触らない(参照の一致で判定)
+			setInlineInsert(prev => (prev === inlineInsert ? null : prev));
 		}
 	}, [inlineInsert, items, dependencies, focusedProjectId, focusedTenantId, onCreateItem, onReloadItems, transformedItems]);
 
