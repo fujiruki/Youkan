@@ -855,17 +855,31 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   }, [onOpenItem]);
 
   // A-6: 空白エリアダブルクリックで新規タスク作成
+  // R-088: 選択ノードがある状態でのダブルクリックは、クリック位置と選択ノードのY座標を
+  // 比較して依存関係を自動設定する（クリック位置が選択ノードより上なら新規ノードが前提、
+  // 下なら選択ノードが前提）。依存関係作成は他の4経路（onConnect/createNodeBelow/
+  // handleEdgeInsert/ドラッグ重なり自動接続）と同じ appendDependencyToState() を経由させ、
+  // edgeを即座に反映させる（別実装するとedge非表示バグを再現するため必須）。
   const handlePaneDoubleClick = useCallback(
     async (event: React.MouseEvent) => {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      const selectedNodeId = selectedNodeIds[0];
+      const selectedItem = selectedNodeId ? allItems.find((i) => i.id === selectedNodeId) : undefined;
       try {
-        await createNewItem(position.x, position.y);
+        const newItemId = await createNewItem(position.x, position.y);
+        if (newItemId && selectedItem) {
+          const selectedY = (selectedItem.meta?.flow_y as number) || 0;
+          const [sourceId, targetId] =
+            position.y < selectedY ? [newItemId, selectedItem.id] : [selectedItem.id, newItemId];
+          const dep = await dependencyRepo.createDependency(sourceId, targetId);
+          appendDependencyToState(dep);
+        }
       } catch (err) {
         console.error('[FlowScreen] ダブルクリック新規タスク作成失敗:', err);
         showToast({ type: 'error', title: '作成失敗', message: String(err), duration: 5000 });
       }
     },
-    [screenToFlowPosition, createNewItem, showToast]
+    [screenToFlowPosition, createNewItem, showToast, selectedNodeIds, allItems, appendDependencyToState]
   );
 
   // A-6: +ボタンで新規タスク作成
