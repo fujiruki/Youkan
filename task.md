@@ -752,3 +752,35 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] chrome-devtools MCP・claude-in-chrome MCPで実機検証（favicon 200応答・image/svg+xml確認、PC/スマホ両方のヘッダーロゴ表示確認、コンソールエラーなし）
 - [x] `docs/requests_log.md` R-083の対応状況を更新（`docs/SPEC/02_機能仕様.md` F-30も実装完了に更新）
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+
+---
+
+## R-084 ガント「前に挿入」「後に挿入」で依存関係も自動的に繋ぎ直す（2026-08-12）
+
+**ブランチ**: `feature/R-084-insert-dependency-relink`
+**要望**: `docs/requests_log.md` R-084
+**仕様**: `docs/SPEC/02_機能仕様.md` F-31
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/Calendar/RyokanGanttView.tsx`の`submitInlineInsert()`（214行目`startInlineInsert`、420行目`submitInlineInsert`付近）
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- 現状`submitInlineInsert()`は新規アイテム作成後、`ApiClient.reorderItems()`で表示順（order）を並べ替えるだけで、依存関係（Dependency）の作成・繋ぎ変えは一切行っていない
+- 依存関係の作成・取得は`DependencyRepository`（`JWCADTategu.Web/src/features/core/youkan/repositories/DependencyRepository.ts`）を使う。R-077対応で409（重複）は冪等に処理される安全な実装になっている
+
+### 要件（指揮AI方針、要望原文の例に基づく）
+- 例: 依存関係 A→B, B→C が既にある状態で、Bを対象に「後に挿入」でDを作成 → 期待結果は A→B, B→D, D→C（B→Cが繋ぎ変わる）
+- **「前に挿入」**（sourceItemの前に新規アイテムを挿入）: sourceItemへの依存（target=sourceの全依存、X→source型）を新規アイテムへの依存に繋ぎ変える（X→new）。そのうえで new→source を新規作成
+- **「後に挿入」**（sourceItemの後に新規アイテムを挿入）: sourceItemからの依存（source=sourceの全依存、source→Y型）を新規アイテムからの依存に繋ぎ変える（new→Y）。そのうえで source→new を新規作成
+- sourceItemが分岐を持つ場合（複数のX→sourceやsource→Y）も、対象方向の依存を漏れなく新規アイテム経由に繋ぎ変える（特定の1本だけを選ぶような複雑な分岐判定はしない、シンプルな全繋ぎ変えでよい）
+- 依存関係の「繋ぎ変え」は、既存依存の削除＋新規依存の作成で実現する（`DependencyRepository`に削除APIがあるか確認、なければバックエンドの`DELETE /dependencies/{id}`相当を確認）
+- 依存関係が元々ない場合（sourceItemに前後の依存がない）は、単純に新規アイテムとsourceItemの間に1本の依存（前挿入ならnew→source、後挿入ならsource→new）を作成するだけでよい
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b feature/R-084-insert-dependency-relink master` をworktree内で実行）
+- [ ] `DependencyRepository`の既存メソッド（作成・取得・削除）を確認し、上記要件を満たす繋ぎ変えロジックの実装方針を固める
+- [ ] 失敗するテストを先に書く: 要望原文の例（A→B→C、Bの後にDを挿入→A→B、B→D、D→Cになること）を含む複数ケース（前挿入・後挿入・依存なしの場合・分岐がある場合）→ Red確認
+- [ ] `submitInlineInsert()`に依存関係の繋ぎ変えロジックを実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（依存関係を持つタスクチェーンで前挿入・後挿入を実施し、ガント上の接続線が期待通り繋ぎ変わることを確認）
+- [ ] `docs/requests_log.md` R-084の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
