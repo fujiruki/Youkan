@@ -28,11 +28,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		const token = AuthService.getInstance().getToken();
 		console.log('[AuthProvider] checkAuth started. Token exists:', !!token);
 
-		if (!token) {
-			setIsAuthenticated(false);
-			setIsLoading(false);
-			return;
-		}
+		// [R-096] トークンが無くても /auth/me は問い合わせる。
+		// auth-hub の df_session は HttpOnly Cookie でJSから存在を確認できないため、
+		// 「ログイン済みかどうか」はサーバーに聞くしかない。
 
 		// --- DEBUG BYPASS (Dev Only) ---
 		if (import.meta.env.DEV && token === 'mock-debug-token') {

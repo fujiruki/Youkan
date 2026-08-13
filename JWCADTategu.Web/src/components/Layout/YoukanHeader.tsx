@@ -13,6 +13,7 @@ import { calculatePerspective } from '../../features/core/youkan/logic/perspecti
 import { FilterMode } from '../../features/core/youkan/types';
 import { isCompanyContext as checkCompanyContext } from '../../features/core/youkan/logic/filterUtils';
 import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../features/core/session/youkanKeys';
+import { AuthService } from '../../features/core/auth/services/AuthService';
 import { useFilter } from '../../features/core/youkan/contexts/FilterContext';
 import { useViewMode } from '../../features/core/youkan/contexts/ViewModeContext';
 import { ForAiButton } from '../../features/core/youkan/components/ForAi/ForAiButton';
@@ -190,9 +191,9 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 				onNavigateToCompanySettings={() => { if (onNavigateToCompanySettings) onNavigateToCompanySettings(); setMenuOpen(false); }}
 				onNavigateToPersonalSettings={() => { if (onNavigateToPersonalSettings) onNavigateToPersonalSettings(); setMenuOpen(false); }}
 				onNavigateToAssigneeView={onNavigateToAssigneeView ? () => { onNavigateToAssigneeView(); setMenuOpen(false); } : undefined}
-				onLogout={() => {
-					localStorage.removeItem(YOUKAN_KEYS.TOKEN);
+				onLogout={async () => {
 					localStorage.removeItem(YOUKAN_KEYS.USER);
+					await AuthService.getInstance().logout();
 					window.location.href = './';
 				}}
 				userName={user?.name || getLegacyUserName()}

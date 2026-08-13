@@ -9,10 +9,11 @@ export const useLoginViewModel = () => {
 	const [error, setError] = useState<string | null>(null);
 	const { logout: authLogout } = useAuth();
 
-	const logout = () => {
+	const logout = async () => {
 		authLogout();
 		localStorage.removeItem(YOUKAN_KEYS.USER);
 		localStorage.removeItem(YOUKAN_KEYS.TENANT);
+		await AuthService.getInstance().logout();
 		window.location.href = './login';
 	};
 

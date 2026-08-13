@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLoginViewModel } from '../hooks/useLoginViewModel';
-import { Building2, User } from 'lucide-react';
+import { Building2, User, KeyRound } from 'lucide-react';
+import { AuthService } from '../services/AuthService';
 
 type AccountTab = 'user' | 'tenant';
 
@@ -106,6 +107,26 @@ export const LoginScreen: React.FC = () => {
                             {isLoading ? '処理中...' : (activeTab === 'tenant' ? '会社でログイン' : 'ログイン')}
                         </button>
                     </form>
+
+                    {activeTab === 'user' && (
+                        <div className="mt-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                                <span className="text-xs text-slate-400">または</span>
+                                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                            </div>
+                            <a
+                                href={AuthService.getInstance().authHubLoginUrl()}
+                                className="w-full py-3 flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 rounded-lg font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <KeyRound size={16} />
+                                <span>社内共通ログイン（Google対応）</span>
+                            </a>
+                            <p className="mt-2 text-center text-xs text-slate-400">
+                                一度ログインすれば他の社内システムにもそのまま入れます
+                            </p>
+                        </div>
+                    )}
 
                     <div className="mt-6 text-center">
                         <button

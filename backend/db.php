@@ -32,7 +32,8 @@ function getAuthenticatedUserId(): ?string {
 }
 
 function getDB() {
-    $dbPath = __DIR__ . '/jbwos.sqlite';
+    // テストが実DBを破壊しないよう、環境変数で接続先を差し替えられるようにする
+    $dbPath = getenv('YOUKAN_DB_PATH') ?: __DIR__ . '/jbwos.sqlite';
     $isNew = !file_exists($dbPath);
     
     try {
@@ -109,6 +110,15 @@ function getDB() {
         }
         if (!in_array('active_task_id', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN active_task_id TEXT DEFAULT NULL");
+        }
+        // [R-096] auth-hub 連携。auth_user_id で auth-hub の users.id（連番）と対応づけ、
+        // active_tenant_id で共有セッション時のテナント切替結果を保持する
+        if (!in_array('auth_user_id', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN auth_user_id INTEGER DEFAULT NULL");
+            $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth_user_id ON users(auth_user_id) WHERE auth_user_id IS NOT NULL");
+        }
+        if (!in_array('active_tenant_id', $userCols)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN active_tenant_id TEXT DEFAULT NULL");
         }
         if (!in_array('daily_overrides', $userCols)) {
             $pdo->exec("ALTER TABLE users ADD COLUMN daily_overrides TEXT DEFAULT NULL"); // JSON for calendar-specific capacity overrides

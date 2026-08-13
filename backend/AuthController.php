@@ -439,6 +439,15 @@ class AuthController extends BaseController {
             $newRole = 'user';
         }
 
+        // [R-096] 共有セッション（df_session）ではトークンにテナントを載せられないため、
+        // 切替結果をサーバー側に永続化する。フロントは token 不在なら /auth/me を取り直す
+        if ($this->isSharedSession) {
+            $this->pdo->prepare("UPDATE users SET active_tenant_id = ? WHERE id = ?")
+                ->execute([$newTenantId, $this->currentUserId]);
+            echo json_encode(['tenant_id' => $newTenantId, 'role' => $newRole]);
+            return;
+        }
+
         // Fetch fresh user data to include latest display_name in new token
         $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative FROM users WHERE id = ?");
         $stmt->execute([$this->currentUserId]);

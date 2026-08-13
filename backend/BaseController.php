@@ -2,6 +2,7 @@
 // backend/BaseController.php
 require_once 'db.php';
 require_once 'JWTService.php';
+require_once 'auth_client.php';
 
 class BaseController {
     protected $pdo;
@@ -9,12 +10,20 @@ class BaseController {
     protected $currentTenantId;
     protected $currentUserId; // Added for convenience
     protected $joinedTenants = []; // [Fix] PHP 8.2 Dynamic Property Deprecation
+    protected $isSharedSession = false; // R-096: auth-hub の df_session 由来か
 
     public function __construct() {
         $this->pdo = getDB();
     }
 
     protected function authenticate() {
+        // [R-096] auth-hub の共有セッションを先に試す。
+        // これは既存JWT認証の「置き換え」ではなく「追加」であり、
+        // Cookieが無い/無効/Youkanのユーザーに未紐付けの場合は下のJWT経路へ素通しする。
+        if ($this->authenticateBySharedSession()) {
+            return;
+        }
+
         $token = JWTService::getBearerToken();
         
         // [Debug/Repair] Also check query param if header fails (useful for debugging/some environments)
@@ -81,6 +90,64 @@ class BaseController {
             // This matches the logic in ProjectController and ItemController
             $this->currentTenantId = '';
         }
+    }
+
+    /**
+     * [R-096] auth-hub の df_session による認証（docs/SPEC/04_データ設計.md §5.2）
+     *
+     * auth-hub が持つのは「誰であるか」だけで、テナント文脈は Youkan 側に残る。
+     * auth-hub の users.id は連番、Youkan の users.id は `u_` プレフィックスの文字列で
+     * 体系が異なるため、両者は users.auth_user_id で対応づける。
+     * 既存データ（items.assigned_to 等が参照する `u_` ID）は一切変更しない。
+     *
+     * @return bool 認証できたら true。false のとき呼び出し元は従来のJWT認証を続ける
+     */
+    protected function authenticateBySharedSession(): bool {
+        if (empty($_COOKIE['df_session'])) {
+            return false;
+        }
+
+        auth_configure([
+            'driver' => 'shared',
+            'base' => getenv('AUTH_HUB_BASE') ?: 'https://door-fujita.com/contents/auth',
+        ]);
+
+        $hubUser = currentUser();
+        if (!$hubUser) {
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare("SELECT id, display_name, email, is_representative, active_tenant_id FROM users WHERE auth_user_id = ?");
+        $stmt->execute([$hubUser['id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) {
+            // auth-hub にはいるが Youkan 側へ未紐付け。従来のJWTログインに委ねる
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare("SELECT tenant_id, role FROM memberships WHERE user_id = ?");
+        $stmt->execute([$user['id']]);
+        $roleByTenant = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        // JWTと違いトークンにテナントを載せられないため、切替結果は users.active_tenant_id に永続化する。
+        // 所属から外れたテナントが残っていた場合は個人モード（空文字）へ落とす
+        $activeTenantId = $user['active_tenant_id'];
+        $this->currentTenantId = isset($roleByTenant[$activeTenantId]) ? $activeTenantId : '';
+
+        $this->isSharedSession = true;
+        $this->currentUserId = $user['id'];
+        $this->joinedTenants = array_keys($roleByTenant);
+        $this->currentUser = [
+            'sub' => $user['id'],
+            'name' => $user['display_name'] ?: explode('@', (string)$user['email'])[0],
+            'email' => $user['email'],
+            'account_type' => 'user',
+            'tenant_id' => $this->currentTenantId ?: null,
+            'role' => $roleByTenant[$this->currentTenantId] ?? 'user',
+            'is_representative' => (bool)$user['is_representative'],
+        ];
+
+        return true;
     }
 
     protected function sendJSON($data) {

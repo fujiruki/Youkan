@@ -58,6 +58,11 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api/, ''),
             },
+            // [R-096] auth-hub。本番では同一オリジンに同居するため、開発でも同一オリジンに見せる
+            '/contents/auth': {
+                target: 'http://127.0.0.1:8009',
+                changeOrigin: true,
+            },
         },
     },
     base: '/contents/Youkan/', // 本番環境の絶対パス
