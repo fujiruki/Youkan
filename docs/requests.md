@@ -1,5 +1,10 @@
 # Requests
 
+- **【低】** 技術的負債: `DashboardScreen.tsx`内の到達不能な`viewMode==='calendar'`パスの削除・整理
+  - 2026-08-14 R-097実装時にAgentが発見。`App.tsx`のルーティングでは`currentView==='calendar'`は`features/core/calendar/screens/VolumeCalendarScreen.tsx`（`// [NEW]`コメントあり）へ遷移し、`DashboardScreen.tsx`内部の`viewMode==='calendar'`という別の切替ロジックへ至るUI導線は存在しない
+  - 実害はない（単に使われないコードが残っているだけ）が、将来このパスに手を加えてしまう混乱を避けるため、いずれ削除・整理する価値がある
+  - 優先度低: バグではなく技術的負債の解消（R-093と同種）
+
 - **【最優先】R-050案** テナント型AI中枢・担当者割り振り・業務ディスパッチ機能
   - **2026-07-09 kaigi2会議で意思決定済み。Phase1（画面2: 担当者別ビュー）は仕様確定・着手中のため `docs/requests_log.md` に移記した。**
   - 会議結論の全文: `docs/kaigi/2026-07-09-R050テナント型AI中枢設計.md`
