@@ -233,6 +233,31 @@ describe('R-092: OverviewBoard 右クリックメニュー（ガント同等）'
 		expect(mockDeleteDependency).not.toHaveBeenCalled();
 	});
 
+	it('R-095: メニュー内の全ボタンにonClickとラベルがある（separatorがボタン化しない）', () => {
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+
+		const menuButtons = screen.getAllByRole('button');
+		expect(menuButtons.length).toBeGreaterThan(0);
+		menuButtons.forEach((button) => {
+			expect(button.textContent?.trim()).not.toBe('');
+		});
+	});
+
+	it('R-095: 旧separator位置に隣接する項目（今日やる/アーカイブ）をクリックしても例外が発生しない', () => {
+		const updateItem = vi.fn();
+		const archiveItem = vi.fn();
+		render(<OverviewBoard viewModel={createMockViewModel({ updateItem, archiveItem })} onOpenItem={vi.fn()} />);
+
+		rightClickItem('item-1');
+		expect(() => fireEvent.click(screen.getByText('今日やる (Focus)'))).not.toThrow();
+		expect(updateItem).toHaveBeenCalledWith('item-1', { status: 'focus' });
+
+		rightClickItem('item-1');
+		expect(() => fireEvent.click(screen.getByText('アーカイブ'))).not.toThrow();
+		expect(archiveItem).toHaveBeenCalledWith('item-1');
+	});
+
 	it('要望原文の例: A→B→C の状態でBの後にDを挿入すると A→B, B→D, D→C になる（R-084相当）', async () => {
 		mockItems = [
 			makeHeaderWrapper('proj-1'),
