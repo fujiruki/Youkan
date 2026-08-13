@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Printer } from 'lucide-react';
 import { useOverviewItems } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
 import { InlineAddRow } from './InlineAddRow';
@@ -201,7 +202,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	return (
 		<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
-			<div className="flex-none relative z-20">
+			<div className="no-print flex-none relative z-20 flex items-center gap-2">
 				<ViewControls
 					fontSize={fontSize}
 					columnCount={columnCount}
@@ -212,6 +213,16 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					showSomeday={showSomeday}
 					onChangeShowSomeday={setShowSomeday}
 				/>
+				{/* R-098: 印刷ボタン */}
+				<button
+					type="button"
+					onClick={() => window.print()}
+					title="印刷"
+					className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all active:scale-95"
+				>
+					<Printer className="w-3.5 h-3.5" />
+					<span>印刷</span>
+				</button>
 			</div>
 
 			<div

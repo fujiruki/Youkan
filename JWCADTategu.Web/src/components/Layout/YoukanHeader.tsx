@@ -175,7 +175,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	const isCalendar = currentView === 'calendar' || currentView === 'planning';
 
 	return (
-		<div className="flex flex-col shrink-0 w-full relative select-none">
+		<div className="no-print flex flex-col shrink-0 w-full relative select-none">
 			<MenuDrawer
 				isOpen={menuOpen}
 				onClose={() => setMenuOpen(false)}

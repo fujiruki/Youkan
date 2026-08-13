@@ -74,6 +74,8 @@ interface GanttViewProps {
 	onItemClick?: (item: Item) => void;
 	safeConfig: any;
 	rowHeight: number;
+	/** R-097: 日付列幅（px）。未指定時は既存動作維持のため 24px */
+	colWidth?: number;
 	projects: any[];
 	onJumpToDate?: (date: Date) => void;
 	onUpdateItem?: (id: string, updates: Partial<Item>) => Promise<void> | void;
@@ -112,7 +114,7 @@ interface GanttViewProps {
 const GANTT_EXTERNAL_EVENTS_MAX = 2;
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
-	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight: _rowHeight, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
+	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight = 28, colWidth = 24, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
 	onUpdateItem, onCreateItem, onReloadItems, onDeleteItem,
 	capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId,
 	showGroups, onVisibleMonthChange, focusDate, scrollRef, onDateClick,
@@ -157,8 +159,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 	// scrollRefが渡された場合はそちらを優先する実効ref
 	const effectiveScrollRef = scrollRef || scrollContainerRef;
-
-	const colWidth = 24; // w-6 = 1.5rem = 24px
 
 	// 依存関係データの取得
 	useEffect(() => {
@@ -581,7 +581,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		return (
 			<div
 				key={`inline-insert-${position}-${sourceItem.id}`}
-				className="gantt-row-cv flex h-7 border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30"
+				style={{ height: rowHeight }}
+				className="gantt-row-cv flex border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30"
 			>
 				<div className="sticky left-0 z-20 w-64 shrink-0 bg-indigo-50 dark:bg-indigo-950 border-r border-indigo-200 dark:border-indigo-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
 					<input
@@ -610,7 +611,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				</div>
 				<div className="flex">
 					{allDays.map(date => (
-						<div key={`inline-${position}-${sourceItem.id}-${date.toDateString()}`} className="w-6 flex-shrink-0 border-r border-indigo-100/70 dark:border-indigo-900/50" />
+						<div key={`inline-${position}-${sourceItem.id}-${date.toDateString()}`} style={{ width: colWidth }} className="flex-shrink-0 border-r border-indigo-100/70 dark:border-indigo-900/50" />
 					))}
 				</div>
 			</div>
@@ -650,8 +651,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 								<div
 									key={i}
 									data-gantt-date={normalizeDateKey(day)}
+									style={{ width: colWidth }}
 									className={cn(
-										`relative flex-none w-6 flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
+										`relative flex-none flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
 										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : '',
 										isToday && 'border-l border-r border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/20'
 									)}
@@ -855,8 +857,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 								<div
 									key={`bg-${date.getTime()}`}
 									data-gantt-date={normalizeDateKey(date)}
+									style={{ width: colWidth }}
 									className={cn(
-										"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50",
+										"flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50",
 										isToday
 											? "bg-amber-50/40 dark:bg-amber-900/20"
 											: isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : "",
@@ -873,7 +876,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 						transformedItems={transformedItems}
 						allDays={allDays}
 						colWidth={colWidth}
-						rowHeight={28}
+						rowHeight={rowHeight}
 						stickyColWidth={256}
 					/>
 
@@ -907,8 +910,11 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									key={item.id}
 									data-item-id={item.id}
 									/* R-046-Y1: gantt-row-cv = content-visibility: auto + contain-intrinsic-size: auto 28px。
-									   ビューポート外行のペイント・レイアウトをスキップし、ガント切替時の描画コストを下げる。 */
-									className="gantt-row-cv flex h-7 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
+									   ビューポート外行のペイント・レイアウトをスキップし、ガント切替時の描画コストを下げる。
+									   R-097: contain-intrinsic-size は既定28px前提のヒントのまま残し、実サイズは style.height で可変にする
+									   （行高さ変更時に多少のレイアウトずれが出うるが、auto指定のため描画後は実サイズに追従する）。 */
+									style={{ height: rowHeight }}
+									className="gantt-row-cv flex border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
 									onMouseEnter={() => setHoveredItemId(item.id)}
 									onMouseLeave={() => setHoveredItemId(null)}
 								>
@@ -1009,8 +1015,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 												<div
 													key={date.toDateString()}
 													data-gantt-date={normalizeDateKey(date)}
+													style={{ width: colWidth }}
 													className={cn(
-														"w-6 flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
+														"flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
 														isTodayCell
 															? "bg-amber-50/40 dark:bg-amber-900/20"
 															: isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : "",

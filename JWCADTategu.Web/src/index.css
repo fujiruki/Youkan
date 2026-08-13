@@ -61,3 +61,12 @@ textarea::placeholder {
         contain-intrinsic-size: auto 28px;
     }
 }
+
+/* R-098: ガント画面・全体一覧画面のコンテンツ印刷。
+   ヘッダー・サイドメニュー・操作ボタン等の UI クロームには .no-print を付与し、
+   印刷時（window.print()）は @media print で非表示にする。 */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
