@@ -1030,12 +1030,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 														}
 													}}
 												>
-													{/* Real Allocation Chip (Blue) */}
+													{/* Real Allocation Chip (Blue / R-100: 完了時はグレー) */}
 													{step && (
 														<div
 															className={cn(
 																"absolute w-4 h-4 rounded-sm flex items-center justify-center text-[8px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",
-																"bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
+																done ? "bg-slate-400 hover:bg-slate-500 dark:bg-slate-600" : "bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"
 															)}
 															title={`割当: ${step.allocatedMinutes} 分 / Cap: ${step.capacityMinutes} 分\n残: ${step.capacityMinutes - step.allocatedMinutes} 分`}
 															onContextMenu={(e) => handleItemContextMenu(e, item.id)}
@@ -1044,7 +1044,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 														</div>
 													)}
 
-													{/* My Deadline Handle (Draggable) */}
+													{/* My Deadline Handle (Draggable) / R-100: 完了時はグレー */}
 													{isPrep && (
 														<div
 															onMouseDown={(e) => {
@@ -1061,8 +1061,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 															style={getBarStyle(item, 'prep', {})}
 															className={cn(
 																"absolute top-0.5 bottom-0.5 right-0 w-1.5 rounded-full z-20 cursor-grab active:cursor-grabbing",
-																"bg-indigo-400 border border-white dark:border-slate-900 shadow-md",
-																"hover:w-3 hover:bg-indigo-500 transition-all",
+																done
+																	? "bg-slate-400 border border-white dark:border-slate-900 shadow-md hover:w-3 hover:bg-slate-500 transition-all"
+																	: "bg-indigo-400 border border-white dark:border-slate-900 shadow-md hover:w-3 hover:bg-indigo-500 transition-all",
 																onUpdateItem ? "" : "hidden"
 															)}
 															title={`目安納期: ${format(prepDateObj!, 'M/d')} (ドラッグして移動)`}
@@ -1180,8 +1181,11 @@ const GanttDependencyArrows: React.FC<{
 			const x2 = stickyColWidth + targetDayIdx * colWidth;
 			const y2 = targetRow * rowHeight + rowHeight / 2;
 
-			return { key: dep.id, x1, y1, x2, y2 };
-		}).filter(Boolean) as { key: string; x1: number; y1: number; x2: number; y2: number }[];
+			// R-100: source/targetいずれかが完了済みなら矢印をグレー化（片方だけ完了のケースも含める）
+			const isDimmed = isItemDone(sourceItem) || isItemDone(targetItem);
+
+			return { key: dep.id, x1, y1, x2, y2, isDimmed };
+		}).filter(Boolean) as { key: string; x1: number; y1: number; x2: number; y2: number; isDimmed: boolean }[];
 	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth]);
 
 	if (arrows.length === 0) return null;
@@ -1207,8 +1211,19 @@ const GanttDependencyArrows: React.FC<{
 				>
 					<polygon points="0 0, 8 3, 0 6" fill="#6366f1" />
 				</marker>
+				{/* R-100: 完了アイテムに接続する矢印用のグレー矢印マーカー */}
+				<marker
+					id="gantt-dep-arrowhead-done"
+					markerWidth="8"
+					markerHeight="6"
+					refX="8"
+					refY="3"
+					orient="auto"
+				>
+					<polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+				</marker>
 			</defs>
-			{arrows.map(({ key, x1, y1, x2, y2 }) => {
+			{arrows.map(({ key, x1, y1, x2, y2, isDimmed }) => {
 				const path = `M ${x1} ${y1} C ${x1 + 20} ${y1}, ${x2 - 20} ${y2}, ${x2} ${y2}`;
 
 				return (
@@ -1218,11 +1233,11 @@ const GanttDependencyArrows: React.FC<{
 							? `M ${x1} ${y1} L ${x2} ${y2}`
 							: path
 						}
-						stroke="#6366f1"
+						stroke={isDimmed ? '#94a3b8' : '#6366f1'}
 						strokeWidth="1.5"
 						fill="none"
 						opacity="0.75"
-						markerEnd="url(#gantt-dep-arrowhead)"
+						markerEnd={isDimmed ? 'url(#gantt-dep-arrowhead-done)' : 'url(#gantt-dep-arrowhead)'}
 					/>
 				);
 			})}
