@@ -1159,3 +1159,56 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
 - [x] master マージ・`upload.ps1`で本番デプロイ（2026-08-13）
 - [x] 本番実機検証: 右クリックメニュー全11項目を複数アイテムで順にクリックし例外なしを確認（今日やる・アーカイブ重点確認含む）
+
+---
+
+## R-097 ガント マンスリー/ウィークリー表示モード＋列幅・行高さ独立記憶スライダー / R-098 コンテンツ印刷ボタン（2026-08-14）
+
+**ブランチ**: `feature/R-097-098-gantt-scale-and-print`
+**要望**: `docs/requests_log.md` R-097, R-098
+**仕様**: `docs/SPEC/03_画面設計.md` §5.3
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `CalendarHeader.tsx`（141〜153行目）に既存の行高さ（密度）スライダーあり。`min=12 max=32`、`localStorage`キー`youkan_gantt_row_height`（`YOUKAN_KEYS.GANTT_ROW_HEIGHT`）で永続化。`DashboardScreen.tsx`（117〜124行目）で`useState`初期値をlocalStorageから読み、変更時に書き戻すパターン
+- `RyokanGanttView.tsx`（161行目）で`const colWidth = 24;`とハードコードされており、スライダー化されていない。`colWidth`は複数箇所（ドラッグ判定、スクロール位置計算、依存関係矢印描画の`GanttDependencyLines`コンポーネント等）で参照されている
+- `youkanKeys.ts`に`YOUKAN_KEYS`定数があり、新規localStorageキーはここに追加する（命名規則: `youkan_` prefix）
+- ガントビューは「プロジェクト別/一覧」の表示モードは既にあるが、「マンスリー/ウィークリー」という表示スケールモードは今回新設するもの
+
+### 実装Agentによる訂正（2026-08-14、実機検証で発覚・指揮AI確認済み）
+
+事前調査は`DashboardScreen.tsx`内部の`viewMode==='calendar'`をガント画面の実体と想定していたが、実際にヘッダー「カレンダー→ガント」から到達するのは`App.tsx`の`currentView==='calendar'`が指す**`VolumeCalendarScreen.tsx`**（`features/core/calendar/screens/`）であり、`DashboardScreen.tsx`側の`viewMode==='calendar'`分岐はUI導線が存在しない到達不能パスだった。指揮AI確認の上、状態配線の対象を`DashboardScreen.tsx`から`VolumeCalendarScreen.tsx`へ変更。以下のチェックリストは実際の実装対象（`VolumeCalendarScreen.tsx`）に基づき完了扱いとする。
+
+### R-097 サブタスク
+
+- [x] worktree作成（`git fetch && git checkout -b feature/R-097-098-gantt-scale-and-print master` をworktree内で実行）
+- [x] `youkanKeys.ts`に新規localStorageキー追加: `GANTT_SCALE_MODE`（`'monthly' | 'weekly'`）、`GANTT_COL_WIDTH_MONTHLY`、`GANTT_ROW_HEIGHT_MONTHLY`、`GANTT_COL_WIDTH_WEEKLY`、`GANTT_ROW_HEIGHT_WEEKLY`
+- [x] 失敗するテストを先に書く（`CalendarHeader.test.tsx`）: マンスリー/ウィークリー切替トグルの表示・クリックでモード変更コールバックが呼ばれること、モードに関わらず列幅・行高さ両スライダーが表示されること → Red確認
+- [x] `CalendarHeader.tsx`にマンスリー/ウィークリー切替トグル（既存の「プロジェクト別/一覧」トグルと同じUIパターン）を追加
+- [x] `CalendarHeader.tsx`に列幅（日付列幅）スライダーを追加（min=16/max=80）。既存の行高さスライダーと横並びに常時表示（`isGantt`条件は既存のまま維持）
+- [x] `RyokanGanttView.tsx`のハードコード`colWidth = 24`をpropとして受け取れるように変更（呼び出し元`RyokanCalendar.tsx`経由で配線）。従来無視されていた`rowHeight`propも実際に使用するよう修正（h-7固定→動的style、`GanttDependencyArrows`への`rowHeight=28`ハードコードも実propに変更）
+- [x] **`VolumeCalendarScreen.tsx`**（当初想定の`DashboardScreen.tsx`から変更）にモード・列幅・行高さのローカルstate管理を追加。モード切替時は切替先モードの記憶値（`localStorage`）を`colWidth`/`rowHeight`のstateへ復元。スライダー操作時は現在選択中のモードに対応するキーへ書き込む
+- [x] 既存の単一値`youkan_gantt_row_height`キーはPanoramaボード側で引き続き使用中のため統合・廃止せず、Gantt専用の新4キーと併存させる方針に変更（指揮AI確認済み、副次的判明事項として下記に記録）
+- [x] マンスリー初期値は既存動作を完全維持（列幅24px・行高さ28px相当）することをテストで確認
+- [x] Green確認・既存テスト回帰なし確認
+
+### R-098 サブタスク
+
+- [x] 失敗するテストを先に書く: ガント画面・全体一覧画面に印刷ボタンが表示され、クリックで`window.print`が呼ばれることを検証するテスト → Red確認
+- [x] `index.css`に`@media print`ルールを追加: ヘッダー・サイドメニュー・操作ボタン等のUIクロームに`no-print`クラスを付与し非表示化（`YoukanHeader.tsx`・`CalendarHeader.tsx`・`OverviewBoard.tsx`ツールバー・`SideMemoWidget.tsx`・`SpeechFloatingButton.tsx`）。本体コンテンツのみ印刷対象にする
+- [x] `CalendarHeader.tsx`に「印刷」ボタンを追加（`onClick={() => window.print()}`、`isGantt`ゲート）
+- [x] `OverviewBoard.tsx`のツールバー付近に同様の「印刷」ボタンを追加
+- [x] Green確認・既存テスト回帰なし確認
+
+### 仕上げ（共通）
+
+- [x] `git diff --stat master..HEAD`で変更範囲確認（sqlite/log/tsbuildinfo混入なし。15ファイル+469/-21行）
+- [x] claude-in-chrome MCPで実機検証（dev環境。chrome-devtools MCPはセッション途中で切断されたため代替使用）:
+  - ヘッダー→カレンダー→ガント（`VolumeCalendarScreen.tsx`実体）で実際にウィークリー表示に切替→列幅24→68・密度28→14に調整→マンスリーに戻す（24/28に復帰）→再度ウィークリーに戻す（68/14が復元）→ページ全体リロード後も68/14が維持されることを確認
+  - ガント画面・全体一覧画面それぞれで印刷ボタン→`window.print()`発火を確認。`.no-print`疑似適用のスクリーンショットでヘッダー・ツールバー・フローティングウィジェットが非表示、コンテンツ本体のみ表示されることを確認
+- [x] `docs/requests_log.md` R-097・R-098の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+### 副次的判明事項（技術的負債、スコープ外）
+
+- 密度スライダーは従来`DashboardScreen.tsx`の`ganttRowHeight`という単一stateを介して実質Panoramaボードの行高さにのみ効いており、Gantt側（VolumeCalendarScreen）は死んだ配線だった。今回Gantt専用の別stateに繋ぎ替えたことでPanoramaボードの行高さはUIから調整する手段がなくなったが、指揮AI確認の上「各ビューが専用の行高さを持つ方が正しい設計」として復旧UI追加は不要と判断（YAGNI）
+- `DashboardScreen.tsx`内の到達不能な`viewMode==='calendar'`パス自体の削除は今回スコープ外。別途技術的負債として`docs/requests.md`への起票を検討

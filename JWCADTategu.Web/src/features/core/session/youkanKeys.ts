@@ -26,6 +26,13 @@ export const YOUKAN_KEYS = {
 	GANTT_ROW_HEIGHT: 'youkan_gantt_row_height',
 	GANTT_SHOW_GROUPS: 'youkan_gantt_show_groups',
 
+	// === ガント スケール表示モード（R-097） ===
+	GANTT_SCALE_MODE: 'youkan_gantt_scale_mode',
+	GANTT_COL_WIDTH_MONTHLY: 'youkan_gantt_col_width_monthly',
+	GANTT_ROW_HEIGHT_MONTHLY: 'youkan_gantt_row_height_monthly',
+	GANTT_COL_WIDTH_WEEKLY: 'youkan_gantt_col_width_weekly',
+	GANTT_ROW_HEIGHT_WEEKLY: 'youkan_gantt_row_height_weekly',
+
 	// === パノラマ設定 ===
 	PANORAMA_COLS: 'youkan_panorama_cols',
 

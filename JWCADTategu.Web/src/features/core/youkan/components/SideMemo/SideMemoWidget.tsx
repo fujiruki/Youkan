@@ -51,7 +51,7 @@ export const SideMemoWidget = () => {
     }, [isOpen]);
 
     return (
-        <div className={`fixed right-4 bottom-4 z-50 transition-all duration-300 ${isOpen ? 'w-80' : 'w-auto'}`}>
+        <div className={`no-print fixed right-4 bottom-4 z-50 transition-all duration-300 ${isOpen ? 'w-80' : 'w-auto'}`}>
             {/* Toggle Button */}
             {!isOpen && (
                 <button

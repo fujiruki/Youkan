@@ -53,6 +53,43 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
 
+	// R-097: ガントのマンスリー/ウィークリー表示モード。列幅・行高さをモードごとに独立して記憶する
+	const [ganttScaleMode, setGanttScaleModeState] = useState<'monthly' | 'weekly'>(() => {
+		const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_SCALE_MODE);
+		return saved === 'weekly' ? 'weekly' : 'monthly';
+	});
+	const ganttColWidthKeyFor = (mode: 'monthly' | 'weekly') =>
+		mode === 'weekly' ? YOUKAN_KEYS.GANTT_COL_WIDTH_WEEKLY : YOUKAN_KEYS.GANTT_COL_WIDTH_MONTHLY;
+	const ganttRowHeightKeyFor = (mode: 'monthly' | 'weekly') =>
+		mode === 'weekly' ? YOUKAN_KEYS.GANTT_ROW_HEIGHT_WEEKLY : YOUKAN_KEYS.GANTT_ROW_HEIGHT_MONTHLY;
+	const readStoredGanttNumber = (key: string, fallback: number) => {
+		const saved = localStorage.getItem(key);
+		const n = saved ? parseInt(saved, 10) : NaN;
+		return Number.isFinite(n) ? n : fallback;
+	};
+	// マンスリーの初期値は既存動作を完全維持（列幅24px・行高さ28px相当）
+	const [ganttColWidth, setGanttColWidth] = useState<number>(() =>
+		readStoredGanttNumber(ganttColWidthKeyFor(ganttScaleMode), 24)
+	);
+	const [ganttRowHeight, setGanttRowHeight] = useState<number>(() =>
+		readStoredGanttNumber(ganttRowHeightKeyFor(ganttScaleMode), 28)
+	);
+	useEffect(() => {
+		localStorage.setItem(YOUKAN_KEYS.GANTT_SCALE_MODE, ganttScaleMode);
+	}, [ganttScaleMode]);
+	useEffect(() => {
+		localStorage.setItem(ganttColWidthKeyFor(ganttScaleMode), ganttColWidth.toString());
+	}, [ganttColWidth, ganttScaleMode]);
+	useEffect(() => {
+		localStorage.setItem(ganttRowHeightKeyFor(ganttScaleMode), ganttRowHeight.toString());
+	}, [ganttRowHeight, ganttScaleMode]);
+	// モード切替時、切替先モードの記憶値を復元する
+	const handleGanttScaleModeChange = (mode: 'monthly' | 'weekly') => {
+		setGanttScaleModeState(mode);
+		setGanttColWidth(readStoredGanttNumber(ganttColWidthKeyFor(mode), 24));
+		setGanttRowHeight(readStoredGanttNumber(ganttRowHeightKeyFor(mode), 28));
+	};
+
 	const { filterMode, hideCompleted } = useFilter();
 	const calendarRef = React.useRef<any>(null);
 
@@ -220,10 +257,14 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 						}, 0);
 					}}
 					onOpenDailySettings={() => calendarRef.current?.openDailySettings(selectedDateForCapacity || new Date())}
-					rowHeight={24}
-					onRowHeightChange={() => { }} // VolumeCalendar doesn't support rowHeight yet
+					rowHeight={ganttRowHeight}
+					onRowHeightChange={setGanttRowHeight}
 					showGroups={showGanttGroups}
 					onShowGroupsChange={setShowGanttGroups}
+					scaleMode={ganttScaleMode}
+					onScaleModeChange={handleGanttScaleModeChange}
+					colWidth={ganttColWidth}
+					onColWidthChange={setGanttColWidth}
 					extraActions={<CalendarToggleButton />}
 				/>
 			)}
@@ -259,6 +300,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					}}
 					hideHeader={true}
 					showGroups={showGanttGroups}
+					ganttColWidth={ganttColWidth}
+					ganttRowHeight={ganttRowHeight}
 					onDeleteItem={handleDelete}
 					externalEventsByDate={externalEventsByDate}
 					googleCalendars={googleCalendars}

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List, Printer } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
@@ -24,6 +24,12 @@ interface CalendarHeaderProps {
     variant?: 'gantt' | 'grid';
     /** R-041-Y2: ヘッダー右側に差し込む任意のアクション（カレンダー切替ボタン等） */
     extraActions?: React.ReactNode;
+    /** R-097: ガントのマンスリー/ウィークリー表示モード（列幅・行高さの記憶枠切替） */
+    scaleMode?: 'monthly' | 'weekly';
+    onScaleModeChange?: (mode: 'monthly' | 'weekly') => void;
+    /** R-097: 列幅（日付列幅）スライダー */
+    colWidth?: number;
+    onColWidthChange?: (value: number) => void;
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -37,7 +43,11 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     showGroups,
     onShowGroupsChange,
     variant = 'gantt',
-    extraActions
+    extraActions,
+    scaleMode = 'monthly',
+    onScaleModeChange,
+    colWidth = 24,
+    onColWidthChange,
 }) => {
     const isGantt = variant === 'gantt';
     const today = new Date();
@@ -49,7 +59,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         visibleDate.getMonth() === today.getMonth();
 
     return (
-        <div className="shrink-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between z-30 shadow-sm relative">
+        <div className="no-print shrink-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between z-30 shadow-sm relative">
             {/* Left Section: Context & Navigation */}
             <div className="flex items-center gap-4">
                 {/* View Title & Navigation */}
@@ -132,15 +142,61 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                     </div>
                 )}
 
+                {/* R-097: マンスリー/ウィークリー表示モード切替（列幅・行高さの記憶枠切替） */}
+                {isGantt && (
+                    <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                        <button
+                            onClick={() => onScaleModeChange?.('monthly')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg transition-all text-[11px] font-black",
+                                scaleMode === 'monthly'
+                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            マンスリー
+                        </button>
+                        <button
+                            onClick={() => onScaleModeChange?.('weekly')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg transition-all text-[11px] font-black",
+                                scaleMode === 'weekly'
+                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            ウィークリー
+                        </button>
+                    </div>
+                )}
+
                 {/* R-041-Y2: 追加アクションを差し込む（カレンダー切替ボタン等） */}
                 {extraActions}
 
                 <div className="flex items-center gap-4">
+                    {/* Column Width Slider (gantt only, R-097) */}
+                    {isGantt && (
+                        <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">列幅</span>
+                            <input
+                                aria-label="列幅"
+                                type="range"
+                                min="16"
+                                max="80"
+                                value={colWidth}
+                                onChange={(e) => onColWidthChange?.(parseInt(e.target.value))}
+                                className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                            />
+                            <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{colWidth}</span>
+                        </div>
+                    )}
+
                     {/* Density Slider (gantt only) */}
                     {isGantt && (
                         <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">密度</span>
                             <input
+                                aria-label="密度"
                                 type="range"
                                 min="12"
                                 max="32"
@@ -150,6 +206,18 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                             />
                             <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{rowHeight}</span>
                         </div>
+                    )}
+
+                    {/* R-098: 印刷ボタン（gantt only） */}
+                    {isGantt && (
+                        <button
+                            onClick={() => window.print()}
+                            title="印刷"
+                            className="group flex items-center gap-2 px-3 py-1.5 text-[11px] font-black rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all active:scale-95"
+                        >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>印刷</span>
+                        </button>
                     )}
 
                     {/* Daily Settings Button */}
