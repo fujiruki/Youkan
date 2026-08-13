@@ -21,7 +21,15 @@
       "mcp__chrome-devtools__list_network_requests",
       "mcp__chrome-devtools__get_network_request",
       "mcp__chrome-devtools__take_snapshot",
-      "mcp__chrome-devtools__list_pages"
+      "mcp__chrome-devtools__list_pages",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_console_messages",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "Bash(git fetch *)",
+      "Bash(git add -A --dry-run)",
+      "Bash(schtasks /Query *)",
+      "Bash(php -m)",
+      "Bash(npm.cmd run test -- --run)"
     ]
   }
 }
