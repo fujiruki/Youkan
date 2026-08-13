@@ -1131,3 +1131,29 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 本番実機検証: タイトル確定→目安時間欄自動フォーカス→確定→次の空行フォーカス→未入力離脱で消滅、の一連の流れをDOM/API照会で確認
 
 **完了報告（2026-08-13）**: 実装完了。詳細は指揮AIへの完了報告メッセージを参照。
+
+---
+
+## R-095 バグ修正: 全体一覧「その他」ドロップダウンで`action.onClick is not a function`例外（2026-08-13）
+
+**ブランチ**: `fix/R-095-overview-contextmenu-separator-crash`
+**要望**: `docs/requests_log.md` R-095
+**対象**: `JWCADTategu.Web/src/features/core/youkan/components/OverviewBoard/OverviewBoard.tsx`（321〜374行目付近の`actions`配列）
+
+### 指揮AI原因特定済み（実装Agentは再調査不要）
+- `OverviewBoard.tsx`の右クリックメニュー配列に`{ separator: true }`という要素が2箇所（338行目・364行目）含まれているが、この要素は`onClick`プロパティを持たない
+- `ContextMenu.tsx`（`JWCADTategu.Web/src/features/core/youkan/components/Common/ContextMenu.tsx`）の`ContextMenuAction`インターフェースは`separator`フィールドをそもそもサポートしておらず、`actions.map()`内（99〜113行目）で全項目間に`index > 0`ベースで自動的に薄い区切り線を挿入する設計になっている
+- そのため`{ separator: true }`はセパレータとして機能せず、`onClick`を持たない「空のボタン」としてそのまま描画され、クリックされると`action.onClick()`（103行目）が`undefined()`呼び出しとなり例外が発生する
+
+### 対応方針
+`OverviewBoard.tsx`の`{ separator: true }`要素2箇所（338行目・364行目）を削除する。`ContextMenu.tsx`が既に全項目間へ自動でセパレータを描画するため、削除しても視覚的な区切り自体は失われない（グループ単位の強めの区切りが均等な薄い区切りに変わる程度の軽微な見た目の違いのみ）。
+
+### サブタスク
+- [ ] worktree作成（`git fetch && git checkout -b fix/R-095-overview-contextmenu-separator-crash master` をworktree内で実行）
+- [ ] 失敗するテストを先に書く: メニューの`actions`配列に`separator: true`かつ`onClick`を持たない要素が含まれないことを検証するテスト（または、全メニュー項目をクリックしてエラーが発生しないことを検証するテスト）→ Red確認
+- [ ] `{ separator: true }`要素2箇所を削除
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD` で変更範囲確認
+- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧の右クリックメニューを開き、全項目を順にクリックしてエラーが発生しないことを確認。特に旧separator位置に近い項目「今日やる」「アーカイブ」付近を重点確認）
+- [ ] `docs/requests_log.md` R-095の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
