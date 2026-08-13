@@ -194,10 +194,46 @@ class BaseController {
     }
 
     /**
+     * item_dependencies を1回だけ一括取得し、アイテムIDごとの隣接マップを構築する（R-099）
+     * N+1回避のため、一覧取得のたびにこの関数を1回だけ呼び出し、mapItemRow() の第2引数へ渡すこと。
+     * DependencyController::getDependenciesDirect() と同じテナントスコープの絞り込みパターンを流用。
+     *
+     * @return array<string, array{dependsOn: string[], blocks: string[]}>
+     */
+    protected function buildDependencyMap(): array {
+        $tenantIds = $this->joinedTenants;
+
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+            $sql = "SELECT source_item_id, target_item_id FROM item_dependencies WHERE (tenant_id IN ($placeholders) OR tenant_id IS NULL OR tenant_id = '')";
+            $params = $tenantIds;
+        } else {
+            $sql = "SELECT source_item_id, target_item_id FROM item_dependencies WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = '')";
+            $params = [$this->currentTenantId];
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $source = $row['source_item_id'];
+            $target = $row['target_item_id'];
+            $map[$target]['dependsOn'][] = $source;
+            $map[$source]['blocks'][] = $target;
+        }
+        return $map;
+    }
+
+    /**
      * Common Item Mapping (DB -> Frontend JSON)
      * Centralized logic to prevent property loss across controllers
+     *
+     * @param array $item DBの行
+     * @param array $dependencyMap buildDependencyMap() で構築した隣接マップ（R-099）。省略時は空配列扱い
      */
-    protected function mapItemRow($item) {
+    protected function mapItemRow($item, array $dependencyMap = []) {
         // Standard Boolean conversion
         $item['interrupt'] = (bool)($item['interrupt'] ?? 0);
         $item['is_boosted'] = (bool)($item['is_boosted'] ?? 0);
@@ -254,6 +290,11 @@ class BaseController {
         } elseif (!isset($item['meta'])) {
             $item['meta'] = null;
         }
+
+        // R-099: 依存関係グラフをレスポンスへ埋め込む（GET /items系）
+        $itemId = $item['id'] ?? null;
+        $item['dependsOn'] = $dependencyMap[$itemId]['dependsOn'] ?? [];
+        $item['blocks'] = $dependencyMap[$itemId]['blocks'] ?? [];
 
         return $item;
     }

@@ -158,6 +158,10 @@ export interface Item {
     assigneeKind?: 'user' | 'assignee' | null; // [NEW][R-050] assigned_to の解決元種別
     delegation?: DelegationInfo; // 外注詳細情報
 
+    // --- Dependencies [NEW][R-099] ---
+    dependsOn?: string[];    // 自分の前提となるアイテムIDの配列
+    blocks?: string[];       // 自分が前提になっているアイテムIDの配列
+
     // --- Reference ---
     doorId?: string;         // 建具データへの参照（ある場合）
 

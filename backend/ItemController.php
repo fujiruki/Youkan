@@ -122,14 +122,15 @@ class ItemController extends BaseController {
              $stmt = $this->pdo->prepare($sql);
              $stmt->execute($params);
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             
-             $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapItemRow($row);
+
+             $dependencyMap = $this->buildDependencyMap();
+             $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                 $item = $this->mapItemRow($row, $dependencyMap);
                  $item['tenantName'] = $row['tenant_name'];
                  $item['tenantId'] = $row['tenant_id'];
                  return $item;
              }, $items));
-             
+
         } elseif ($scope === 'personal') {
              // Fetch strictly Personal Items (tenant_id IS NULL)
              $sql = "
@@ -148,13 +149,14 @@ class ItemController extends BaseController {
              $stmt = $this->pdo->prepare($sql);
              $stmt->execute([$this->currentUserId, $this->currentUserId]);
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             
-             $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapItemRow($row);
+
+             $dependencyMap = $this->buildDependencyMap();
+             $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                 $item = $this->mapItemRow($row, $dependencyMap);
                  $item['tenantId'] = null; // Enforce explicit null
                  return $item;
              }, $items));
-             
+
         } elseif ($scope === 'company') {
              // Fetch strictly Company Items
              $tenantIds = $this->joinedTenants ?: []; 
@@ -185,9 +187,10 @@ class ItemController extends BaseController {
              $stmt = $this->pdo->prepare($sql);
              $stmt->execute(array_merge($tenantIds, [$this->currentUserId, $this->currentUserId]));
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             
-             $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapItemRow($row);
+
+             $dependencyMap = $this->buildDependencyMap();
+             $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                 $item = $this->mapItemRow($row, $dependencyMap);
                  $item['tenantName'] = $row['tenant_name'];
                  $item['tenantId'] = $row['tenant_id'];
                  return $item;
@@ -226,8 +229,9 @@ class ItemController extends BaseController {
              $stmt->execute([$tenantId, $targetAssignedTo]);
              $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-             $this->sendJSON(array_map(function($row) {
-                 $item = $this->mapItemRow($row);
+             $dependencyMap = $this->buildDependencyMap();
+             $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                 $item = $this->mapItemRow($row, $dependencyMap);
                  $item['tenantName'] = $row['tenant_name'];
                  $item['tenantId'] = $row['tenant_id'];
                  return $item;
@@ -299,11 +303,12 @@ class ItemController extends BaseController {
             $stmt->execute($params);
             
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-             
-              $this->sendJSON(array_map(function($row) {
-                  $item = $this->mapItemRow($row);
+
+             $dependencyMap = $this->buildDependencyMap();
+              $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                  $item = $this->mapItemRow($row, $dependencyMap);
                   $item['tenantName'] = $row['tenant_name'];
-                  $item['tenantId'] = $row['tenant_id']; 
+                  $item['tenantId'] = $row['tenant_id'];
                   return $item;
               }, $items));
 
@@ -336,7 +341,10 @@ class ItemController extends BaseController {
             ]);
             
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
+            $dependencyMap = $this->buildDependencyMap();
+            $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+                return $this->mapItemRow($row, $dependencyMap);
+            }, $items));
         }
     }
 
@@ -475,7 +483,10 @@ class ItemController extends BaseController {
         $stmt->execute($params);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
+        $dependencyMap = $this->buildDependencyMap();
+        $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+            return $this->mapItemRow($row, $dependencyMap);
+        }, $items));
     }
 
     // GET /api/items?parent_id=XXX
@@ -510,7 +521,10 @@ class ItemController extends BaseController {
         $stmt->execute($params);
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $this->sendJSON(array_map([$this, 'mapItemRow'], $items));
+        $dependencyMap = $this->buildDependencyMap();
+        $this->sendJSON(array_map(function($row) use ($dependencyMap) {
+            return $this->mapItemRow($row, $dependencyMap);
+        }, $items));
     }
 
     // GET /api/users/{userId}/capacity
@@ -587,7 +601,8 @@ class ItemController extends BaseController {
         if (!$item) {
             $this->sendError(404, 'Item not found or access denied');
         }
-        $this->sendJSON($this->mapItemRow($item));
+        $dependencyMap = $this->buildDependencyMap();
+        $this->sendJSON($this->mapItemRow($item, $dependencyMap));
     }
 
     private function create() {
