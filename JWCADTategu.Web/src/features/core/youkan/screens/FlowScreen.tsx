@@ -21,7 +21,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus, Maximize } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize, Printer } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
@@ -892,6 +892,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     }
   }, [createNewItem, showToast]);
 
+  // R-101: 印刷。「全体を印刷したい」という要望のため、現在のズーム/パン位置に
+  // 関わらず全ノードを収めてから印刷する。fitViewはduration 0（即時）で実行し、
+  // アニメーション中に印刷ダイアログが開いて中途半端な表示になることを避ける
+  const handlePrint = useCallback(() => {
+    fitView({ duration: 0, padding: 0.1 });
+    window.print();
+  }, [fitView]);
+
   // A-7: ノードダブルクリック → 詳細モーダル
   const handleNodeDoubleClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -1060,7 +1068,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         edgesFocusable
         className="bg-slate-50"
       >
-        <Controls className="!bg-white !border-slate-200 !shadow-lg" />
+        <Controls className="!bg-white !border-slate-200 !shadow-lg no-print" />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
         <MiniMap
           nodeColor={(node) => {
@@ -1075,7 +1083,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
               default: return '#94a3b8';
             }
           }}
-          className="!bg-white/80 !border-slate-200"
+          className="!bg-white/80 !border-slate-200 no-print"
         />
       </ReactFlow>
       {allItems.length === 0 && (
@@ -1089,14 +1097,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} onContextMenu={handleItemContextMenu} />
       <button
         onClick={handleAddButtonClick}
-        className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10"
+        className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10 no-print"
         title="新規タスク追加"
       >
         <Plus size={20} />
       </button>
       <button
         onClick={() => setIsHelpOpen(true)}
-        className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10"
+        className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
         title="操作ガイド"
       >
         <span className="text-sm font-bold">?</span>
@@ -1104,11 +1112,19 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       </button>
       <button
         onClick={() => fitView({ duration: 300, padding: 0.1 })}
-        className="absolute top-12 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10"
+        className="absolute top-12 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
         title="全体表示"
       >
         <Maximize size={12} />
         <span>全体</span>
+      </button>
+      <button
+        onClick={handlePrint}
+        className="absolute top-[84px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        title="印刷"
+      >
+        <Printer size={12} />
+        <span>印刷</span>
       </button>
       {isHelpOpen && (
         <div
@@ -1259,7 +1275,7 @@ const FlowHeader: React.FC<{
   }, []);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shrink-0">
+    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shrink-0 no-print">
       <button
         onClick={onBack}
         className="flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition-colors"
