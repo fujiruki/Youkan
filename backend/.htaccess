@@ -20,3 +20,10 @@
 <Limit GET POST PUT DELETE OPTIONS>
     Require all granted
 </Limit>
+
+# SQLiteの実DBはこのディレクトリに置かれており、上の !-f 条件では書き換えの対象外になるため
+# 直接ダウンロードできてしまう。パスワードハッシュを含むので明示的に拒否する。
+# （.env や *.log はサーバー側の既定で既に遮断されているが、*.sqlite は対象外だった）
+<FilesMatch "\.(sqlite|sqlite3|sqlite-wal|sqlite-shm|db)$|\.sqlite\.bak">
+    Require all denied
+</FilesMatch>
