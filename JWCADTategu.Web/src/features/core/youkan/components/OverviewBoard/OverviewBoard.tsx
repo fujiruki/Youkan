@@ -335,7 +335,6 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							shortcut: 'b',
 							onClick: () => startInlineInsert(contextMenu.targetId!, 'after')
 						},
-						{ separator: true },
 						{
 							label: '今日やる (Focus)',
 							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
@@ -361,7 +360,6 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							shortcut: 'd',
 							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'done' }); }
 						},
-						{ separator: true },
 						{
 							label: 'アーカイブ',
 							onClick: () => { viewModel.archiveItem(contextMenu.targetId!); }
@@ -371,7 +369,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							danger: true,
 							onClick: () => { viewModel.deleteItem(contextMenu.targetId!); }
 						}
-					].filter(Boolean) as any}
+					]}
 				/>
 			)}
 		</div>
