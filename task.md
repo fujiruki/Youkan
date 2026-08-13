@@ -1149,11 +1149,11 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 `OverviewBoard.tsx`の`{ separator: true }`要素2箇所（338行目・364行目）を削除する。`ContextMenu.tsx`が既に全項目間へ自動でセパレータを描画するため、削除しても視覚的な区切り自体は失われない（グループ単位の強めの区切りが均等な薄い区切りに変わる程度の軽微な見た目の違いのみ）。
 
 ### サブタスク
-- [ ] worktree作成（`git fetch && git checkout -b fix/R-095-overview-contextmenu-separator-crash master` をworktree内で実行）
-- [ ] 失敗するテストを先に書く: メニューの`actions`配列に`separator: true`かつ`onClick`を持たない要素が含まれないことを検証するテスト（または、全メニュー項目をクリックしてエラーが発生しないことを検証するテスト）→ Red確認
-- [ ] `{ separator: true }`要素2箇所を削除
-- [ ] Green確認・既存テスト回帰なし確認
-- [ ] `git diff --stat master..HEAD` で変更範囲確認
-- [ ] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧の右クリックメニューを開き、全項目を順にクリックしてエラーが発生しないことを確認。特に旧separator位置に近い項目「今日やる」「アーカイブ」付近を重点確認）
-- [ ] `docs/requests_log.md` R-095の対応状況を更新
-- [ ] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
+- [x] worktree作成（`git fetch && git checkout -b fix/R-095-overview-contextmenu-separator-crash master` をworktree内で実行）
+- [x] 失敗するテストを先に書く: メニューの`actions`配列に`separator: true`かつ`onClick`を持たない要素が含まれないことを検証するテスト（または、全メニュー項目をクリックしてエラーが発生しないことを検証するテスト）→ Red確認
+- [x] `{ separator: true }`要素2箇所を削除
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD` で変更範囲確認
+- [x] chrome-devtools MCPまたはclaude-in-chrome MCPで実機検証（全体一覧の右クリックメニューを開き、全項目を順にクリックしてエラーが発生しないことを確認。特に旧separator位置に近い項目「今日やる」「アーカイブ」付近を重点確認）
+- [x] `docs/requests_log.md` R-095の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージは指揮AIのレビュー後）
