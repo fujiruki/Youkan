@@ -1216,3 +1216,103 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 
 - 密度スライダーは従来`DashboardScreen.tsx`の`ganttRowHeight`という単一stateを介して実質Panoramaボードの行高さにのみ効いており、Gantt側（VolumeCalendarScreen）は死んだ配線だった。今回Gantt専用の別stateに繋ぎ替えたことでPanoramaボードの行高さはUIから調整する手段がなくなったが、指揮AI確認の上「各ビューが専用の行高さを持つ方が正しい設計」として復旧UI追加は不要と判断（YAGNI）
 - `DashboardScreen.tsx`内の到達不能な`viewMode==='calendar'`パス自体の削除は今回スコープ外。別途技術的負債として`docs/requests.md`への起票を検討
+
+---
+
+## R-099 GET /itemsに依存関係グラフを埋め込む（2026-08-14）
+
+**ブランチ**: `feature/R-099-items-api-dependency-fields`（master最新、R-097/R-098マージ後のコミットを基点にすること）
+**要望**: `docs/requests_log.md` R-099
+**仕様**: `docs/SPEC/04_データ設計.md` §3.5「API露出（R-099）」
+
+### 背景
+発注者が外部のAI（詳細不明。ForAi経由でコピペした先のAIか、Youkan APIを直接読んだ何らかのAIツール）に「Youkan APIには明示的な依存グラフのフィールドがない」と指摘された。現状`GET /items`系のレスポンスには依存関係フィールドがなく、`GET /dependencies`（`DependencyController.php`）を別途叩いて`source_item_id`/`target_item_id`のペアと突き合わせる必要がある。発注者は「`GET /items`本体に埋め込む」方式を選択した。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `item_dependencies`テーブル: `source_item_id`＝上流（前提タスク）、`target_item_id`＝下流（後続タスク）。`04_データ設計.md` §3.5参照
+- `BaseController::mapItemRow($item)`（`BaseController.php` 200行目）が、DBの行→フロントエンド向けJSON変換を行う一元化された共通関数。`ItemController.php`内の複数の一覧系メソッド（`getMyItems()`の`scope=aggregated/personal/company/dashboard/team`各分岐、`getProjectItems()`、`getSubTasks()`、単体`show()`）がそれぞれこの関数を経由してレスポンスを組み立てている（詳細はItemController.php内を実装Agentが確認すること）
+- `DependencyController::getDependenciesDirect()`（`DependencyController.php` 132行目付近）に、テナントスコープを考慮した`item_dependencies`絞り込みSQLの実例がある。同じテナントフィルタパターンを流用してよい
+- **N+1禁止**: R-091で「全体一覧の`items`レスポンスに依存関係を毎回埋め込むと起動時APIコストが増える」という理由で意図的に埋め込みを避けた経緯がある。今回はコストを抑えた実装（1リクエストにつき`item_dependencies`を1回だけ一括取得し、メモリ上で`item_id => {dependsOn: [], blocks: []}`の隣接マップを構築してから、`mapItemRow()`の呼び出し側でこのマップを渡して結果に埋め込む）とすることでこの懸念を解消する設計とする
+
+### サブタスク
+
+- [x] worktree作成
+- [x] 失敗するテストを先に書く → Red確認
+- [x] `mapItemRow()`に依存関係マップを埋め込むロジックを実装（N+1回避を`buildDependencyMap()`で実現）
+- [x] `ItemController.php`内の全一覧系メソッドに配線
+- [x] Green確認・既存backendテスト回帰なし確認
+- [x] フロントエンド型定義（`Item`型）に`dependsOn`/`blocks`追加
+- [x] `git diff --stat master..HEAD`で変更範囲確認
+- [x] 実機確認（curl等でAPIレスポンス確認）
+- [x] `docs/requests_log.md` R-099の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+**完了報告（2026-08-14）**: ブランチ`feature/R-099-items-api-dependency-fields`（worktree `.claude/worktrees/R-099`、master `8db0dd3`ベース）。コミット`98a8d3d`(Red)→`d36f561`(実装)→`0d872b4`(requests_log.md更新)。`BaseController.php`に`buildDependencyMap()`新設、`mapItemRow($item, $dependencyMap)`拡張。`ItemController.php`の9箇所（getMyItems各scope・getProjectItems・getSubTasks・show）に配線。新規テスト18件（`test_r099_dependency_fields.php`、値検証＋N+1回避のクエリ回数検証）全Green。既存backend/frontendテスト回帰なし（既知の無関係な既存失敗のみ）。dev環境で`dependsOn`/`blocks`の実値をAPI照会で確認済み。マージ・本番デプロイは指揮AIレビュー後。
+
+### 注意事項
+- 既存のフロントエンドの依存関係取得ロジック（`DependencyRepository`経由で`GET /dependencies`を叩く既存コード）は変更・撤去しない。今回はAPIに新フィールドを追加するだけで、既存の取得経路と共存させる
+- パフォーマンス上の懸念（一覧系メソッド全てへの適用が想定より重い等）に気づいた場合は、自己判断で範囲を縮小せず指揮AIに確認すること
+
+---
+
+## R-100 ガント完了アイテムのカレンダー要素・依存関係エッジをグレー化（2026-08-14）
+
+**ブランチ**: `feature/R-100-gantt-completed-gray`
+**要望**: `docs/requests_log.md` R-100
+**仕様**: `docs/SPEC/03_画面設計.md` §5.4「完了アイテムのカレンダー要素・依存関係エッジのグレー化（R-100）」
+
+### 背景
+発注者から「ガントの完了表示モードで、完了アイテムのカレンダー上の要素と依存関係エッジもグレーにしてほしい。完了したのかどうかがわかりづらい」との要望。R-035でタイトル文字列（`COMPLETED_ITEM_CLASS`、取り消し線＋グレー）は完了時にグレー化済みだが、日別の視覚要素・依存関係矢印は未対応。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `RyokanGanttView.tsx`は`isItemDone(item)`（`logic/statusUtils.ts`）で完了判定済みの`done`変数を行レンダリング時に既に持っている（902行目付近）
+- 「日別割当チップ」: 1033〜1045行目付近。`className`に`"bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600"`が固定で入っている。`done`のとき`bg-slate-400 hover:bg-slate-500 dark:bg-slate-600`等のグレー系に切り替えること
+- 「目安納期ハンドル（ドラッグつまみ）」: 1061〜1069行目付近。`"bg-indigo-400 border border-white dark:border-slate-900 shadow-md"`が固定。`done`のときグレー系に切り替えること
+- 「顧客納期の赤マーカー」（1074行目、`bg-red-500/80`）は対象外。完了・未完了に関わらず赤のまま変更しないこと
+- 依存関係矢印: `GanttDependencyArrows`コンポーネント（1119行目付近）の`<path stroke="#6366f1" .../>`（1221行目）と、矢印マーカー`<polygon ... fill="#6366f1" />`（1208行目）が対象。各`arrow`について、対応する`dependencies`エントリの`sourceItemId`・`targetItemId`から実アイテムの完了状態を引き、いずれかが完了済みならグレー系（例: `#94a3b8`のようなslateトーン）にする。現在`arrows`の`useMemo`内では`sourceItem`/`targetItem`を一度取得しているので、そこで`isItemDone()`判定した結果を`arrows`配列の各要素（`{key, x1, y1, x2, y2}`）に`isDimmed: boolean`のような形で持たせ、SVG描画時に参照する形が自然
+- グレーの具体的な色トーンは、既存の`COMPLETED_ITEM_CLASS`（`logic/statusUtils.ts`）や他画面のグレー表現と視覚的に統一感が出るよう実装Agントの判断で選んでよい
+
+### サブタスク
+
+- [x] worktree作成
+- [x] 失敗するテストを先に書く（`RyokanGanttView.completedGray.test.tsx`）→ Red確認
+- [x] 実装
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD`で変更範囲確認
+- [x] 実機検証（chrome-devtools/claude-in-chrome MCP）
+- [x] `docs/requests_log.md` R-100の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+（注: R-100は一時的なAPIエラーで一度中断・再開した経緯あり。完了報告の詳細は当該Agentからの完了報告メッセージを参照）
+
+---
+
+## R-101 フローチャート画面に全体印刷ボタンを追加（2026-08-14）
+
+**ブランチ**: `feature/R-101-flow-print-button`
+**要望**: `docs/requests_log.md` R-101
+**仕様**: `docs/SPEC/03_画面設計.md` §7.9「コンテンツ印刷ボタン（R-101）」
+
+### 背景
+発注者から「フローチャートも全体を印刷するボタンを作って」との要望。R-098（ガント・全体一覧の印刷ボタン）の延長で、フローチャート画面（`FlowScreen.tsx`）にも印刷ボタンを追加する。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `FlowScreen.tsx`は`useReactFlow()`から`fitView`を取得済み（93行目）
+- 既存の「全体表示」ボタン（1105〜1112行目）: `onClick={() => fitView({ duration: 300, padding: 0.1 })}`。フローチャート内の全ノードが画面に収まるよう自動でズーム・パンする
+- ヘルプボタン（1097〜1104行目）、全体表示ボタン（1105〜1112行目）は`className="absolute top-* right-3 ..."`で右上に縦に並んでいる。印刷ボタンも同じ配置パターンで追加するのが自然
+- `.no-print`クラス・`@media print { .no-print { display: none !important } }`はR-098で`index.css`に追加済みでそのまま使える
+- 印刷ボタン押下時は、`fitView({ duration: 0, padding: 0.1 })`（アニメーションなしで即座に全ノードを収める）を実行してから`window.print()`を呼ぶこと
+
+### サブタスク
+
+- [x] worktree作成
+- [x] 失敗するテストを先に書く（`FlowScreen.print.test.tsx`）→ Red確認
+- [x] `FlowScreen.tsx`に印刷ボタンを追加（Printerアイコン）
+- [x] ヘッダー・ヘルプボタン・全体表示ボタン・Controls・MiniMap等のUIクロームに`.no-print`を付与
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD`で変更範囲確認
+- [x] 実機検証（claude-in-chrome MCP）
+- [x] `docs/requests_log.md` R-101の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+**完了報告（2026-08-14）**: ブランチ`feature/R-101-flow-print-button`（worktree `.claude/worktrees/R-101`、master `8db0dd3`ベース）。`FlowScreen.tsx`に印刷ボタン追加（`handlePrint`: `fitView({duration:0,padding:0.1})`即時実行→`window.print()`）。`.no-print`をヘルプ・全体表示・印刷ボタン・Controls・MiniMap・FlowHeaderに付与。新規テスト2件Green、vitest全件860 pass/14 skip/1 failed（既知の無関係な`useAssigneeView.test.ts`のみ）。claude-in-chrome MCPで実機検証: 画面外に出た3ノードが印刷ボタンでfitViewにより再表示、`.no-print`要素8個が非表示化されコンテンツのみ残ることを確認。マージ・本番デプロイは指揮AIレビュー後。
