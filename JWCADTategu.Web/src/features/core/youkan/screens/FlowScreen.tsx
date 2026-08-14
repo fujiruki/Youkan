@@ -892,6 +892,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     }
   }, [createNewItem, showToast]);
 
+  // R-102: 印刷ボタン押下時点のfitViewは画面表示サイズを基準に計算されるが、
+  // その後 window.print() で印刷用紙サイズへレイアウトが切り替わると、
+  // 画面基準のズーム/パン位置がそのまま持ち越され、用紙の右端の細い帯にしか
+  // 全体が収まらなくなる。印刷用レイアウトが確定するタイミング（beforeprint）で
+  // 用紙サイズを基準に再度fitViewし直すことで、ブラウザのCtrl+P等ボタン以外からの
+  // 印刷でも常に正しく全体を収める
+  useEffect(() => {
+    const handleBeforePrint = () => fitView({ duration: 0, padding: 0.1 });
+    window.addEventListener('beforeprint', handleBeforePrint);
+    return () => window.removeEventListener('beforeprint', handleBeforePrint);
+  }, [fitView]);
+
   // R-101: 印刷。「全体を印刷したい」という要望のため、現在のズーム/パン位置に
   // 関わらず全ノードを収めてから印刷する。fitViewはduration 0（即時）で実行し、
   // アニメーション中に印刷ダイアログが開いて中途半端な表示になることを避ける

@@ -118,4 +118,23 @@ describe('FlowScreen 印刷ボタン（R-101）', () => {
         const heading = await findByText(/未配置 \(1\)/);
         expect(heading.closest('.no-print')).not.toBeNull();
     });
+
+    it('R-102: beforeprintイベントで用紙サイズ確定後の再フィットが行われる', async () => {
+        const printSpy = vi.spyOn(window, 'print').mockImplementation(() => { });
+        const { getByTitle } = renderFlowScreen();
+
+        await waitFor(() => expect(capturedProps).not.toBeNull());
+        mockFitView.mockClear();
+
+        fireEvent.click(getByTitle('印刷'));
+        expect(mockFitView).toHaveBeenCalledTimes(1);
+
+        // ブラウザが印刷用レイアウトを確定させた後に発火する beforeprint で、
+        // その時点のサイズを基準に再度 fitView が実行されること
+        window.dispatchEvent(new Event('beforeprint'));
+        expect(mockFitView).toHaveBeenCalledTimes(2);
+        expect(mockFitView).toHaveBeenLastCalledWith({ duration: 0, padding: 0.1 });
+
+        printSpy.mockRestore();
+    });
 });

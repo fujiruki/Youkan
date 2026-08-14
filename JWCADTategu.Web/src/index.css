@@ -64,9 +64,18 @@ textarea::placeholder {
 
 /* R-098: ガント画面・全体一覧画面のコンテンツ印刷。
    ヘッダー・サイドメニュー・操作ボタン等の UI クロームには .no-print を付与し、
-   印刷時（window.print()）は @media print で非表示にする。 */
+   印刷時（window.print()）は @media print で非表示にする。
+   R-102: フローチャート画面のルート要素（h-screen/flex-1 の画面基準サイズ）を
+   用紙サイズ（100vh/100%）へ明示的に上書きする。上書きしないと React Flow の
+   ビューポート transform が印刷用レイアウト確定前の画面サイズを基準にしたまま
+   残り、用紙の右端の細い帯にしか収まらなくなる。 */
 @media print {
     .no-print {
         display: none !important;
+    }
+
+    [data-testid="flow-canvas-root"] {
+        width: 100% !important;
+        height: 100vh !important;
     }
 }
