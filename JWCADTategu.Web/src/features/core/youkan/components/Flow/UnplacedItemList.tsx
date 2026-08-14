@@ -28,7 +28,7 @@ const UnplacedItemListComponent = forwardRef<UnplacedItemListHandle, UnplacedIte
     };
 
     return (
-      <div className="fixed top-28 right-4 z-50 w-56 max-h-[60vh] bg-white/95 backdrop-blur border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+      <div className="no-print fixed top-28 right-4 z-50 w-56 max-h-[60vh] bg-white/95 backdrop-blur border border-slate-200 rounded-xl shadow-xl overflow-hidden">
         <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
           <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
             未配置 ({items.length})
