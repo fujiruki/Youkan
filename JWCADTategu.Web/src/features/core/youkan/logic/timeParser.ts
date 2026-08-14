@@ -1,5 +1,5 @@
 export function parseTimeInput(input: string): number | null {
-  const trimmed = input.trim();
+  const trimmed = input.normalize('NFKC').trim();
   if (!trimmed) return null;
 
   const hourMatch = trimmed.match(/^(-?\d+\.?\d*)h$/i);
