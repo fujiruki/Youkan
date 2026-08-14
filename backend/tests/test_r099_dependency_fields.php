@@ -14,7 +14,15 @@
  * 8. show（単体取得）で dependsOn/blocks が正しい
  * 9. 依存関係を持たないアイテムは dependsOn=[]・blocks=[] になる
  * 10. N+1回避: 一覧取得1回につき item_dependencies へのクエリは1回のみ
+ * 11. テナント境界: joinedTenants に currentTenantId が含まれない不整合時も依存関係が欠落しない
+ * 12. 後片付けが無関係な既存データを巻き込まない
  */
+
+// 開発用DB(jbwos.sqlite)を汚染・破壊しないよう、専用の一時DBへ接続する
+// （test_shared_session_auth.php と同じパターン）
+$tmpDb = sys_get_temp_dir() . '/youkan_r099_test_' . getmypid() . '.sqlite';
+@unlink($tmpDb);
+putenv('YOUKAN_DB_PATH=' . $tmpDb);
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../ItemController.php';
@@ -26,7 +34,7 @@ $testMember = 'u_r099_test_member';
 $pdo = getDB();
 
 function r099_cleanup($pdo, $testTenant, $testAdmin, $testMember) {
-    $pdo->exec("DELETE FROM item_dependencies WHERE tenant_id = '$testTenant' OR tenant_id IS NULL OR tenant_id = ''");
+    $pdo->exec("DELETE FROM item_dependencies WHERE id LIKE 'r099_%'");
     $pdo->exec("DELETE FROM items WHERE id LIKE 'r099_%'");
     $pdo->prepare("DELETE FROM memberships WHERE tenant_id = ?")->execute([$testTenant]);
     $pdo->prepare("DELETE FROM users WHERE id IN (?, ?)")->execute([$testAdmin, $testMember]);
@@ -298,8 +306,37 @@ function assert_equal_int($label, $actual, $expected) {
     }
 }
 
+// ============================================================
+// テスト10: テナント境界 - joinedTenants に currentTenantId が無い不整合時も依存関係が欠落しない
+// membership同期の不整合を想定。ItemController の dashboard/getSubTasks/show と同じ補完が必要
+// ============================================================
+echo "\n=== テスト10: joinedTenantsにcurrentTenantIdが欠けていても依存関係が取れる ===\n";
+$ctrl = r099_makeController($pdo, $testAdmin, $testTenant, ['r099_unrelated_tenant']);
+$map = $ctrl->callPrivate('buildDependencyMap');
+assert_array_set_equal('境界: 会社Xの blocks = [Y]', $map['r099_c_x']['blocks'] ?? null, ['r099_c_y']);
+assert_array_set_equal('境界: 会社Yの dependsOn = [X]', $map['r099_c_y']['dependsOn'] ?? null, ['r099_c_x']);
+
+// ============================================================
+// テスト11: 後片付けが無関係な既存データを巻き込まない
+// tenant_id が NULL（個人アカウント）の他人のデータを消してはいけない
+// ============================================================
+echo "\n=== テスト11: 後片付けの巻き込み防止 ===\n";
+r099_insert_item($pdo, 'other_item_1', '無関係アイテム1', null, 'u_other', 'u_other', $now);
+r099_insert_item($pdo, 'other_item_2', '無関係アイテム2', null, 'u_other', 'u_other', $now);
+r099_insert_dependency($pdo, 'other_dep_1', null, 'other_item_1', 'other_item_2', $now);
+
 // --- 後片付け ---
 r099_cleanup($pdo, $testTenant, $testAdmin, $testMember);
+
+$survivedDep = $pdo->query("SELECT COUNT(*) FROM item_dependencies WHERE id = 'other_dep_1'")->fetchColumn();
+assert_equal_int('無関係な個人の依存関係が後片付けで消えない', (int)$survivedDep, 1);
+$survivedItem = $pdo->query("SELECT COUNT(*) FROM items WHERE id LIKE 'other_item_%'")->fetchColumn();
+assert_equal_int('無関係な個人のアイテムが後片付けで消えない', (int)$survivedItem, 2);
+$leftover = $pdo->query("SELECT COUNT(*) FROM item_dependencies WHERE id LIKE 'r099_%'")->fetchColumn();
+assert_equal_int('テスト自身の依存関係は後片付けで消える', (int)$leftover, 0);
+
+$pdo = null;
+@unlink($tmpDb);
 
 echo "\n=== 結果: $passed passed, $failed failed ===\n";
 if ($failed > 0) {

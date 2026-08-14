@@ -201,7 +201,12 @@ class BaseController {
      * @return array<string, array{dependsOn: string[], blocks: string[]}>
      */
     protected function buildDependencyMap(): array {
-        $tenantIds = $this->joinedTenants;
+        $tenantIds = $this->joinedTenants ?: [];
+        // memberships同期の不整合で joinedTenants に現テナントが欠けても依存関係が落ちないよう補完する
+        // （ItemController の dashboard / getSubTasks / show と同じパターン）
+        if (!empty($this->currentTenantId) && !in_array($this->currentTenantId, $tenantIds)) {
+            $tenantIds[] = $this->currentTenantId;
+        }
 
         if (!empty($tenantIds)) {
             $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
