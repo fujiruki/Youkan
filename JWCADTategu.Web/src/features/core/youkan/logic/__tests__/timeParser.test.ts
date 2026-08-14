@@ -39,6 +39,14 @@ describe('parseTimeInput', () => {
     expect(parseTimeInput('-10')).toBeNull();
     expect(parseTimeInput('-1h')).toBeNull();
   });
+
+  it('全角入力 → 半角として認識', () => {
+    expect(parseTimeInput('９０')).toBe(90);
+    expect(parseTimeInput('３０ｍ')).toBe(30);
+    expect(parseTimeInput('１ｈ')).toBe(60);
+    expect(parseTimeInput('１．５ｈ')).toBe(90);
+    expect(parseTimeInput('１Ｈ')).toBe(60);
+  });
 });
 
 describe('formatMinutes', () => {
