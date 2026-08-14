@@ -39,6 +39,13 @@ const soloItem: Item = {
     meta: { flow_x: 100, flow_y: 100 },
 };
 
+const unplacedItem: Item = {
+    ...soloItem,
+    id: 'item-unplaced',
+    title: '未配置アイテム',
+    meta: {},
+};
+
 const mockGetAllItems = vi.fn().mockResolvedValue([soloItem]);
 
 vi.mock('../../../../../api/client', () => ({
@@ -102,5 +109,13 @@ describe('FlowScreen 印刷ボタン（R-101）', () => {
         expect(fitViewOrder).toBeLessThan(printOrder);
 
         printSpy.mockRestore();
+    });
+
+    it('未配置パネルは印刷対象外（.no-print）である', async () => {
+        mockGetAllItems.mockResolvedValue([soloItem, unplacedItem]);
+        const { findByText } = renderFlowScreen();
+
+        const heading = await findByText(/未配置 \(1\)/);
+        expect(heading.closest('.no-print')).not.toBeNull();
     });
 });
