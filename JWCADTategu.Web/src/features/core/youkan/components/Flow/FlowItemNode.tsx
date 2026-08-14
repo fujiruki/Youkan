@@ -1,5 +1,6 @@
 import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { format } from 'date-fns';
 import type { Item } from '../../types';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
@@ -146,6 +147,11 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   const done = isItemDone(item);
   const doneOpacity = done ? 'opacity-50' : '';
 
+  // R-104: 顧客納期(due_date)・マイ期限(prep_date)をさりげなく表示。
+  // 配色はガント画面(RyokanGanttView)の顧客納期=赤系/マイ期限=インジゴ系に合わせる
+  const dueDateObj = item.due_date ? new Date(item.due_date) : null;
+  const prepDateObj = item.prep_date ? new Date(item.prep_date * 1000) : null;
+
   return (
     <div
       className={`px-4 py-px rounded-lg border-2 shadow-sm min-w-[140px] max-w-[220px] ${colors.bg} ${colors.border} ${selectedRing} ${doneOpacity}`}
@@ -215,6 +221,20 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
             </span>
           )}
         </div>
+        {(dueDateObj || prepDateObj) && (
+          <div className="flex items-center gap-1.5 text-[8px] leading-tight">
+            {dueDateObj && (
+              <span className="text-red-400" title={`顧客納期: ${format(dueDateObj, 'M/d')}`}>
+                納期 {format(dueDateObj, 'M/d')}
+              </span>
+            )}
+            {prepDateObj && (
+              <span className="text-indigo-400" title={`マイ期限: ${format(prepDateObj, 'M/d')}`}>
+                期限 {format(prepDateObj, 'M/d')}
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !w-3 !h-3" />
     </div>
