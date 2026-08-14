@@ -1328,3 +1328,87 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 **指揮AIによる独立レビュー（Codex）で発見・修正（2026-08-14）**: 「未配置」パネル（`Flow/UnplacedItemList.tsx`）に`.no-print`が付与されておらず、全体印刷時に混入する漏れを発見。`.no-print`を付与し、`FlowScreen.print.test.tsx`にテストケースを追加（ブランチ`fix/R-101-print-unplaced`、コミット`0c381f2`）。
 
 **masterマージ・本番デプロイ・実機検証完了（2026-08-14）**: `git merge fix/R-101-print-unplaced`でmasterへ統合（マージコミット`8dde5a1`）。`upload.ps1`でデプロイ後、本番フローチャート画面で「未配置」パネルに`.no-print`が付与され`@media print`ルールで非表示になることをCSSOM経由で確認。
+
+---
+
+## R-102 フローチャート印刷ボタンで全体が中央に印刷されない（2026-08-14）
+
+**ブランチ**: `fix/R-102-print-centering`
+**要望**: `docs/requests_log.md` R-102
+**仕様**: `docs/SPEC/03_画面設計.md` §7.9
+
+### 背景
+改善要望フォーム経由（2026-08-14 13:42）。「フローチャートで印刷ボタンを押してみたら、全体が中央に印刷されていない。中央にして。」本日デプロイしたR-101（フローチャート印刷ボタン）の後続バグ。スクリーンショット（`backend/data/requests_sub_uploads/019ffe94-896c-7bc7-b0d7-516bcf787fb2.png`、本番サーバーのみ）で、印刷プレビューの用紙右端の細い帯にフローチャート全体が押し込まれ、用紙の大部分が空白になっている症状を確認済み。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `JWCADTategu.Web/src/index.css`の印刷用CSS（68-72行目付近）は`.no-print { display: none !important; }`のみで、React Flowのビューポート要素（`.react-flow`本体）を印刷用紙のサイズにフィットさせるスタイルが一切存在しない
+- React Flowは既定でブラウザの画面表示サイズ（px単位の画面ビューポート）を基準にcanvasをレイアウトするため、印刷時にブラウザが用紙サイズへ再レイアウトする過程で、この画面基準のサイズ指定がそのまま持ち込まれ、用紙の一部にしか収まらなくなっている可能性が高い
+- `FlowScreen.tsx`の`handlePrint`（898-900行目付近）は`fitView({ duration: 0, padding: 0.1 })`→`window.print()`の順で実行しており、fitView自体は正しく全ノードを画面内に収めている。問題は印刷時のCSSレイアウト側にあると推測される
+- 対応方針の候補（実装Agentが調査の上、妥当な方法を選ぶこと）: `@media print`内で`.react-flow`関連要素の`width`/`height`を`100%`または用紙基準に上書きする、`@page`ルールでサイズ・マージンを明示する、印刷直前に一時的なインラインスタイルで実ピクセルサイズを用紙相当に変更する、等
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/fix-R102-print-centering -b fix/R-102-print-centering master`、`git worktree list`で実在確認）
+- [ ] 失敗するテストを先に書く → Red確認
+- [ ] 印刷レイアウトの原因調査・修正
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機検証（claude-in-chrome MCP等で印刷プレビュー相当の確認。ブラウザの実際の印刷ダイアログ操作は自動化ツールの制約でフリーズする可能性があるため、`window.print()`自体を発火させず、印刷用CSS適用状態のスクリーンショットやレイアウト計算値で代替確認すること）
+- [ ] `docs/requests_log.md` R-102の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+---
+
+## R-103 目安時間の全角入力を半角として認識する（2026-08-14）
+
+**ブランチ**: `fix/R-103-time-input-fullwidth`
+**要望**: `docs/requests_log.md` R-103
+**仕様**: `docs/SPEC/03_画面設計.md` §7.7.4
+
+### 背景
+改善要望フォーム経由（2026-08-13 15:35）。「目安時間に全角で入力したら半角に変換して認識して」
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `JWCADTategu.Web/src/features/core/youkan/logic/timeParser.ts`の`parseTimeInput()`が半角数字専用の正規表現（`\d`）のみでマッチしており、全角数字（`１２３`等）・全角記号（`ｈ`/`ｍ`等）を入力すると全パターンにマッチせず`null`を返す（未入力扱いになり保存されない）
+- 対応: `parseTimeInput()`の冒頭で、入力文字列の全角英数字・記号を半角へ正規化してから既存の判定ロジックに通す（`String.prototype.normalize('NFKC')`等の標準機能での変換を優先し、ライブラリ追加は不要）
+- 単一の共通関数（`parseTimeInput()`）を直すため、フローチャート・ガント・全体一覧等の呼び出し元ごとの個別対応は不要
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/fix-R103-time-input-fullwidth -b fix/R-103-time-input-fullwidth master`、`git worktree list`で実在確認）
+- [ ] 失敗するテストを先に書く（`timeParser.test.ts`に全角入力パターンを追加）→ Red確認
+- [ ] `parseTimeInput()`に全角→半角正規化を実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機検証（いずれかの目安時間入力欄で全角入力→正しく認識されることを確認）
+- [ ] `docs/requests_log.md` R-103の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+---
+
+## R-104 フローチャートの各ノードに納期・マイ期限をさりげなく表示する（2026-08-14）
+
+**ブランチ**: `feature/R-104-flow-node-due-date`
+**要望**: `docs/requests_log.md` R-104
+**仕様**: `docs/SPEC/03_画面設計.md` §7.10
+
+### 背景
+改善要望フォーム経由（2026-08-14 13:44）。「ふろーちゃーとに、それぞれののーどのマイ期限、もしくは納期がいつになっているかもさりげなく添えるとしたらどういうやりかたにするのがいいかな？やってみてほしい」。提案型の要望のため、表示方法自体の設計検討を実装Agentに委ねる。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- `FlowItemNode.tsx`は既に目安時間バッジ（§7.7.3、`formatMinutes(item.estimatedMinutes)`）を持っている。同様のパターンで`item.due_date`（顧客納期）・`item.prep_date`（マイ期限）をノード下部に追加するのが自然
+- ガント画面（`RyokanGanttView.tsx`）の日別「目安納期ハンドル」・「顧客納期の赤マーカー」の配色（顧客納期=赤系、マイ期限=別トーン）と視覚的な一貫性を持たせることが望ましい
+- 「さりげなく」という要望のニュアンスを尊重し、未設定なら非表示、設定済みでも小さく控えめな表示とすること
+- 両方設定されている場合の表示（両方出す／どちらか優先）は実装Agentが妥当な案を判断してよい。判断に迷う場合は指揮AIに確認すること
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/feature-R104-flow-node-due-date -b feature/R-104-flow-node-due-date master`、`git worktree list`で実在確認）
+- [ ] 表示方法の設計案を決定（判断に迷えば指揮AIに確認）
+- [ ] 失敗するテストを先に書く → Red確認
+- [ ] `FlowItemNode.tsx`に納期・マイ期限表示を実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機検証（claude-in-chrome MCP等）
+- [ ] `docs/requests_log.md` R-104の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）

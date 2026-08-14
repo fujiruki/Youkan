@@ -1,5 +1,14 @@
 # Requests
 
+- **【高】R-102** フローチャート印刷ボタンで全体が中央に印刷されない
+  - **→ R-102 として requests_log.md に移記済み（2026-08-14）**
+
+- **【中】R-103** 目安時間の全角入力を半角として認識する
+  - **→ R-103 として requests_log.md に移記済み（2026-08-14）**
+
+- **【中】R-104** フローチャートの各ノードに納期・マイ期限をさりげなく表示する（設計検討）
+  - **→ R-104 として requests_log.md に移記済み（2026-08-14）**
+
 - **【低】** 技術的負債: `DashboardScreen.tsx`内の到達不能な`viewMode==='calendar'`パスの削除・整理
   - 2026-08-14 R-097実装時にAgentが発見。`App.tsx`のルーティングでは`currentView==='calendar'`は`features/core/calendar/screens/VolumeCalendarScreen.tsx`（`// [NEW]`コメントあり）へ遷移し、`DashboardScreen.tsx`内部の`viewMode==='calendar'`という別の切替ロジックへ至るUI導線は存在しない
   - 実害はない（単に使われないコードが残っているだけ）が、将来このパスに手を加えてしまう混乱を避けるため、いずれ削除・整理する価値がある
