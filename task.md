@@ -1247,7 +1247,11 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] `docs/requests_log.md` R-099の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
 
-**完了報告（2026-08-14）**: ブランチ`feature/R-099-items-api-dependency-fields`（worktree `.claude/worktrees/R-099`、master `8db0dd3`ベース）。コミット`98a8d3d`(Red)→`d36f561`(実装)→`0d872b4`(requests_log.md更新)。`BaseController.php`に`buildDependencyMap()`新設、`mapItemRow($item, $dependencyMap)`拡張。`ItemController.php`の9箇所（getMyItems各scope・getProjectItems・getSubTasks・show）に配線。新規テスト18件（`test_r099_dependency_fields.php`、値検証＋N+1回避のクエリ回数検証）全Green。既存backend/frontendテスト回帰なし（既知の無関係な既存失敗のみ）。dev環境で`dependsOn`/`blocks`の実値をAPI照会で確認済み。マージ・本番デプロイは指揮AIレビュー後。
+**完了報告（2026-08-14）**: ブランチ`feature/R-099-items-api-dependency-fields`（worktree `.claude/worktrees/R-099`、master `8db0dd3`ベース）。コミット`98a8d3d`(Red)→`d36f561`(実装)→`0d872b4`(requests_log.md更新)。`BaseController.php`に`buildDependencyMap()`新設、`mapItemRow($item, $dependencyMap)`拡張。`ItemController.php`の9箇所（getMyItems各scope・getProjectItems・getSubTasks・show）に配線。新規テスト18件（`test_r099_dependency_fields.php`、値検証＋N+1回避のクエリ回数検証）全Green。既存backend/frontendテスト回帰なし（既知の無関係な既存失敗のみ）。dev環境で`dependsOn`/`blocks`の実値をAPI照会で確認済み。
+
+**指揮AIによる独立レビュー（Codex）で発見・修正（2026-08-14）**: 新規テスト`test_r099_dependency_fields.php`が開発用実DB（`jbwos.sqlite`）へ直接接続し、後片付けの`DELETE ... WHERE tenant_id IS NULL OR tenant_id = ''`が個人アカウントの無関係な既存依存関係を無条件削除する破壊的バグを発見。専用一時DB接続＋削除範囲を`r099_`プレフィックス限定へ修正し、巻き込み削除防止テストを追加（ブランチ`fix/R-099-test-safety`、コミット`8de3240`）。あわせて`BaseController::buildDependencyMap()`のテナント境界（`joinedTenants`に`currentTenantId`が欠けるケース）で依存関係が欠落する問題も修正し、`dashboard`/`getSubTasks`/`show`と挙動を揃えた。修正後テスト23件全Green。
+
+**masterマージ・本番デプロイ・実機検証完了（2026-08-14）**: `git merge fix/R-099-test-safety`でmasterへ統合（fast-forward、`8de3240`）。`upload.ps1`でデプロイ後、本番`GET /items`（aggregated 481件・company 294件・personal 187件）全てに`dependsOn`/`blocks`フィールドが含まれ、実データ134件が実際の依存関係を保持していることをAPI照会で確認。
 
 ### 注意事項
 - 既存のフロントエンドの依存関係取得ロジック（`DependencyRepository`経由で`GET /dependencies`を叩く既存コード）は変更・撤去しない。今回はAPIに新フィールドを追加するだけで、既存の取得経路と共存させる
@@ -1285,6 +1289,10 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 
 （注: R-100は一時的なAPIエラーで一度中断・再開した経緯あり。完了報告の詳細は当該Agentからの完了報告メッセージを参照）
 
+**指揮AIによる独立レビュー（Codex）**: `RyokanGanttView.tsx`の完了アイテムグレー化ロジック（割当チップ・目安納期ハンドル・依存関係矢印）は仕様通り実装されており、顧客納期の赤マーカーも対象外のまま維持されていることを確認。テストの網羅性（顧客納期マーカーの非対象確認・矢印グレー色の厳密検証）に改善余地はあるが実装自体に問題はないと判断し、追加修正は見送り。
+
+**本番デプロイ・実機検証完了（2026-08-14）**: master統合済みコード（コミット`f240230`）を`upload.ps1`でデプロイ後、本番ガント画面の「完了表示」モードで完了アイテムの割当チップ52個が`.bg-slate-400`、依存関係エッジ17本が`stroke="#94a3b8"`＋グレー矢印マーカー（`#gantt-dep-arrowhead-done`）になっていることをDOM照会で確認。
+
 ---
 
 ## R-101 フローチャート画面に全体印刷ボタンを追加（2026-08-14）
@@ -1315,4 +1323,8 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] `docs/requests_log.md` R-101の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
 
-**完了報告（2026-08-14）**: ブランチ`feature/R-101-flow-print-button`（worktree `.claude/worktrees/R-101`、master `8db0dd3`ベース）。`FlowScreen.tsx`に印刷ボタン追加（`handlePrint`: `fitView({duration:0,padding:0.1})`即時実行→`window.print()`）。`.no-print`をヘルプ・全体表示・印刷ボタン・Controls・MiniMap・FlowHeaderに付与。新規テスト2件Green、vitest全件860 pass/14 skip/1 failed（既知の無関係な`useAssigneeView.test.ts`のみ）。claude-in-chrome MCPで実機検証: 画面外に出た3ノードが印刷ボタンでfitViewにより再表示、`.no-print`要素8個が非表示化されコンテンツのみ残ることを確認。マージ・本番デプロイは指揮AIレビュー後。
+**完了報告（2026-08-14）**: ブランチ`feature/R-101-flow-print-button`（worktree `.claude/worktrees/R-101`、master `8db0dd3`ベース）。`FlowScreen.tsx`に印刷ボタン追加（`handlePrint`: `fitView({duration:0,padding:0.1})`即時実行→`window.print()`）。`.no-print`をヘルプ・全体表示・印刷ボタン・Controls・MiniMap・FlowHeaderに付与。新規テスト2件Green、vitest全件860 pass/14 skip/1 failed（既知の無関係な`useAssigneeView.test.ts`のみ）。claude-in-chrome MCPで実機検証: 画面外に出た3ノードが印刷ボタンでfitViewにより再表示、`.no-print`要素8個が非表示化されコンテンツのみ残ることを確認。
+
+**指揮AIによる独立レビュー（Codex）で発見・修正（2026-08-14）**: 「未配置」パネル（`Flow/UnplacedItemList.tsx`）に`.no-print`が付与されておらず、全体印刷時に混入する漏れを発見。`.no-print`を付与し、`FlowScreen.print.test.tsx`にテストケースを追加（ブランチ`fix/R-101-print-unplaced`、コミット`0c381f2`）。
+
+**masterマージ・本番デプロイ・実機検証完了（2026-08-14）**: `git merge fix/R-101-print-unplaced`でmasterへ統合（マージコミット`8dde5a1`）。`upload.ps1`でデプロイ後、本番フローチャート画面で「未配置」パネルに`.no-print`が付与され`@media print`ルールで非表示になることをCSSOM経由で確認。
