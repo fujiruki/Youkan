@@ -2,14 +2,19 @@ import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Item, Dependency } from '../types';
 import { getEffectiveDeadline, type PlacementResult } from './flowAutoPlace';
+import { NODE_WIDTH } from '../components/Flow/flowGrouping';
+
+export { NODE_WIDTH };
 
 export const UNDATED_KEY = 'undated';
 
-// 帯内でノードを横に並べる間隔（ノード最大幅180〜220に余白を確保）
-export const COL_WIDTH = 250;
-// 帯の縦の厚み（全帯共通の固定値）
-export const BAND_HEIGHT = 220;
-const NODE_HEIGHT = 80;
+// 帯内でノードを縦に並べる行間隔
+export const ROW_HEIGHT = 110;
+// 帯の上端から1行目までの余白（左上3行ラベルとの重なりを避ける）
+const BAND_PADDING_TOP = 60;
+const BAND_PADDING_BOTTOM = 20;
+// 帯の最小高さ（左上3行ラベルが収まる値）
+const BAND_MIN_HEIGHT = 150;
 // 帯の左側に確保するラベル領域幅（日付・合計・最短の3行が収まる幅）
 const LABEL_MARGIN_WIDTH = 140;
 
@@ -92,8 +97,8 @@ export const calculateCriticalPathMinutes = (items: Item[], deps: Dependency[]):
   return items.reduce((max, item) => Math.max(max, pathTo(item.id)), 0);
 };
 
-// 依存の深さ（区間内で閉じたLongest Path Layering）
-const computeDepthWithin = (items: Item[], deps: Dependency[]): Map<string, number> => {
+// 依存の深さ（区間内で閉じたLongest Path Layering）。flowAutoArrange.tsからも流用
+export const computeDepthWithin = (items: Item[], deps: Dependency[]): Map<string, number> => {
   const predecessors = buildPredecessors(items, deps);
   const depths = new Map<string, number>();
   const computing = new Set<string>();
@@ -124,37 +129,77 @@ const bandLabel = (dateKey: string): string =>
     ? '日付未定'
     : `${format(parseISO(dateKey), 'M/d(E)', { locale: ja })}まで`;
 
+// 帯内でノードの行（row）を決める: 依存元の行より下を下限に、X区間が重ならない最初の行を選ぶ
+const assignRows = (
+  orderedItems: Item[],
+  predecessors: Map<string, string[]>
+): Map<string, number> => {
+  const rowOf = new Map<string, number>();
+  const rowIntervals = new Map<number, Array<[number, number]>>();
+
+  for (const item of orderedItems) {
+    const x = (item.meta?.flow_x as number) ?? 0;
+    const preds = predecessors.get(item.id) ?? [];
+    let minRow = 0;
+    for (const predId of preds) {
+      const predRow = rowOf.get(predId);
+      if (predRow !== undefined) minRow = Math.max(minRow, predRow + 1);
+    }
+
+    let row = minRow;
+    for (;;) {
+      const intervals = rowIntervals.get(row) ?? [];
+      const overlaps = intervals.some(([ix1, ix2]) => x < ix2 && x + NODE_WIDTH > ix1);
+      if (!overlaps) break;
+      row++;
+    }
+
+    rowOf.set(item.id, row);
+    const intervals = rowIntervals.get(row) ?? [];
+    intervals.push([x, x + NODE_WIDTH]);
+    rowIntervals.set(row, intervals);
+  }
+
+  return rowOf;
+};
+
 // 日付グルーピング表示のノード座標と区間帯を計算する
+// R-111: flow_xは一切変更せず、縦方向の移動だけで日付帯の中へ収める
 export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): DateGroupLayout => {
   const groups = groupItemsByDeadline(items);
   if (groups.length === 0) return { placements: [], bands: [] };
 
-  const maxCols = Math.max(...groups.map((g) => g.items.length));
-  const bandX = 0;
-  const bandWidth = LABEL_MARGIN_WIDTH + maxCols * COL_WIDTH;
+  const xs = items.map((item) => (item.meta?.flow_x as number) ?? 0);
+  const bandX = Math.min(...xs) - LABEL_MARGIN_WIDTH;
+  const bandWidth = Math.max(...xs) + NODE_WIDTH - bandX;
 
   const placements: PlacementResult[] = [];
   const bands: DateBand[] = [];
+  let bandY = 0;
 
-  groups.forEach((group, index) => {
-    const bandY = index * BAND_HEIGHT;
+  for (const group of groups) {
     const depths = computeDepthWithin(group.items, deps);
-    // 依存の深い順を優先しつつ、同じ深さでは既存のx座標の左右関係を保つ
+    const predecessors = buildPredecessors(group.items, deps);
+    // 処理順: 依存の深さ昇順→同じ深さは元のflow_y昇順（元の上下関係を保つ）
     const ordered = [...group.items].sort((a, b) => {
       const depthDiff = (depths.get(a.id) ?? 0) - (depths.get(b.id) ?? 0);
       if (depthDiff !== 0) return depthDiff;
-      const ax = (a.meta?.flow_x as number) ?? 0;
-      const bx = (b.meta?.flow_x as number) ?? 0;
-      return ax - bx;
+      const ay = (a.meta?.flow_y as number) ?? 0;
+      const by = (b.meta?.flow_y as number) ?? 0;
+      return ay - by;
     });
 
-    ordered.forEach((item, col) => {
+    const rowOf = assignRows(ordered, predecessors);
+    const rows = Math.max(...Array.from(rowOf.values())) + 1;
+    const height = Math.max(rows * ROW_HEIGHT + BAND_PADDING_TOP + BAND_PADDING_BOTTOM, BAND_MIN_HEIGHT);
+
+    for (const item of ordered) {
       placements.push({
         itemId: item.id,
-        flow_x: LABEL_MARGIN_WIDTH + col * COL_WIDTH,
-        flow_y: bandY + (BAND_HEIGHT - NODE_HEIGHT) / 2,
+        flow_x: (item.meta?.flow_x as number) ?? 0,
+        flow_y: bandY + BAND_PADDING_TOP + rowOf.get(item.id)! * ROW_HEIGHT,
       });
-    });
+    }
 
     bands.push({
       dateKey: group.dateKey,
@@ -162,11 +207,13 @@ export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): Dat
       x: bandX,
       y: bandY,
       width: bandWidth,
-      height: BAND_HEIGHT,
+      height,
       totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
       criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
     });
-  });
+
+    bandY += height;
+  }
 
   return { placements, bands };
 };

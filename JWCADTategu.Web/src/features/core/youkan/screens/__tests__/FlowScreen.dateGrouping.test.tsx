@@ -127,11 +127,11 @@ describe('FlowScreen: 日付グルーピング表示（R-109）', () => {
         await toggleDateGrouping();
 
         await waitFor(() => {
-            // 8/16のa,bは同じ行（帯）、依存順にa→bで左から右に並ぶ
-            expect(nodeOf('item-a').position.y).toBe(nodeOf('item-b').position.y);
-            expect(nodeOf('item-a').position.x).toBeLessThan(nodeOf('item-b').position.x);
+            // R-111: flow_xは変更せず、依存元(a)より依存先(b)が下の行（縦移動のみ）
+            expect(nodeOf('item-a').position.x).toBe(nodeOf('item-b').position.x);
+            expect(nodeOf('item-b').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
             // 8/17のcは次の帯（下）
-            expect(nodeOf('item-c').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
+            expect(nodeOf('item-c').position.y).toBeGreaterThan(nodeOf('item-b').position.y);
         });
 
         await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));

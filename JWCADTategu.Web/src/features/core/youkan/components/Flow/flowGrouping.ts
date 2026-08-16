@@ -23,7 +23,7 @@ const PROJECT_BORDER_COLORS = [
   'rgba(34, 197, 94, 0.25)',
 ];
 
-const NODE_WIDTH = 180;
+export const NODE_WIDTH = 180;
 const NODE_HEIGHT = 60;
 const GROUP_PADDING = 40;
 const GROUP_HEADER_HEIGHT = 30;
