@@ -1646,3 +1646,36 @@ R-109実装（本番デプロイ済み）を発注者が実際に確認したと
 - [x] `docs/requests_log.md` R-110の対応状況を更新
 - [x] `docs/SPEC/03_画面設計.md` §7.12の更新に齟齬なしを確認（指揮AI更新済み内容が実装と一致、追加修正不要）
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+## R-111 / R-112 日付帯内配置の「横位置維持」修正 ＋ フロー「自動整理」ボタン（2026-08-17）
+
+**ブランチ**: `feature/R-111-112-flow-arrange`（1ブランチで R-111 → R-112 の順に直列実装）
+**要望**: `docs/requests_log.md` R-111 / R-112
+**仕様**: `docs/SPEC/03_画面設計.md` §7.12（R-111で修正した節）・§7.13、`docs/SPEC/02_機能仕様.md` F-42 / F-43
+**計画ファイル**: `C:\Users\fjtsu\.claude\plans\konoyoukan-no-gantotya-to-hyouji-hidden-gizmo.md`（設計確定済み、実装Agentは再設計不要）
+
+### 背景
+
+R-110（横帯・上→下）を発注者が確認したところ「帯の中のノードが横一列に並べ直されて元のマインドマップの形が壊れる。日付整理は横方向移動をせず縦方向移動だけで日付の領域に移してほしい」とのフィードバック。あわせて「重ならず・エッジ交差が少なく・隙間が狭い」自動整理ボタンの要望。発注者確認済み: 帯内の行順は依存関係優先／自動整理は自前実装（外部レイアウトライブラリ不使用）／プロジェクトごとに整理して横並び／自動整理も「元に戻す」可能。
+
+### R-111 対象・設計
+
+- `logic/flowDateGrouping.ts` `calculateDateGroupLayout` のみ: `flow_x`は変更しない。帯内は依存深さ順→元`flow_y`順に処理し、`row = max(帯内依存元のrow)+1`を下限として、X区間`[flow_x, flow_x+NODE_WIDTH]`が既配置ノードと重ならない最初の行に置く。`flow_y = bandY + BAND_PADDING_TOP + row*ROW_HEIGHT`。帯高さ`max(rows*ROW_HEIGHT+上下パディング, BAND_MIN_HEIGHT)`可変、`bandY`累積。帯幅は全ノードの`minX-LABEL_MARGIN_WIDTH`〜`maxX+NODE_WIDTH`。`COL_WIDTH`/`BAND_HEIGHT`定数廃止
+- `FlowScreen.tsx`帯ノード生成・`DateBandNode.tsx`は変更不要
+
+### R-112 対象・設計
+
+- 新規 `logic/flowAutoArrange.ts` `calculateAutoArrange(items, deps, sizes?)`: プロジェクト分割（`calculateAutoPlacement`と同じ）→ Longest Path層分け（`computeDepthWithin`をexportして流用、層=上→下）→ 重心法で層内並び替え（初期順は元`flow_x`、4回程度掃引）→ 座標割当（実測幅+GAP_X=40で詰め、層は中央揃え、縦は層最大高さ+GAP_Y=60累積、未計測は180×60）→ プロジェクトは実幅+PROJECT_GAP=200で横並び
+- `screens/FlowScreen.tsx`: `top-[180px] right-3`に「自動整理」ボタン（`isDateGrouping`中はdisabled）、`handleAutoArrange`（バックアップ→`nodes`の`measured`でサイズMap→計算→`applyPlacements`→`fitView`）、「元に戻す」表示条件を`hasPositionBackup` stateに変更
+- 「全て自動配置」（`UnplacedItemList.tsx`）は変更しない
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b feature/R-111-112-flow-arrange master`
+- [ ] R-111: `flowDateGrouping.test.ts`を新ルールへ書き換え＋追加（Red）→ 実装（Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
+- [ ] R-112: `flowAutoArrange.test.ts`新規（重なりなし／依存先が下／交差ケース／プロジェクト横並び／sizes反映／flow_x同点解消）（Red）→ 実装（Green）
+- [ ] R-112: FlowScreen統合テスト（ボタン表示・押下で保存・元に戻す・日付表示中は無効）（Red）→ 実装（Green）
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] 実機検証（`php -S 127.0.0.1:8000 -t backend backend/router.php`＋Vite）: 日付表示ONで横位置不変・行分け・帯高さ可変／自動整理で重なりなし・上→下・プロジェクト横並び・元に戻す・日付表示中無効
+- [ ] `docs/requests_log.md` R-111/R-112の対応状況更新、SPECと実装の齟齬確認
+- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
