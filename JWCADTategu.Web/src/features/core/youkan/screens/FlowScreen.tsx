@@ -442,9 +442,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       // 複数選択まとめ移動: 全ノードの位置を保存（オーバーラップ/エッジ挿入はスキップ）
       if (selectedNodes.length > 1) {
         const validNodes = selectedNodes.filter(n => !n.id.startsWith('group-'));
-        for (const node of validNodes) {
-          await updateItemMeta(node.id, { flow_x: node.position.x, flow_y: node.position.y });
-        }
+        // R-108: サーバー保存を待つ間に選択解除等で再レンダリングが起きると、allItemsから
+        // nodesを再構築する派生useEffectが移動前の座標でノードを上書きしてしまう。
+        // 保存より先にローカル座標を（全ノード分まとめて）確定させる
         setAllItems(prev =>
           prev.map(item => {
             const moved = validNodes.find(n => n.id === item.id);
@@ -467,6 +467,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
             return updated ? { ...n, position: updated.position, style: updated.style } : n;
           });
         });
+        for (const node of validNodes) {
+          await updateItemMeta(node.id, { flow_x: node.position.x, flow_y: node.position.y });
+        }
         return;
       }
 
@@ -546,7 +549,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       } else {
         const inserted = await handleEdgeInsert(draggedNode.id, draggedNode.position);
         if (!inserted) {
-          await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
+          // R-108と同じ理由で、サーバー保存より先にローカル座標を確定させる
           setAllItems(prev =>
             prev.map(item =>
               item.id === draggedNode.id
@@ -554,6 +557,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
                 : item
             )
           );
+          await updateItemMeta(draggedNode.id, { flow_x: draggedNode.position.x, flow_y: draggedNode.position.y });
         }
       }
 
