@@ -1494,3 +1494,37 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [x] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: ウィークリー/デイリーで時間軸ブロックに時間ラベルが見えること、依存関係のあるタスクで矢印がブロック端（マス目端ではなく）から出ていること、列幅スライダーを最大まで動かすと列が表示領域いっぱいに近づくこと、行高スライダーのラベルが「行高」になっていること、マンスリー表示が変化していないこと（後方互換）
 - [x] `docs/requests_log.md` R-105-Y2・R-106の対応状況を更新
 - [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+---
+
+## R-107 フローノードの表示レイアウト圧縮（2026-08-17）
+
+**ブランチ**: `feature/R-107-flow-node-layout-compact`
+**要望**: `docs/requests_log.md` R-107
+**仕様**: `docs/SPEC/03_画面設計.md` §7.10「レイアウト圧縮（R-107）」
+
+### 背景
+
+改善要望フォーム経由（2026-08-17 01:54）。「フローチャート画面のノードの中のレイアウトを変えたい。現状は、状態・目安時間のあと改行して『期限 8/16』のようになっているが、これを改行をやめてたい。添付画像の例なら『Inbox 1h 8/16』と書いてほしい。8/16　と表示されている根拠がマイ期限なら青、納期なら赤　というルールであれば、『期限』というラベルも不要になる」。R-104（フローノードへの納期・マイ期限表示）のフォローアップ。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+
+`JWCADTategu.Web/src/features/core/youkan/components/Flow/FlowItemNode.tsx`:
+- L187-223: ステータス・目安時間の行（`<div className="flex items-center gap-1">`、`item.status`のuppercaseラベルと目安時間バッジ）
+- L224-237: 納期・マイ期限の行（別の`<div className="flex items-center gap-1.5 text-[8px] leading-tight">`）。`due_date`設定時は`text-red-400`で「納期 M/d」、`prep_date`設定時は`text-indigo-400`で「期限 M/d」とラベル付きで表示
+
+この2つの`<div>`が別要素のため画面上で改行される。要望は以下:
+1. 2つの行を1つの`<div>`（同一flexコンテナ）に統合し、「INBOX 1h 8/16」のように1行で表示する
+2. 「納期」「期限」のラベルテキストを削除し、色（`text-red-400`=納期、`text-indigo-400`=マイ期限、既存配色は維持）のみで区別する
+3. 両方設定されている場合は両方の日付を続けて表示する（ラベルが無くても色で区別できるため）
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/feature-R107-flow-node-layout-compact -b feature/R-107-flow-node-layout-compact master`、`git worktree list`で実在確認）
+- [ ] 失敗するテストを先に書く（1行に統合されていること、ラベルテキスト「納期」「期限」が表示されないこと、日付自体・色分けは維持されること、両方設定時に両方表示されること、未設定時は非表示のままであること）→ Red確認
+- [ ] `FlowItemNode.tsx`のレイアウトを実装（既存の`FlowItemNode.dueDate.test.tsx`があれば合わせて更新）
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: フローチャート画面で、目安時間・納期・マイ期限が設定されたノードが1行レイアウトで表示されること、ラベルテキストが出ないこと、色分けで納期/マイ期限が区別できること、未設定項目の要素がないこと
+- [ ] `docs/requests_log.md` R-107の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
