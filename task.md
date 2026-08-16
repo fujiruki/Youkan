@@ -1559,8 +1559,54 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] 根本原因を特定し、`docs/handover/`または報告内に記録
 - [ ] 失敗するテストを先に書く（複数選択移動後、選択解除相当の操作をしても位置が保持されること）→ Red確認
 - [ ] 修正実装
-- [ ] Green確認・既存テスト回帰なし確認
+- [x] Green確認・既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD`で変更範囲確認
+- [x] 実機再検証（本番配信バンドルのコードレベル確認。claude-in-chromeのモディファイア制約でUI操作の完全再現はできず）
+- [x] `docs/requests_log.md` R-108の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）→ マージ・本番デプロイ完了（2026-08-17）
+
+---
+
+## R-109 フローチャート日付グルーピング表示（2026-08-17）
+
+**ブランチ**: `feature/R-109-flow-date-grouping`
+**要望**: `docs/requests_log.md` R-109
+**仕様**: `docs/SPEC/03_画面設計.md` §7.12
+
+### 背景
+
+会話内発言＋手書き図により、フローチャート画面に「日付ごとのグルーピング表示」機能を追加する要望。発注者指定により実装着手前に相談を実施し、仕様を確定済み。詳細は`docs/SPEC/03_画面設計.md` §7.12を参照（実装Agentは仕様検討済みのためそちらを正とし、再相談は不要）。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+
+- `FlowScreen.tsx`のヘッダーは1段のみ。既存トグルはなく、ヘルプ／全体表示／印刷ボタンが`absolute top-*`でキャンバス右上に縦に並ぶフローティング配置パターン（1121-1144行目付近）。新規「日付表示」チェックボックスもこのパターンに追加するのが自然
+- ノード自動配置は`JWCADTategu.Web/src/features/core/youkan/logic/flowAutoPlace.ts`の`calculateAutoPlacement`。`computeLayers`（53-97行目）がLongest Path Layeringで依存深さ（レイヤー）を計算し、同一レイヤー内は`sortItemsForChain`で有効締切順にソートしている。x座標=`xBaseOffset + layer * X_INTERVAL(250)`、y座標=レイヤー内で中央揃え。今回の日付グルーピングはこれとは異なる軸（依存深さではなく日付）でx座標を決めるため、新規のレイアウト関数として実装する必要がある（既存の`calculateAutoPlacement`を流用せず、参考にする程度でよい）
+- 有効締切（`due_date`/`prep_date`の早い方）の計算は`hierarchy.ts`の`getEffectiveDeadline`と同等ロジックが`flowAutoPlace.ts`内にも存在する（共通化されているか確認し、あれば再利用すること）
+- 依存関係は`item_dependencies`テーブル・`DependencyRepository`のシンプルなCRUD（`{id, sourceItemId, targetItemId, createdAt}`）。DAGのトポロジカルソートは`hierarchy.ts`の`sortWithDependencies`（Kahn's algorithm、41-183行目）が参考になるが、今回必要なのは「最長経路（クリティカルパス）」の計算であり、トポロジカルソートとは別に新規実装が必要
+- ノード位置は`item.meta.flow_x`/`item.meta.flow_y`に保存。手動ドラッグ時の保存パターンは`FlowScreen.tsx`の`onNodeDragStop`・`updateItemMeta`を参照（R-108でこの保存順序にバグがあり修正済みなので、同じ順序の考え方＝ローカルstate確定を保存より先に行う、を踏襲すること）
+
+### 仕様概要（詳細は`03_画面設計.md` §7.12）
+
+1. 右上フローティングボタン列に「日付表示」チェックボックス＋（グルーピング表示中のみ）「元に戻す」ボタンを追加
+2. 区切り基準は有効締切（`due_date`/`prep_date`の早い方）
+3. チェックON時、x軸を日付軸として日付ごとに縦区切り線＋背景色分け。各区間内は依存関係順・既存の上下位置をできるだけ保ってy軸整列。実際に`flow_x`/`flow_y`を書き換えて保存する
+4. 各区間下部に「合計Xh」（その日が締切のタスクの目安時間単純合計）「最短Yh」（その区間内だけのクリティカルパス、区間をまたぐ依存は無視、並列分岐は最大値・直列は合計）を表示
+5. チェックON適用直前の全ノード位置をフロント側stateにバックアップし、「元に戻す」ボタンで1段階Undo
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/feature-R109-flow-date-grouping -b feature/R-109-flow-date-grouping master`、`git worktree list`で実在確認）
+- [ ] 純粋関数のロジックから着手（TDD、DOM非依存で書けるため優先）:
+  - [ ] 失敗するテストを先に書く: 有効締切でアイテムを日付キーごとにグルーピングする関数 → Red確認 → 実装 → Green確認
+  - [ ] 失敗するテストを先に書く: 日付区間内のクリティカルパス（最長経路）計算関数。直列は合計、並列分岐は最大値。区間外の依存は無視。循環依存がある場合の安全側フォールバックも検討 → Red確認 → 実装 → Green確認
+  - [ ] 失敗するテストを先に書く: 日付グルーピング用のノード位置（x/y）計算関数。x=日付区間ごとの帯、y=依存順・既存位置をできるだけ保った整列 → Red確認 → 実装 → Green確認
+- [ ] UI実装:
+  - [ ] 失敗するテストを先に書く: 「日付表示」チェックボックスの表示・トグル動作 → Red確認 → 実装 → Green確認
+  - [ ] 失敗するテストを先に書く: チェックON時に区切り線・背景色分け・合計/最短時間が表示されること → Red確認 → 実装 → Green確認
+  - [ ] 失敗するテストを先に書く: チェックON時に対象ノードの`flow_x`/`flow_y`が実際に更新されること（`onUpdateItem`/`updateItemMeta`相当の呼び出し検証） → Red確認 → 実装 → Green確認
+  - [ ] 失敗するテストを先に書く: 「元に戻す」ボタンでチェックON直前の位置に復元されること → Red確認 → 実装 → Green確認
+- [ ] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認（`useAssigneeView.test.ts`の既存フレーキー1件は無関係なので無視してよい）
 - [ ] `git diff --stat master..HEAD`で変更範囲確認
-- [ ] 実機再検証（複数回・複数ノード数で再現しないことを確認）
-- [ ] `docs/requests_log.md` R-108の対応状況を更新
+- [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: 依存関係のある複数タスクを異なる有効締切で用意し、チェックONで区切り線・背景色・合計/最短時間が正しく表示されること、ノードが実際に移動し`flow_x`/`flow_y`が更新されること、「元に戻す」で元の位置に戻ることを確認。手書き図の例（直列区間は合計=最短、分岐区間は合計>最短）で計算結果が妥当か目視確認
+- [ ] `docs/requests_log.md` R-109の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
