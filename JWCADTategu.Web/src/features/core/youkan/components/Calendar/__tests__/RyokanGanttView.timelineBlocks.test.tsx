@@ -291,6 +291,38 @@ describe('R-105-Y2: 依存矢印のブロック端合わせ', () => {
 		});
 	});
 
+	// prep_date 当日にキャパシティが無いと、ブロックはそれ以前の稼働日へ前倒し配置される。
+	// このとき prep_date の日を見に行くとブロックが見つからず、セル端フォールバックと
+	// ブロック端が混在した不整合な矢印になっていた。
+	it('ブロックが prep_date より前の日へ前倒し配置されても、その実ブロック端を使う', async () => {
+		mockGetDependencies.mockResolvedValue([makeDependency('dep-1', 'A', 'B')]);
+		const noCapacity: CapacityConfig = {
+			...capacityConfig,
+			exceptions: { '2026-03-04': 0, '2026-03-05': 0 },
+		};
+		const items = [
+			// prep_date は 3/5 だがキャパ0のため 3/3 へ前倒しされる
+			makeItem('A', 'タスクA', { prep_date: thursdayUnix, estimatedMinutes: 240 }),
+			makeItem('B', 'タスクB', {
+				prep_date: Math.floor(new Date(2026, 2, 6).getTime() / 1000),
+				estimatedMinutes: 120,
+				meta: { gantt_time_blocks: { '2026-03-06': 300 } },
+			}),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} capacityConfig={noCapacity} items={items} colWidth={colWidth} timelineMode />
+		);
+
+		await waitFor(() => expect(getArrow(container)).toBeTruthy());
+		await waitFor(() => {
+			const { x1, x2 } = parseEndpoints(getArrow(container)!.getAttribute('d')!);
+			// A の実ブロックは 3/3（2日目セル）にある
+			expect(x1).toBeCloseTo(STICKY + 2 * colWidth + (240 / 1440) * colWidth, 3);
+			expect(x2).toBeCloseTo(STICKY + 5 * colWidth + (300 / 1440) * colWidth, 3);
+		});
+	});
+
 	it('timelineMode でなければ従来どおり日付セル端を使う', async () => {
 		mockGetDependencies.mockResolvedValue([makeDependency('dep-1', 'A', 'B')]);
 		const items = [

@@ -1313,6 +1313,31 @@ const GanttDependencyArrows: React.FC<{
 		return map;
 	}, [allDays]);
 
+	// R-105-Y2: ブロックは prep_date 当日ではなく、キャパシティに応じて前倒しされた稼働日に描画される。
+	// 矢印は prep_date ではなく実際にブロックがある日（ソース＝最終日 / ターゲット＝初日）を基準にする。
+	const blockDayRangeByItem = useMemo(() => {
+		const map = new Map<string, { first: string; last: string }>();
+		timeBlockLayoutsByDate?.forEach((byItem, dateKey) => {
+			byItem.forEach((_, itemId) => {
+				const range = map.get(itemId);
+				if (!range) map.set(itemId, { first: dateKey, last: dateKey });
+				else {
+					if (dateKey < range.first) range.first = dateKey;
+					if (dateKey > range.last) range.last = dateKey;
+				}
+			});
+		});
+		return map;
+	}, [timeBlockLayoutsByDate]);
+
+	/** 実ブロックとその日付インデックスを返す。表示範囲外・ブロック無しは null */
+	const getBlockAt = (itemId: string, dateKey: string | undefined) => {
+		if (!dateKey) return null;
+		const index = dayIndexMap.get(dateKey);
+		const block = timeBlockLayoutsByDate?.get(dateKey)?.get(itemId);
+		return index === undefined || !block ? null : { index, block };
+	};
+
 	const getDatePosition = (item: Item): { index: number; key: string } | null => {
 		// prep_date（目安納期）をソースの末尾、due_dateをフォールバックとして使用
 		let dateObj: Date | null = null;
@@ -1344,15 +1369,15 @@ const GanttDependencyArrows: React.FC<{
 			if (!source || !target) return null;
 
 			// R-105-Y2: 時間軸ブロックがあればその実際の右端・左端、無ければ日付セル端へ
-			const sourceBlock = timeBlockLayoutsByDate?.get(source.key)?.get(dep.sourceItemId);
-			const targetBlock = timeBlockLayoutsByDate?.get(target.key)?.get(dep.targetItemId);
+			const sourceHit = getBlockAt(dep.sourceItemId, blockDayRangeByItem.get(dep.sourceItemId)?.last);
+			const targetHit = getBlockAt(dep.targetItemId, blockDayRangeByItem.get(dep.targetItemId)?.first);
 
-			const x1 = sourceBlock
-				? stickyColWidth + source.index * colWidth + ((sourceBlock.startOffsetMinutes + sourceBlock.displayWidthMinutes) / DAY_MINUTES) * colWidth
+			const x1 = sourceHit
+				? stickyColWidth + sourceHit.index * colWidth + ((sourceHit.block.startOffsetMinutes + sourceHit.block.displayWidthMinutes) / DAY_MINUTES) * colWidth
 				: stickyColWidth + (source.index + 1) * colWidth;
 			const y1 = sourceRow * rowHeight + rowHeight / 2;
-			const x2 = targetBlock
-				? stickyColWidth + target.index * colWidth + (targetBlock.startOffsetMinutes / DAY_MINUTES) * colWidth
+			const x2 = targetHit
+				? stickyColWidth + targetHit.index * colWidth + (targetHit.block.startOffsetMinutes / DAY_MINUTES) * colWidth
 				: stickyColWidth + target.index * colWidth;
 			const y2 = targetRow * rowHeight + rowHeight / 2;
 
@@ -1361,7 +1386,7 @@ const GanttDependencyArrows: React.FC<{
 
 			return { key: dep.id, x1, y1, x2, y2, isDimmed };
 		}).filter(Boolean) as { key: string; x1: number; y1: number; x2: number; y2: number; isDimmed: boolean }[];
-	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth, timeBlockLayoutsByDate]);
+	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth, timeBlockLayoutsByDate, blockDayRangeByItem]);
 
 	if (arrows.length === 0) return null;
 
