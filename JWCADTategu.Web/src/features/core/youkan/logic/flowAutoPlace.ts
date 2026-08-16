@@ -2,7 +2,7 @@ import type { Item, Dependency } from '../types';
 import { parseISO, isValid, startOfDay } from 'date-fns';
 
 // 納期/マイ期限の早い方を返す（sorting.tsと同等ロジック）
-const getEffectiveDeadline = (item: Item): number | null => {
+export const getEffectiveDeadline = (item: Item): number | null => {
   let dueTime: number | null = null;
   if (item.due_date) {
     let d = parseISO(item.due_date);
