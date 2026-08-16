@@ -7,6 +7,7 @@ import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
+import { computeDailyTimeBlockLayout, DailyAllocationEntry, TimeBlockLayout, DAY_MINUTES } from '../../logic/ganttTimeBlocks';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { validateDependencyConstraint, calculateCascadeAdjustments } from '../../logic/dependencyConstraint';
 import { ContextMenu } from '../Common/ContextMenu';
@@ -108,10 +109,16 @@ interface GanttViewProps {
 	loadedRange?: { from: string; to: string };
 	/** R-041-Y3: イベントチップにカレンダー色を反映するための Google カレンダー一覧 */
 	googleCalendars?: GoogleCalendar[];
+	/** R-105: 時間軸タイムライン表示（ウィークリー/デイリー）。未指定時は従来の日次チップ表示 */
+	timelineMode?: boolean;
 }
 
 /** R-039 Phase 3 UX: ガント日付列ヘッダー内に表示する Google 予定の最大件数 */
 const GANTT_EXTERNAL_EVENTS_MAX = 2;
+
+/** R-105: その日の 0:00 からの経過分を `H:MM` 表記にする */
+const formatDayOffset = (minutes: number) =>
+	`${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 
 export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	allDays, items, heatMap: _heatMap, today: _today, onItemClick, safeConfig: _safeConfig, rowHeight = 28, colWidth = 24, projects, onJumpToDate: _onJumpToDate, renderItemTitle,
@@ -121,6 +128,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	externalEventsByDate, onExternalEventClick, onExternalEventsMoreClick,
 	onLoadMore, isLoadingMore = false, loadDirection = null, loadedRange,
 	googleCalendars = [],
+	timelineMode = false,
 }) => {
 	// R-050: ロード済み月数と上限到達判定
 	const loadedMonths = countMonths(loadedRange?.from, loadedRange?.to);
@@ -184,6 +192,15 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		startX: number;
 		currentX: number;
 		originalDate: Date;
+	} | null>(null);
+
+	// R-105: 時間軸ブロックの横ドラッグ状態（prep_date ドラッグとは別系統）
+	const [timeBlockDragState, setTimeBlockDragState] = useState<{
+		itemId: string;
+		dateKey: string;
+		baseOffsetMinutes: number;
+		startX: number;
+		currentX: number;
 	} | null>(null);
 
 	// R-094-A: チェーン作成でinlineInsertとeditingTimeItemIdが同時に更新されうるため、
@@ -327,6 +344,54 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			window.removeEventListener('mouseup', handleMouseUp);
 		};
 	}, [dragState, items, colWidth, onUpdateItem]);
+
+	// R-105: 時間軸ブロックのドラッグ確定。meta.gantt_time_blocks へ開始オフセット分を保存する
+	const handleTimeBlockDragEnd = useCallback(async (
+		itemId: string,
+		dateKey: string,
+		baseOffsetMinutes: number,
+		deltaX: number,
+	) => {
+		const deltaMinutes = Math.round((deltaX / colWidth) * DAY_MINUTES);
+		if (deltaMinutes === 0) return;
+		const nextOffset = Math.min(Math.max(baseOffsetMinutes + deltaMinutes, 0), DAY_MINUTES - 1);
+		// flow_x/flow_y と meta を共有するため、確定直前の最新 meta にマージして上書き消失を防ぐ
+		const item = items.find(i => i.id === itemId);
+		if (!item) return;
+		const currentMeta = item.meta || {};
+		await onUpdateItem?.(itemId, {
+			meta: {
+				...currentMeta,
+				gantt_time_blocks: { ...(currentMeta.gantt_time_blocks || {}), [dateKey]: nextOffset },
+			},
+		} as Partial<Item>);
+	}, [items, colWidth, onUpdateItem]);
+
+	useEffect(() => {
+		if (!timeBlockDragState) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			setTimeBlockDragState(prev => prev ? { ...prev, currentX: e.clientX } : null);
+		};
+
+		const handleMouseUp = (e: MouseEvent) => {
+			handleTimeBlockDragEnd(
+				timeBlockDragState.itemId,
+				timeBlockDragState.dateKey,
+				timeBlockDragState.baseOffsetMinutes,
+				e.clientX - timeBlockDragState.startX,
+			);
+			setTimeBlockDragState(null);
+		};
+
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+		};
+	}, [timeBlockDragState, handleTimeBlockDragEnd]);
 
 	// Sync Scroll Logic: Use native event listeners for better control
 	useEffect(() => {
@@ -539,6 +604,49 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 		return map;
 	}, [items, capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId]);
+
+	// R-105: 時間軸タイムライン表示時のみ、日付ごとにブロックの横位置を計算する
+	const timeBlockLayoutsByDate = useMemo(() => {
+		const result = new Map<string, Map<string, TimeBlockLayout>>();
+		if (!timelineMode) return result;
+
+		const predecessors = new Map<string, string[]>();
+		visibleDependencies.forEach(d => {
+			const list = predecessors.get(d.targetItemId);
+			if (list) list.push(d.sourceItemId);
+			else predecessors.set(d.targetItemId, [d.sourceItemId]);
+		});
+
+		const itemById = new Map(items.map(i => [i.id, i]));
+
+		// 行順（transformedItems）は依存関係順に整列済みのため、そのまま走査順に使う
+		const entriesByDate = new Map<string, DailyAllocationEntry[]>();
+		transformedItems.forEach(wrapper => {
+			if (wrapper.type !== 'item') return;
+			const steps = allocationMap.get(wrapper.item.id);
+			if (!steps) return;
+			steps.forEach((s: any) => {
+				const key = toYmdKey(s.date);
+				const list = entriesByDate.get(key);
+				const entry = { itemId: wrapper.item.id, allocatedMinutes: s.allocatedMinutes };
+				if (list) list.push(entry);
+				else entriesByDate.set(key, [entry]);
+			});
+		});
+
+		entriesByDate.forEach((entries, dateKey) => {
+			result.set(dateKey, computeDailyTimeBlockLayout(
+				entries,
+				id => predecessors.get(id) ?? [],
+				id => {
+					const offset = itemById.get(id)?.meta?.gantt_time_blocks?.[dateKey];
+					return typeof offset === 'number' ? offset : undefined;
+				}
+			));
+		});
+
+		return result;
+	}, [timelineMode, transformedItems, allocationMap, visibleDependencies, items]);
 
 	// R-034 Phase 1: ガント一覧表示用に日付別の量感を集計
 	// 一覧（showGroups=false）のときだけ計算する（プロジェクト別では非表示）
@@ -811,7 +919,13 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				ref={effectiveScrollRef}
 				className="flex-1 overflow-auto overflow-x-auto relative min-h-0"
 			>
-				<div className="min-w-max pb-32 relative">
+				{/*
+				 * R-105: 横幅を明示する。行に付く content-visibility: auto（R-046-Y1）は
+				 * 幅方向にもサイズ拘束をかけるため、行が一度も描画されていない初回は
+				 * ここの max-content がビューポート幅まで潰れ、sticky ラベル列が画面外へ出る。
+				 * 内訳はラベル列 w-64（256px）＋ 日数 × 列幅。
+				 */}
+				<div className="min-w-max pb-32 relative" style={{ width: 256 + allDays.length * colWidth }}>
 					{/*
 					 * R-050: sentinel をスクロールコンテンツ（min-w-max）の左端・右端にインライン配置する。
 					 * R-042-Y2 では絶対配置だったため横スクロールに追従せず、ユーザーがどれだけ
@@ -1011,6 +1125,11 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											const allocationSteps = allocationMap.get(item.id);
 											const step = allocationSteps?.find((s: any) => isSameDate(s.date, date));
 
+											// R-105: 時間軸タイムライン表示のブロック位置
+											const ymdKey = toYmdKey(date);
+											const timeBlock = timelineMode ? timeBlockLayoutsByDate.get(ymdKey)?.get(item.id) : undefined;
+											const isBlockDragging = timeBlockDragState?.itemId === item.id && timeBlockDragState?.dateKey === ymdKey;
+
 											return (
 												<div
 													key={date.toDateString()}
@@ -1030,8 +1149,47 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 														}
 													}}
 												>
+													{/* R-105: 時間軸タイムラインのブロック（幅＝割当分÷24h、左＝開始オフセット） */}
+													{step && timeBlock && (
+														<div
+															data-testid={`gantt-time-block-${item.id}-${ymdKey}`}
+															style={{
+																left: `${(timeBlock.startOffsetMinutes / DAY_MINUTES) * 100}%`,
+																width: `${(timeBlock.displayWidthMinutes / DAY_MINUTES) * 100}%`,
+																...(isBlockDragging ? {
+																	transform: `translateX(${timeBlockDragState!.currentX - timeBlockDragState!.startX}px)`,
+																	zIndex: 50,
+																	cursor: 'grabbing',
+																} : {}),
+															}}
+															className={cn(
+																"absolute top-1 bottom-1 min-w-[2px] rounded-sm flex items-center justify-end z-10 shadow-sm",
+																done ? "bg-slate-400 dark:bg-slate-600" : "bg-indigo-500 dark:bg-indigo-600",
+																onUpdateItem ? "cursor-grab" : ""
+															)}
+															title={`割当: ${step.allocatedMinutes} 分 / 開始: ${formatDayOffset(timeBlock.startOffsetMinutes)}${timeBlock.overflow ? '（24:00をはみ出しています）' : ''}\nドラッグで開始位置を調整`}
+															onMouseDown={(e) => {
+																if (!onUpdateItem) return;
+																e.preventDefault();
+																e.stopPropagation();
+																setTimeBlockDragState({
+																	itemId: item.id,
+																	dateKey: ymdKey,
+																	baseOffsetMinutes: timeBlock.startOffsetMinutes,
+																	startX: e.clientX,
+																	currentX: e.clientX,
+																});
+															}}
+															onContextMenu={(e) => handleItemContextMenu(e, item.id)}
+														>
+															{timeBlock.overflow && (
+																<span className="text-[9px] leading-none pointer-events-none" aria-label="24時間をはみ出しています">❗️</span>
+															)}
+														</div>
+													)}
+
 													{/* Real Allocation Chip (Blue / R-100: 完了時はグレー) */}
-													{step && (
+													{step && !timelineMode && (
 														<div
 															className={cn(
 																"absolute w-4 h-4 rounded-sm flex items-center justify-center text-[8px] font-bold text-white shadow-sm transition-all hover:scale-110 z-10",

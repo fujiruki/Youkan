@@ -71,6 +71,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	scrollOptimized = false,
 	ganttColWidth,
 	ganttRowHeight,
+	ganttTimelineMode = false,
 }, calendarRef) => {
 	const [displayMode, setDisplayMode] = useState<'grid' | 'timeline' | 'gantt'>(propDisplayMode || 'grid');
 
@@ -784,6 +785,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						safeConfig={capacityConfig || { defaultDailyMinutes: 480, holidays: [], exceptions: {} }}
 						rowHeight={ganttRowHeight ?? 28}
 						colWidth={ganttColWidth ?? 24}
+						timelineMode={ganttTimelineMode}
 						projects={projects}
 						onJumpToDate={handleGanttJumpToDate}
 						renderItemTitle={renderItemTitle}

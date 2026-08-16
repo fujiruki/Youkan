@@ -55,7 +55,7 @@ class CalendarController extends BaseController {
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
                 items.created_by, items.assigned_to, items.parent_id, items.project_id, items.status, items.sort_order,
-                items.is_project, items.is_archived, items.deleted_at,
+                items.is_project, items.is_archived, items.deleted_at, items.meta,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -174,7 +174,7 @@ class CalendarController extends BaseController {
             SELECT
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date, items.work_days, items.estimated_minutes,
                 items.status, items.created_by, items.assigned_to, items.parent_id, items.project_id, items.sort_order,
-                items.is_project, items.is_archived, items.deleted_at,
+                items.is_project, items.is_archived, items.deleted_at, items.meta,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id
@@ -264,7 +264,7 @@ class CalendarController extends BaseController {
                 items.id, items.tenant_id, items.title, items.due_date, items.prep_date,
                 items.status, items.created_by, items.assigned_to, items.parent_id, items.project_id,
                 items.completed_at, items.estimated_minutes, items.work_days,
-                items.is_project, items.is_archived, items.deleted_at,
+                items.is_project, items.is_archived, items.deleted_at, items.meta,
                 proj.title as real_project_title
             FROM items
             LEFT JOIN items proj ON items.project_id = proj.id

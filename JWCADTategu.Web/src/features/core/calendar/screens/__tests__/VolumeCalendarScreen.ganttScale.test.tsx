@@ -1,36 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+	ganttColWidthKeyFor,
+	ganttRowHeightKeyFor,
+	ganttDefaultColWidth,
+	ganttDefaultRowHeight,
+	readGanttScaleMode,
+	readStoredGanttNumber,
+} from '../VolumeCalendarScreen';
 
 /**
  * R-097: VolumeCalendarScreenのガント マンスリー/ウィークリー表示モード切替テスト
+ * R-105: デイリー表示モードを追加
  *
  * ヘッダー「カレンダー→ガント」の実体はVolumeCalendarScreenであり（DashboardScreen内部の
  * viewMode==='calendar'は到達不能な死んだコードパスのため対象外）、CalendarHeaderの
  * rowHeight/onRowHeightChangeはこれまで「VolumeCalendar doesn't support rowHeight yet」として
  * ダミー値だった。R-097でスケールモード別に列幅・行高さを記憶する状態管理を追加する。
- *
- * VolumeCalendarScreen.showGroups.test.tsx と同じ「ロジック抽出」方式で、
- * localStorageキーの読み書き・モード切替時の値復元ロジックを検証する。
  */
 
-const KEYS = {
-	SCALE_MODE: 'youkan_gantt_scale_mode',
-	COL_WIDTH_MONTHLY: 'youkan_gantt_col_width_monthly',
-	ROW_HEIGHT_MONTHLY: 'youkan_gantt_row_height_monthly',
-	COL_WIDTH_WEEKLY: 'youkan_gantt_col_width_weekly',
-	ROW_HEIGHT_WEEKLY: 'youkan_gantt_row_height_weekly',
-};
-
-const colWidthKeyFor = (mode: 'monthly' | 'weekly') =>
-	mode === 'weekly' ? KEYS.COL_WIDTH_WEEKLY : KEYS.COL_WIDTH_MONTHLY;
-const rowHeightKeyFor = (mode: 'monthly' | 'weekly') =>
-	mode === 'weekly' ? KEYS.ROW_HEIGHT_WEEKLY : KEYS.ROW_HEIGHT_MONTHLY;
-const readStoredNumber = (key: string, fallback: number) => {
-	const saved = localStorage.getItem(key);
-	const n = saved ? parseInt(saved, 10) : NaN;
-	return Number.isFinite(n) ? n : fallback;
-};
-
-describe('VolumeCalendarScreen ガントスケールモード切替（R-097）', () => {
+describe('VolumeCalendarScreen ガントスケールモード切替（R-097, R-105）', () => {
 	beforeEach(() => {
 		vi.stubGlobal('localStorage', {
 			store: {} as Record<string, string>,
@@ -41,41 +29,61 @@ describe('VolumeCalendarScreen ガントスケールモード切替（R-097）',
 	});
 
 	it('マンスリーの列幅初期値は既存動作維持のため24px', () => {
-		expect(readStoredNumber(colWidthKeyFor('monthly'), 24)).toBe(24);
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('monthly'), ganttDefaultColWidth('monthly'))).toBe(24);
 	});
 
 	it('マンスリーの行高さ初期値は既存動作維持のため28px', () => {
-		expect(readStoredNumber(rowHeightKeyFor('monthly'), 28)).toBe(28);
+		expect(readStoredGanttNumber(ganttRowHeightKeyFor('monthly'), ganttDefaultRowHeight())).toBe(28);
+	});
+
+	it('ウィークリー・デイリーの列幅初期値は時間軸の分解能が見えるよう広め', () => {
+		expect(ganttDefaultColWidth('weekly')).toBe(96);
+		expect(ganttDefaultColWidth('daily')).toBe(96);
 	});
 
 	it('ウィークリーで列幅を50に変更後、マンスリーに切替→ウィークリーに戻ると50が復元される', () => {
-		// ウィークリーで調整
-		localStorage.setItem(colWidthKeyFor('weekly'), '50');
-		// マンスリーに切替（マンスリー側の記憶値を読む。未設定なら既定24）
-		const monthlyColWidth = readStoredNumber(colWidthKeyFor('monthly'), 24);
-		expect(monthlyColWidth).toBe(24);
-		// 再度ウィークリーに戻る
-		const weeklyColWidth = readStoredNumber(colWidthKeyFor('weekly'), 24);
-		expect(weeklyColWidth).toBe(50);
+		localStorage.setItem(ganttColWidthKeyFor('weekly'), '50');
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('monthly'), ganttDefaultColWidth('monthly'))).toBe(24);
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('weekly'), ganttDefaultColWidth('weekly'))).toBe(50);
+	});
+
+	it('デイリーは他モードと独立して列幅・行高さを記憶する', () => {
+		localStorage.setItem(ganttColWidthKeyFor('daily'), '120');
+		localStorage.setItem(ganttRowHeightKeyFor('daily'), '20');
+
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('daily'), ganttDefaultColWidth('daily'))).toBe(120);
+		expect(readStoredGanttNumber(ganttRowHeightKeyFor('daily'), ganttDefaultRowHeight())).toBe(20);
+		// 他モードには影響しない
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('weekly'), ganttDefaultColWidth('weekly'))).toBe(96);
+		expect(readStoredGanttNumber(ganttColWidthKeyFor('monthly'), ganttDefaultColWidth('monthly'))).toBe(24);
+	});
+
+	it('3モードのlocalStorageキーはすべて異なる', () => {
+		const keys = [
+			ganttColWidthKeyFor('monthly'), ganttColWidthKeyFor('weekly'), ganttColWidthKeyFor('daily'),
+			ganttRowHeightKeyFor('monthly'), ganttRowHeightKeyFor('weekly'), ganttRowHeightKeyFor('daily'),
+		];
+		expect(new Set(keys).size).toBe(keys.length);
 	});
 
 	it('モードごとに行高さも独立して記憶される', () => {
-		localStorage.setItem(rowHeightKeyFor('weekly'), '18');
-		localStorage.setItem(rowHeightKeyFor('monthly'), '28');
-		expect(readStoredNumber(rowHeightKeyFor('weekly'), 28)).toBe(18);
-		expect(readStoredNumber(rowHeightKeyFor('monthly'), 28)).toBe(28);
+		localStorage.setItem(ganttRowHeightKeyFor('weekly'), '18');
+		localStorage.setItem(ganttRowHeightKeyFor('monthly'), '28');
+		expect(readStoredGanttNumber(ganttRowHeightKeyFor('weekly'), ganttDefaultRowHeight())).toBe(18);
+		expect(readStoredGanttNumber(ganttRowHeightKeyFor('monthly'), ganttDefaultRowHeight())).toBe(28);
 	});
 
 	it('scaleModeはlocalStorageに保存された値を読み込む', () => {
-		localStorage.setItem(KEYS.SCALE_MODE, 'weekly');
-		const saved = localStorage.getItem(KEYS.SCALE_MODE);
-		const mode = saved === 'weekly' ? 'weekly' : 'monthly';
-		expect(mode).toBe('weekly');
+		localStorage.setItem('youkan_gantt_scale_mode', 'weekly');
+		expect(readGanttScaleMode()).toBe('weekly');
+	});
+
+	it('scaleModeはdailyも読み込める', () => {
+		localStorage.setItem('youkan_gantt_scale_mode', 'daily');
+		expect(readGanttScaleMode()).toBe('daily');
 	});
 
 	it('scaleMode未設定時のデフォルトはmonthly', () => {
-		const saved = localStorage.getItem(KEYS.SCALE_MODE);
-		const mode = saved === 'weekly' ? 'weekly' : 'monthly';
-		expect(mode).toBe('monthly');
+		expect(readGanttScaleMode()).toBe('monthly');
 	});
 });

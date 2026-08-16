@@ -9,7 +9,7 @@ import { useAuth } from '../../auth/providers/AuthProvider';
 import { DecisionDetailModal } from '../../youkan/components/Modal/DecisionDetailModal';
 import { FilterMode, Item } from '../../youkan/types';
 import { ApiClient } from '../../../../api/client';
-import { CalendarHeader } from '../../youkan/components/Calendar/CalendarHeader';
+import { CalendarHeader, GanttScaleMode } from '../../youkan/components/Calendar/CalendarHeader';
 import { CalendarToggleButton } from '../../youkan/components/Calendar/CalendarToggleButton';
 import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
@@ -28,6 +28,32 @@ export const isDisplayableCalendarItem = (item: Pick<Item, 'deletedAt' | 'isArch
 	const status = item.status as string | undefined;
 	if (status === 'archive' || status === 'trash' || status === 'someday') return false;
 	return true;
+};
+
+export const ganttColWidthKeyFor = (mode: GanttScaleMode) =>
+	mode === 'daily' ? YOUKAN_KEYS.GANTT_COL_WIDTH_DAILY
+		: mode === 'weekly' ? YOUKAN_KEYS.GANTT_COL_WIDTH_WEEKLY
+			: YOUKAN_KEYS.GANTT_COL_WIDTH_MONTHLY;
+
+export const ganttRowHeightKeyFor = (mode: GanttScaleMode) =>
+	mode === 'daily' ? YOUKAN_KEYS.GANTT_ROW_HEIGHT_DAILY
+		: mode === 'weekly' ? YOUKAN_KEYS.GANTT_ROW_HEIGHT_WEEKLY
+			: YOUKAN_KEYS.GANTT_ROW_HEIGHT_MONTHLY;
+
+/** マンスリーは既存動作維持の24px。時間軸タイムラインは分解能が見えるよう広めから開始する */
+export const ganttDefaultColWidth = (mode: GanttScaleMode) => (mode === 'monthly' ? 24 : 96);
+
+export const ganttDefaultRowHeight = () => 28;
+
+export const readStoredGanttNumber = (key: string, fallback: number) => {
+	const saved = localStorage.getItem(key);
+	const n = saved ? parseInt(saved, 10) : NaN;
+	return Number.isFinite(n) ? n : fallback;
+};
+
+export const readGanttScaleMode = (): GanttScaleMode => {
+	const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_SCALE_MODE);
+	return saved === 'weekly' || saved === 'daily' ? saved : 'monthly';
 };
 
 export const matchesCalendarFilterMode = (item: Pick<Item, 'tenantId' | 'domain'>, filterMode: FilterMode): boolean => {
@@ -53,26 +79,14 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SHOW_GROUPS, showGanttGroups.toString());
 	}, [showGanttGroups]);
 
-	// R-097: ガントのマンスリー/ウィークリー表示モード。列幅・行高さをモードごとに独立して記憶する
-	const [ganttScaleMode, setGanttScaleModeState] = useState<'monthly' | 'weekly'>(() => {
-		const saved = localStorage.getItem(YOUKAN_KEYS.GANTT_SCALE_MODE);
-		return saved === 'weekly' ? 'weekly' : 'monthly';
-	});
-	const ganttColWidthKeyFor = (mode: 'monthly' | 'weekly') =>
-		mode === 'weekly' ? YOUKAN_KEYS.GANTT_COL_WIDTH_WEEKLY : YOUKAN_KEYS.GANTT_COL_WIDTH_MONTHLY;
-	const ganttRowHeightKeyFor = (mode: 'monthly' | 'weekly') =>
-		mode === 'weekly' ? YOUKAN_KEYS.GANTT_ROW_HEIGHT_WEEKLY : YOUKAN_KEYS.GANTT_ROW_HEIGHT_MONTHLY;
-	const readStoredGanttNumber = (key: string, fallback: number) => {
-		const saved = localStorage.getItem(key);
-		const n = saved ? parseInt(saved, 10) : NaN;
-		return Number.isFinite(n) ? n : fallback;
-	};
+	// R-097 / R-105: ガントのマンスリー/ウィークリー/デイリー表示モード。列幅・行高さをモードごとに独立して記憶する
+	const [ganttScaleMode, setGanttScaleModeState] = useState<GanttScaleMode>(readGanttScaleMode);
 	// マンスリーの初期値は既存動作を完全維持（列幅24px・行高さ28px相当）
 	const [ganttColWidth, setGanttColWidth] = useState<number>(() =>
-		readStoredGanttNumber(ganttColWidthKeyFor(ganttScaleMode), 24)
+		readStoredGanttNumber(ganttColWidthKeyFor(ganttScaleMode), ganttDefaultColWidth(ganttScaleMode))
 	);
 	const [ganttRowHeight, setGanttRowHeight] = useState<number>(() =>
-		readStoredGanttNumber(ganttRowHeightKeyFor(ganttScaleMode), 28)
+		readStoredGanttNumber(ganttRowHeightKeyFor(ganttScaleMode), ganttDefaultRowHeight())
 	);
 	useEffect(() => {
 		localStorage.setItem(YOUKAN_KEYS.GANTT_SCALE_MODE, ganttScaleMode);
@@ -84,10 +98,10 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		localStorage.setItem(ganttRowHeightKeyFor(ganttScaleMode), ganttRowHeight.toString());
 	}, [ganttRowHeight, ganttScaleMode]);
 	// モード切替時、切替先モードの記憶値を復元する
-	const handleGanttScaleModeChange = (mode: 'monthly' | 'weekly') => {
+	const handleGanttScaleModeChange = (mode: GanttScaleMode) => {
 		setGanttScaleModeState(mode);
-		setGanttColWidth(readStoredGanttNumber(ganttColWidthKeyFor(mode), 24));
-		setGanttRowHeight(readStoredGanttNumber(ganttRowHeightKeyFor(mode), 28));
+		setGanttColWidth(readStoredGanttNumber(ganttColWidthKeyFor(mode), ganttDefaultColWidth(mode)));
+		setGanttRowHeight(readStoredGanttNumber(ganttRowHeightKeyFor(mode), ganttDefaultRowHeight()));
 	};
 
 	const { filterMode, hideCompleted } = useFilter();
@@ -302,6 +316,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					showGroups={showGanttGroups}
 					ganttColWidth={ganttColWidth}
 					ganttRowHeight={ganttRowHeight}
+					ganttTimelineMode={ganttScaleMode !== 'monthly'}
 					onDeleteItem={handleDelete}
 					externalEventsByDate={externalEventsByDate}
 					googleCalendars={googleCalendars}
