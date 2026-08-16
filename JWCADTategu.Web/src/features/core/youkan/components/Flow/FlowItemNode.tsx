@@ -220,21 +220,17 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
               {formatMinutes(item.estimatedMinutes) || '--'}
             </span>
           )}
+          {dueDateObj && (
+            <span className="text-[8px] leading-tight text-red-400" title={`顧客納期: ${format(dueDateObj, 'M/d')}`}>
+              {format(dueDateObj, 'M/d')}
+            </span>
+          )}
+          {prepDateObj && (
+            <span className="text-[8px] leading-tight text-indigo-400" title={`マイ期限: ${format(prepDateObj, 'M/d')}`}>
+              {format(prepDateObj, 'M/d')}
+            </span>
+          )}
         </div>
-        {(dueDateObj || prepDateObj) && (
-          <div className="flex items-center gap-1.5 text-[8px] leading-tight">
-            {dueDateObj && (
-              <span className="text-red-400" title={`顧客納期: ${format(dueDateObj, 'M/d')}`}>
-                納期 {format(dueDateObj, 'M/d')}
-              </span>
-            )}
-            {prepDateObj && (
-              <span className="text-indigo-400" title={`マイ期限: ${format(prepDateObj, 'M/d')}`}>
-                期限 {format(prepDateObj, 'M/d')}
-              </span>
-            )}
-          </div>
-        )}
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !w-3 !h-3" />
     </div>
