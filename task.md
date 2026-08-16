@@ -1637,12 +1637,12 @@ R-109実装（本番デプロイ済み）を発注者が実際に確認したと
 
 ### サブタスク
 
-- [ ] worktree作成（`git worktree add .claude/worktrees/fix-R110-flow-date-band-axis -b fix/R-110-flow-date-band-axis master`、`git worktree list`で実在確認）
-- [ ] 既存の`logic/__tests__/flowDateGrouping.test.ts`を新しい軸の期待値に書き換え（Red確認）→ `flowDateGrouping.ts`実装（Green確認）
-- [ ] `DateBandNode.tsx`のラベル配置変更（対応するコンポーネントテストがあれば同様にTDD、なければ実機目視確認）
-- [ ] `FlowScreen.tsx`の帯の罫線変更（`borderLeft`/`borderRight`→`borderBottom`）
-- [ ] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認
-- [ ] 実機検証（開発サーバーは`php -S 127.0.0.1:8000 -t backend backend/router.php`と明示すること、`localhost`指定だとIPv6バインドでVite proxyから接続できない既知の問題があるため）: 日付表示チェックON時に「上から下に日付が積み上がる」「帯内で左から右にノードが並ぶ」「左上に日付(曜日)/合計/最短が縦3行で表示される」「帯同士が横線で区切られる」ことを目視確認。「元に戻す」ボタンで復元されることも確認
-- [ ] `docs/requests_log.md` R-110の対応状況を更新
-- [ ] `docs/SPEC/03_画面設計.md` §7.12の更新に齟齬がないか確認（既に指揮AIが更新済み、追加修正があれば反映）
-- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+- [x] worktree作成（`git worktree add .claude/worktrees/fix-R110-flow-date-band-axis -b fix/R-110-flow-date-band-axis master`、`git worktree list`で実在確認）
+- [x] 既存の`logic/__tests__/flowDateGrouping.test.ts`を新しい軸の期待値に書き換え（Red確認、5件失敗）→ `flowDateGrouping.ts`実装（Green確認、19件）
+- [x] `DateBandNode.tsx`のラベル配置変更（左上3行スタック。専用コンポーネントテストは無く、統合テスト`FlowScreen.dateGrouping.test.tsx`と実機目視で確認）
+- [x] `FlowScreen.tsx`の帯の罫線変更（`borderLeft`/`borderRight`→`borderBottom`）
+- [x] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認（旧軸前提だった`FlowScreen.dateGrouping.test.tsx`3件のRedを追加発見・新軸へ更新しGreen化。全体943 passed/14 skipped/1 failed=既存フレーキー`useAssigneeView.test.ts`のみで本件と無関係）
+- [x] 実機検証（`php -S 127.0.0.1:8000 -t backend backend/router.php`・Vite dev、chrome-devtools MCP）: 日付表示チェックON時に「上から下に日付が積み上がる」「帯内で左から右にノードが並ぶ」「左上に日付(曜日)/合計/最短が縦3行で表示される」「帯同士が横線で区切られる」ことを確認。「元に戻す」ボタンで復元されることも確認
+- [x] `docs/requests_log.md` R-110の対応状況を更新
+- [x] `docs/SPEC/03_画面設計.md` §7.12の更新に齟齬なしを確認（指揮AI更新済み内容が実装と一致、追加修正不要）
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）

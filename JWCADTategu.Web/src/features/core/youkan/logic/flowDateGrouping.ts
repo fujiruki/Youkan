@@ -1,20 +1,24 @@
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import type { Item, Dependency } from '../types';
 import { getEffectiveDeadline, type PlacementResult } from './flowAutoPlace';
 
 export const UNDATED_KEY = 'undated';
 
-export const BAND_WIDTH = 320;
-export const ROW_HEIGHT = 150;
-const NODE_WIDTH = 180;
-const BAND_HEADER = 60;
-const BAND_FOOTER = 70;
+// 帯内でノードを横に並べる間隔（ノード最大幅180〜220に余白を確保）
+export const COL_WIDTH = 250;
+// 帯の縦の厚み（全帯共通の固定値）
+export const BAND_HEIGHT = 220;
+const NODE_HEIGHT = 80;
+// 帯の左側に確保するラベル領域幅（日付・合計・最短の3行が収まる幅）
+const LABEL_MARGIN_WIDTH = 140;
 
 export interface DateGroup {
   dateKey: string;
   items: Item[];
 }
 
+// x/y/width/height は帯（全体幅いっぱいの横長帯、上から下へ積み上げ）の位置とサイズ
 export interface DateBand {
   dateKey: string;
   label: string;
@@ -118,37 +122,37 @@ export const formatHours = (minutes: number): string => {
 const bandLabel = (dateKey: string): string =>
   dateKey === UNDATED_KEY
     ? '日付未定'
-    : `${Number(dateKey.slice(5, 7))}/${Number(dateKey.slice(8, 10))}まで`;
+    : `${format(parseISO(dateKey), 'M/d(E)', { locale: ja })}まで`;
 
 // 日付グルーピング表示のノード座標と区間帯を計算する
 export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): DateGroupLayout => {
   const groups = groupItemsByDeadline(items);
   if (groups.length === 0) return { placements: [], bands: [] };
 
-  const maxRows = Math.max(...groups.map((g) => g.items.length));
-  const bandY = -BAND_HEADER;
-  const bandHeight = BAND_HEADER + maxRows * ROW_HEIGHT + BAND_FOOTER;
+  const maxCols = Math.max(...groups.map((g) => g.items.length));
+  const bandX = 0;
+  const bandWidth = LABEL_MARGIN_WIDTH + maxCols * COL_WIDTH;
 
   const placements: PlacementResult[] = [];
   const bands: DateBand[] = [];
 
   groups.forEach((group, index) => {
-    const bandX = index * BAND_WIDTH;
+    const bandY = index * BAND_HEIGHT;
     const depths = computeDepthWithin(group.items, deps);
-    // 依存の深い順を優先しつつ、同じ深さでは既存のy座標の上下関係を保つ
+    // 依存の深い順を優先しつつ、同じ深さでは既存のx座標の左右関係を保つ
     const ordered = [...group.items].sort((a, b) => {
       const depthDiff = (depths.get(a.id) ?? 0) - (depths.get(b.id) ?? 0);
       if (depthDiff !== 0) return depthDiff;
-      const ay = (a.meta?.flow_y as number) ?? 0;
-      const by = (b.meta?.flow_y as number) ?? 0;
-      return ay - by;
+      const ax = (a.meta?.flow_x as number) ?? 0;
+      const bx = (b.meta?.flow_x as number) ?? 0;
+      return ax - bx;
     });
 
-    ordered.forEach((item, row) => {
+    ordered.forEach((item, col) => {
       placements.push({
         itemId: item.id,
-        flow_x: bandX + (BAND_WIDTH - NODE_WIDTH) / 2,
-        flow_y: row * ROW_HEIGHT,
+        flow_x: LABEL_MARGIN_WIDTH + col * COL_WIDTH,
+        flow_y: bandY + (BAND_HEIGHT - NODE_HEIGHT) / 2,
       });
     });
 
@@ -157,8 +161,8 @@ export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): Dat
       label: bandLabel(group.dateKey),
       x: bandX,
       y: bandY,
-      width: BAND_WIDTH,
-      height: bandHeight,
+      width: bandWidth,
+      height: BAND_HEIGHT,
       totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
       criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
     });

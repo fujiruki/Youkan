@@ -4,8 +4,8 @@ import {
   calculateCriticalPathMinutes,
   calculateDateGroupLayout,
   formatHours,
-  BAND_WIDTH,
-  ROW_HEIGHT,
+  BAND_HEIGHT,
+  COL_WIDTH,
   UNDATED_KEY,
 } from '../flowDateGrouping';
 import type { Item, Dependency } from '../../types';
@@ -130,30 +130,32 @@ describe('formatHours', () => {
 
 describe('calculateDateGroupLayout', () => {
   const items = [
-    makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 0, flow_y: 300 } }),
-    makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, meta: { flow_x: 0, flow_y: 100 } }),
+    makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 300, flow_y: 0 } }),
+    makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, meta: { flow_x: 100, flow_y: 0 } }),
     makeItem({ id: 'c', due_date: '2026-08-17', estimatedMinutes: 60, meta: { flow_x: 0, flow_y: 0 } }),
   ];
 
-  it('日付区間ごとにx座標を割り当てる', () => {
+  it('日付区間ごとにy座標（縦積み）を割り当てる', () => {
     const { placements } = calculateDateGroupLayout(items, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
-    expect(byId.get('a')!.flow_x).toBe(byId.get('b')!.flow_x);
-    expect(byId.get('c')!.flow_x - byId.get('a')!.flow_x).toBe(BAND_WIDTH);
+    // 同じ帯（8/16）のa・bは同じy座標
+    expect(byId.get('a')!.flow_y).toBe(byId.get('b')!.flow_y);
+    // 次の帯（8/17）はBAND_HEIGHT分だけ下にずれる
+    expect(byId.get('c')!.flow_y - byId.get('a')!.flow_y).toBe(BAND_HEIGHT);
   });
 
-  it('区間内は依存関係の順に上から並べる', () => {
+  it('区間内は依存関係の順に左から右へ並べる', () => {
     const { placements } = calculateDateGroupLayout(items, [dep('a', 'b')]);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
-    expect(byId.get('a')!.flow_y).toBeLessThan(byId.get('b')!.flow_y);
-    expect(byId.get('b')!.flow_y - byId.get('a')!.flow_y).toBe(ROW_HEIGHT);
+    expect(byId.get('a')!.flow_x).toBeLessThan(byId.get('b')!.flow_x);
+    expect(byId.get('b')!.flow_x - byId.get('a')!.flow_x).toBe(COL_WIDTH);
   });
 
-  it('依存関係がない区間内は既存のy座標の並び順を保つ', () => {
+  it('依存関係がない区間内は既存のx座標の並び順を保つ', () => {
     const { placements } = calculateDateGroupLayout(items, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
-    // b(既存y=100)がa(既存y=300)より上のまま
-    expect(byId.get('b')!.flow_y).toBeLessThan(byId.get('a')!.flow_y);
+    // b(既存x=100)がa(既存x=300)より左のまま
+    expect(byId.get('b')!.flow_x).toBeLessThan(byId.get('a')!.flow_x);
   });
 
   it('区間ごとの合計時間とクリティカルパス時間を返す', () => {
@@ -165,17 +167,18 @@ describe('calculateDateGroupLayout', () => {
     expect(bands[1].totalMinutes).toBe(60);
   });
 
-  it('区間の帯は同じ上端・高さで、x座標が区間順に並ぶ', () => {
+  it('区間の帯は同じ左端・幅で、y座標が区間順に積み上がる', () => {
     const { bands } = calculateDateGroupLayout(items, []);
-    expect(bands[0].y).toBe(bands[1].y);
-    expect(bands[0].height).toBe(bands[1].height);
-    expect(bands[1].x - bands[0].x).toBe(BAND_WIDTH);
-    expect(bands[0].width).toBe(BAND_WIDTH);
+    expect(bands[0].x).toBe(bands[1].x);
+    expect(bands[0].width).toBe(bands[1].width);
+    expect(bands[1].y - bands[0].y).toBe(BAND_HEIGHT);
+    expect(bands[0].height).toBe(BAND_HEIGHT);
   });
 
-  it('区間のラベルは「M/dまで」形式', () => {
+  it('区間のラベルは曜日つき「M/d(曜)まで」形式', () => {
     const { bands } = calculateDateGroupLayout(items, []);
-    expect(bands[0].label).toBe('8/16まで');
+    // 2026-08-16は日曜日
+    expect(bands[0].label).toBe('8/16(日)まで');
   });
 
   it('未定区間のラベルは「日付未定」', () => {

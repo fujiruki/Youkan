@@ -111,12 +111,13 @@ describe('FlowScreen: 日付グルーピング表示（R-109）', () => {
 
         await waitFor(() => expect(bandNodes()).toHaveLength(2));
         const [first, second] = bandNodes();
-        expect(first.data.label).toBe('8/16まで');
+        // 2026-08-16は日曜日、2026-08-17は月曜日
+        expect(first.data.label).toBe('8/16(日)まで');
         expect(first.data.totalMinutes).toBe(180);
         expect(first.data.criticalMinutes).toBe(180);
-        expect(second.data.label).toBe('8/17まで');
+        expect(second.data.label).toBe('8/17(月)まで');
         expect(second.data.totalMinutes).toBe(60);
-        expect(second.position.x).toBeGreaterThan(first.position.x);
+        expect(second.position.y).toBeGreaterThan(first.position.y);
     });
 
     it('チェックONでノードの位置が日付グルーピング配置へ更新され、サーバーにも保存される', async () => {
@@ -126,11 +127,11 @@ describe('FlowScreen: 日付グルーピング表示（R-109）', () => {
         await toggleDateGrouping();
 
         await waitFor(() => {
-            // 8/16のa,bは同じ列、依存順にa→bで上下に並ぶ
-            expect(nodeOf('item-a').position.x).toBe(nodeOf('item-b').position.x);
-            expect(nodeOf('item-a').position.y).toBeLessThan(nodeOf('item-b').position.y);
-            // 8/17のcは右隣の列
-            expect(nodeOf('item-c').position.x).toBeGreaterThan(nodeOf('item-a').position.x);
+            // 8/16のa,bは同じ行（帯）、依存順にa→bで左から右に並ぶ
+            expect(nodeOf('item-a').position.y).toBe(nodeOf('item-b').position.y);
+            expect(nodeOf('item-a').position.x).toBeLessThan(nodeOf('item-b').position.x);
+            // 8/17のcは次の帯（下）
+            expect(nodeOf('item-c').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
         });
 
         await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
