@@ -1460,3 +1460,37 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: デイリー/ウィークリーモード切替、ブロックの幅・位置の目視確認、ドラッグでの開始位置変更とリロード後の保持確認、24hはみ出し時の右端揃え＋❗️警告確認、マンスリーモードに戻して従来の日次チップ表示が変化していないことの確認、列幅スライダー上限の妥当性確認（現状`max=80`では時間分解能を見せるには狭い可能性が高いため、実機体感で調整）
 - [ ] `docs/requests_log.md` R-105の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+---
+
+## R-105-Y2 + R-106 ガント時間軸タイムライン改善2件（2026-08-16）
+
+**ブランチ**: `feature/R-105-Y2-R-106-gantt-timeline-polish`
+**要望**: `docs/requests_log.md` R-105-Y2, R-106
+**仕様**: `docs/SPEC/03_画面設計.md` §5.3
+**背景**: R-105（ガント時間軸タイムライン表示）は本番デプロイ済み。発注者からのフォローアップ要望2件と、改善要望フォーム経由の要望1件（実質2件、うち1件は上位互換で統合済み）をまとめて対応する。いずれも`RyokanGanttView.tsx`・`CalendarHeader.tsx`という同じファイルを触るため1ブランチにまとめる
+
+### R-105-Y2: 時間軸ブロックへの目安時間表示＋依存矢印のブロック端合わせ
+
+指揮AI事前調査済み（実装Agentは再調査不要）:
+- `RyokanGanttView.tsx`の時間軸ブロック（`timelineMode`時、L1147-1190付近）にはテキストラベルが無く❗️はみ出し警告のみ表示。マンスリー表示の日次チップ（L1198-1201）は`step.allocatedMinutes >= 60 ? Math.round(step.allocatedMinutes / 60) + 'h' : ''`で時間ラベルを表示済み。これと同様の表示をブロック中央に追加する
+- `GanttDependencyArrows`コンポーネント（L1278-）の矢印座標計算（L1337: `x1 = stickyColWidth + (sourceDayIdx + 1) * colWidth`、L1339: `x2 = stickyColWidth + targetDayIdx * colWidth`）は`timelineMode`の有無にかかわらず常に「日付セルの右端/左端」を使っている。`timelineMode`時は、`RyokanGanttView`が既に計算済みの`timeBlockLayoutsByDate`（L609-649）を`GanttDependencyArrows`にpropsとして渡し、`sourceItem`/`targetItem`の対応日付に時間軸ブロックがあれば、そのブロックの実際の右端（`x1 = stickyColWidth + sourceDayIdx * colWidth + (startOffsetMinutes + displayWidthMinutes) / DAY_MINUTES * colWidth`）・左端（`x2 = stickyColWidth + targetDayIdx * colWidth + startOffsetMinutes / DAY_MINUTES * colWidth`）を使うよう改修する。該当日に時間軸ブロックが無い場合は既存の日付セル端計算にフォールバックする
+
+### R-106: 列幅スライダー最大値の表示領域幅化＋「密度」→「行高」改称
+
+指揮AI事前調査済み（実装Agentは再調査不要）:
+- `CalendarHeader.tsx`の`COL_WIDTH_MAX = { monthly: 80, timeline: 240 }`（L16付近）が固定値でスライダー`max`を決めている。ガント表示エリア（日付列が並ぶスクロール可能領域、タスク一覧列を除く）の可視幅を動的に取得し（`ResizeObserver`等、実装方式はAgent判断）、スライダーの`max`として使うよう改修する。CalendarHeaderは独立コンポーネントのため、実際の表示エリア幅は親（`RyokanGanttView.tsx`または`VolumeCalendarScreen.tsx`）から計測してpropsで渡す設計が必要
+- `CalendarHeader.tsx`のL201（表示テキスト）・L203（`aria-label`）の「密度」を「行高」に変更する。既存の`CalendarHeader.test.tsx`に「密度」を前提にしたテストがあれば合わせて更新する
+
+### サブタスク
+
+- [x] worktree作成（`git worktree add .claude/worktrees/feature-R105Y2-R106-gantt-polish -b feature/R-105-Y2-R-106-gantt-timeline-polish master`、`git worktree list`で実在確認）
+- [x] 失敗するテストを先に書く（時間軸ブロックに目安時間ラベルが表示されること）→ Red確認 → 実装 → Green確認
+- [x] 失敗するテストを先に書く（`timelineMode`時に依存矢印がブロック端座標を使うこと、ブロック無し日はセル端にフォールバックすること）→ Red確認 → 実装 → Green確認
+- [x] 失敗するテストを先に書く（列幅スライダーの`max`が表示領域幅に応じて変化すること）→ Red確認 → 実装 → Green確認
+- [x] 失敗するテストを先に書く（「行高」ラベル・aria-label）→ Red確認 → 実装 → Green確認
+- [x] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認
+- [x] `git diff --stat master..HEAD`で変更範囲確認
+- [x] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: ウィークリー/デイリーで時間軸ブロックに時間ラベルが見えること、依存関係のあるタスクで矢印がブロック端（マス目端ではなく）から出ていること、列幅スライダーを最大まで動かすと列が表示領域いっぱいに近づくこと、行高スライダーのラベルが「行高」になっていること、マンスリー表示が変化していないこと（後方互換）
+- [x] `docs/requests_log.md` R-105-Y2・R-106の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
