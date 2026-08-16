@@ -1412,3 +1412,51 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] 実機検証（claude-in-chrome MCP等）
 - [ ] `docs/requests_log.md` R-104の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+---
+
+## R-105 ガントチャート「時間軸タイムライン表示」（2026-08-16）
+
+**ブランチ**: `feature/R-105-gantt-timeline-blocks`
+**要望**: `docs/requests_log.md` R-105
+**仕様**: `docs/SPEC/03_画面設計.md` §5.3（時間軸タイムライン表示）、`docs/SPEC/04_データ設計.md` §3.5（ガント時間軸タイムラインのブロック位置）
+**相談計画**: `C:\Users\fjtsu\.claude\plans\konoyoukan-no-gantotya-to-hyouji-hidden-gizmo.md`
+
+### 背景
+週表示・日表示のガントに「何時から何時までこのタスクをする」という時間軸を持たせたいという要望。相談の結果、既存`RyokanGanttView`を拡張し、`ganttScaleMode`に`'daily'`を追加。`'weekly'`/`'daily'`ではタスクを「目安時間÷24h」の幅・その日の中の開始オフセット位置を持つブロックとして描画する（`'monthly'`は従来の日次チップ表示のまま変更なし）。
+
+### 指揮AI事前調査済み（実装Agentは再調査不要）
+- **新規テーブル・新規Controller・新規APIエンドポイントは不要**。`items`テーブルの既存汎用JSON列`meta`を再利用する。`ItemController::update()`の`$allowedFields`に既に`'meta'`が含まれ、`BaseController::updateEntity()`は配列値を自動で`json_encode`/`json_decode`する（`backend/BaseController.php` L292-297・L382-417、`backend/ItemController.php` L911）
+- フロント側の`meta`マージ・保存パターンは`FlowScreen.tsx` L279-283（`updateItemMeta`）・L311で確立済み。`{ ...(item.meta || {}), gantt_time_blocks: {...} }`という同型のマージをそのまま踏襲する
+- 保存構造: `items.meta.gantt_time_blocks = { "YYYY-MM-DD": 開始オフセット分(0-1439) }`。未調整の日はキーが存在せず自動配置にフォールバック
+- 既存の`allocationMap`（`RyokanGanttView.tsx` L512-541、日ごとの割当分計算、`QuantityEngine.allocateBackwardsCore`）は変更不要。今回追加するのは「その日に割り当てられた分の中で何時何分から始まるか」の横位置情報のみ
+- 行順（`transformedItems`）は既にR-076/F-25（`logic/hierarchy.ts`）により依存関係順に整列済みのため、追加のトポロジカルソートは不要
+- 既存の`visibleDependencies`（`RyokanGanttView.tsx` L174-179）から`targetItemId -> [sourceItemId...]`のpredecessorマップを構築できる
+- `prep_date`ドラッグの`mousemove`/`mouseup` on `window`実装パターン（`RyokanGanttView.tsx` L182-187, L306-329）を新規`timeBlockDragState`でも踏襲する
+- `VolumeCalendarScreen.tsx` L56-91のモード別列幅・行高さ独立記憶（`localStorage`）パターンに`daily`用キーを追加する
+
+### 設計要件（相談で確定・変更しないこと）
+1. ブロック幅 = その日の割当時間(分) ÷ 1440分
+2. 開始位置デフォルト: その日の先頭（0:00）。ただし同日・同行内で依存関係により先行するタスクの割当があれば、その直後から配置
+3. ユーザーは横方向（時間軸方向）にドラッグして開始位置を手動調整でき、位置は`meta.gantt_time_blocks`に保存・再現される
+4. 24時間をはみ出す場合、ブロックの右端をその日の末尾（24:00）に揃えて描画し、警告マーク「❗️」を表示
+5. 稼働時間によるグレー背景は実装しない（検討したが撤回済み。24h全体を通常背景のまま扱う）
+6. `timelineMode`未指定時（＝`monthly`表示）は既存の日次チップ表示を完全維持し、既存テスト・既存動作に一切影響を与えないこと
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/feature-R105-gantt-timeline-blocks -b feature/R-105-gantt-timeline-blocks master`、`git worktree list`で実在確認）
+- [ ] `logic/__tests__/ganttTimeBlocks.test.ts`を先に書く（自動配置の先頭寄せ／依存タスク直後配置／手動オフセット優先／24hはみ出し時の`overflow`フラグと幅クランプ）→ Red確認
+- [ ] `logic/ganttTimeBlocks.ts`実装（`computeDailyTimeBlockLayout`関数。相談計画ファイルに実装例あり）→ Green確認
+- [ ] `components/Calendar/__tests__/RyokanGanttView.timelineBlocks.test.tsx`を先に書く（`timelineMode`未指定時は既存チップ表示のまま＝後方互換保証／ブロックの`left`/`width`スタイル／同日依存関係での直後配置）→ Red確認
+- [ ] `RyokanGanttView.tsx`に`timelineMode?: boolean` prop追加、`timelineMode`時のみ計算する`useMemo`群（`dailyEntriesByDate`/`predecessorsByItemId`/`manualOffsetsByItemId`/`timeBlockLayoutsByDate`）とセル描画分岐を実装 → Green確認
+- [ ] `components/Calendar/__tests__/RyokanGanttView.timelineDrag.test.tsx`を先に書く（ドラッグ確定時の`onUpdateItem`呼び出し内容・`meta.gantt_time_blocks`更新・24h超クランプ）→ Red確認
+- [ ] ドラッグハンドラ実装（`timeBlockDragState`新設、px→分変換、`[0,1439]`クランプ、確定直前に最新`item.meta`を読み直してからマージ）→ Green確認
+- [ ] `screens/__tests__/VolumeCalendarScreen.ganttScale.test.tsx`（既存拡張）で`daily`モード追加・`localStorage`独立記憶を検証 → Red確認 → `VolumeCalendarScreen.tsx`の`ganttScaleMode`型拡張・`youkanKeys.ts`に`GANTT_COL_WIDTH_DAILY`/`GANTT_ROW_HEIGHT_DAILY`追加 → Green確認
+- [ ] `components/Calendar/__tests__/CalendarHeader.test.tsx`（既存拡張）で3ボタントグルを検証 → Red確認 → `CalendarHeader.tsx`に「デイリー」ボタン追加 → Green確認
+- [ ] `RyokanCalendar.tsx`に`ganttTimelineMode` prop drilling追加。既存の`RyokanCalendar.*.test.tsx`群が壊れないことを確認
+- [ ] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: デイリー/ウィークリーモード切替、ブロックの幅・位置の目視確認、ドラッグでの開始位置変更とリロード後の保持確認、24hはみ出し時の右端揃え＋❗️警告確認、マンスリーモードに戻して従来の日次チップ表示が変化していないことの確認、列幅スライダー上限の妥当性確認（現状`max=80`では時間分解能を見せるには狭い可能性が高いため、実機体感で調整）
+- [ ] `docs/requests_log.md` R-105の対応状況を更新
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
