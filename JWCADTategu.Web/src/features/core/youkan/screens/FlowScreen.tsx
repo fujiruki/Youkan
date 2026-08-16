@@ -787,9 +787,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     );
     const { placements, bands } = calculateDateGroupLayout(placedItems, dependencies);
     setDateBands(bands);
+    // 配置が大きく変わるため、帯ノードの計測が済んだタイミングで全体表示に合わせ直す
+    shouldFitViewRef.current = true;
     await applyPlacements(placements);
-    setTimeout(() => fitView({ duration: 300, padding: 0.1 }), 100);
-  }, [placedItems, dependencies, applyPlacements, fitView]);
+  }, [placedItems, dependencies, applyPlacements]);
 
   // R-109: グルーピング適用直前の位置へ1段階戻す
   const handleRestorePositions = useCallback(async () => {
