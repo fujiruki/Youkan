@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, Settings, LayoutGrid, List, Printer } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -12,8 +13,11 @@ const SCALE_MODES: { mode: GanttScaleMode; label: string }[] = [
     { mode: 'daily', label: 'デイリー' },
 ];
 
-/** R-105: 時間軸タイムライン表示は時間分解能を見せるため列幅上限を広げる */
-const COL_WIDTH_MAX = { monthly: 80, timeline: 240 };
+/** ガント本体のタスク一覧列（sticky）の幅。ヘッダー幅からこれを引いた残りが日付列の表示領域 */
+const GANTT_STICKY_COL_WIDTH = 256;
+
+/** 表示領域を計測できるまでの暫定上限（R-105 の時間軸表示向け値） */
+const COL_WIDTH_MAX_FALLBACK = 240;
 
 interface CalendarHeaderProps {
     /** 現在表示中の年月 (スクロール連動) */
@@ -26,7 +30,7 @@ interface CalendarHeaderProps {
     onGoToCurrentMonth: () => void;
     /** 日次キャパシティ設定を開く */
     onOpenDailySettings: () => void;
-    /** 密度スライダー */
+    /** 行高スライダー */
     rowHeight: number;
     onRowHeightChange: (value: number) => void;
     /** グループ表示の切替 */
@@ -70,8 +74,23 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         visibleDate.getFullYear() === today.getFullYear() &&
         visibleDate.getMonth() === today.getMonth();
 
+    // R-106: 列幅スライダーの上限をガント表示領域の可視幅に追従させる。
+    // ヘッダーはガント本体と同じ幅の兄弟要素なので、自身の幅からタスク一覧列を引けば表示領域幅になる。
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [displayAreaWidth, setDisplayAreaWidth] = useState(0);
+    useLayoutEffect(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        const measure = () => setDisplayAreaWidth(el.clientWidth - GANTT_STICKY_COL_WIDTH);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+    const colWidthMax = displayAreaWidth > 0 ? displayAreaWidth : COL_WIDTH_MAX_FALLBACK;
+
     return (
-        <div className="no-print shrink-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between z-30 shadow-sm relative">
+        <div ref={rootRef} className="no-print shrink-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between z-30 shadow-sm relative">
             {/* Left Section: Context & Navigation */}
             <div className="flex items-center gap-4">
                 {/* View Title & Navigation */}
@@ -186,21 +205,21 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                                 aria-label="列幅"
                                 type="range"
                                 min="16"
-                                max={scaleMode === 'monthly' ? COL_WIDTH_MAX.monthly : COL_WIDTH_MAX.timeline}
+                                max={colWidthMax}
                                 value={colWidth}
                                 onChange={(e) => onColWidthChange?.(parseInt(e.target.value))}
                                 className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
                             />
-                            <span className="text-[10px] font-bold font-mono text-slate-500 w-6">{colWidth}</span>
+                            <span className="text-[10px] font-bold font-mono text-slate-500 w-8">{colWidth}</span>
                         </div>
                     )}
 
-                    {/* Density Slider (gantt only) */}
+                    {/* Row Height Slider (gantt only, R-106で「密度」から改称) */}
                     {isGantt && (
                         <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dotted border-slate-200 dark:border-slate-800">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">密度</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">行高</span>
                             <input
-                                aria-label="密度"
+                                aria-label="行高"
                                 type="range"
                                 min="12"
                                 max="32"

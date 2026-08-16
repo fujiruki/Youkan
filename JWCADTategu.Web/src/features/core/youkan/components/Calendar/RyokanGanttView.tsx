@@ -992,6 +992,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 						colWidth={colWidth}
 						rowHeight={rowHeight}
 						stickyColWidth={256}
+						timeBlockLayoutsByDate={timelineMode ? timeBlockLayoutsByDate : undefined}
 					/>
 
 					<div className="relative z-10">
@@ -1163,7 +1164,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 																} : {}),
 															}}
 															className={cn(
-																"absolute top-1 bottom-1 min-w-[2px] rounded-sm flex items-center justify-end z-10 shadow-sm",
+																"absolute top-1 bottom-1 min-w-[2px] rounded-sm flex items-center justify-center gap-0.5 overflow-hidden z-10 shadow-sm",
 																done ? "bg-slate-400 dark:bg-slate-600" : "bg-indigo-500 dark:bg-indigo-600",
 																onUpdateItem ? "cursor-grab" : ""
 															)}
@@ -1184,6 +1185,12 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 														>
 															{timeBlock.overflow && (
 																<span className="text-[9px] leading-none pointer-events-none" aria-label="24時間をはみ出しています">❗️</span>
+															)}
+															{/* R-105-Y2: マンスリーの日次チップと同じ書式でブロック中央に目安時間を表示 */}
+															{step.allocatedMinutes >= 60 && (
+																<span className="text-[9px] font-bold leading-none text-white pointer-events-none whitespace-nowrap">
+																	{Math.round(step.allocatedMinutes / 60) + 'h'}
+																</span>
 															)}
 														</div>
 													)}
@@ -1282,7 +1289,9 @@ const GanttDependencyArrows: React.FC<{
 	colWidth: number;
 	rowHeight: number;
 	stickyColWidth: number;
-}> = ({ dependencies, transformedItems, allDays, colWidth, rowHeight, stickyColWidth }) => {
+	/** R-105-Y2: 時間軸表示時のブロック位置（無い場合は日付セル端にフォールバック） */
+	timeBlockLayoutsByDate?: Map<string, Map<string, TimeBlockLayout>>;
+}> = ({ dependencies, transformedItems, allDays, colWidth, rowHeight, stickyColWidth, timeBlockLayoutsByDate }) => {
 	if (dependencies.length === 0 || allDays.length === 0) return null;
 
 	const itemRowIndex = useMemo(() => {
@@ -1304,7 +1313,7 @@ const GanttDependencyArrows: React.FC<{
 		return map;
 	}, [allDays]);
 
-	const getDateIndex = (item: Item): number | null => {
+	const getDatePosition = (item: Item): { index: number; key: string } | null => {
 		// prep_date（目安納期）をソースの末尾、due_dateをフォールバックとして使用
 		let dateObj: Date | null = null;
 		if (item.prep_date) {
@@ -1314,7 +1323,8 @@ const GanttDependencyArrows: React.FC<{
 		}
 		if (!dateObj) return null;
 		const key = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-		return dayIndexMap.get(key) ?? null;
+		const index = dayIndexMap.get(key);
+		return index === undefined ? null : { index, key };
 	};
 
 	const arrows = useMemo(() => {
@@ -1329,14 +1339,21 @@ const GanttDependencyArrows: React.FC<{
 			const targetRow = itemRowIndex.get(dep.targetItemId);
 			if (sourceRow === undefined || targetRow === undefined) return null;
 
-			const sourceDayIdx = getDateIndex(sourceItem);
-			const targetDayIdx = getDateIndex(targetItem);
-			if (sourceDayIdx === null || targetDayIdx === null) return null;
+			const source = getDatePosition(sourceItem);
+			const target = getDatePosition(targetItem);
+			if (!source || !target) return null;
 
-			// ソースの末尾（日付セルの右端）からターゲットの先頭（日付セルの左端）へ
-			const x1 = stickyColWidth + (sourceDayIdx + 1) * colWidth;
+			// R-105-Y2: 時間軸ブロックがあればその実際の右端・左端、無ければ日付セル端へ
+			const sourceBlock = timeBlockLayoutsByDate?.get(source.key)?.get(dep.sourceItemId);
+			const targetBlock = timeBlockLayoutsByDate?.get(target.key)?.get(dep.targetItemId);
+
+			const x1 = sourceBlock
+				? stickyColWidth + source.index * colWidth + ((sourceBlock.startOffsetMinutes + sourceBlock.displayWidthMinutes) / DAY_MINUTES) * colWidth
+				: stickyColWidth + (source.index + 1) * colWidth;
 			const y1 = sourceRow * rowHeight + rowHeight / 2;
-			const x2 = stickyColWidth + targetDayIdx * colWidth;
+			const x2 = targetBlock
+				? stickyColWidth + target.index * colWidth + (targetBlock.startOffsetMinutes / DAY_MINUTES) * colWidth
+				: stickyColWidth + target.index * colWidth;
 			const y2 = targetRow * rowHeight + rowHeight / 2;
 
 			// R-100: source/targetいずれかが完了済みなら矢印をグレー化（片方だけ完了のケースも含める）
@@ -1344,7 +1361,7 @@ const GanttDependencyArrows: React.FC<{
 
 			return { key: dep.id, x1, y1, x2, y2, isDimmed };
 		}).filter(Boolean) as { key: string; x1: number; y1: number; x2: number; y2: number; isDimmed: boolean }[];
-	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth]);
+	}, [dependencies, transformedItems, itemRowIndex, dayIndexMap, colWidth, rowHeight, stickyColWidth, timeBlockLayoutsByDate]);
 
 	if (arrows.length === 0) return null;
 
