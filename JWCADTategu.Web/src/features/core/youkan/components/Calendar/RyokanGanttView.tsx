@@ -919,7 +919,13 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				ref={effectiveScrollRef}
 				className="flex-1 overflow-auto overflow-x-auto relative min-h-0"
 			>
-				<div className="min-w-max pb-32 relative">
+				{/*
+				 * R-105: 横幅を明示する。行に付く content-visibility: auto（R-046-Y1）は
+				 * 幅方向にもサイズ拘束をかけるため、行が一度も描画されていない初回は
+				 * ここの max-content がビューポート幅まで潰れ、sticky ラベル列が画面外へ出る。
+				 * 内訳はラベル列 w-64（256px）＋ 日数 × 列幅。
+				 */}
+				<div className="min-w-max pb-32 relative" style={{ width: 256 + allDays.length * colWidth }}>
 					{/*
 					 * R-050: sentinel をスクロールコンテンツ（min-w-max）の左端・右端にインライン配置する。
 					 * R-042-Y2 では絶対配置だったため横スクロールに追従せず、ユーザーがどれだけ
