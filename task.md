@@ -1525,6 +1525,42 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] `FlowItemNode.tsx`のレイアウトを実装（既存の`FlowItemNode.dueDate.test.tsx`があれば合わせて更新）
 - [ ] Green確認・既存テスト回帰なし確認
 - [ ] `git diff --stat master..HEAD`で変更範囲確認
-- [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: フローチャート画面で、目安時間・納期・マイ期限が設定されたノードが1行レイアウトで表示されること、ラベルテキストが出ないこと、色分けで納期/マイ期限が区別できること、未設定項目の要素がないこと
-- [ ] `docs/requests_log.md` R-107の対応状況を更新
+- [x] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: フローチャート画面で、目安時間・納期・マイ期限が設定されたノードが1行レイアウトで表示されること、ラベルテキストが出ないこと、色分けで納期/マイ期限が区別できること、未設定項目の要素がないこと（指揮AIが代行検証・確認済み）
+- [x] `docs/requests_log.md` R-107の対応状況を更新
+- [x] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）→ 指揮AIレビュー完了、マージ・デプロイへ進行中
+
+---
+
+## R-108 フローチャート複数選択まとめ移動後の位置巻き戻りバグ修正（2026-08-17）
+
+**ブランチ**: `fix/R-108-flow-multiselect-move-revert`
+**要望**: `docs/requests_log.md` R-108
+**仕様**: `docs/SPEC/03_画面設計.md` §7.11
+
+### 背景
+
+会話内発言原文: 「フローチャート画面でシフトをしながらドラッグすると範囲選択ができますよね　それで選択した状態でどれか要素をつかんでドラッグするとその選択をされたアイテムが全部いっぺんに相対距離を保ちながら移動できるんですけど　移動した後に何もないところをクリックして　選択解除をしたら、　全部元の位置に戻っていってしまいます　これはバグだと思うので直してほしいです」
+
+期待動作: Shift+ドラッグの範囲選択→複数ノードをまとめてドラッグ移動→キャンバスの空白部分をクリックして選択解除、という一連の操作後も、移動した位置がそのまま維持されること。
+
+### 指揮AI事前調査済み（実装Agentは深追いせずここから調査開始してよい）
+
+`JWCADTategu.Web/src/features/core/youkan/screens/FlowScreen.tsx`:
+- `onNodeDragStop`（L436-469付近）の複数選択パス（`selectedNodes.length > 1`）: 各ノードについて`await updateItemMeta(node.id, { flow_x: node.position.x, flow_y: node.position.y })`をforループでシーケンシャル呼び出し（L445-447）→ `setAllItems`でローカル反映（L448-454）→ `buildGroupNodes`で`nodes`ステートを再構築（L458-469）
+- `updateItemMeta`は別途定義された関数（`allItems`をuseCallback依存配列に持つクロージャ）。`allItems`スナップショットに基づいて`currentMeta`をマージしてから`ApiClient.updateItem()`を呼ぶ
+- `onSelectionChange`（L328-331）は`selectedNodeIds`/`selectedEdgeIds`のstate更新のみに見えるが、この状態変化をトリガーに`nodes`または`allItems`が再構築される別の処理（`useEffect`等）が存在し、その時点でサーバー保存がまだ反映されていない・またはローカル`allItems`と`nodes`の同期が崩れている古い位置データで上書きされている可能性が高い
+- 疑わしい具体的シナリオ: (1) 複数ノードへの`updateItemMeta`呼び出しがシーケンシャル（forループ内await）のため、途中のノードの保存中に他の処理（React再レンダリング等）が古い`allItems`を参照してしまうrace condition、(2) `nodes`ステートを`allItems`から再構築する`useEffect`が、選択解除時の再レンダリングをトリガーに走り、その時点の`allItems`がまだ全ノード分の位置更新を反映していない、(3) React Flow自体の内部position stateと、Reactコンポーネント側で管理する`nodes`ステートの同期タイミングのズレ
+- 実装Agentはまずブラウザ操作で確実に再現させ、コンソールログ・Reactデバッグツール等で「いつ・どのstateが」元の位置に巻き戻るのかを特定してから修正すること
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/fix-R108-flow-multiselect-move-revert -b fix/R-108-flow-multiselect-move-revert master`、`git worktree list`で実在確認）
+- [ ] 実機（開発サーバー）で再現確認: フローチャート画面でShift+ドラッグ範囲選択→複数ノードドラッグ移動→キャンバス空白クリックで選択解除→位置が戻ることを確認
+- [ ] 根本原因を特定し、`docs/handover/`または報告内に記録
+- [ ] 失敗するテストを先に書く（複数選択移動後、選択解除相当の操作をしても位置が保持されること）→ Red確認
+- [ ] 修正実装
+- [ ] Green確認・既存テスト回帰なし確認
+- [ ] `git diff --stat master..HEAD`で変更範囲確認
+- [ ] 実機再検証（複数回・複数ノード数で再現しないことを確認）
+- [ ] `docs/requests_log.md` R-108の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
