@@ -84,4 +84,6 @@ export interface RyokanCalendarProps {
     ganttColWidth?: number;
     /** R-097: ガントビューの行高さ（px）。未指定時は既存動作維持のため 28px（h-7相当） */
     ganttRowHeight?: number;
+    /** R-105: ガントの時間軸タイムライン表示（ウィークリー/デイリー） */
+    ganttTimelineMode?: boolean;
 }

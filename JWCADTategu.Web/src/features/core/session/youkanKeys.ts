@@ -32,6 +32,9 @@ export const YOUKAN_KEYS = {
 	GANTT_ROW_HEIGHT_MONTHLY: 'youkan_gantt_row_height_monthly',
 	GANTT_COL_WIDTH_WEEKLY: 'youkan_gantt_col_width_weekly',
 	GANTT_ROW_HEIGHT_WEEKLY: 'youkan_gantt_row_height_weekly',
+	// R-105: デイリー表示
+	GANTT_COL_WIDTH_DAILY: 'youkan_gantt_col_width_daily',
+	GANTT_ROW_HEIGHT_DAILY: 'youkan_gantt_row_height_daily',
 
 	// === パノラマ設定 ===
 	PANORAMA_COLS: 'youkan_panorama_cols',

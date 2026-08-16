@@ -3,6 +3,18 @@ import { format, isValid } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '../../../../../lib/utils';
 
+/** R-097 / R-105: ガントのスケール表示モード */
+export type GanttScaleMode = 'monthly' | 'weekly' | 'daily';
+
+const SCALE_MODES: { mode: GanttScaleMode; label: string }[] = [
+    { mode: 'monthly', label: 'マンスリー' },
+    { mode: 'weekly', label: 'ウィークリー' },
+    { mode: 'daily', label: 'デイリー' },
+];
+
+/** R-105: 時間軸タイムライン表示は時間分解能を見せるため列幅上限を広げる */
+const COL_WIDTH_MAX = { monthly: 80, timeline: 240 };
+
 interface CalendarHeaderProps {
     /** 現在表示中の年月 (スクロール連動) */
     visibleDate: Date;
@@ -24,9 +36,9 @@ interface CalendarHeaderProps {
     variant?: 'gantt' | 'grid';
     /** R-041-Y2: ヘッダー右側に差し込む任意のアクション（カレンダー切替ボタン等） */
     extraActions?: React.ReactNode;
-    /** R-097: ガントのマンスリー/ウィークリー表示モード（列幅・行高さの記憶枠切替） */
-    scaleMode?: 'monthly' | 'weekly';
-    onScaleModeChange?: (mode: 'monthly' | 'weekly') => void;
+    /** R-097 / R-105: ガントのマンスリー/ウィークリー/デイリー表示モード（列幅・行高さの記憶枠切替） */
+    scaleMode?: GanttScaleMode;
+    onScaleModeChange?: (mode: GanttScaleMode) => void;
     /** R-097: 列幅（日付列幅）スライダー */
     colWidth?: number;
     onColWidthChange?: (value: number) => void;
@@ -142,31 +154,23 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                     </div>
                 )}
 
-                {/* R-097: マンスリー/ウィークリー表示モード切替（列幅・行高さの記憶枠切替） */}
+                {/* R-097 / R-105: マンスリー/ウィークリー/デイリー表示モード切替（列幅・行高さの記憶枠切替） */}
                 {isGantt && (
                     <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <button
-                            onClick={() => onScaleModeChange?.('monthly')}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg transition-all text-[11px] font-black",
-                                scaleMode === 'monthly'
-                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
-                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                            )}
-                        >
-                            マンスリー
-                        </button>
-                        <button
-                            onClick={() => onScaleModeChange?.('weekly')}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg transition-all text-[11px] font-black",
-                                scaleMode === 'weekly'
-                                    ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
-                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                            )}
-                        >
-                            ウィークリー
-                        </button>
+                        {SCALE_MODES.map(({ mode, label }) => (
+                            <button
+                                key={mode}
+                                onClick={() => onScaleModeChange?.(mode)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg transition-all text-[11px] font-black",
+                                    scaleMode === mode
+                                        ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 shadow-md ring-1 ring-slate-200 dark:ring-slate-700"
+                                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 )}
 
@@ -182,12 +186,12 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
                                 aria-label="列幅"
                                 type="range"
                                 min="16"
-                                max="80"
+                                max={scaleMode === 'monthly' ? COL_WIDTH_MAX.monthly : COL_WIDTH_MAX.timeline}
                                 value={colWidth}
                                 onChange={(e) => onColWidthChange?.(parseInt(e.target.value))}
                                 className="w-16 accent-indigo-600 h-1 cursor-pointer bg-slate-200 dark:bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
                             />
-                            <span className="text-[10px] font-bold font-mono text-slate-500 w-4">{colWidth}</span>
+                            <span className="text-[10px] font-bold font-mono text-slate-500 w-6">{colWidth}</span>
                         </div>
                     )}
 

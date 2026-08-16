@@ -151,6 +151,31 @@ describe('CalendarHeader Component', () => {
 			expect(screen.queryByLabelText('列幅')).not.toBeInTheDocument();
 			expect(screen.queryByText('マンスリー')).not.toBeInTheDocument();
 		});
+
+		// R-105: デイリー表示モードを追加（3ボタントグル）
+		it('gantt variant でマンスリー/ウィークリー/デイリーの3ボタンが表示される', () => {
+			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="monthly" onScaleModeChange={() => { }} colWidth={24} onColWidthChange={() => { }} />);
+			expect(screen.getByText('マンスリー')).toBeInTheDocument();
+			expect(screen.getByText('ウィークリー')).toBeInTheDocument();
+			expect(screen.getByText('デイリー')).toBeInTheDocument();
+		});
+
+		it('デイリーボタン押下で onScaleModeChange("daily") が呼ばれる', () => {
+			const onScaleModeChange = vi.fn();
+			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="monthly" onScaleModeChange={onScaleModeChange} colWidth={24} onColWidthChange={() => { }} />);
+			fireEvent.click(screen.getByText('デイリー'));
+			expect(onScaleModeChange).toHaveBeenCalledWith('daily');
+		});
+
+		it('マンスリーの列幅スライダー上限は従来通り80px', () => {
+			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="monthly" onScaleModeChange={() => { }} colWidth={24} onColWidthChange={() => { }} />);
+			expect(screen.getByLabelText('列幅')).toHaveAttribute('max', '80');
+		});
+
+		it('時間軸タイムライン表示では列幅スライダー上限が広がる', () => {
+			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="daily" onScaleModeChange={() => { }} colWidth={96} onColWidthChange={() => { }} />);
+			expect(Number(screen.getByLabelText('列幅').getAttribute('max'))).toBeGreaterThan(80);
+		});
 	});
 
 	// R-098: コンテンツ印刷ボタン
