@@ -130,13 +130,13 @@ describe('CalendarHeader Component', () => {
 		it('モードに関わらず列幅スライダーと行高さスライダーの両方が常時表示される（monthly）', () => {
 			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="monthly" onScaleModeChange={() => { }} colWidth={24} onColWidthChange={() => { }} />);
 			expect(screen.getByLabelText('列幅')).toBeInTheDocument();
-			expect(screen.getByLabelText('密度')).toBeInTheDocument();
+			expect(screen.getByLabelText('行高')).toBeInTheDocument();
 		});
 
 		it('モードに関わらず列幅スライダーと行高さスライダーの両方が常時表示される（weekly）', () => {
 			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="weekly" onScaleModeChange={() => { }} colWidth={40} onColWidthChange={() => { }} />);
 			expect(screen.getByLabelText('列幅')).toBeInTheDocument();
-			expect(screen.getByLabelText('密度')).toBeInTheDocument();
+			expect(screen.getByLabelText('行高')).toBeInTheDocument();
 		});
 
 		it('列幅スライダー操作で onColWidthChange が呼ばれる', () => {
@@ -167,14 +167,49 @@ describe('CalendarHeader Component', () => {
 			expect(onScaleModeChange).toHaveBeenCalledWith('daily');
 		});
 
-		it('マンスリーの列幅スライダー上限は従来通り80px', () => {
-			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="monthly" onScaleModeChange={() => { }} colWidth={24} onColWidthChange={() => { }} />);
-			expect(screen.getByLabelText('列幅')).toHaveAttribute('max', '80');
+		// R-106: 列幅スライダーの上限を表示領域幅に追従させる（固定pxの上限は廃止）
+		it.each(['monthly', 'weekly', 'daily'] as const)(
+			'列幅スライダーの上限が表示領域幅（ヘッダー幅 − タスク一覧列256px）になる scaleMode=%s',
+			(scaleMode) => {
+				const spy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1200);
+				render(<CalendarHeader {...baseProps} variant="gantt" scaleMode={scaleMode} onScaleModeChange={() => { }} colWidth={24} onColWidthChange={() => { }} />);
+				expect(screen.getByLabelText('列幅')).toHaveAttribute('max', String(1200 - 256));
+				spy.mockRestore();
+			}
+		);
+
+		it('表示領域が広がると列幅スライダーの上限も広がる', () => {
+			const spy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1920);
+			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="daily" onScaleModeChange={() => { }} colWidth={96} onColWidthChange={() => { }} />);
+			expect(screen.getByLabelText('列幅')).toHaveAttribute('max', String(1920 - 256));
+			spy.mockRestore();
+		});
+	});
+
+	// R-106: 「密度」→「行高」改称
+	describe('R-106 行高スライダー', () => {
+		const baseProps = {
+			visibleDate: new Date(2026, 5, 2),
+			onPrevMonth: () => { },
+			onNextMonth: () => { },
+			onGoToCurrentMonth: () => { },
+			onOpenDailySettings: () => { },
+			rowHeight: 24,
+			onRowHeightChange: () => { },
+			showGroups: true,
+			onShowGroupsChange: () => { },
+		};
+
+		it('ラベルと aria-label が「行高」になっている', () => {
+			render(<CalendarHeader {...baseProps} variant="gantt" />);
+			expect(screen.getByText('行高')).toBeInTheDocument();
+			expect(screen.getByLabelText('行高')).toBeInTheDocument();
 		});
 
-		it('時間軸タイムライン表示では列幅スライダー上限が広がる', () => {
-			render(<CalendarHeader {...baseProps} variant="gantt" scaleMode="daily" onScaleModeChange={() => { }} colWidth={96} onColWidthChange={() => { }} />);
-			expect(Number(screen.getByLabelText('列幅').getAttribute('max'))).toBeGreaterThan(80);
+		it('旧ラベル「密度」は表示されない', () => {
+			render(<CalendarHeader {...baseProps} variant="gantt" />);
+			expect(screen.queryByText('密度')).not.toBeInTheDocument();
+			expect(screen.queryByLabelText('密度')).not.toBeInTheDocument();
 		});
 	});
 

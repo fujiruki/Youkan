@@ -201,6 +201,120 @@ describe('R-105: timelineMode のブロック描画', () => {
 	});
 });
 
+describe('R-105-Y2: 時間軸ブロックの目安時間表示', () => {
+	it('ブロック中央に割当時間が「Xh」で表示される', () => {
+		const items = [
+			makeItem('task-1', 'タスク1', { prep_date: wednesdayUnix, estimatedMinutes: 240 }),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} timelineMode />
+		);
+
+		const block = container.querySelector<HTMLElement>(
+			`[data-testid="gantt-time-block-task-1-${wednesdayYmd}"]`
+		);
+		expect(block!.textContent).toContain('4h');
+	});
+
+	it('60分未満の割当では時間ラベルを表示しない', () => {
+		const items = [
+			makeItem('task-1', 'タスク1', { prep_date: wednesdayUnix, estimatedMinutes: 30 }),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} timelineMode />
+		);
+
+		const block = container.querySelector<HTMLElement>(
+			`[data-testid="gantt-time-block-task-1-${wednesdayYmd}"]`
+		);
+		expect(block!.textContent).not.toMatch(/h/);
+	});
+});
+
+describe('R-105-Y2: 依存矢印のブロック端合わせ', () => {
+	const thursdayUnix = Math.floor(new Date(2026, 2, 5).getTime() / 1000);
+	const colWidth = 96;
+	const STICKY = 256;
+
+	// d 属性の始点（M x y）と終点（末尾の x y）を取り出す
+	const parseEndpoints = (d: string) => {
+		const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+		return { x1: nums[0], x2: nums[nums.length - 2] };
+	};
+
+	const getArrow = (container: HTMLElement) =>
+		container.querySelector<SVGPathElement>('svg path');
+
+	it('timelineMode ではソースの右端・ターゲットの左端がブロック端になる', async () => {
+		mockGetDependencies.mockResolvedValue([makeDependency('dep-1', 'A', 'B')]);
+		const items = [
+			makeItem('A', 'タスクA', { prep_date: wednesdayUnix, estimatedMinutes: 240 }),
+			makeItem('B', 'タスクB', {
+				prep_date: thursdayUnix,
+				estimatedMinutes: 120,
+				meta: { gantt_time_blocks: { '2026-03-05': 300 } },
+			}),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} colWidth={colWidth} timelineMode />
+		);
+
+		await waitFor(() => expect(getArrow(container)).toBeTruthy());
+		await waitFor(() => {
+			const { x1, x2 } = parseEndpoints(getArrow(container)!.getAttribute('d')!);
+			// A: 3日目セル + 割当240分ぶんの右端
+			expect(x1).toBeCloseTo(STICKY + 3 * colWidth + (240 / 1440) * colWidth, 3);
+			// B: 4日目セル + 手動オフセット300分の左端
+			expect(x2).toBeCloseTo(STICKY + 4 * colWidth + (300 / 1440) * colWidth, 3);
+		});
+	});
+
+	it('ブロックが無い日は従来どおり日付セル端にフォールバックする', async () => {
+		mockGetDependencies.mockResolvedValue([makeDependency('dep-1', 'A', 'C')]);
+		const items = [
+			makeItem('A', 'タスクA', { prep_date: wednesdayUnix, estimatedMinutes: 240 }),
+			// prep_date 無し＝割当が無いためブロックも無い
+			makeItem('C', 'タスクC', { due_date: '2026-03-05' }),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} colWidth={colWidth} timelineMode />
+		);
+
+		await waitFor(() => expect(getArrow(container)).toBeTruthy());
+		await waitFor(() => {
+			const { x2 } = parseEndpoints(getArrow(container)!.getAttribute('d')!);
+			expect(x2).toBeCloseTo(STICKY + 4 * colWidth, 3);
+		});
+	});
+
+	it('timelineMode でなければ従来どおり日付セル端を使う', async () => {
+		mockGetDependencies.mockResolvedValue([makeDependency('dep-1', 'A', 'B')]);
+		const items = [
+			makeItem('A', 'タスクA', { prep_date: wednesdayUnix, estimatedMinutes: 240 }),
+			makeItem('B', 'タスクB', {
+				prep_date: thursdayUnix,
+				estimatedMinutes: 120,
+				meta: { gantt_time_blocks: { '2026-03-05': 300 } },
+			}),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} colWidth={colWidth} />
+		);
+
+		await waitFor(() => expect(getArrow(container)).toBeTruthy());
+		await waitFor(() => {
+			const { x1, x2 } = parseEndpoints(getArrow(container)!.getAttribute('d')!);
+			expect(x1).toBeCloseTo(STICKY + 4 * colWidth, 3);
+			expect(x2).toBeCloseTo(STICKY + 4 * colWidth, 3);
+		});
+	});
+});
+
 describe('R-105: 行スクロールコンテンツの横幅', () => {
 	// content-visibility: auto の行は幅方向にもサイズ拘束されるため、初回描画では
 	// 親の max-content 計算がビューポート幅に潰れ sticky ラベル列が画面外へ出る。
