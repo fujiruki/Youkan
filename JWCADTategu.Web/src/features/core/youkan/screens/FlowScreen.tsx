@@ -21,7 +21,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2, LayoutGrid } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
@@ -36,6 +36,7 @@ import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlo
 import { DependencyRepository } from '../repositories/DependencyRepository';
 import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint, type PlacementResult } from '../logic/flowAutoPlace';
 import { calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
+import { calculateAutoArrange } from '../logic/flowAutoArrange';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -115,6 +116,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [isDateGrouping, setIsDateGrouping] = useState(false);
   const [dateBands, setDateBands] = useState<DateBand[]>([]);
   const positionBackup = useRef<Map<string, { x: number; y: number }> | null>(null);
+  // R-112: 「元に戻す」の表示条件（日付表示・自動整理どちらの実行後もtrueになる）
+  const [hasPositionBackup, setHasPositionBackup] = useState(false);
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
 
@@ -784,6 +787,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
       ])
     );
+    setHasPositionBackup(true);
     const { placements, bands } = calculateDateGroupLayout(placedItems, dependencies);
     setDateBands(bands);
     // 配置が大きく変わるため、帯ノードの計測が済んだタイミングで全体表示に合わせ直す
@@ -791,11 +795,32 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     await applyPlacements(placements);
   }, [placedItems, dependencies, applyPlacements]);
 
-  // R-109: グルーピング適用直前の位置へ1段階戻す
+  // R-112: プロジェクトごとに層分け・交差削減した配置へ整理する
+  const handleAutoArrange = useCallback(async () => {
+    if (isDateGrouping) return;
+    positionBackup.current = new Map(
+      placedItems.map((item) => [
+        item.id,
+        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+      ])
+    );
+    setHasPositionBackup(true);
+    const sizes = new Map(
+      nodes
+        .filter((n) => n.measured?.width && n.measured?.height)
+        .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
+    );
+    const placements = calculateAutoArrange(placedItems, dependencies, sizes);
+    shouldFitViewRef.current = true;
+    await applyPlacements(placements);
+  }, [isDateGrouping, placedItems, dependencies, nodes, applyPlacements]);
+
+  // R-109/R-112: グルーピングまたは自動整理の適用直前の位置へ1段階戻す
   const handleRestorePositions = useCallback(async () => {
     const backup = positionBackup.current;
     if (!backup) return;
     positionBackup.current = null;
+    setHasPositionBackup(false);
     setIsDateGrouping(false);
     setDateBands([]);
     await applyPlacements(
@@ -1231,16 +1256,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         />
         <span>日付表示</span>
       </label>
-      {isDateGrouping && (
+      {hasPositionBackup && (
         <button
           onClick={handleRestorePositions}
           className="absolute top-[148px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-          title="日付表示の適用前の配置に戻す"
+          title="適用前の配置に戻す"
         >
           <Undo2 size={12} />
           <span>元に戻す</span>
         </button>
       )}
+      <button
+        onClick={handleAutoArrange}
+        disabled={isDateGrouping}
+        className="absolute top-[180px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        title="ノードが重ならず・エッジ交差が少ない配置へ自動整理"
+      >
+        <LayoutGrid size={12} />
+        <span>自動整理</span>
+      </button>
       {isHelpOpen && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
