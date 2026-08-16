@@ -21,10 +21,11 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus, Maximize, Printer } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2 } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
+import { DateBandNode } from '../components/Flow/DateBandNode';
 import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
 import { ContextMenu } from '../components/Common/ContextMenu';
@@ -33,7 +34,8 @@ import { FlowProjectSelector } from '../components/Flow/FlowProjectSelector';
 import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
 import { DependencyRepository } from '../repositories/DependencyRepository';
-import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint } from '../logic/flowAutoPlace';
+import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint, type PlacementResult } from '../logic/flowAutoPlace';
+import { calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -43,7 +45,11 @@ import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 const nodeTypes = {
   flowItem: FlowItemNode,
   projectGroup: ProjectGroupNode,
+  dateBand: DateBandNode,
 };
+
+// R-109: 日付区間の帯（1本おきに色を変えて区間の境目を見せる）
+const DATE_BAND_COLORS = ['rgba(99, 102, 241, 0.05)', 'rgba(148, 163, 184, 0.10)'];
 const dependencyRepo = new DependencyRepository();
 
 const OVERLAP_THRESHOLD = 40;
@@ -105,6 +111,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
   const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  // R-109: 日付グルーピング表示
+  const [isDateGrouping, setIsDateGrouping] = useState(false);
+  const [dateBands, setDateBands] = useState<DateBand[]>([]);
+  const positionBackup = useRef<Map<string, { x: number; y: number }> | null>(null);
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
 
@@ -261,7 +271,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           },
         } satisfies Node;
       });
-      return [...groupNodes, ...itemNodes];
+      const bandNodes: Node[] = dateBands.map((band, index) => ({
+        id: `dateband-${band.dateKey}`,
+        type: 'dateBand',
+        position: { x: band.x, y: band.y },
+        data: { label: band.label, totalMinutes: band.totalMinutes, criticalMinutes: band.criticalMinutes },
+        style: {
+          width: band.width,
+          height: band.height,
+          backgroundColor: DATE_BAND_COLORS[index % DATE_BAND_COLORS.length],
+          borderLeft: '2px solid rgba(100, 116, 139, 0.35)',
+          borderRight: '2px solid rgba(100, 116, 139, 0.35)',
+          padding: 0,
+        },
+        draggable: false,
+        selectable: false,
+        zIndex: -2,
+      }));
+
+      return [...bandNodes, ...groupNodes, ...itemNodes];
     });
 
     const newEdges: Edge[] = dependencies.map((dep) =>
@@ -273,7 +301,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       prevProjectRef.current = currentProjectId ?? null;
       shouldFitViewRef.current = true;
     }
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+  }, [placedItems, dependencies, dateBands, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
@@ -723,6 +751,58 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     setEdgeContextMenu(null);
   }, []);
 
+  // R-108と同じ理由で、サーバー保存より先にローカル座標を確定させる
+  const applyPlacements = useCallback(async (placements: PlacementResult[]) => {
+    setAllItems((prev) =>
+      prev.map((item) => {
+        const placement = placements.find((p) => p.itemId === item.id);
+        if (!placement) return item;
+        return {
+          ...item,
+          meta: { ...(item.meta || {}), flow_x: placement.flow_x, flow_y: placement.flow_y },
+        };
+      })
+    );
+    for (const p of placements) {
+      try {
+        await updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y });
+      } catch (err) {
+        console.error(`[FlowScreen] 位置保存失敗 (${p.itemId}):`, err);
+      }
+    }
+  }, [updateItemMeta]);
+
+  // R-109: 日付グルーピング表示のON/OFF。ONにすると実際にノード座標を書き換える
+  const handleToggleDateGrouping = useCallback(async (checked: boolean) => {
+    setIsDateGrouping(checked);
+    if (!checked) {
+      setDateBands([]);
+      return;
+    }
+    positionBackup.current = new Map(
+      placedItems.map((item) => [
+        item.id,
+        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+      ])
+    );
+    const { placements, bands } = calculateDateGroupLayout(placedItems, dependencies);
+    setDateBands(bands);
+    await applyPlacements(placements);
+    setTimeout(() => fitView({ duration: 300, padding: 0.1 }), 100);
+  }, [placedItems, dependencies, applyPlacements, fitView]);
+
+  // R-109: グルーピング適用直前の位置へ1段階戻す
+  const handleRestorePositions = useCallback(async () => {
+    const backup = positionBackup.current;
+    if (!backup) return;
+    positionBackup.current = null;
+    setIsDateGrouping(false);
+    setDateBands([]);
+    await applyPlacements(
+      Array.from(backup, ([itemId, pos]) => ({ itemId, flow_x: pos.x, flow_y: pos.y }))
+    );
+  }, [applyPlacements]);
+
   const handleAutoPlace = useCallback(async () => {
     if (allItems.length === 0) return;
     setIsAutoPlacing(true);
@@ -1142,6 +1222,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         <Printer size={12} />
         <span>印刷</span>
       </button>
+      <label className="absolute top-[116px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 cursor-pointer no-print">
+        <input
+          type="checkbox"
+          checked={isDateGrouping}
+          onChange={(e) => handleToggleDateGrouping(e.target.checked)}
+          className="accent-indigo-500"
+        />
+        <span>日付表示</span>
+      </label>
+      {isDateGrouping && (
+        <button
+          onClick={handleRestorePositions}
+          className="absolute top-[148px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+          title="日付表示の適用前の配置に戻す"
+        >
+          <Undo2 size={12} />
+          <span>元に戻す</span>
+        </button>
+      )}
       {isHelpOpen && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
