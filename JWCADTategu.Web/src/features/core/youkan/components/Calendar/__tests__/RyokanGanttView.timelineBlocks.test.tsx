@@ -200,3 +200,17 @@ describe('R-105: timelineMode のブロック描画', () => {
 		expect(block!.textContent).toContain('❗️');
 	});
 });
+
+describe('R-105: 行スクロールコンテンツの横幅', () => {
+	// content-visibility: auto の行は幅方向にもサイズ拘束されるため、初回描画では
+	// 親の max-content 計算がビューポート幅に潰れ sticky ラベル列が画面外へ出る。
+	// 明示幅を持たせて max-content 依存をなくす。
+	it.each([24, 96])('スクロールコンテンツに明示幅（ラベル列256px + 日数×列幅）を持つ colWidth=%i', (colWidth) => {
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} colWidth={colWidth} items={[]} timelineMode />
+		);
+
+		const wrapper = container.querySelector<HTMLElement>('.min-w-max');
+		expect(wrapper!.style.width).toBe(`${256 + defaultProps.allDays.length * colWidth}px`);
+	});
+});
