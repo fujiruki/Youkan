@@ -1610,3 +1610,39 @@ Google Cloud Console側のOAuth同意画面を「テスト中」から「本番�
 - [ ] 実機検証（`/run`スキルまたはchrome-devtools系ツール）: 依存関係のある複数タスクを異なる有効締切で用意し、チェックONで区切り線・背景色・合計/最短時間が正しく表示されること、ノードが実際に移動し`flow_x`/`flow_y`が更新されること、「元に戻す」で元の位置に戻ることを確認。手書き図の例（直列区間は合計=最短、分岐区間は合計>最短）で計算結果が妥当か目視確認
 - [ ] `docs/requests_log.md` R-109の対応状況を更新
 - [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
+
+## R-110 R-109日付グルーピング表示の軸入れ替え（2026-08-17）
+
+**ブランチ**: `fix/R-110-flow-date-band-axis`
+**要望**: `docs/requests_log.md` R-110
+**仕様**: `docs/SPEC/03_画面設計.md` §7.12（R-110で軸を修正した節を参照）
+**計画ファイル**: `C:\Users\fjtsu\.claude\plans\konoyoukan-no-gantotya-to-hyouji-hidden-gizmo.md`（詳細な設計はここに確定済み、実装Agentは再設計不要）
+
+### 背景
+
+R-109実装（本番デプロイ済み）を発注者が実際に確認したところ、「日付が列ごとで縦になっている、横のはずだ。フローの流れは上から下だから、日付は横線区切りで上から下に増えていくべき」というフィードバックを受けた。R-109の実装は「日付＝X軸（横に並ぶ帯）、依存の深さ＝帯内でY軸（縦積み）」になっており、フロー本来の「上から下へ流れる」設計（`FlowItemNode.tsx`のHandleがTop/Bottom、`createNodeBelow`がY軸のみ増加）と軸が逆だった。
+
+指揮AIが発注者と2回のAskUserQuestionで確認し、以下を確定済み（再相談不要）:
+1. 帯は画面幅ではなくフロー全体のコンテンツ幅いっぱいの横長帯とし、上から下へ日付順に積み上げる
+2. 帯内のノードは依存の深さ順に横一列に並べる
+3. ラベルは帯の左上に、日付（曜日つき）→改行→合計→改行→最短、の順で縦に並べる
+4. 帯同士の区切りは横線（`borderBottom`）
+
+### 対象ファイル・設計（詳細は計画ファイル参照）
+
+- `logic/flowDateGrouping.ts`: 軸入れ替え。`BAND_WIDTH`/`ROW_HEIGHT`/`BAND_HEADER`/`BAND_FOOTER`→`BAND_HEIGHT`/`COL_WIDTH`/`LABEL_MARGIN_WIDTH`に再編。帯は`bandX=0`固定・`bandY=index*BAND_HEIGHT`で縦積み。帯内ノードは`flow_x = LABEL_MARGIN_WIDTH + col*COL_WIDTH`、`flow_y = bandY + (BAND_HEIGHT-NODE_HEIGHT)/2`。同depthのタイブレークは`flow_y`比較→`flow_x`比較に変更。`bandLabel`に曜日を追加（`date-fns/locale`の`ja`を使用、他箇所での使用例があれば確認して踏襲）
+- `components/Flow/DateBandNode.tsx`: ラベルを上下分散→左上3行スタックに変更
+- `screens/FlowScreen.tsx`: 帯ノードの罫線を`borderLeft`/`borderRight`→`borderBottom`に変更
+- `calculateCriticalPathMinutes`/`computeDepthWithin`/`groupItemsByDeadline`/`getEffectiveDeadline`/`formatHours`/Undo/チェックボックスUI/`applyPlacements`は変更不要（軸に依存しないロジックのため）
+
+### サブタスク
+
+- [ ] worktree作成（`git worktree add .claude/worktrees/fix-R110-flow-date-band-axis -b fix/R-110-flow-date-band-axis master`、`git worktree list`で実在確認）
+- [ ] 既存の`logic/__tests__/flowDateGrouping.test.ts`を新しい軸の期待値に書き換え（Red確認）→ `flowDateGrouping.ts`実装（Green確認）
+- [ ] `DateBandNode.tsx`のラベル配置変更（対応するコンポーネントテストがあれば同様にTDD、なければ実機目視確認）
+- [ ] `FlowScreen.tsx`の帯の罫線変更（`borderLeft`/`borderRight`→`borderBottom`）
+- [ ] `npm.cmd run test -- --run`全体実行、既存テスト回帰なし確認
+- [ ] 実機検証（開発サーバーは`php -S 127.0.0.1:8000 -t backend backend/router.php`と明示すること、`localhost`指定だとIPv6バインドでVite proxyから接続できない既知の問題があるため）: 日付表示チェックON時に「上から下に日付が積み上がる」「帯内で左から右にノードが並ぶ」「左上に日付(曜日)/合計/最短が縦3行で表示される」「帯同士が横線で区切られる」ことを目視確認。「元に戻す」ボタンで復元されることも確認
+- [ ] `docs/requests_log.md` R-110の対応状況を更新
+- [ ] `docs/SPEC/03_画面設計.md` §7.12の更新に齟齬がないか確認（既に指揮AIが更新済み、追加修正があれば反映）
+- [ ] 指揮AIへ完了報告（masterへのマージ・本番デプロイは指揮AIレビュー後）
