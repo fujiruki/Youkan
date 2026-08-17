@@ -1671,11 +1671,11 @@ R-110（横帯・上→下）を発注者が確認したところ「帯の中の
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-111-112-flow-arrange master`
-- [ ] R-111: `flowDateGrouping.test.ts`を新ルールへ書き換え＋追加（Red）→ 実装（Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
-- [ ] R-112: `flowAutoArrange.test.ts`新規（重なりなし／依存先が下／交差ケース／プロジェクト横並び／sizes反映／flow_x同点解消）（Red）→ 実装（Green）
-- [ ] R-112: FlowScreen統合テスト（ボタン表示・押下で保存・元に戻す・日付表示中は無効）（Red）→ 実装（Green）
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000 -t backend backend/router.php`＋Vite）: 日付表示ONで横位置不変・行分け・帯高さ可変／自動整理で重なりなし・上→下・プロジェクト横並び・元に戻す・日付表示中無効
-- [ ] `docs/requests_log.md` R-111/R-112の対応状況更新、SPECと実装の齟齬確認
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-111-112-flow-arrange master`
+- [x] R-111: `flowDateGrouping.test.ts`を新ルールへ書き換え＋追加（Red）→ 実装（Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
+- [x] R-112: `flowAutoArrange.test.ts`新規（重なりなし／依存先が下／交差ケース／プロジェクト横並び／sizes反映／flow_x同点解消）（Red）→ 実装（Green）
+- [x] R-112: FlowScreen統合テスト（ボタン表示・押下で保存・元に戻す・日付表示中は無効）（Red）→ 実装（Green）
+- [x] `npm.cmd run test -- --run`全体Green（959 passed / 14 skipped / 1 failed=既知フレーキー`useAssigneeView.test.ts`のみ）
+- [x] 実機検証（`php -S 127.0.0.1:8000 -t backend backend/router.php`＋Vite）: 日付表示ONで横位置不変・行分け・帯高さ可変／自動整理で重なりなし・上→下・プロジェクト横並び・元に戻す・日付表示中無効
+- [x] `docs/requests_log.md` R-111/R-112の対応状況更新、SPECと実装の齟齬確認
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
