@@ -39,6 +39,7 @@ import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint, type Pl
 import { calculateDateBands, calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
 import { calculateAutoArrange } from '../logic/flowAutoArrange';
 import { calculateVerticalCompact } from '../logic/flowVerticalCompact';
+import { calculateHorizontalCompact } from '../logic/flowHorizontalCompact';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -144,6 +145,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     const saved = Number(localStorage.getItem(DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY));
     return Number.isFinite(saved) && saved > 0 ? saved : DATE_ALIGN_ROW_HEIGHT_DEFAULT;
   });
+  // R-120: 配置系ボタン（自動整理・日付整列・詰める）のプレビュー→保存確定。
+  // ボタン押下でpreviewModeが立ち、previewPlacementsがノード描画の実座標より優先される。
+  // 「保存」で確定（applyPlacements）、「キャンセル」でどちらもnullに戻すだけ（サーバー未送信のため復元不要）
+  const [previewMode, setPreviewMode] = useState<'autoArrange' | 'dateAlign' | 'compact' | null>(null);
+  const [previewPlacements, setPreviewPlacements] = useState<PlacementResult[] | null>(null);
+  // R-120:「詰める」パネルの縦間隔・横間隔と、それぞれの有効/無効チェック（パネルを開くたびの一時値）
+  const [compactGapY, setCompactGapY] = useState<number>(GAP_Y_DEFAULT);
+  const [compactGapX, setCompactGapX] = useState<number>(GAP_Y_DEFAULT);
+  const [compactVerticalEnabled, setCompactVerticalEnabled] = useState(true);
+  const [compactHorizontalEnabled, setCompactHorizontalEnabled] = useState(true);
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
 
@@ -285,6 +296,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     }
   }, []);
 
+  // R-120: プレビュー中は、previewPlacementsにある座標をplacedItemsの実座標より優先して描画する
+  const previewPositionById = useMemo(() => {
+    if (!previewPlacements) return null;
+    return new Map(previewPlacements.map((p) => [p.itemId, { x: p.flow_x, y: p.flow_y }]));
+  }, [previewPlacements]);
+
   useEffect(() => {
     if (isDragging.current) return;
 
@@ -300,10 +317,15 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       const itemNodes: Node[] = placedItems.map((item) => {
         const isHighlighted = highlightNodeId === item.id;
         const prev = prevById.get(item.id);
+        const position =
+          previewPositionById?.get(item.id) ?? {
+            x: item.meta!.flow_x as number,
+            y: item.meta!.flow_y as number,
+          };
         return {
           id: item.id,
           type: 'flowItem',
-          position: { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+          position,
           ...(prev?.measured ? { measured: prev.measured } : {}),
           selected: prev?.selected ?? false,
           data: {
@@ -332,7 +354,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       prevProjectRef.current = currentProjectId ?? null;
       shouldFitViewRef.current = true;
     }
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, previewPositionById, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
 
   // R-113: 帯（dateBand型ノード）はuseNodesStateの管理外で、renderのたびにdateBandsから合成する。
   // stateに含めてしまうと、帯の更新→nodes変化→dateBands再計算→帯の再更新…という無限ループの
@@ -874,28 +896,142 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     setIsDateGrouping(checked);
   }, []);
 
-  // R-112/R-114: プロジェクトごとに層分け・交差削減した配置へ整理する（日付表示ON中も使用可）
-  const handleAutoArrange = useCallback(async () => {
-    positionBackup.current = new Map(
-      placedItems.map((item) => [
-        item.id,
-        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
-      ])
-    );
-    setHasPositionBackup(true);
-    const sizes = new Map(
-      nodes
-        .filter((n) => n.measured?.width && n.measured?.height)
-        .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
-    );
-    const placements = calculateAutoArrange(placedItems, dependencies, sizes, { gapY });
-    shouldFitViewRef.current = true;
-    await applyPlacements(placements);
-  }, [placedItems, dependencies, nodes, gapY, applyPlacements]);
+  // R-120: nodeの実測サイズ(measured)をitemId→サイズのMapへ変換する（各配置系プレビューの計算で共用）
+  const getMeasuredSizes = useCallback(
+    () =>
+      new Map(
+        nodes
+          .filter((n) => n.measured?.width && n.measured?.height)
+          .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
+      ),
+    [nodes]
+  );
 
-  // R-113:「日付整列」ボタン。横位置(flow_x)は変えず、縦方向だけ日付順の区間へ移動する。
+  // R-112/R-114/R-120: プロジェクトごとに層分け・交差削減した配置をプレビューする（日付表示ON中も使用可）
+  const recomputeAutoArrangePreview = useCallback(
+    (gapYValue: number) => {
+      const sizes = getMeasuredSizes();
+      setPreviewPlacements(calculateAutoArrange(placedItems, dependencies, sizes, { gapY: gapYValue }));
+    },
+    [placedItems, dependencies, getMeasuredSizes]
+  );
+
+  const handleAutoArrange = useCallback(() => {
+    shouldFitViewRef.current = true;
+    setPreviewMode('autoArrange');
+    recomputeAutoArrangePreview(gapY);
+  }, [recomputeAutoArrangePreview, gapY]);
+
+  // R-113/R-120:「日付整列」ボタン。横位置(flow_x)は変えず、縦方向だけ日付順の区間へ移動するプレビュー。
   // 日付表示のON/OFF状態は変更しない
-  const handleDateAlign = useCallback(async () => {
+  const recomputeDateAlignPreview = useCallback(
+    (rowHeightValue: number) => {
+      setPreviewPlacements(calculateDateGroupLayout(placedItems, dependencies, { rowHeight: rowHeightValue }));
+    },
+    [placedItems, dependencies]
+  );
+
+  const handleDateAlign = useCallback(() => {
+    shouldFitViewRef.current = true;
+    setPreviewMode('dateAlign');
+    recomputeDateAlignPreview(dateAlignRowHeight);
+  }, [recomputeDateAlignPreview, dateAlignRowHeight]);
+
+  // R-118/R-120:「詰める」ボタン。並び順は変えず、縦・横それぞれ独立にON/OFFできる隙間の最小化をプレビューする。
+  // 両方有効な場合は縦の圧縮結果(新しいflow_y)を確定させたうえで、その結果に対して横の圧縮を適用する
+  const recomputeCompactPreview = useCallback(
+    (gapYValue: number, gapXValue: number, verticalEnabled: boolean, horizontalEnabled: boolean) => {
+      if (!verticalEnabled && !horizontalEnabled) {
+        setPreviewPlacements([]);
+        return;
+      }
+      const sizes = getMeasuredSizes();
+      let verticalPlacements: PlacementResult[] | null = null;
+      let intermediateItems = placedItems;
+      if (verticalEnabled) {
+        verticalPlacements = calculateVerticalCompact(placedItems, dependencies, sizes, { gapY: gapYValue });
+        const byId = new Map(verticalPlacements.map((p) => [p.itemId, p]));
+        intermediateItems = placedItems.map((item) => {
+          const p = byId.get(item.id);
+          if (!p) return item;
+          return { ...item, meta: { ...(item.meta || {}), flow_y: p.flow_y } };
+        });
+      }
+      if (horizontalEnabled) {
+        setPreviewPlacements(calculateHorizontalCompact(intermediateItems, dependencies, sizes, { gapX: gapXValue }));
+        return;
+      }
+      setPreviewPlacements(verticalPlacements);
+    },
+    [placedItems, dependencies, getMeasuredSizes]
+  );
+
+  const handleCompact = useCallback(() => {
+    shouldFitViewRef.current = true;
+    setPreviewMode('compact');
+    recomputeCompactPreview(compactGapY, compactGapX, compactVerticalEnabled, compactHorizontalEnabled);
+  }, [recomputeCompactPreview, compactGapY, compactGapX, compactVerticalEnabled, compactHorizontalEnabled]);
+
+  // R-114: 縦間隔スライダーの変更をlocalStorageに記憶する。自動整理のプレビュー中はリアルタイムに再計算する
+  const handleGapYChange = useCallback(
+    (value: number) => {
+      setGapY(value);
+      localStorage.setItem(GAP_Y_STORAGE_KEY, String(value));
+      if (previewMode === 'autoArrange') recomputeAutoArrangePreview(value);
+    },
+    [previewMode, recomputeAutoArrangePreview]
+  );
+
+  // R-115: 日付整列の行間隔スライダーの変更をlocalStorageに記憶する。日付整列のプレビュー中はリアルタイムに再計算する
+  const handleDateAlignRowHeightChange = useCallback(
+    (value: number) => {
+      setDateAlignRowHeight(value);
+      localStorage.setItem(DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY, String(value));
+      if (previewMode === 'dateAlign') recomputeDateAlignPreview(value);
+    },
+    [previewMode, recomputeDateAlignPreview]
+  );
+
+  // R-120:「詰める」パネルの縦間隔・横間隔・有効チェックの変更はプレビュー中のみ有効なため、都度再計算する
+  const handleCompactGapYChange = useCallback(
+    (value: number) => {
+      setCompactGapY(value);
+      recomputeCompactPreview(value, compactGapX, compactVerticalEnabled, compactHorizontalEnabled);
+    },
+    [compactGapX, compactVerticalEnabled, compactHorizontalEnabled, recomputeCompactPreview]
+  );
+
+  const handleCompactGapXChange = useCallback(
+    (value: number) => {
+      setCompactGapX(value);
+      recomputeCompactPreview(compactGapY, value, compactVerticalEnabled, compactHorizontalEnabled);
+    },
+    [compactGapY, compactVerticalEnabled, compactHorizontalEnabled, recomputeCompactPreview]
+  );
+
+  const handleCompactVerticalToggle = useCallback(
+    (checked: boolean) => {
+      setCompactVerticalEnabled(checked);
+      recomputeCompactPreview(compactGapY, compactGapX, checked, compactHorizontalEnabled);
+    },
+    [compactGapY, compactGapX, compactHorizontalEnabled, recomputeCompactPreview]
+  );
+
+  const handleCompactHorizontalToggle = useCallback(
+    (checked: boolean) => {
+      setCompactHorizontalEnabled(checked);
+      recomputeCompactPreview(compactGapY, compactGapX, compactVerticalEnabled, checked);
+    },
+    [compactGapY, compactGapX, compactVerticalEnabled, recomputeCompactPreview]
+  );
+
+  // R-120: プレビュー位置を確定保存する。保存前の位置はpositionBackupへ退避し、既存の「元に戻す」をそのまま使う
+  const handleSavePreview = useCallback(async () => {
+    const placements = previewPlacements;
+    setPreviewMode(null);
+    setPreviewPlacements(null);
+    if (!placements || placements.length === 0) return;
+
     positionBackup.current = new Map(
       placedItems.map((item) => [
         item.id,
@@ -903,40 +1039,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       ])
     );
     setHasPositionBackup(true);
-    const placements = calculateDateGroupLayout(placedItems, dependencies, { rowHeight: dateAlignRowHeight });
-    shouldFitViewRef.current = true;
     await applyPlacements(placements);
-  }, [placedItems, dependencies, dateAlignRowHeight, applyPlacements]);
+  }, [previewPlacements, placedItems, applyPlacements]);
 
-  // R-118:「詰める」ボタン。並び順・横位置(flow_x)は変えず、上下方向の隙間だけを最小化する
-  const handleCompact = useCallback(async () => {
-    positionBackup.current = new Map(
-      placedItems.map((item) => [
-        item.id,
-        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
-      ])
-    );
-    setHasPositionBackup(true);
-    const sizes = new Map(
-      nodes
-        .filter((n) => n.measured?.width && n.measured?.height)
-        .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
-    );
-    const placements = calculateVerticalCompact(placedItems, dependencies, sizes, { gapY });
-    shouldFitViewRef.current = true;
-    await applyPlacements(placements);
-  }, [placedItems, dependencies, nodes, gapY, applyPlacements]);
-
-  // R-114: 縦間隔スライダーの変更をlocalStorageに記憶する
-  const handleGapYChange = useCallback((value: number) => {
-    setGapY(value);
-    localStorage.setItem(GAP_Y_STORAGE_KEY, String(value));
-  }, []);
-
-  // R-115: 日付整列の行間隔スライダーの変更をlocalStorageに記憶する
-  const handleDateAlignRowHeightChange = useCallback((value: number) => {
-    setDateAlignRowHeight(value);
-    localStorage.setItem(DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY, String(value));
+  // R-120: プレビューを破棄する（サーバー未送信のためbackup操作は不要）
+  const handleCancelPreview = useCallback(() => {
+    setPreviewMode(null);
+    setPreviewPlacements(null);
   }, []);
 
   // R-109/R-112/R-113: 日付整列または自動整理の適用直前の位置へ1段階戻す（日付表示のON/OFFは維持）
@@ -1396,52 +1505,90 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           </button>
         </HoverTooltip>
       )}
-      <div className="absolute top-[180px] right-3 flex items-center gap-2 z-10 no-print">
-        <HoverTooltip label="自動整理の縦間隔">
-          <input
-            type="range"
-            min={GAP_Y_MIN}
-            max={GAP_Y_MAX}
-            value={gapY}
-            onChange={(e) => handleGapYChange(Number(e.target.value))}
-            aria-label="自動整理の縦間隔"
-            className="w-16 accent-indigo-500"
-          />
-        </HoverTooltip>
-        <HoverTooltip label="ノードが重ならず・エッジ交差が少ない配置へ自動整理">
-          <button
-            onClick={handleAutoArrange}
-            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <LayoutGrid size={12} />
-            <span>自動整理</span>
-          </button>
-        </HoverTooltip>
+      <div className="absolute top-[180px] right-3 flex flex-col items-end gap-1 z-10 no-print">
+        <div className="flex items-center gap-2">
+          <HoverTooltip label="自動整理の縦間隔">
+            <input
+              type="range"
+              min={GAP_Y_MIN}
+              max={GAP_Y_MAX}
+              value={gapY}
+              onChange={(e) => handleGapYChange(Number(e.target.value))}
+              aria-label="自動整理の縦間隔"
+              className="w-16 accent-indigo-500"
+            />
+          </HoverTooltip>
+          <HoverTooltip label="ノードが重ならず・エッジ交差が少ない配置へ自動整理">
+            <button
+              onClick={handleAutoArrange}
+              className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <LayoutGrid size={12} />
+              <span>自動整理</span>
+            </button>
+          </HoverTooltip>
+        </div>
+        {/* R-120: プレビュー中のみ保存/キャンセルを表示。値を変えるたびrecomputeAutoArrangePreviewでリアルタイム再計算する */}
+        {previewMode === 'autoArrange' && (
+          <div className="flex items-center gap-1 bg-white/95 rounded-lg shadow px-2 py-1">
+            <button
+              onClick={handleSavePreview}
+              className="px-2 py-0.5 text-xs text-white bg-indigo-500 hover:bg-indigo-600 rounded"
+            >
+              保存
+            </button>
+            <button
+              onClick={handleCancelPreview}
+              className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
+            >
+              キャンセル
+            </button>
+          </div>
+        )}
       </div>
-      <div className="absolute top-[212px] right-3 flex items-center gap-2 z-10 no-print">
-        <HoverTooltip label="日付整列の行間隔">
-          <input
-            type="range"
-            min={DATE_ALIGN_ROW_HEIGHT_MIN}
-            max={DATE_ALIGN_ROW_HEIGHT_MAX}
-            value={dateAlignRowHeight}
-            onChange={(e) => handleDateAlignRowHeightChange(Number(e.target.value))}
-            aria-label="日付整列の行間隔"
-            className="w-16 accent-indigo-500"
-          />
-        </HoverTooltip>
-        <HoverTooltip label="横位置は変えず、縦方向だけ日付の区間へ整列">
-          <button
-            onClick={handleDateAlign}
-            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <CalendarRange size={12} />
-            <span>日付整列</span>
-          </button>
-        </HoverTooltip>
+      <div className="absolute top-[212px] right-3 flex flex-col items-end gap-1 z-10 no-print">
+        <div className="flex items-center gap-2">
+          <HoverTooltip label="日付整列の行間隔">
+            <input
+              type="range"
+              min={DATE_ALIGN_ROW_HEIGHT_MIN}
+              max={DATE_ALIGN_ROW_HEIGHT_MAX}
+              value={dateAlignRowHeight}
+              onChange={(e) => handleDateAlignRowHeightChange(Number(e.target.value))}
+              aria-label="日付整列の行間隔"
+              className="w-16 accent-indigo-500"
+            />
+          </HoverTooltip>
+          <HoverTooltip label="横位置は変えず、縦方向だけ日付の区間へ整列">
+            <button
+              onClick={handleDateAlign}
+              className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <CalendarRange size={12} />
+              <span>日付整列</span>
+            </button>
+          </HoverTooltip>
+        </div>
+        {/* R-120: プレビュー中のみ保存/キャンセルを表示。値を変えるたびrecomputeDateAlignPreviewでリアルタイム再計算する */}
+        {previewMode === 'dateAlign' && (
+          <div className="flex items-center gap-1 bg-white/95 rounded-lg shadow px-2 py-1">
+            <button
+              onClick={handleSavePreview}
+              className="px-2 py-0.5 text-xs text-white bg-indigo-500 hover:bg-indigo-600 rounded"
+            >
+              保存
+            </button>
+            <button
+              onClick={handleCancelPreview}
+              className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
+            >
+              キャンセル
+            </button>
+          </div>
+        )}
       </div>
-      <div className="absolute top-[244px] right-3 z-10 no-print">
-        <HoverTooltip label="並び順・横位置を変えず、縦の隙間だけを詰める">
+      <div className="absolute top-[244px] right-3 flex flex-col items-end gap-1 z-10 no-print">
+        <HoverTooltip label="並び順を変えず、縦・横の隙間だけを詰める">
           <button
             onClick={handleCompact}
             className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
@@ -1450,6 +1597,65 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
             <span>詰める</span>
           </button>
         </HoverTooltip>
+        {/* R-120: 押すとここに縦間隔・横間隔スライダーと有効/無効チェックが開く。両方OFFなら変化なし */}
+        {previewMode === 'compact' && (
+          <div className="flex flex-col gap-1 bg-white/95 rounded-lg shadow px-2 py-2">
+            <label className="flex items-center gap-1 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={compactVerticalEnabled}
+                onChange={(e) => handleCompactVerticalToggle(e.target.checked)}
+                aria-label="詰めるの縦方向を有効にする"
+                className="accent-indigo-500"
+              />
+              <span>縦</span>
+              <input
+                type="range"
+                min={GAP_Y_MIN}
+                max={GAP_Y_MAX}
+                value={compactGapY}
+                disabled={!compactVerticalEnabled}
+                onChange={(e) => handleCompactGapYChange(Number(e.target.value))}
+                aria-label="詰めるの縦間隔"
+                className="w-16 accent-indigo-500 disabled:opacity-40"
+              />
+            </label>
+            <label className="flex items-center gap-1 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={compactHorizontalEnabled}
+                onChange={(e) => handleCompactHorizontalToggle(e.target.checked)}
+                aria-label="詰めるの横方向を有効にする"
+                className="accent-indigo-500"
+              />
+              <span>横</span>
+              <input
+                type="range"
+                min={GAP_Y_MIN}
+                max={GAP_Y_MAX}
+                value={compactGapX}
+                disabled={!compactHorizontalEnabled}
+                onChange={(e) => handleCompactGapXChange(Number(e.target.value))}
+                aria-label="詰めるの横間隔"
+                className="w-16 accent-indigo-500 disabled:opacity-40"
+              />
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleSavePreview}
+                className="px-2 py-0.5 text-xs text-white bg-indigo-500 hover:bg-indigo-600 rounded"
+              >
+                保存
+              </button>
+              <button
+                onClick={handleCancelPreview}
+                className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       {isHelpOpen && (
         <div

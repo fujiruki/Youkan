@@ -90,18 +90,17 @@ const clickButton = async (name: string) => {
     });
 };
 
-// R-112: フロー「自動整理」ボタン
-describe('FlowScreen: 自動整理ボタン（R-112）', () => {
+// R-112/R-120: フロー「自動整理」ボタン（プレビュー→保存確定方式）
+describe('FlowScreen: 自動整理ボタン（R-112・R-120）', () => {
     it('「自動整理」ボタンが表示される', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
         expect(screen.getByRole('button', { name: '自動整理' })).toBeInTheDocument();
     });
 
-    it('押下すると位置が更新され、サーバーにも保存される', async () => {
+    it('押下するとプレビュー表示のみで、サーバーへは保存されない', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
-        // item-bはitem-aに依存する下位層のため、自動整理で必ず位置が変わる
         const beforeB = nodeOf('item-b').position;
 
         await clickButton('自動整理');
@@ -109,18 +108,67 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
         await waitFor(() => {
             expect(nodeOf('item-b').position).not.toEqual(beforeB);
         });
-        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
-        const savedB = mockUpdateItem.mock.calls.find((c) => c[0] === 'item-b')![1];
-        expect(savedB.meta.flow_x).toBe(nodeOf('item-b').position.x);
-        expect(savedB.meta.flow_y).toBe(nodeOf('item-b').position.y);
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'キャンセル' })).toBeInTheDocument();
     });
 
-    it('「元に戻す」で自動整理適用前の位置へ復元される', async () => {
+    it('プレビュー中に縦間隔スライダーを変更するとリアルタイムに再計算される', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        await clickButton('自動整理');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        const afterDefaultGap = nodeOf('item-b').position.y;
+
+        const slider = screen.getByLabelText('自動整理の縦間隔') as HTMLInputElement;
+        fireEvent.change(slider, { target: { value: '90' } });
+
+        await waitFor(() => expect(nodeOf('item-b').position.y).not.toBe(afterDefaultGap));
+        // まだサーバー保存はされない
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+    });
+
+    it('「保存」を押すとプレビュー位置が確定保存され、パネルが閉じる', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        await clickButton('自動整理');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        const previewB = nodeOf('item-b').position;
+
+        await clickButton('保存');
+
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
+        const savedB = mockUpdateItem.mock.calls.find((c) => c[0] === 'item-b')![1];
+        expect(savedB.meta.flow_x).toBe(previewB.x);
+        expect(savedB.meta.flow_y).toBe(previewB.y);
+        expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
+        // 保存後は既存の「元に戻す」Undoが使えるようになる
+        expect(screen.getByRole('button', { name: '元に戻す' })).toBeInTheDocument();
+    });
+
+    it('「キャンセル」を押すと元の位置に戻り、サーバーへは何も送信されない', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const beforeB = nodeOf('item-b').position;
+
+        await clickButton('自動整理');
+        await waitFor(() => expect(nodeOf('item-b').position).not.toEqual(beforeB));
+
+        await clickButton('キャンセル');
+
+        await waitFor(() => expect(nodeOf('item-b').position).toEqual(beforeB));
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
+        expect(screen.queryByRole('button', { name: '元に戻す' })).toBeNull();
+    });
+
+    it('「元に戻す」で保存後の自動整理を1段階復元できる', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-b')).toBeTruthy());
         expect(nodeOf('item-b').position).toEqual({ x: 100, y: 0 });
 
         await clickButton('自動整理');
+        await clickButton('保存');
         await waitFor(() => expect(nodeOf('item-b').position).not.toEqual({ x: 100, y: 0 }));
 
         await clickButton('元に戻す');
@@ -163,16 +211,32 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
         expect(localStorage.getItem('youkan_flow_arrange_gap_y')).toBe('80');
     });
 
-    it('自動整理はスライダーの値をgapYとして使う', async () => {
+    it('自動整理はプレビュー開始時点のスライダーの値をgapYとして使う', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
         const slider = screen.getByLabelText('自動整理の縦間隔') as HTMLInputElement;
         fireEvent.change(slider, { target: { value: '90' } });
 
         await clickButton('自動整理');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        await clickButton('保存');
 
         await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
         // b(依存元a→依存先b)のy座標がa+層の高さ+gapYになっているはず（厳密な形状はflowAutoArrange.test.tsで検証済み）
         expect(nodeOf('item-b').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
+    });
+
+    it('別の配置系ボタン（日付整列）を押すと自動整理のプレビューはキャンセル扱いで閉じる', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+
+        await clickButton('自動整理');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+
+        await clickButton('日付整列');
+
+        await waitFor(() => expect(mockUpdateItem).not.toHaveBeenCalled());
+        // 保存/キャンセルパネルは1つだけ（日付整列側）残る
+        expect(screen.getAllByRole('button', { name: '保存' })).toHaveLength(1);
     });
 });

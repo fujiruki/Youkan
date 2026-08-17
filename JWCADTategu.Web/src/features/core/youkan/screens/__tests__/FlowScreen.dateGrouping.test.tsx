@@ -99,7 +99,7 @@ const clickButton = async (name: string) => {
     });
 };
 
-// R-109/R-113: フローチャート日付表示（帯のみ）＋「日付整列」ボタン
+// R-109/R-113: フローチャート日付表示（帯のみ）＋「日付整列」ボタン（R-120でプレビュー→保存確定方式に統一）
 describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
     it('「日付表示」チェックボックスが表示され、初期状態はOFF', async () => {
         renderFlowScreen();
@@ -158,34 +158,100 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         });
     });
 
-    it('「日付整列」ボタンでflow_xは変わらず縦方向だけ移動し、サーバーにも保存される。日付表示のON/OFFは変わらない', async () => {
+    it('「日付整列」ボタンを押すとプレビュー表示のみで、サーバーへは保存されない', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
         const beforeXA = nodeOf('item-a').position.x;
-        const beforeXB = nodeOf('item-b').position.x;
-        const beforeXC = nodeOf('item-c').position.x;
+        const beforeA = nodeOf('item-a').position;
 
         await clickButton('日付整列');
 
         await waitFor(() => {
             // R-111の帯内配置ルール: flow_xは維持したまま、依存先(b)は依存元(a)より下の行
             expect(nodeOf('item-a').position.x).toBe(beforeXA);
-            expect(nodeOf('item-b').position.x).toBe(beforeXB);
-            expect(nodeOf('item-c').position.x).toBe(beforeXC);
             expect(nodeOf('item-b').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
             expect(nodeOf('item-c').position.y).toBeGreaterThan(nodeOf('item-b').position.y);
         });
-
-        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
-        const savedA = mockUpdateItem.mock.calls.find((c) => c[0] === 'item-a')![1];
-        expect(savedA.meta.flow_x).toBe(nodeOf('item-a').position.x);
-        expect(savedA.meta.flow_y).toBe(nodeOf('item-a').position.y);
-
+        expect(nodeOf('item-a').position).not.toEqual(beforeA);
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
         // 日付表示のON/OFFには影響しない
         expect(screen.getByRole('checkbox', { name: '日付表示' })).not.toBeChecked();
     });
 
-    it('「元に戻す」で「日付整列」適用前の位置へ復元される。日付表示のON状態は維持される', async () => {
+    it('日付表示ONでプレビュー中も帯がプレビュー位置にライブ追従する', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        await toggleDateGrouping();
+        await waitFor(() => expect(bandNodes()).toHaveLength(2));
+        const beforeBand = { ...bandNodes()[0].position };
+
+        await clickButton('日付整列');
+
+        await waitFor(() => {
+            expect(bandNodes()[0].position).not.toEqual(beforeBand);
+        });
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+    });
+
+    it('プレビュー中に行間隔スライダーを変更するとリアルタイムに再計算される', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        await clickButton('日付整列');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        const afterDefaultRowHeight = nodeOf('item-b').position.y - nodeOf('item-a').position.y;
+
+        const slider = screen.getByLabelText('日付整列の行間隔') as HTMLInputElement;
+        fireEvent.change(slider, { target: { value: '200' } });
+
+        await waitFor(() => {
+            expect(nodeOf('item-b').position.y - nodeOf('item-a').position.y).toBe(200);
+        });
+        expect(nodeOf('item-b').position.y - nodeOf('item-a').position.y).not.toBe(afterDefaultRowHeight);
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+    });
+
+    it('「保存」を押すとflow_xは変わらず縦方向だけ移動したプレビュー位置が確定保存される', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const beforeXA = nodeOf('item-a').position.x;
+
+        await clickButton('日付整列');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        const previewA = nodeOf('item-a').position;
+
+        await clickButton('保存');
+
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
+        const savedA = mockUpdateItem.mock.calls.find((c) => c[0] === 'item-a')![1];
+        expect(savedA.meta.flow_x).toBe(beforeXA);
+        expect(savedA.meta.flow_x).toBe(previewA.x);
+        expect(savedA.meta.flow_y).toBe(previewA.y);
+        expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
+    });
+
+    it('「キャンセル」を押すと元の位置に戻り、サーバーへは何も送信されない', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const beforeA = nodeOf('item-a').position;
+        const beforeB = nodeOf('item-b').position;
+        const beforeC = nodeOf('item-c').position;
+
+        await clickButton('日付整列');
+        await waitFor(() => expect(nodeOf('item-a').position).not.toEqual(beforeA));
+
+        await clickButton('キャンセル');
+
+        await waitFor(() => {
+            expect(nodeOf('item-a').position).toEqual(beforeA);
+            expect(nodeOf('item-b').position).toEqual(beforeB);
+            expect(nodeOf('item-c').position).toEqual(beforeC);
+        });
+        expect(mockUpdateItem).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: '元に戻す' })).toBeNull();
+    });
+
+    it('「元に戻す」で保存後の「日付整列」適用前の位置へ復元される。日付表示のON状態は維持される', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
         await toggleDateGrouping();
@@ -196,6 +262,7 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         const beforeC = nodeOf('item-c').position;
 
         await clickButton('日付整列');
+        await clickButton('保存');
         await waitFor(() => expect(nodeOf('item-a').position).not.toEqual(beforeA));
 
         await clickButton('元に戻す');
@@ -230,16 +297,31 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         expect(localStorage.getItem('youkan_flow_date_align_row_height')).toBe('200');
     });
 
-    it('「日付整列」はスライダーの値を行間隔として使う', async () => {
+    it('「日付整列」はプレビュー開始時点のスライダーの値を行間隔として使う', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
         const slider = screen.getByLabelText('日付整列の行間隔') as HTMLInputElement;
         fireEvent.change(slider, { target: { value: '200' } });
 
         await clickButton('日付整列');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+        await clickButton('保存');
 
         await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
         // b(依存元a→依存先b、同帯内)のy座標がスライダー値(200)刻みで離れているはず
         expect(nodeOf('item-b').position.y - nodeOf('item-a').position.y).toBe(200);
+    });
+
+    it('別の配置系ボタン（自動整理）を押すと日付整列のプレビューはキャンセル扱いで閉じる', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+
+        await clickButton('日付整列');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+
+        await clickButton('自動整理');
+
+        await waitFor(() => expect(mockUpdateItem).not.toHaveBeenCalled());
+        expect(screen.getAllByRole('button', { name: '保存' })).toHaveLength(1);
     });
 });
