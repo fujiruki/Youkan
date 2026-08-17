@@ -33,4 +33,9 @@ describe('decisionToStatus', () => {
     it('noでnoteがhistory（通常の断る操作）のときはcancelledになる', () => {
         expect(decisionToStatus('no', 'history')).toBe('cancelled');
     });
+
+    // R-125: 判断モーダル「後日着手」ボタン。todoは「やると決めた順番待ち」
+    it('laterはtodoになる', () => {
+        expect(decisionToStatus('later')).toBe('todo');
+    });
 });
