@@ -125,6 +125,8 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         expect(first.data.label).toBe('8/16(日)まで');
         expect(first.data.totalMinutes).toBe(180);
         expect(first.data.criticalMinutes).toBe(180);
+        expect(first.data.hasIncomplete).toBe(true);
+        expect(first.data.remainingMinutes).toBe(180);
         expect(second.data.label).toBe('8/17(月)まで');
         expect(second.data.totalMinutes).toBe(60);
 

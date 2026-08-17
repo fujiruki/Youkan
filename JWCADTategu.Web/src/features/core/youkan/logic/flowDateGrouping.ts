@@ -35,6 +35,8 @@ export interface DateBand {
   height: number;
   totalMinutes: number;
   criticalMinutes: number;
+  remainingMinutes: number;
+  hasIncomplete: boolean;
 }
 
 // 有効締切の日付ごとにアイテムをまとめる（日付昇順、未設定は末尾）
@@ -153,6 +155,7 @@ export const calculateDateBands = (
 
     const x = minX - LABEL_MARGIN_WIDTH;
     const y = minY - BAND_PADDING_TOP;
+    const incompleteItems = group.items.filter((item) => item.status !== 'done');
 
     return {
       dateKey: group.dateKey,
@@ -163,6 +166,8 @@ export const calculateDateBands = (
       height: maxBottom + BAND_PADDING_BOTTOM - y,
       totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
       criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
+      remainingMinutes: incompleteItems.reduce((sum, item) => sum + getMinutes(item), 0),
+      hasIncomplete: incompleteItems.length > 0,
     };
   });
 };

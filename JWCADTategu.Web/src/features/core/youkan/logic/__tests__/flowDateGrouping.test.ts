@@ -189,6 +189,35 @@ describe('calculateDateBands', () => {
   it('アイテムが空なら空配列を返す', () => {
     expect(calculateDateBands([], [])).toEqual([]);
   });
+
+  it('未完了タスクを含む区間はhasIncomplete=trueで、remainingMinutesは未完了分のみの合計', () => {
+    const mixed = [
+      makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, status: 'inbox', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, status: 'done', meta: { flow_x: 100, flow_y: 0 } }),
+    ];
+    const bands = calculateDateBands(mixed, []);
+    expect(bands[0].hasIncomplete).toBe(true);
+    expect(bands[0].remainingMinutes).toBe(60);
+  });
+
+  it('全て完了済みの区間はhasIncomplete=false', () => {
+    const allDone = [
+      makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, status: 'done', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, status: 'done', meta: { flow_x: 100, flow_y: 0 } }),
+    ];
+    const bands = calculateDateBands(allDone, []);
+    expect(bands[0].hasIncomplete).toBe(false);
+    expect(bands[0].remainingMinutes).toBe(0);
+  });
+
+  it('未完了だが目安時間0分のタスクのみでもhasIncomplete=true・remainingMinutes=0', () => {
+    const zeroMinute = [
+      makeItem({ id: 'a', due_date: '2026-08-16', status: 'inbox', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const bands = calculateDateBands(zeroMinute, []);
+    expect(bands[0].hasIncomplete).toBe(true);
+    expect(bands[0].remainingMinutes).toBe(0);
+  });
 });
 
 // R-113:「日付整列」ボタン用。flow_xは変えず縦方向だけ日付順の区間へ移動する
