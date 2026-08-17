@@ -1795,11 +1795,11 @@ R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-118-flow-compact master`
-- [ ] `flowVerticalCompact.test.ts`新規: 依存元より下に来る／Xが重ならなければ独立して詰まる／Xが重なるノードはgapY以上離れる／並び順(どのノードがどのノードより上か)が変わらない／flow_xが変わらない／gapYオプション反映／複数ノードが同じノードに依存する合流ケース（Red→Green）
-- [ ] `FlowScreen.tsx`にボタン追加、統合テスト（押下で保存・元に戻す・並び順維持を1〜2ケース）（Red→Green）
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 手動でばらけた配置を作り「詰める」で上下が詰まる・横位置とエッジの繋がり先が変わらない・エッジが極端に潰れない・元に戻すで復元
-- [ ] `docs/requests_log.md` R-118の対応状況更新、SPECと実装の齟齬確認
-- [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`、`feature/R-117-flow-date-remaining`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込みコンフリクト解消（`FlowScreen.tsx`のボタン列部分は両方の追加を残す）
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-118-flow-compact master`
+- [x] `flowVerticalCompact.test.ts`新規: 依存元より下に来る／Xが重ならなければ独立して詰まる／Xが重なるノードはgapY以上離れる／並び順(どのノードがどのノードより上か)が変わらない／flow_xが変わらない／gapYオプション反映／複数ノードが同じノードに依存する合流ケース（Red→Green、7件）
+- [x] `FlowScreen.tsx`にボタン追加、統合テスト（押下で保存・元に戻す・横位置維持を確認、3件）（Red→Green）
+- [x] `npm.cmd run test -- --run`全体Green（978 passed / 14 skipped / 0 failed。既知の無関係なunhandled error 2件はmaster baselineと同一の既存事象）
+- [x] 実機検証（`php -S 127.0.0.1:8000`＋Vite、worktree専用ローカルDB）: 依存関係のある2ノードを縦に大きく離して手動配置（API経由でmeta設定）→「詰める」で依存元の下端+gapY直下まで詰まる・横位置(flow_x)は全ノードで不変・エッジも短く見やすい距離を維持→「元に戻す」で元の座標に完全復元。検証に使ったテストデータは削除済み
+- [x] `docs/requests_log.md` R-118の対応状況更新、SPECと実装の齟齬確認（齟齬なし）
+- [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`、`feature/R-117-flow-date-remaining`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込みコンフリクト解消（`FlowScreen.tsx`のボタン列部分は両方の追加を残す）※今回は未実施、指揮AIの指示待ち
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）

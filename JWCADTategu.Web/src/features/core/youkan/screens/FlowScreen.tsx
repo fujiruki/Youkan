@@ -21,7 +21,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2, LayoutGrid, CalendarRange } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2, LayoutGrid, CalendarRange, ArrowUpDown } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
@@ -37,6 +37,7 @@ import { DependencyRepository } from '../repositories/DependencyRepository';
 import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint, type PlacementResult } from '../logic/flowAutoPlace';
 import { calculateDateBands, calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
 import { calculateAutoArrange } from '../logic/flowAutoArrange';
+import { calculateVerticalCompact } from '../logic/flowVerticalCompact';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -854,6 +855,25 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     await applyPlacements(placements);
   }, [placedItems, dependencies, applyPlacements]);
 
+  // R-118:「詰める」ボタン。並び順・横位置(flow_x)は変えず、上下方向の隙間だけを最小化する
+  const handleCompact = useCallback(async () => {
+    positionBackup.current = new Map(
+      placedItems.map((item) => [
+        item.id,
+        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+      ])
+    );
+    setHasPositionBackup(true);
+    const sizes = new Map(
+      nodes
+        .filter((n) => n.measured?.width && n.measured?.height)
+        .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
+    );
+    const placements = calculateVerticalCompact(placedItems, dependencies, sizes, { gapY });
+    shouldFitViewRef.current = true;
+    await applyPlacements(placements);
+  }, [placedItems, dependencies, nodes, gapY, applyPlacements]);
+
   // R-114: 縦間隔スライダーの変更をlocalStorageに記憶する
   const handleGapYChange = useCallback((value: number) => {
     setGapY(value);
@@ -1335,6 +1355,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       >
         <CalendarRange size={12} />
         <span>日付整列</span>
+      </button>
+      <button
+        onClick={handleCompact}
+        className="absolute top-[244px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        title="並び順・横位置を変えず、縦の隙間だけを詰める"
+      >
+        <ArrowUpDown size={12} />
+        <span>詰める</span>
       </button>
       {isHelpOpen && (
         <div
