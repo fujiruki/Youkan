@@ -1679,3 +1679,35 @@ R-110（横帯・上→下）を発注者が確認したところ「帯の中の
 - [x] 実機検証（`php -S 127.0.0.1:8000 -t backend backend/router.php`＋Vite）: 日付表示ONで横位置不変・行分け・帯高さ可変／自動整理で重なりなし・上→下・プロジェクト横並び・元に戻す・日付表示中無効
 - [x] `docs/requests_log.md` R-111/R-112の対応状況更新、SPECと実装の齟齬確認
 - [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+
+## R-113 / R-114 日付表示の「表示のみ」分離＋「日付整列」ボタン ＋ 自動整理の縦間隔スライダー（2026-08-17）
+
+**ブランチ**: `feature/R-113-114-flow-date-align`（1ブランチで直列実装）
+**要望**: `docs/requests_log.md` R-113 / R-114
+**仕様**: `docs/SPEC/03_画面設計.md` §7.12（帯の位置と表示）・§7.13（縦間隔スライダー、ON中も使用可）・§7.14（日付整列ボタン）、`docs/SPEC/02_機能仕様.md` F-44 / F-45
+
+### 背景
+
+R-111/R-112デプロイ後、発注者から「日付表示ONで自動的に位置を動かすのをやめ、表示ON/OFFと移動をボタンで分けたい」「帯は日付グループの最上/最下/左端/右端ノードの位置に追従してほしい」「自動整理の縦間隔を今の50〜70%にしたい、スライダーで調整」との要望。相談で確定済み（ドラッグは横縦とも許可／自動整理はON中も可）。
+
+### 設計
+
+- `logic/flowDateGrouping.ts`: 新規 `calculateDateBands(items, deps, sizes?)` — `groupItemsByDeadline`ごとに、ノード現在位置の外接矩形（左端=minX−LABEL_MARGIN_WIDTH、右端=max(x+width)、上端=minY−BAND_PADDING_TOP、下端=max(y+height)+BAND_PADDING_BOTTOM、サイズは実測or既定）＋label/totalMinutes/criticalMinutesを返す。`calculateDateGroupLayout`はplacements用に残す（y原点=全配置ノードのminY−BAND_PADDING_TOPから区間を累積。bands出力は不要なら削除）
+- `logic/flowAutoArrange.ts`: `calculateAutoArrange(items, deps, sizes?, options?: {gapY?: number})`、既定 `GAP_Y=35`
+- `screens/FlowScreen.tsx`:
+  - `handleToggleDateGrouping`: ON/OFFのみ（バックアップ・applyPlacementsを廃止）。`dateBands`は`useMemo(() => isDateGrouping ? calculateDateBands(placedItems, dependencies, sizes) : [], ...)`でライブ追従（`nodes`のmeasured/positionから）
+  - 新ボタン「日付整列」（自動整理の下、`top-[212px] right-3`）: バックアップ→`calculateDateGroupLayout`のplacements→`applyPlacements`→fitView。日付表示ON/OFFは変えない
+  - 「自動整理」の`disabled={isDateGrouping}`を撤廃。縦間隔スライダー（`<input type="range" min=10 max=100>`、既定35、`localStorage['youkan_flow_arrange_gap_y']`）を自動整理ボタンの隣に配置し、`calculateAutoArrange`に渡す
+  - `handleRestorePositions`は`setIsDateGrouping(false)`を呼ばない（表示状態は独立）
+- 印刷（`no-print`）・R-108のドラッグ挙動は変更しない
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b feature/R-113-114-flow-date-align master`
+- [ ] R-113: `flowDateGrouping.test.ts`に`calculateDateBands`（外接矩形・実測サイズ反映・ノード移動で帯が動く）追加、`calculateDateGroupLayout`のy原点仕様更新（Red→Green）
+- [ ] R-113: `FlowScreen.dateGrouping.test.tsx`を新仕様へ（チェックONでノード位置が変わらない・帯が表示される／「日付整列」で縦のみ移動＆保存／元に戻す）（Red→Green）
+- [ ] R-114: `flowAutoArrange.test.ts`に`gapY`オプション、`FlowScreen.autoArrange.test.tsx`にスライダー（既定35、localStorage記憶、日付表示ON中も押せる）（Red→Green）
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 日付表示ONでノード不動＆帯表示／端のノードをドラッグすると帯が追従／日付整列で縦のみ移動→帯が積み上がる／元に戻す／自動整理がON中も可、スライダーで縦間隔が変わり再読込後も記憶
+- [ ] `docs/requests_log.md` R-113/R-114の対応状況更新、SPECと実装の齟齬確認
+- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
