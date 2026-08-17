@@ -1803,3 +1803,73 @@ R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/
 - [x] `docs/requests_log.md` R-118の対応状況更新、SPECと実装の齟齬確認（齟齬なし）
 - [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`、`feature/R-117-flow-date-remaining`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込みコンフリクト解消（`FlowScreen.tsx`のボタン列部分は両方の追加を残す）※今回は未実施、指揮AIの指示待ち
 - [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+
+## R-119 バグ調査・修正: フローチャート画面でスマホ表示時にAPI通信エラー（PUT /items/...）が多発（2026-08-17）
+
+**ブランチ**: `fix/R-119-flow-mobile-api-errors`
+**要望**: `docs/requests_log.md` R-119
+
+### 背景
+
+発注者からスマホでフローチャート画面を見ていたところ、「API通信エラー PUT /items/{id}: Load failed」というトースト通知が6件以上重なって表示されたとのスクリーンショットが届いた。原因未特定。同じアイテムID（`019ff274-4ff7-793c-80cc-a30e5ac1b6c7`等）が複数回登場しており、単発の通信エラーではなく何らかの一括保存処理（`applyPlacements`のループ、または`autoPlacedItems`のような未使用に見えるuseMemoが実は副作用を持っている等）が走っている可能性がある。ユーザーがボタン（自動整理／日付整列／詰める等）を能動的に押した結果なのか、画面を開いただけで発生したのかも不明。
+
+### 調査方針（根本原因追求、対症療法禁止）
+
+- `screens/FlowScreen.tsx` 内で `updateItemMeta`（＝`PUT /items/{id}`）を呼んでいる箇所を全て洗い出す（`applyPlacements`、その他の個別更新箇所）
+- `useEffect`/`useMemo`でマウント時・依存変更時に自動的に位置保存が走る経路が無いか確認する（特に`autoPlacedItems`のような、過去の調査で「使われていないように見える」とされていたコードが実際には副作用を持っていないか再確認する）
+- スマホ（狭い画面幅・タッチ操作・モバイル回線）特有の条件で発生するのか、PC（chrome-devtools MCP等）でも再現するか切り分ける
+- 同一アイテムIDが複数回エラーになっている理由（同じ保存が二重に走っている／リトライ機構がある／複数の一括操作が重なった等）を特定する
+- 実際にサーバー側のデータが壊れていないか（`flow_x`/`flow_y`が意図しない値になっていないか）を確認する
+
+### 対応方針
+
+- 原因が特定でき次第、根本原因を修正する（症状を隠す対症療法は禁止）
+- 大量のPUTリクエストが必要な操作（自動整理・日付整列・詰める等の一括配置）自体は正当な機能であり、失敗時にエラートーストが積み重なって画面を埋め尽くすUXも合わせて改善を検討してよい（例: 個別トーストではなく集約表示、失敗分のみ再試行できるようにする等）。ただし本件の主目的は「なぜ通信が失敗したか」の原因調査と再発防止であり、UX改善は副次的な対応として良ければ含める
+- 修正内容によっては同時に進行中のR-120（配置系ボタンのプレビュー化）と設計が重なる可能性がある。R-120着手前に本調査の結果を指揮AIへ報告すること
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b fix/R-119-flow-mobile-api-errors master`
+- [ ] 上記の調査方針に沿って原因を特定する（テストコードでの再現も試みる）
+- [ ] 原因が判明したらTDDで修正（再現テストをRed→修正→Green）
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] `docs/requests_log.md` R-119の調査結果・対応状況を更新
+- [ ] 指揮AIへ完了報告（原因が特定できなかった場合もその旨と調査した範囲を詳細に報告すること。マージ・デプロイは指揮AIレビュー後）
+
+## R-120 フロー配置系ボタンをプレビュー→保存確定方式に統一＋「詰める」に横方向圧縮追加（2026-08-17）
+
+**ブランチ**: `feature/R-120-flow-preview-confirm`
+**要望**: `docs/requests_log.md` R-120
+**仕様**: `docs/SPEC/03_画面設計.md` §7.16（横方向圧縮・チェックボックス）・§7.17（プレビュー→保存確定方式）、`docs/SPEC/02_機能仕様.md` F-50
+
+**注意**: R-119（同じ`FlowScreen.tsx`の配置保存まわりを触るバグ調査）の結果次第で設計に影響が出る可能性がある。R-119の指揮AIレビューが終わるまで着手を待つこと。
+
+### 背景
+
+R-118（詰める）・R-114（自動整理の縦間隔スライダー）デプロイ後、発注者から「詰めるボタンを押したら縦と横のスライダーと保存ボタンが出て、リアルタイムで動くのを見ながら調整して保存ボタンで確定、という流れが良い」との要望。確認済み: 「詰める」に横方向の圧縮も追加、「自動整理」「日付整列」も同じプレビュー方式に統一。追加要望: 「その縦と横のスライダーの横にチェックマークがあり、チェックを入れたらスライダー有効、はずしたらグレーアウトして無効。詰める機能を効かすかどうかも選べる」（縦・横独立にON/OFF可能）。
+
+### 対象ファイル・設計
+
+**詰めるの横方向圧縮（新規ロジック）**
+- `logic/flowHorizontalCompact.ts`（新規）: `calculateHorizontalCompact(items, deps, sizes?, options?: {gapX?: number}): PlacementResult[]`。`flowVerticalCompact.ts`の縦横を入れ替えたロジック（現在の`flow_x`昇順に処理、Y区間が重なる既配置ノードの右端+gapXまで左へ寄せる、依存関係は使わない＝フローの依存は縦方向の意味しか持たないため）
+- `flowVerticalCompact.ts`の`calculateVerticalCompact`はそのまま流用。縦横両方有効なときは縦→横の順で適用（縦の結果に対して横を計算）
+
+**プレビュー→保存確定のUI基盤（共通化）**
+- 新規 `components/Flow/ArrangePreviewPanel.tsx`（または`FlowScreen.tsx`内に閉じたヘルパー）: スライダー群＋チェックボックス（あれば）＋保存/キャンセルボタンを表示する共通パネル
+- `screens/FlowScreen.tsx`:
+  - 「自動整理」「日付整列」「詰める」のクリックハンドラを、即時`applyPlacements`から「プレビューモードに入る」に変更する。プレビュー中の対象アイテムの新しい位置はローカルstate（例: `previewPlacements: PlacementResult[] | null`）に保持し、`nodes`構築時に`placedItems`の実座標より優先して使う（`applyPlacements`は呼ばない＝サーバー未送信）
+  - スライダー・チェックボックスの`onChange`で該当の計算関数（`calculateAutoArrange`/`calculateDateGroupLayout`/`calculateVerticalCompact`+`calculateHorizontalCompact`）を再実行し`previewPlacements`を更新（リアルタイム反映）
+  - パネルの「保存」: `previewPlacements`を対象に既存の`applyPlacements`を呼ぶ（保存前の位置は`positionBackup`へ退避、既存の「元に戻す」Undoをそのまま使う）。`previewPlacements`をnullに戻しパネルを閉じる
+  - パネルの「キャンセル」: `previewPlacements`をnullに戻すだけ（サーバー未送信のため`applyPlacements`もbackupも不要）、パネルを閉じる
+  - 「詰める」パネル: 縦間隔チェック・横間隔チェックそれぞれの有効/無効を state に持ち、OFFの軸は`previewPlacements`計算から除外（該当軸の座標は元のまま）
+  - 別の配置系ボタンを押したときは、開いていたプレビューをキャンセル扱いで閉じてから新しいプレビューを開く
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b feature/R-120-flow-preview-confirm master`（R-119マージ後のmasterを使うこと。指揮AIに確認）
+- [ ] `flowHorizontalCompact.ts`新規テスト（`flowVerticalCompact.test.ts`と対になるケース、縦横同時適用の統合ケース）（Red→Green）
+- [ ] プレビュー→保存確定のUI実装。統合テスト: 各ボタン押下でプレビューに入りサーバー保存されないこと／スライダー変更でプレビューが再計算されること／保存でサーバー保存されること／キャンセルで元の位置に戻りサーバー未送信であること／「詰める」のチェックON/OFFでその軸が計算に含まれる・含まれないこと（Red→Green）
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] 実機検証: 各ボタンでプレビュー→保存/キャンセルの一連の流れ、詰めるのチェックボックスの効果、日付表示ONでの帯のライブ追従を確認
+- [ ] `docs/requests_log.md` R-120の対応状況更新、SPECと実装の齟齬確認
+- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
