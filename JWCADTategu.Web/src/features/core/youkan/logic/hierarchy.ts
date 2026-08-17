@@ -240,6 +240,11 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 		return true;
 	});
 
+	// R-123: 親タスクが done（hideCompleted時）または isArchived で除外された場合、
+	// その子タスクが addRecursiveHierarchy から一度も呼ばれず一覧全体から消えてしまうバグへの対処。
+	// 親IDが「表示対象アイテムの中に存在しない」場合は迷子として扱い、projectId基準でコンテナに直接ぶら下げる
+	const visibleItemIds = new Set(allFilteredItems.map(item => normalizeId(item.id)!));
+
 	const result: HierarchicalWrapper[] = [];
 	const processedIds = new Set<string>();
 
@@ -262,8 +267,13 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 				return !parentExists && !projectExists;
 			}
 
-			// Child tasks: parentId matches this container OR (no parentId AND projectId matches this container)
-			return areIdsMatching(iparentId, nContainerId) || (!iparentId && areIdsMatching(ipid, nContainerId));
+			// Child tasks: parentId matches this container
+			// OR (no parentId AND projectId matches this container)
+			// OR (R-123: parentIdが除外済みアイテムを指している「迷子」で、projectIdがこのコンテナと一致)
+			const parentIsHiddenOrMissing = iparentId !== null && !visibleItemIds.has(iparentId);
+			return areIdsMatching(iparentId, nContainerId)
+				|| (!iparentId && areIdsMatching(ipid, nContainerId))
+				|| (parentIsHiddenOrMissing && areIdsMatching(ipid, nContainerId));
 		});
 
 		sortWithDependencies(subTasks, dependencies, itemCompareFn).forEach(task => {
