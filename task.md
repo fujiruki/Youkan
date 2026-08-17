@@ -1711,3 +1711,35 @@ R-111/R-112デプロイ後、発注者から「日付表示ONで自動的に位�
 - [x] 実機検証（`php -S 127.0.0.1:8000`＋Vite、worktree専用ローカルDB）: 日付表示ONでノード不動＆帯表示（16件全て位置不変・サーバー保存なし）／「日付整列」で横位置不変・縦のみ移動しサーバー保存（POST 16件200）／帯がdateKey順に単調増加でy=-60,130,320,510,700,890,1080,1270と積み上がる／「元に戻す」で16件全て元位置へ完全復元・日付表示ON状態は維持／自動整理が日付表示ON中も実行可・「元に戻す」ボタン表示／縦間隔スライダーの値変更がlocalStorageへ保存されリロード後も80のまま復元。※端ノードをドラッグして帯が追従する挙動は、本環境のchrome-devtools/claude-in-chrome双方でd3-drag（pointer capture）ベースの実ドラッグを合成できずUI操作での直接確認はできなかった（claude-in-chrome側は本環境でscreenshot API自体が動作しない既知の制約もあり）。この挙動は`FlowScreen.dateGrouping.test.tsx`の「ノードをドラッグすると帯の位置がその場で追従する」テストで、実際のドラッグ時とサーバー保存より先に発火する同一の`onNodesChange`コールバックを直接叩いて検証済み
 - [x] `docs/requests_log.md` R-113/R-114の対応状況更新、SPECと実装の齟齬確認（齟齬なし）
 - [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+
+## R-115 / R-116 日付整列の未定枠配置・行間隔スライダー ＋ フロー操作パネルのホバーツールチップ（2026-08-17）
+
+**ブランチ**: `feature/R-115-116-flow-tooltip-undated`（1ブランチで直列実装）
+**要望**: `docs/requests_log.md` R-115 / R-116
+**仕様**: `docs/SPEC/03_画面設計.md` §7.14（日付未定ノードの配置・ノード間の上下幅スライダー）・§7.15（ホバーツールチップ）、`docs/SPEC/02_機能仕様.md` F-46 / F-47
+
+### 背景
+
+R-113/R-114デプロイ後、改善要望フォームから「日付整列で日付未定の枠を左中央に置きたい」「日付整列の行間隔もスライダーで調整したい（自動整理の縦間隔スライダーと同様）」「フローチャート上のボタン・スライダーに1秒ホバーでヒントを出したい」との要望。指揮AIとの確認で「未定枠は日付帯の左の専用列、帯全体の高さに対して縦中央揃え」を確定済み。
+
+### 対象ファイル・設計
+
+**R-115**
+- `logic/flowDateGrouping.ts` `calculateDateGroupLayout`: `groupItemsByDeadline`の結果を「有効締切あり（dateKey!==UNDATED_KEY、日付昇順）」と「未定（UNDATED_KEY）」に分離。有効締切ありグループは現行どおり上から下へ帯を積む（`ROW_HEIGHT`は引数化: `calculateDateGroupLayout(items, deps, options?: {rowHeight?: number})`、既定110）。積み上げ後の合計高さ`totalDatedHeight`を求める。未定グループは`assignRows`を使い単一カラム（全アイテム同じX区間とみなして必ず別行になる、依存があれば依存元が上）で縦に並べ、列の高さ`undatedHeight = rows*rowHeight + パディング`を計算。列のX位置は「有効締切ありグループの最小flow_x − LABEL_MARGIN_WIDTH − 追加間隔 − NODE_WIDTH」。列のY位置は「有効締切ありの帯全体のY開始位置 + (totalDatedHeight - undatedHeight)/2」（縦中央揃え）。有効締切ありが0件なら未定列だけを原点付近に配置
+- `screens/FlowScreen.tsx`: 「日付整列」ボタンの近くに行間隔スライダー（`input[type=range]`、40〜220、既定110、`localStorage['youkan_flow_date_align_row_height']`）を追加し、`handleDateAlign`で`calculateDateGroupLayout(placedItems, dependencies, { rowHeight })`に渡す
+- `calculateDateBands`（日付表示の帯・R-113のライブ追従）は現状維持でよい（未定グループの帯も同じロジックで外接矩形を計算するため自然に追従する）
+
+**R-116**
+- 新規 `components/Flow/HoverTooltip.tsx`（または`shared/`）: children をラップし、`onMouseEnter`で1000ms後に小さな吹き出し（absolute配置、`bg-slate-800 text-white text-xs`程度）を表示、`onMouseLeave`でタイマークリア・即消灯。ツールチップ文言はprops
+- `FlowScreen.tsx`の右上ボタン列・スライダー群（新規タスク追加／ヘルプ／全体表示／印刷／日付表示チェック／元に戻す／自動整理＋縦間隔スライダー／日付整列＋行間隔スライダー）を`HoverTooltip`でラップし、既存の`title`文言をそのままツールチップ文言に使う（`title`属性は二重表示を避けるため外すかそのまま残すかは実装Agent判断。ブラウザ標準ツールチップと二重に出ないよう調整すること）
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b feature/R-115-116-flow-tooltip-undated master`
+- [ ] R-115: `flowDateGrouping.test.ts`に未定ノードの専用列配置（左側X・縦中央Y・依存順の行割り当て）とrowHeightオプションのテストを追加（Red→Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
+- [ ] R-115: `FlowScreen.tsx`に行間隔スライダー追加、`FlowScreen.autoArrange.test.tsx`相当のテストパターンで既定値・localStorage記憶を検証（Red→Green）
+- [ ] R-116: `HoverTooltip`コンポーネント新規テスト（1000ms後に表示・mouseleaveで消える）（Red→Green）。FlowScreenへの適用は統合テストか実機目視で確認
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 日付整列で未定ノードが左の専用列に縦中央配置される／行間隔スライダーで間隔が変わり再読込後も記憶／各ボタン・スライダーに1秒ホバーでヒントが出る・離すと消える
+- [ ] `docs/requests_log.md` R-115/R-116の対応状況更新、SPECと実装の齟齬確認
+- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
