@@ -1829,12 +1829,12 @@ R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b fix/R-119-flow-mobile-api-errors master`
-- [ ] 上記の調査方針に沿って原因を特定する（テストコードでの再現も試みる）
-- [ ] 原因が判明したらTDDで修正（再現テストをRed→修正→Green）
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] `docs/requests_log.md` R-119の調査結果・対応状況を更新
-- [ ] 指揮AIへ完了報告（原因が特定できなかった場合もその旨と調査した範囲を詳細に報告すること。マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b fix/R-119-flow-mobile-api-errors master`
+- [x] 上記の調査方針に沿って原因を特定する（テストコードでの再現も試みる）
+- [x] 原因が判明したらTDDで修正（再現テストをRed→修正→Green）
+- [x] `npm.cmd run test -- --run`全体Green
+- [x] `docs/requests_log.md` R-119の調査結果・対応状況を更新
+- [x] 指揮AIへ完了報告（原因が特定できなかった場合もその旨と調査した範囲を詳細に報告すること。マージ・デプロイは指揮AIレビュー後）
 
 ## R-120 フロー配置系ボタンをプレビュー→保存確定方式に統一＋「詰める」に横方向圧縮追加（2026-08-17）
 

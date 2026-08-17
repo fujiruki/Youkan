@@ -212,9 +212,9 @@ export class ApiClient {
 		return this.request<{ id: string; success: boolean }>('POST', '/items', item);
 	}
 
-	public static async updateItem(id: string, updates: Partial<JudgableItem>): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
+	public static async updateItem(id: string, updates: Partial<JudgableItem>, silent = false): Promise<{ success: boolean; affectedDescendantIds?: string[] }> {
 		console.log(`[ApiClient] Updating item ${id}:`, updates);
-		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('PUT', `/items/${id}`, updates);
+		return this.request<{ success: boolean; affectedDescendantIds?: string[] }>('PUT', `/items/${id}`, updates, silent);
 	}
 
 	public static async reorderItems(items: { id: string; order: number }[]): Promise<{ success: boolean }> {
