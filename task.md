@@ -1743,3 +1743,30 @@ R-113/R-114デプロイ後、改善要望フォームから「日付整列で日
 - [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 日付整列で未定ノードが左の専用列に縦中央配置される／行間隔スライダーで間隔が変わり再読込後も記憶／各ボタン・スライダーに1秒ホバーでヒントが出る・離すと消える
 - [ ] `docs/requests_log.md` R-115/R-116の対応状況更新、SPECと実装の齟齬確認
 - [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+
+## R-117 フロー日付表示の帯に「残り時間」を追加表示（2026-08-17）
+
+**ブランチ**: `feature/R-117-flow-date-remaining`
+**要望**: `docs/requests_log.md` R-117
+**仕様**: `docs/SPEC/03_画面設計.md` §7.12（「残り時間（R-117）」）、`docs/SPEC/02_機能仕様.md` F-48
+
+### 背景
+
+R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/flowDateGrouping.ts`）に分離済み。発注者から「未完了がある日は最短の下に残り何時間かかるかを表示して」との要望。確認済み: 残り時間＝未完了（`status !== 'done'`）タスクの目安時間の単純合計（依存関係は考慮しない）。区間内が全て完了済みなら表示しない。
+
+### 対象ファイル・設計
+
+- `logic/flowDateGrouping.ts` の `calculateDateBands`（`groupItemsByDeadline`→`DateBand`生成部分）: `DateBand`インターフェースに`remainingMinutes: number`と`hasIncomplete: boolean`を追加。各グループで`group.items.filter(item => item.status !== 'done')`から`remainingMinutes`（`estimatedMinutes`単純合計）と`hasIncomplete`（filter結果が1件以上か）を算出
+- `components/Flow/DateBandNode.tsx`: `DateBandNodeData`に`remainingMinutes`/`hasIncomplete`を追加。`hasIncomplete`がtrueのときだけ「最短」行の下に4行目「残り {formatHours(remainingMinutes)}」を表示（`formatHours`は`flowDateGrouping.ts`の既存関数を流用）
+- `screens/FlowScreen.tsx`の帯ノードdata合成箇所（`bandNodesForRender`）に`remainingMinutes`/`hasIncomplete`を渡す
+
+### サブタスク
+
+- [ ] `git fetch && git checkout -b feature/R-117-flow-date-remaining master`
+- [ ] `flowDateGrouping.test.ts`に`calculateDateBands`の`remainingMinutes`/`hasIncomplete`（未完了あり／全完了／未完了0分タスクのみ、等）テストを追加（Red→Green）
+- [ ] `DateBandNode.tsx`のレンダリングテスト（存在すれば更新、無ければ実機目視でも可）: `hasIncomplete=true`で4行目表示・`false`で非表示
+- [ ] `npm.cmd run test -- --run`全体Green
+- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 未完了タスクを含む日付帯に「残り Xh」が最短の下に表示される／全て完了済みの日付帯には表示されない
+- [ ] `docs/requests_log.md` R-117の対応状況更新、SPECと実装の齟齬確認
+- [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込んでからコンフリクト解消（`flowDateGrouping.ts`は同ファイル別関数のため機械的に解消できるはず）
+- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
