@@ -362,7 +362,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const bandNodesForRender = useMemo<Node[]>(
     () =>
       dateBands.map((band, index) => ({
-        id: `dateband-${band.dateKey}`,
+        id: `dateband-${band.projectId ?? 'none'}-${band.dateKey}`,
         type: 'dateBand',
         position: { x: band.x, y: band.y },
         data: {

@@ -28,8 +28,11 @@ export interface DateGroup {
 }
 
 // x/y/width/height は帯（その日付グループに属するノードの現在位置の外接矩形）の位置とサイズ
+// R-122: 日付が確定している帯は、x/widthを「案件（projectId）ごと」の全ノードの外接矩形へ統一する。
+// projectIdはReactのkey生成（同日付・別案件の帯を区別する）にも使う
 export interface DateBand {
   dateKey: string;
+  projectId: string | null;
   label: string;
   x: number;
   y: number;
@@ -40,6 +43,10 @@ export interface DateBand {
   remainingMinutes: number;
   hasIncomplete: boolean;
 }
+
+// projectIdが無い（個人タスク等）アイテムをまとめる仮想キー
+const NO_PROJECT_KEY = '__no_project__';
+const projectKeyOf = (item: Item): string => item.projectId ?? NO_PROJECT_KEY;
 
 // 有効締切の日付ごとにアイテムをまとめる（日付昇順、未設定は末尾）
 export const groupItemsByDeadline = (items: Item[]): DateGroup[] => {
@@ -130,48 +137,120 @@ const bandLabel = (dateKey: string): string =>
     ? '日付未定'
     : `${format(parseISO(dateKey), 'M/d(E)', { locale: ja })}まで`;
 
+// 指定アイテム群を、projectKeyOf() ごとのX方向の外接矩形（案件全体の帯幅の基準）へ集計する
+const calculateProjectXBounds = (
+  items: Item[],
+  sizes?: Map<string, { width: number; height: number }>
+): Map<string, { minX: number; maxRight: number }> => {
+  const bounds = new Map<string, { minX: number; maxRight: number }>();
+  for (const item of items) {
+    const key = projectKeyOf(item);
+    const x = (item.meta?.flow_x as number) ?? 0;
+    const size = sizes?.get(item.id) ?? { width: NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
+    const right = x + size.width;
+    const existing = bounds.get(key);
+    if (existing) {
+      existing.minX = Math.min(existing.minX, x);
+      existing.maxRight = Math.max(existing.maxRight, right);
+    } else {
+      bounds.set(key, { minX: x, maxRight: right });
+    }
+  }
+  return bounds;
+};
+
+// 帯1件分の外接矩形（y/height）と集計値を組み立てる。x/widthは省略時のみノード自身から算出する
+const buildBand = (
+  dateKey: string,
+  projectId: string | null,
+  groupItems: Item[],
+  deps: Dependency[],
+  sizes: Map<string, { width: number; height: number }> | undefined,
+  xOverride?: number,
+  widthOverride?: number
+): DateBand => {
+  let minX = Infinity;
+  let maxRight = -Infinity;
+  let minY = Infinity;
+  let maxBottom = -Infinity;
+
+  for (const item of groupItems) {
+    const x = (item.meta?.flow_x as number) ?? 0;
+    const y = (item.meta?.flow_y as number) ?? 0;
+    const size = sizes?.get(item.id) ?? { width: NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
+    minX = Math.min(minX, x);
+    maxRight = Math.max(maxRight, x + size.width);
+    minY = Math.min(minY, y);
+    maxBottom = Math.max(maxBottom, y + size.height);
+  }
+
+  const x = xOverride ?? minX - LABEL_MARGIN_WIDTH;
+  const y = minY - BAND_PADDING_TOP;
+  const width = widthOverride ?? maxRight - x;
+  const incompleteItems = groupItems.filter((item) => item.status !== 'done');
+
+  return {
+    dateKey,
+    projectId,
+    label: bandLabel(dateKey),
+    x,
+    y,
+    width,
+    height: maxBottom + BAND_PADDING_BOTTOM - y,
+    totalMinutes: groupItems.reduce((sum, item) => sum + getMinutes(item), 0),
+    criticalMinutes: calculateCriticalPathMinutes(groupItems, deps),
+    remainingMinutes: incompleteItems.reduce((sum, item) => sum + getMinutes(item), 0),
+    hasIncomplete: incompleteItems.length > 0,
+  };
+};
+
 // R-113: 日付グループごとに、ノードの現在位置（ドラッグ中も含む）から外接矩形を計算する。
 // 表示専用で、ノードの位置は一切書き換えない
+// R-122: 有効締切ありの帯は、日付グループ単独の外接矩形ではなく「案件（projectId）ごと」の
+// 全ノードの外接矩形へx/widthを統一する。フォーカスなし時に画面へ複数案件が混在していても、
+// 同じ日付を案件をまたいでまとめず、案件ごとに別々の帯として扱う。
+// 日付未定の専用列（R-115）は対象外・現状維持（案件をまたいだ1つの帯のまま、幅も統一しない）
 export const calculateDateBands = (
   items: Item[],
   deps: Dependency[],
   sizes?: Map<string, { width: number; height: number }>
 ): DateBand[] => {
   const groups = groupItemsByDeadline(items);
+  const datedGroups = groups.filter((g) => g.dateKey !== UNDATED_KEY);
+  const undatedGroup = groups.find((g) => g.dateKey === UNDATED_KEY);
 
-  return groups.map((group) => {
-    let minX = Infinity;
-    let maxRight = -Infinity;
-    let minY = Infinity;
-    let maxBottom = -Infinity;
+  const datedItems = datedGroups.flatMap((g) => g.items);
+  const projectBounds = calculateProjectXBounds(datedItems, sizes);
 
-    for (const item of group.items) {
-      const x = (item.meta?.flow_x as number) ?? 0;
-      const y = (item.meta?.flow_y as number) ?? 0;
-      const size = sizes?.get(item.id) ?? { width: NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
-      minX = Math.min(minX, x);
-      maxRight = Math.max(maxRight, x + size.width);
-      minY = Math.min(minY, y);
-      maxBottom = Math.max(maxBottom, y + size.height);
+  const projectOrder: string[] = [];
+  const seenProjects = new Set<string>();
+  for (const item of datedItems) {
+    const key = projectKeyOf(item);
+    if (!seenProjects.has(key)) {
+      seenProjects.add(key);
+      projectOrder.push(key);
     }
+  }
 
-    const x = minX - LABEL_MARGIN_WIDTH;
-    const y = minY - BAND_PADDING_TOP;
-    const incompleteItems = group.items.filter((item) => item.status !== 'done');
+  const bands: DateBand[] = [];
+  for (const projectKey of projectOrder) {
+    const bounds = projectBounds.get(projectKey)!;
+    const bandX = bounds.minX - LABEL_MARGIN_WIDTH;
+    const bandWidth = bounds.maxRight - bandX;
+    const projectId = projectKey === NO_PROJECT_KEY ? null : projectKey;
 
-    return {
-      dateKey: group.dateKey,
-      label: bandLabel(group.dateKey),
-      x,
-      y,
-      width: maxRight - x,
-      height: maxBottom + BAND_PADDING_BOTTOM - y,
-      totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
-      criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
-      remainingMinutes: incompleteItems.reduce((sum, item) => sum + getMinutes(item), 0),
-      hasIncomplete: incompleteItems.length > 0,
-    };
-  });
+    for (const group of datedGroups) {
+      const groupProjectItems = group.items.filter((item) => projectKeyOf(item) === projectKey);
+      if (groupProjectItems.length === 0) continue;
+      bands.push(buildBand(group.dateKey, projectId, groupProjectItems, deps, sizes, bandX, bandWidth));
+    }
+  }
+
+  if (undatedGroup) {
+    bands.push(buildBand(undatedGroup.dateKey, null, undatedGroup.items, deps, sizes));
+  }
+
+  return bands;
 };
 
 // 帯内でノードの行（row）を決める: 依存元の行より下を下限に、X区間が重ならない最初の行を選ぶ

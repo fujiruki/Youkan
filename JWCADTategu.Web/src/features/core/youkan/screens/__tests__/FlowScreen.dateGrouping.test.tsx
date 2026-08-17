@@ -312,6 +312,26 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         expect(nodeOf('item-b').position.y - nodeOf('item-a').position.y).toBe(200);
     });
 
+    // R-122: 日付表示の帯幅を案件(projectId)ごとの全体幅へ統一する
+    it('別案件かつ同じ日付のアイテムが混在する場合、帯が案件ごとに分かれ、幅もそれぞれの案件基準になる', async () => {
+        const p1a = { ...makeItem('p1-a', '2026-08-16', 60, 0), projectId: 'p1', meta: { flow_x: 0, flow_y: 0 } };
+        const p1b = { ...makeItem('p1-b', '2026-08-16', 60, 0), projectId: 'p1', meta: { flow_x: 500, flow_y: 0 } };
+        const p2a = { ...makeItem('p2-a', '2026-08-16', 60, 0), projectId: 'p2', meta: { flow_x: 2000, flow_y: 0 } };
+        mockGetAllItems.mockResolvedValue([p1a, p1b, p2a]);
+
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('p1-a')).toBeTruthy());
+        await toggleDateGrouping();
+
+        await waitFor(() => expect(bandNodes()).toHaveLength(2));
+        const ids = bandNodes().map((n: any) => n.id);
+        // 同じ日付(8/16)でも案件が異なるためidが衝突せず2件とも描画される
+        expect(new Set(ids).size).toBe(2);
+        // 案件ごとに幅の基準が異なる（p1は2ノード分の横幅、p2は1ノードのみ）ため幅も異なる
+        const [band1, band2] = bandNodes();
+        expect(band1.style.width).not.toBe(band2.style.width);
+    });
+
     it('別の配置系ボタン（自動整理）を押すと日付整列のプレビューはキャンセル扱いで閉じる', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
