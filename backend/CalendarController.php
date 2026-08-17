@@ -67,7 +67,7 @@ class CalendarController extends BaseController {
                     OR
                     (items.prep_date >= ? AND items.prep_date <= ?)
                 )
-                AND items.status NOT IN ('decision_rejected', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
+                AND items.status NOT IN ('decision_rejected', 'cancelled', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
                 AND COALESCE(items.is_archived, 0) = 0
                 AND items.deleted_at IS NULL
                 AND items.is_project = 0
@@ -184,7 +184,7 @@ class CalendarController extends BaseController {
                 AND (
                     $dateClause
                 )
-                AND items.status NOT IN ('decision_rejected', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
+                AND items.status NOT IN ('decision_rejected', 'cancelled', 'archive', 'trash', 'done', 'completed', 'log', 'someday')
                 AND COALESCE(items.is_archived, 0) = 0
                 AND items.deleted_at IS NULL
                 AND items.is_project = 0

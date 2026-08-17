@@ -8,6 +8,10 @@ export const STATUS_META = {
     pending: { label: '保留（外的要因待ち）', icon: 'Pause', color: 'amber' },
     someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'purple' },
     done: { label: '完了', icon: 'CheckCircle', color: 'green' },
+    // R-124: 「断る」判断の結果。省スペースな箇所では label、
+    // 右クリックメニュー等スペースに余裕がある箇所では labelWide を使う
+    // （「キャンセル」だけの婉曲表現を避け、「断った」という判断行為を必ず残す）
+    cancelled: { label: '断った', labelWide: 'キャンセル・断った', icon: 'XCircle', color: 'rose' },
 } as const;
 
 /**

@@ -234,7 +234,8 @@ export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWr
 		if (seenItemIds.has(nid)) return false;
 		seenItemIds.add(nid);
 		if (item.isArchived) return false;
-		if (hideCompleted && item.status === 'done') return false;
+		// R-124: 「完了を隠す」は断った(cancelled)アイテムも同じ「履歴」扱いとして隠す
+		if (hideCompleted && (item.status === 'done' || item.status === 'cancelled')) return false;
 		// If it's a project container, we don't treat it as a "task" item in the main list
 		if (item.isProject || item.type === 'project') return false;
 		return true;

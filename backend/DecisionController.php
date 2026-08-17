@@ -35,6 +35,8 @@ class DecisionController {
             ]);
 
             // 2. Update Item Status (Domain Logic)
+            // R-124: 「断る」はcancelledへ統一（旧: decision_rejected）。フロント側の
+            // decisionToStatus（logic/decisionResolution.ts）と同じ判断結果になるようにする
             $newStatus = '';
             switch ($decision) {
                 case 'yes':
@@ -44,7 +46,7 @@ class DecisionController {
                     $newStatus = 'decision_hold';
                     break;
                 case 'no':
-                    $newStatus = 'decision_rejected';
+                    $newStatus = 'cancelled';
                     break;
             }
 

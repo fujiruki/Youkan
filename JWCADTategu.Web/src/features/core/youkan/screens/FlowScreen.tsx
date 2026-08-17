@@ -1776,8 +1776,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         <DecisionDetailModal
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
-          onDecision={async (id, decision) => {
-            await ApiClient.resolveDecision(id, decision === 'yes' ? 'yes' : 'no');
+          onDecision={async (id, decision, note, updates) => {
+            // R-124: 旧実装は三項演算子で hold を no（断る）に握りつぶしていた。
+            // decision/note/updates をそのまま転送する（保留にするボタンしか送らないモーダルの契約通り）
+            if (updates && Object.keys(updates).length > 0) {
+              await ApiClient.updateItem(id, updates);
+              setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+            }
+            await ApiClient.resolveDecision(id, decision, note);
             setSelectedItem(null);
             await fetchData();
           }}

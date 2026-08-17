@@ -53,6 +53,12 @@ export const CloudYoukanRepository = {
 			...(projectId ? { project_id: projectId } : {}),
 		});
 
+		// R-124: cancelled（旧: decision_rejected）はどのバケットにも一致せず
+		// シェルフから消えていた（全体一覧から却下アイテムが消える不具合の直接原因）。
+		// 完了(done)と同じ「履歴」バケットへ分類する。decision_rejectedは
+		// データ移行していない既存アイテムの表示互換のため合わせて拾う
+		const isCancelled = (status: unknown) => status === 'cancelled' || status === 'decision_rejected';
+
 		// Categorize based on Youkan Logic
 		return {
 			// [FIX] Include 'focus' items in active list to prevent disappearance from GDB views if not in Today View
@@ -60,7 +66,7 @@ export const CloudYoukanRepository = {
 			preparation: allItems.filter(i => i.status === 'waiting'),
 			intent: allItems.filter(i => i.status === 'pending'),
 			someday: allItems.filter(i => i.status === 'someday'), // R-029: Someday バケット
-			log: allItems.filter(i => i.status === 'done')
+			log: allItems.filter(i => i.status === 'done' || isCancelled(i.status))
 		};
 	},
 

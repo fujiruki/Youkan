@@ -21,7 +21,7 @@ describe('buildItemContextMenuActions', () => {
 			'詳細 / 名前変更',
 			'プロジェクト化',
 			'今日やる (Done Today)',
-			'断る (Rejected)',
+			'キャンセル・断った',
 			'ゴミ箱 (Del)',
 		]);
 	});

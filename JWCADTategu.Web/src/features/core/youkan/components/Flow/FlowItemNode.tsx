@@ -24,6 +24,7 @@ const statusColors: Record<string, { bg: string; border: string; text: string }>
   pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
   waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
   done: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-400' },
+  cancelled: { bg: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-400' },
 };
 
 const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {

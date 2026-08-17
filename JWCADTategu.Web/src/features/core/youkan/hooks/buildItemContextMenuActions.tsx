@@ -59,8 +59,10 @@ export function buildItemContextMenuActions(
 			shortcut: 'd',
 		}] : []),
 		{
-			label: '断る (Rejected)',
-			icon: <AlertCircle size={14} className="text-amber-500" />,
+			// R-124: 右クリックメニューは表示幅に余裕があるため広い文言（キャンセル・断った）を使う。
+			// 「キャンセル」だけの婉曲表現を避け、「断った」という判断行為を必ず残す
+			label: 'キャンセル・断った',
+			icon: <AlertCircle size={14} className="text-rose-500" />,
 			onClick: () => callbacks.onResolveNo(itemId),
 		},
 		{

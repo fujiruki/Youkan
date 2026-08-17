@@ -385,9 +385,10 @@ export const YoukanRepository = {
 				...localItems.filter(i => (i.status as any) === 'someday')
 			],
 			// Log
+			// R-124: cancelled（旧: decision_rejected）も履歴バケットに含める
 			log: [
 				...(apiShelf.history || []),
-				...localItems.filter(i => (i.status as any) === 'done' || (i.status as any) === 'archive' || (i.status as any) === 'decision_rejected')
+				...localItems.filter(i => (i.status as any) === 'done' || (i.status as any) === 'archive' || (i.status as any) === 'decision_rejected' || (i.status as any) === 'cancelled')
 			]
 		};
 

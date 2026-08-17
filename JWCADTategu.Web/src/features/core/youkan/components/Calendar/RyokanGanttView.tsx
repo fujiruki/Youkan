@@ -14,6 +14,7 @@ import { ContextMenu } from '../Common/ContextMenu';
 import { buildItemContextMenuActions } from '../../hooks/buildItemContextMenuActions';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { decisionToStatus } from '../../logic/decisionResolution';
 import { CapacityBar } from './CapacityBar';
 import { ExternalEvent } from '../../types/externalEvent';
 import { GoogleCalendar } from '../../../../../api/googleCalendar';
@@ -1260,11 +1261,13 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				actions={buildItemContextMenuActions(itemContextMenu.itemId, {
 					onOpenDetail: (id) => { onItemClick?.(items.find(i => i.id === id)!); closeItemContextMenu(); },
 					onMakeProject: async (id) => { await onUpdateItem?.(id, { isProject: true } as any); closeItemContextMenu(); },
-					onResolveYes: async (id) => { await onUpdateItem?.(id, { status: 'focus' } as any); closeItemContextMenu(); },
+					onResolveYes: async (id) => { await onUpdateItem?.(id, { status: decisionToStatus('yes') } as any); closeItemContextMenu(); },
 					onInsertBefore: (id) => startInlineInsert(id, 'before'),
 					onInsertAfter: (id) => startInlineInsert(id, 'after'),
 					onMarkDone: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
-					onResolveNo: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },
+					// R-124: 「断る」がstatus:'done'（完了）を直接書き込んでいた旧バグ。
+					// 共通ロジック(decisionToStatus)経由でcancelledに統一する
+					onResolveNo: async (id) => { await onUpdateItem?.(id, { status: decisionToStatus('no') } as any); closeItemContextMenu(); },
 					onDelete: (id) => { handleContextMenuDelete(id); closeItemContextMenu(); },
 				})}
 			/>

@@ -77,7 +77,7 @@ class GdbController extends BaseController {
             WHERE
                 $whereClause
                 $whereSuffix
-                AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'archive')
+                AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'cancelled', 'archive')
                 AND (
                     items.status = 'inbox' 
                     OR (items.rdd_date IS NOT NULL AND items.rdd_date <= ?)
@@ -141,7 +141,7 @@ class GdbController extends BaseController {
             WHERE
                 $whereClause
                 $whereSuffix
-                AND items.status IN ('decision_rejected') 
+                AND items.status IN ('decision_rejected', 'cancelled')
                 AND items.deleted_at IS NULL
             ORDER BY items.updated_at DESC 
             LIMIT 20

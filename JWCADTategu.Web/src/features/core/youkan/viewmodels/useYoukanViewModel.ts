@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
 import { sanitizeItems } from '../logic/sanitizeItems';
 import { collectDescendantIds } from '../logic/hierarchy';
+import { decisionToStatus } from '../logic/decisionResolution';
 import { useFilter } from '../contexts/FilterContext';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
@@ -472,7 +473,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		}
 
 		// [Undo] Register Action
-		let statusLabel = decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'Done';
+		let statusLabel = decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'キャンセル・断った';
 		if (decision === 'no' && (note === 'someday' || note === 'intent')) statusLabel = 'Someday (保留)';
 
 		addUndoAction({
@@ -502,20 +503,12 @@ export const useYoukanViewModel = (projectId?: string) => {
 			}
 
 			// [FIX] Status logic
-			if (decision === 'hold') {
-				await getRepository().updateItem(targetId, { ...apiUpdates, status: 'pending' });
-			} else if (decision === 'yes') {
-				await getRepository().updateItem(targetId, {
-					...apiUpdates,
-					status: 'focus',
-					flags: { ...(updates?.flags || {}), is_today_commit: true }
-				});
-			} else if (decision === 'no' && (note === 'someday' || note === 'intent')) {
-				// [NEW] Someday -> Pending (Shelf)
-				await getRepository().updateItem(targetId, { ...apiUpdates, status: 'pending' });
-			} else {
-				await getRepository().updateItem(targetId, { ...apiUpdates, status: 'done' });
-			}
+			// R-124: yes/hold/断るの状態決定は decisionToStatus に一本化（画面ごとの重複実装を解消）
+			const newStatus = decisionToStatus(decision, note);
+			const extraFields = decision === 'yes'
+				? { flags: { ...(updates?.flags || {}), is_today_commit: true } }
+				: {};
+			await getRepository().updateItem(targetId, { ...apiUpdates, status: newStatus, ...extraFields });
 
 			refreshAll();
 		} catch (e) {
