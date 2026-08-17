@@ -148,14 +148,14 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
     it('縦間隔スライダーの初期値は35', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
-        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+        const slider = screen.getByLabelText('自動整理の縦間隔') as HTMLInputElement;
         expect(slider.value).toBe('35');
     });
 
     it('スライダーを変更するとlocalStorageに保存され、次回起動時も記憶される', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
-        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+        const slider = screen.getByLabelText('自動整理の縦間隔') as HTMLInputElement;
 
         fireEvent.change(slider, { target: { value: '80' } });
 
@@ -166,7 +166,7 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
     it('自動整理はスライダーの値をgapYとして使う', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
-        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+        const slider = screen.getByLabelText('自動整理の縦間隔') as HTMLInputElement;
         fireEvent.change(slider, { target: { value: '90' } });
 
         await clickButton('自動整理');

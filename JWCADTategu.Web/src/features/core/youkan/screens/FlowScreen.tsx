@@ -28,6 +28,7 @@ import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
 import { DateBandNode } from '../components/Flow/DateBandNode';
 import { EdgeContextMenu } from '../components/Flow/EdgeContextMenu';
 import { UnplacedItemList, type UnplacedItemListHandle } from '../components/Flow/UnplacedItemList';
+import { HoverTooltip } from '../components/Flow/HoverTooltip';
 import { ContextMenu } from '../components/Common/ContextMenu';
 import { buildItemContextMenuActions } from '../hooks/buildItemContextMenuActions';
 import { FlowProjectSelector } from '../components/Flow/FlowProjectSelector';
@@ -56,6 +57,11 @@ const GAP_Y_STORAGE_KEY = 'youkan_flow_arrange_gap_y';
 const GAP_Y_DEFAULT = 35;
 const GAP_Y_MIN = 10;
 const GAP_Y_MAX = 100;
+// R-115: 日付整列の行間隔スライダーの記憶先
+const DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY = 'youkan_flow_date_align_row_height';
+const DATE_ALIGN_ROW_HEIGHT_DEFAULT = 110;
+const DATE_ALIGN_ROW_HEIGHT_MIN = 40;
+const DATE_ALIGN_ROW_HEIGHT_MAX = 220;
 const dependencyRepo = new DependencyRepository();
 
 const OVERLAP_THRESHOLD = 40;
@@ -126,6 +132,11 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [gapY, setGapY] = useState<number>(() => {
     const saved = Number(localStorage.getItem(GAP_Y_STORAGE_KEY));
     return Number.isFinite(saved) && saved > 0 ? saved : GAP_Y_DEFAULT;
+  });
+  // R-115: 日付整列の行間隔（localStorageに記憶）
+  const [dateAlignRowHeight, setDateAlignRowHeight] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY));
+    return Number.isFinite(saved) && saved > 0 ? saved : DATE_ALIGN_ROW_HEIGHT_DEFAULT;
   });
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
@@ -849,15 +860,21 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       ])
     );
     setHasPositionBackup(true);
-    const placements = calculateDateGroupLayout(placedItems, dependencies);
+    const placements = calculateDateGroupLayout(placedItems, dependencies, { rowHeight: dateAlignRowHeight });
     shouldFitViewRef.current = true;
     await applyPlacements(placements);
-  }, [placedItems, dependencies, applyPlacements]);
+  }, [placedItems, dependencies, dateAlignRowHeight, applyPlacements]);
 
   // R-114: 縦間隔スライダーの変更をlocalStorageに記憶する
   const handleGapYChange = useCallback((value: number) => {
     setGapY(value);
     localStorage.setItem(GAP_Y_STORAGE_KEY, String(value));
+  }, []);
+
+  // R-115: 日付整列の行間隔スライダーの変更をlocalStorageに記憶する
+  const handleDateAlignRowHeightChange = useCallback((value: number) => {
+    setDateAlignRowHeight(value);
+    localStorage.setItem(DATE_ALIGN_ROW_HEIGHT_STORAGE_KEY, String(value));
   }, []);
 
   // R-109/R-112/R-113: 日付整列または自動整理の適用直前の位置へ1段階戻す（日付表示のON/OFFは維持）
@@ -1259,83 +1276,108 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         </div>
       )}
       <UnplacedItemList ref={unplacedListRef} items={unplacedItems} onAutoPlace={handleAutoPlace} isAutoPlacing={isAutoPlacing} onContextMenu={handleItemContextMenu} />
-      <button
-        onClick={handleAddButtonClick}
-        className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10 no-print"
-        title="新規タスク追加"
-      >
-        <Plus size={20} />
-      </button>
-      <button
-        onClick={() => setIsHelpOpen(true)}
-        className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-        title="操作ガイド"
-      >
-        <span className="text-sm font-bold">?</span>
-        <span>ヘルプ</span>
-      </button>
-      <button
-        onClick={() => fitView({ duration: 300, padding: 0.1 })}
-        className="absolute top-12 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-        title="全体表示"
-      >
-        <Maximize size={12} />
-        <span>全体</span>
-      </button>
-      <button
-        onClick={handlePrint}
-        className="absolute top-[84px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-        title="印刷"
-      >
-        <Printer size={12} />
-        <span>印刷</span>
-      </button>
-      <label className="absolute top-[116px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 cursor-pointer no-print">
-        <input
-          type="checkbox"
-          checked={isDateGrouping}
-          onChange={(e) => handleToggleDateGrouping(e.target.checked)}
-          className="accent-indigo-500"
-        />
-        <span>日付表示</span>
-      </label>
-      {hasPositionBackup && (
+      <HoverTooltip label="新規タスク追加">
         <button
-          onClick={handleRestorePositions}
-          className="absolute top-[148px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-          title="適用前の配置に戻す"
+          onClick={handleAddButtonClick}
+          className="absolute bottom-4 right-4 w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors z-10 no-print"
+          aria-label="新規タスク追加"
         >
-          <Undo2 size={12} />
-          <span>元に戻す</span>
+          <Plus size={20} />
         </button>
+      </HoverTooltip>
+      <HoverTooltip label="操作ガイド">
+        <button
+          onClick={() => setIsHelpOpen(true)}
+          className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        >
+          <span className="text-sm font-bold">?</span>
+          <span>ヘルプ</span>
+        </button>
+      </HoverTooltip>
+      <HoverTooltip label="全体表示">
+        <button
+          onClick={() => fitView({ duration: 300, padding: 0.1 })}
+          className="absolute top-12 right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        >
+          <Maximize size={12} />
+          <span>全体</span>
+        </button>
+      </HoverTooltip>
+      <HoverTooltip label="印刷">
+        <button
+          onClick={handlePrint}
+          className="absolute top-[84px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        >
+          <Printer size={12} />
+          <span>印刷</span>
+        </button>
+      </HoverTooltip>
+      <HoverTooltip label="日付表示">
+        <label className="absolute top-[116px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 cursor-pointer no-print">
+          <input
+            type="checkbox"
+            checked={isDateGrouping}
+            onChange={(e) => handleToggleDateGrouping(e.target.checked)}
+            className="accent-indigo-500"
+          />
+          <span>日付表示</span>
+        </label>
+      </HoverTooltip>
+      {hasPositionBackup && (
+        <HoverTooltip label="適用前の配置に戻す">
+          <button
+            onClick={handleRestorePositions}
+            className="absolute top-[148px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+          >
+            <Undo2 size={12} />
+            <span>元に戻す</span>
+          </button>
+        </HoverTooltip>
       )}
       <div className="absolute top-[180px] right-3 flex items-center gap-2 z-10 no-print">
-        <input
-          type="range"
-          min={GAP_Y_MIN}
-          max={GAP_Y_MAX}
-          value={gapY}
-          onChange={(e) => handleGapYChange(Number(e.target.value))}
-          title="自動整理の縦間隔"
-          className="w-16 accent-indigo-500"
-        />
-        <button
-          onClick={handleAutoArrange}
-          className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          title="ノードが重ならず・エッジ交差が少ない配置へ自動整理"
-        >
-          <LayoutGrid size={12} />
-          <span>自動整理</span>
-        </button>
+        <HoverTooltip label="自動整理の縦間隔">
+          <input
+            type="range"
+            min={GAP_Y_MIN}
+            max={GAP_Y_MAX}
+            value={gapY}
+            onChange={(e) => handleGapYChange(Number(e.target.value))}
+            aria-label="自動整理の縦間隔"
+            className="w-16 accent-indigo-500"
+          />
+        </HoverTooltip>
+        <HoverTooltip label="ノードが重ならず・エッジ交差が少ない配置へ自動整理">
+          <button
+            onClick={handleAutoArrange}
+            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <LayoutGrid size={12} />
+            <span>自動整理</span>
+          </button>
+        </HoverTooltip>
       </div>
-      <button
-        onClick={handleDateAlign}
-        className="absolute top-[212px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
-        title="横位置は変えず、縦方向だけ日付の区間へ整列"
-      >
-        <CalendarRange size={12} />
-        <span>日付整列</span>
-      </button>
+      <div className="absolute top-[212px] right-3 flex items-center gap-2 z-10 no-print">
+        <HoverTooltip label="日付整列の行間隔">
+          <input
+            type="range"
+            min={DATE_ALIGN_ROW_HEIGHT_MIN}
+            max={DATE_ALIGN_ROW_HEIGHT_MAX}
+            value={dateAlignRowHeight}
+            onChange={(e) => handleDateAlignRowHeightChange(Number(e.target.value))}
+            aria-label="日付整列の行間隔"
+            className="w-16 accent-indigo-500"
+          />
+        </HoverTooltip>
+        <HoverTooltip label="横位置は変えず、縦方向だけ日付の区間へ整列">
+          <button
+            onClick={handleDateAlign}
+            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <CalendarRange size={12} />
+            <span>日付整列</span>
+          </button>
+        </HoverTooltip>
+      </div>
       {isHelpOpen && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"

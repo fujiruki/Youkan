@@ -19,6 +19,8 @@ const BAND_MIN_HEIGHT = 150;
 const LABEL_MARGIN_WIDTH = 140;
 // ノードサイズの実測値が無い場合の既定高さ（幅はNODE_WIDTHを使う）
 const DEFAULT_NODE_HEIGHT = 60;
+// R-115: 日付未定の専用列と、有効締切ありの帯との間に空ける追加の間隔
+const UNDATED_COLUMN_GAP = 60;
 
 export interface DateGroup {
   dateKey: string;
@@ -201,42 +203,80 @@ const assignRows = (
   return rowOf;
 };
 
+// 依存の深さ昇順→同じ深さは元のflow_y昇順（元の上下関係を保つ）の並び順
+const orderByDepthThenFlowY = (items: Item[], deps: Dependency[]): Item[] => {
+  const depths = computeDepthWithin(items, deps);
+  return [...items].sort((a, b) => {
+    const depthDiff = (depths.get(a.id) ?? 0) - (depths.get(b.id) ?? 0);
+    if (depthDiff !== 0) return depthDiff;
+    const ay = (a.meta?.flow_y as number) ?? 0;
+    const by = (b.meta?.flow_y as number) ?? 0;
+    return ay - by;
+  });
+};
+
 // R-113「日付整列」ボタン用: R-111で確定した帯内配置ルールどおりに、flow_xは変えず縦方向だけ
-// 各ノードを日付順の区間へ移動する。y原点は全アイテムの最小flow_y - 上パディングから区間を累積する
-export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): PlacementResult[] => {
+// 各ノードを日付順の区間へ移動する。y原点は有効締切ありアイテムの最小flow_y - 上パディングから区間を累積する。
+// R-115: 日付未定のアイテムは帯の縦積みには含めず、帯の左側の専用1列へ縦中央揃えで配置する
+export const calculateDateGroupLayout = (
+  items: Item[],
+  deps: Dependency[],
+  options?: { rowHeight?: number }
+): PlacementResult[] => {
+  const rowHeight = options?.rowHeight ?? ROW_HEIGHT;
   const groups = groupItemsByDeadline(items);
   if (groups.length === 0) return [];
 
-  const ys = items.map((item) => (item.meta?.flow_y as number) ?? 0);
-  let bandY = (ys.length > 0 ? Math.min(...ys) : 0) - BAND_PADDING_TOP;
+  const datedGroups = groups.filter((g) => g.dateKey !== UNDATED_KEY);
+  const undatedGroup = groups.find((g) => g.dateKey === UNDATED_KEY);
+  const datedItems = datedGroups.flatMap((g) => g.items);
+
+  const bandYStart =
+    datedItems.length > 0
+      ? Math.min(...datedItems.map((item) => (item.meta?.flow_y as number) ?? 0)) - BAND_PADDING_TOP
+      : 0;
+  let bandY = bandYStart;
 
   const placements: PlacementResult[] = [];
 
-  for (const group of groups) {
-    const depths = computeDepthWithin(group.items, deps);
+  for (const group of datedGroups) {
     const predecessors = buildPredecessors(group.items, deps);
-    // 処理順: 依存の深さ昇順→同じ深さは元のflow_y昇順（元の上下関係を保つ）
-    const ordered = [...group.items].sort((a, b) => {
-      const depthDiff = (depths.get(a.id) ?? 0) - (depths.get(b.id) ?? 0);
-      if (depthDiff !== 0) return depthDiff;
-      const ay = (a.meta?.flow_y as number) ?? 0;
-      const by = (b.meta?.flow_y as number) ?? 0;
-      return ay - by;
-    });
+    const ordered = orderByDepthThenFlowY(group.items, deps);
 
     const rowOf = assignRows(ordered, predecessors);
     const rows = Math.max(...Array.from(rowOf.values())) + 1;
-    const height = Math.max(rows * ROW_HEIGHT + BAND_PADDING_TOP + BAND_PADDING_BOTTOM, BAND_MIN_HEIGHT);
+    const height = Math.max(rows * rowHeight + BAND_PADDING_TOP + BAND_PADDING_BOTTOM, BAND_MIN_HEIGHT);
 
     for (const item of ordered) {
       placements.push({
         itemId: item.id,
         flow_x: (item.meta?.flow_x as number) ?? 0,
-        flow_y: bandY + BAND_PADDING_TOP + rowOf.get(item.id)! * ROW_HEIGHT,
+        flow_y: bandY + BAND_PADDING_TOP + rowOf.get(item.id)! * rowHeight,
       });
     }
 
     bandY += height;
+  }
+
+  const totalDatedHeight = bandY - bandYStart;
+
+  if (undatedGroup) {
+    const ordered = orderByDepthThenFlowY(undatedGroup.items, deps);
+    const rows = ordered.length;
+    const undatedHeight = Math.max(rows * rowHeight + BAND_PADDING_TOP + BAND_PADDING_BOTTOM, BAND_MIN_HEIGHT);
+
+    const baseX =
+      datedItems.length > 0 ? Math.min(...datedItems.map((item) => (item.meta?.flow_x as number) ?? 0)) : 0;
+    const undatedX = baseX - LABEL_MARGIN_WIDTH - UNDATED_COLUMN_GAP - NODE_WIDTH;
+    const undatedY = datedGroups.length > 0 ? bandYStart + (totalDatedHeight - undatedHeight) / 2 : 0;
+
+    ordered.forEach((item, index) => {
+      placements.push({
+        itemId: item.id,
+        flow_x: undatedX,
+        flow_y: undatedY + BAND_PADDING_TOP + index * rowHeight,
+      });
+    });
   }
 
   return placements;

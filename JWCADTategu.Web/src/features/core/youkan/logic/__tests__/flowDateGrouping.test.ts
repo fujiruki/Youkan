@@ -283,3 +283,64 @@ describe('calculateDateGroupLayout', () => {
     expect(calculateDateGroupLayout([], [])).toEqual([]);
   });
 });
+
+// R-115: 日付未定ノードは有効締切ありの帯とは別に、左の専用1列へ縦中央揃えで配置する
+describe('calculateDateGroupLayout: 日付未定ノードの専用列配置（R-115）', () => {
+  it('未定ノードは有効締切ありの帯より左の専用列に配置される', () => {
+    const items = [
+      makeItem({ id: 'a', due_date: '2026-08-16', meta: { flow_x: 300, flow_y: 0 } }),
+      makeItem({ id: 'x', meta: { flow_x: 500, flow_y: 0 } }),
+    ];
+    const placements = calculateDateGroupLayout(items, []);
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    // 専用列X = 有効締切ありの最小flow_x(300) - LABEL_MARGIN_WIDTH(140) - 追加ギャップ(60) - NODE_WIDTH
+    expect(byId.get('x')!.flow_x).toBe(300 - 140 - 60 - NODE_WIDTH);
+    expect(byId.get('x')!.flow_x).toBeLessThan(byId.get('a')!.flow_x);
+  });
+
+  it('未定列は日付帯全体の高さに対して縦中央に配置される', () => {
+    const items = [
+      makeItem({ id: 'a', due_date: '2026-08-16', meta: { flow_x: 300, flow_y: 0 } }),
+      makeItem({ id: 'b', due_date: '2026-08-17', meta: { flow_x: 300, flow_y: 0 } }),
+      makeItem({ id: 'x', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const placements = calculateDateGroupLayout(items, []);
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    // 各帯は1行のみ→高さ= 1*110+60+20=190。帯2つで合計380。未定列も1行→高さ190
+    // bandYStart = 0-60 = -60、undatedY = -60 + (380-190)/2 = 35、未定ノードのy = 35+60 = 95
+    expect(byId.get('x')!.flow_y).toBe(95);
+  });
+
+  it('未定ノード同士に依存があれば依存元が上の行に置かれる', () => {
+    const items = [
+      makeItem({ id: 'a', due_date: '2026-08-16', meta: { flow_x: 300, flow_y: 0 } }),
+      makeItem({ id: 'x1', meta: { flow_x: 0, flow_y: 100 } }),
+      makeItem({ id: 'x2', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const placements = calculateDateGroupLayout(items, [dep('x1', 'x2')]);
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    expect(byId.get('x2')!.flow_y).toBeGreaterThan(byId.get('x1')!.flow_y);
+  });
+
+  it('rowHeightオプションを渡すと未定列・帯どちらの行間隔にも反映される', () => {
+    const items = [
+      makeItem({ id: 'x1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'x2', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const placements = calculateDateGroupLayout(items, [], { rowHeight: 200 });
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    expect(Math.abs(byId.get('x2')!.flow_y - byId.get('x1')!.flow_y)).toBe(200);
+  });
+
+  it('有効締切ありが0件でも未定列だけがy=0起点で配置される', () => {
+    const items = [
+      makeItem({ id: 'x1', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'x2', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const placements = calculateDateGroupLayout(items, []);
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    expect(byId.get('x1')!.flow_x).toBe(0 - 140 - 60 - NODE_WIDTH);
+    expect(byId.get('x1')!.flow_y).toBe(60);
+    expect(byId.get('x2')!.flow_y).toBeGreaterThan(byId.get('x1')!.flow_y);
+  });
+});

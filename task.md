@@ -1735,14 +1735,14 @@ R-113/R-114デプロイ後、改善要望フォームから「日付整列で日
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-115-116-flow-tooltip-undated master`
-- [ ] R-115: `flowDateGrouping.test.ts`に未定ノードの専用列配置（左側X・縦中央Y・依存順の行割り当て）とrowHeightオプションのテストを追加（Red→Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
-- [ ] R-115: `FlowScreen.tsx`に行間隔スライダー追加、`FlowScreen.autoArrange.test.tsx`相当のテストパターンで既定値・localStorage記憶を検証（Red→Green）
-- [ ] R-116: `HoverTooltip`コンポーネント新規テスト（1000ms後に表示・mouseleaveで消える）（Red→Green）。FlowScreenへの適用は統合テストか実機目視で確認
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 日付整列で未定ノードが左の専用列に縦中央配置される／行間隔スライダーで間隔が変わり再読込後も記憶／各ボタン・スライダーに1秒ホバーでヒントが出る・離すと消える
-- [ ] `docs/requests_log.md` R-115/R-116の対応状況更新、SPECと実装の齟齬確認
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-115-116-flow-tooltip-undated master`
+- [x] R-115: `flowDateGrouping.test.ts`に未定ノードの専用列配置（左側X・縦中央Y・依存順の行割り当て）とrowHeightオプションのテストを追加（Red→Green）。`FlowScreen.dateGrouping.test.tsx`の期待座標も追随
+- [x] R-115: `FlowScreen.tsx`に行間隔スライダー追加、`FlowScreen.autoArrange.test.tsx`相当のテストパターンで既定値・localStorage記憶を検証（Red→Green）
+- [x] R-116: `HoverTooltip`コンポーネント新規テスト（1000ms後に表示・mouseleaveで消える）（Red→Green）。FlowScreenへの適用は統合テストか実機目視で確認
+- [x] `npm.cmd run test -- --run`全体Green（981 passed / 14 skipped / 0 failed）
+- [x] 実機検証（`php -S 127.0.0.1:8199`＋Vite、詳細はrequests_log.md参照）: 日付整列で未定ノードが左の専用列に縦中央配置される／行間隔スライダーで間隔が変わり再読込後も記憶／ボタン・スライダーに1秒ホバーでヒントが出る・離すと消える、をいずれも確認
+- [x] `docs/requests_log.md` R-115/R-116の対応状況更新、SPECと実装の齟齬確認（齟齬なし、02_機能仕様.md F-46/F-47のステータスのみ更新）
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
 
 ## R-117 フロー日付表示の帯に「残り時間」を追加表示（2026-08-17）
 

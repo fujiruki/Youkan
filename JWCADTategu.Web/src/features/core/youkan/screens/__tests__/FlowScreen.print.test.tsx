@@ -86,20 +86,20 @@ beforeEach(() => {
 
 describe('FlowScreen 印刷ボタン（R-101）', () => {
     it('印刷ボタンが表示される', async () => {
-        const { getByTitle } = renderFlowScreen();
+        const { getByRole } = renderFlowScreen();
 
         await waitFor(() => expect(capturedProps).not.toBeNull());
-        expect(getByTitle('印刷')).toBeInTheDocument();
+        expect(getByRole('button', { name: '印刷' })).toBeInTheDocument();
     });
 
     it('印刷ボタンをクリックすると、fitViewが即時実行（duration:0）された後にwindow.printが呼ばれる', async () => {
         const printSpy = vi.spyOn(window, 'print').mockImplementation(() => { });
-        const { getByTitle } = renderFlowScreen();
+        const { getByRole } = renderFlowScreen();
 
         await waitFor(() => expect(capturedProps).not.toBeNull());
         mockFitView.mockClear();
 
-        fireEvent.click(getByTitle('印刷'));
+        fireEvent.click(getByRole('button', { name: '印刷' }));
 
         expect(mockFitView).toHaveBeenCalledWith({ duration: 0, padding: 0.1 });
         expect(printSpy).toHaveBeenCalledTimes(1);
@@ -121,12 +121,12 @@ describe('FlowScreen 印刷ボタン（R-101）', () => {
 
     it('R-102: beforeprintイベントで用紙サイズ確定後の再フィットが行われる', async () => {
         const printSpy = vi.spyOn(window, 'print').mockImplementation(() => { });
-        const { getByTitle } = renderFlowScreen();
+        const { getByRole } = renderFlowScreen();
 
         await waitFor(() => expect(capturedProps).not.toBeNull());
         mockFitView.mockClear();
 
-        fireEvent.click(getByTitle('印刷'));
+        fireEvent.click(getByRole('button', { name: '印刷' }));
         expect(mockFitView).toHaveBeenCalledTimes(1);
 
         // ブラウザが印刷用レイアウトを確定させた後に発火する beforeprint で、

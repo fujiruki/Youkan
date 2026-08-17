@@ -86,19 +86,19 @@ describe('FlowScreen: ズームアウト制限緩和と「全体」ボタン', (
     });
 
     it('ヘルプボタンの下に「全体」ボタンが表示される', async () => {
-        const { getByTitle } = renderFlowScreen();
+        const { getByRole } = renderFlowScreen();
 
         await waitFor(() => expect(capturedProps).not.toBeNull());
-        expect(getByTitle('全体表示')).toBeInTheDocument();
+        expect(getByRole('button', { name: '全体' })).toBeInTheDocument();
     });
 
     it('「全体」ボタンをクリックするとfitViewが呼ばれる', async () => {
-        const { getByTitle } = renderFlowScreen();
+        const { getByRole } = renderFlowScreen();
 
         await waitFor(() => expect(capturedProps).not.toBeNull());
         mockFitView.mockClear();
 
-        fireEvent.click(getByTitle('全体表示'));
+        fireEvent.click(getByRole('button', { name: '全体' }));
 
         expect(mockFitView).toHaveBeenCalled();
     });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FilterProvider } from '../../contexts/FilterContext';
 import { ToastProvider } from '../../../../../contexts/ToastContext';
@@ -77,6 +77,7 @@ const renderFlowScreen = () =>
 beforeEach(() => {
     capturedProps = null;
     vi.clearAllMocks();
+    localStorage.clear();
     mockGetAllItems.mockResolvedValue([itemA, itemB, itemC]);
     mockUpdateItem.mockResolvedValue({ success: true });
 });
@@ -206,5 +207,37 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         // 日付表示は引き続きONのまま、帯も表示され続ける
         expect(screen.getByRole('checkbox', { name: '日付表示' })).toBeChecked();
         expect(bandNodes().length).toBeGreaterThan(0);
+    });
+
+    // R-115: 日付整列の行間隔スライダー
+    it('行間隔スライダーの初期値は110', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByLabelText('日付整列の行間隔') as HTMLInputElement;
+        expect(slider.value).toBe('110');
+    });
+
+    it('行間隔スライダーを変更するとlocalStorageに保存され、次回起動時も記憶される', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByLabelText('日付整列の行間隔') as HTMLInputElement;
+
+        fireEvent.change(slider, { target: { value: '200' } });
+
+        expect(slider.value).toBe('200');
+        expect(localStorage.getItem('youkan_flow_date_align_row_height')).toBe('200');
+    });
+
+    it('「日付整列」はスライダーの値を行間隔として使う', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByLabelText('日付整列の行間隔') as HTMLInputElement;
+        fireEvent.change(slider, { target: { value: '200' } });
+
+        await clickButton('日付整列');
+
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
+        // b(依存元a→依存先b、同帯内)のy座標がスライダー値(200)刻みで離れているはず
+        expect(nodeOf('item-b').position.y - nodeOf('item-a').position.y).toBe(200);
     });
 });
