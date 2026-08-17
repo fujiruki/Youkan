@@ -1760,6 +1760,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
               await ApiClient.resolveDecision(id, 'yes');
               await fetchData();
             },
+            onResolveLater: async (id) => {
+              await ApiClient.resolveDecision(id, 'later');
+              await fetchData();
+            },
             onMarkDone: async (id) => {
               await ApiClient.updateItem(id, { status: 'done' });
               setAllItems(prev => prev.map(i => i.id === id ? { ...i, status: 'done' } : i));

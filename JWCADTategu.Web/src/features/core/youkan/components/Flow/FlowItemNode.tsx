@@ -20,6 +20,8 @@ export interface FlowItemNodeData {
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
   inbox: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
+  // R-125: 後日着手。既存の状態色と被らないteal系
+  todo: { bg: 'bg-teal-100', border: 'border-teal-400', text: 'text-teal-800' },
   focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
   pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
   waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },

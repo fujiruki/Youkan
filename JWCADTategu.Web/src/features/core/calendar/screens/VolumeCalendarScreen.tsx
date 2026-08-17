@@ -15,6 +15,7 @@ import { applyGanttCompletedFilter } from '../../youkan/logic/filterUtils';
 import { isValid } from 'date-fns';
 import { useExternalEvents } from '../../youkan/hooks/useExternalEvents';
 import { useGoogleCalendars } from '../../youkan/hooks/useGoogleCalendars';
+import { Decision } from '../../youkan/logic/decisionResolution';
 
 interface Props {
 	onNavigateHome: () => void;
@@ -208,7 +209,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		}
 	};
 
-	const handleDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+	const handleDecision = async (id: string, decision: Decision, note?: string, updates?: Partial<Item>) => {
 		try {
 			// 1. Apply updates first (if any)
 			if (updates && Object.keys(updates).length > 0) {
