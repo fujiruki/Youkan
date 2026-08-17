@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, PauseCircle, CheckCircle2, Folder, CalendarDays, CalendarClock, ChevronDown, Building2, User } from 'lucide-react';
+import { X, Trash2, PauseCircle, CheckCircle2, Clock, Folder, CalendarDays, CalendarClock, ChevronDown, Building2, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { MobileBottomSheet } from '../Common/MobileBottomSheet';
 import { Item, Member, FilterMode, CapacityConfig } from '../../../youkan/types';
@@ -15,6 +15,7 @@ import { QuantityEngine } from '../../logic/QuantityEngine';
 import { SubtaskListWidget } from '../Widgets/SubtaskListWidget';
 import { YoukanDropdown, YoukanDropdownItem } from '../../../ui/YoukanDropdown';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { Decision } from '../../logic/decisionResolution';
 import { useExternalEvents } from '../../hooks/useExternalEvents';
 import { useGoogleCalendars } from '../../hooks/useGoogleCalendars';
 
@@ -22,7 +23,7 @@ import { useGoogleCalendars } from '../../hooks/useGoogleCalendars';
 interface DecisionDetailModalProps {
 	item: Item | null;
 	onClose: () => void;
-	onDecision: (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => void;
+	onDecision: (id: string, decision: Decision, note?: string, updates?: Partial<Item>) => void;
 	onDelete: (id: string) => void;
 	onUpdate?: (id: string, updates: Partial<Item>) => Promise<void>;
 	onCreateSubTask?: (parentId: string, title: string, initialDueDate?: string) => Promise<string | undefined>;
@@ -66,6 +67,9 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	};
 
 	const [note, setNote] = React.useState('');
+	// R-125: pending の付帯情報（何待ちか・再確認日）
+	const [pendingCondition, setPendingCondition] = React.useState('');
+	const [reviewDate, setReviewDate] = React.useState('');
 	const [dueStatus, setDueStatus] = React.useState<any>('waiting_external');
 	const [dueDate, setDueDate] = React.useState('');
 	const [prepDate, setPrepDate] = React.useState('');
@@ -89,6 +93,8 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 	React.useEffect(() => {
 		if (item) {
 			setNote(item.memo || '');
+			setPendingCondition(item.pendingCondition || '');
+			setReviewDate(item.reviewDate || '');
 			setDueStatus(item.dueStatus || (item.due_date ? 'confirmed' : 'waiting_external'));
 			setDueDate(item.due_date || '');
 			setPrepDate(item.prep_date ? safeFormat(item.prep_date * 1000, 'yyyy-MM-dd', '') : '');
@@ -293,6 +299,12 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		if (note !== (item.memo || '')) {
 			updates.memo = note;
 		}
+		if (pendingCondition !== (item.pendingCondition || '')) {
+			updates.pendingCondition = pendingCondition || null;
+		}
+		if (reviewDate !== (item.reviewDate || '')) {
+			updates.reviewDate = reviewDate || null;
+		}
 		const itemPrepStr = item.prep_date ? new Date(item.prep_date * 1000).toISOString().split('T')[0] : '';
 		if (prepDate !== itemPrepStr) {
 			const dateObj = new Date(prepDate);
@@ -351,7 +363,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		}
 	};
 
-	const handleDecisionWithSave = async (decision: 'yes' | 'hold' | 'no') => {
+	const handleDecisionWithSave = async (decision: Decision) => {
 		if (!item) return;
 		const updates = getPendingChanges();
 
@@ -840,6 +852,49 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							</div>
 						</div>
 
+						{/* R-125: pending 付帯情報（何待ち？／再確認日）。pending時、または保留にする前に書けるようinbox時も表示 */}
+						{(item.status === 'pending' || item.status === 'inbox') && (
+							<div className="space-y-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+								<span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+									<div className="w-1 h-2.5 bg-amber-400 rounded-full"></div>
+									保留の付帯情報
+								</span>
+								<div>
+									<label className="block text-[10px] text-slate-400 mb-1">何待ち？</label>
+									<input
+										type="text"
+										data-testid="pending-condition-input"
+										value={pendingCondition}
+										onChange={(e) => setPendingCondition(e.target.value)}
+										onBlur={async () => {
+											if (isClosingRef.current) return;
+											if (pendingCondition !== (item.pendingCondition || '')) {
+												void onUpdate?.(item.id, { pendingCondition: pendingCondition || null });
+											}
+										}}
+										placeholder="例: 展示会の募集要項が公開されたら"
+										className="w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg p-2 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-amber-400 transition-all"
+									/>
+								</div>
+								<div>
+									<label className="block text-[10px] text-slate-400 mb-1">再確認日</label>
+									<input
+										type="date"
+										data-testid="review-date-input"
+										value={reviewDate}
+										onChange={(e) => setReviewDate(e.target.value)}
+										onBlur={async () => {
+											if (isClosingRef.current) return;
+											if (reviewDate !== (item.reviewDate || '')) {
+												void onUpdate?.(item.id, { reviewDate: reviewDate || null });
+											}
+										}}
+										className="w-full bg-slate-50 dark:bg-slate-800/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg p-2 text-xs text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-amber-400 transition-all"
+									/>
+								</div>
+							</div>
+						)}
+
 						{/* Estimate Section */}
 						<div className="space-y-4">
 							<div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
@@ -1187,6 +1242,17 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 					>
 						<PauseCircle size={16} />
 						保留にする
+					</button>
+
+					{/* R-125: 後日着手ボタン（やると決めたが今日はやらない） */}
+					<button
+						data-testid="footer-later-btn"
+						onClick={() => handleDecisionWithSave('later')}
+						className="flex items-center gap-2 px-4 py-2 rounded-lg border border-teal-200 dark:border-teal-700 text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-all font-bold text-xs"
+						title="後日着手（やると決めたが今日はやらない）"
+					>
+						<Clock size={16} />
+						後日着手
 					</button>
 
 					{/* Primary: Do Today */}
