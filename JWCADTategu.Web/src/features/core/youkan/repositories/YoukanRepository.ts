@@ -366,9 +366,10 @@ export const YoukanRepository = {
 		// Strategy: Categorize local items into Shelf buckets
 		const mergedShelf = {
 			// Inbox: 'inbox' + 'focus' (Stock/Generic Focus without date)
+			// R-125バグ修正: レガシー値'confirmed'（旧DecisionController.phpの'yes'誤書き込み）もfocus相当として拾う
 			active: [
 				...(apiShelf.active || []),
-				...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || !i.status)
+				...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || (i.status as any) === 'confirmed' || !i.status)
 			],
 			// R-125: 後日着手バケット（やると決めた順番待ち）
 			todo: [

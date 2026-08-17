@@ -219,6 +219,20 @@ $item = r125_fetchItem($pdo, $t6Id);
 assert_equal('DBのstatusがpendingに更新された', $item['status'], 'pending');
 
 // ============================================================
+// テスト7: DecisionController::resolve() の 'yes' は status='focus'（旧'confirmed'は仕様§4.4.1違反バグ）
+// ============================================================
+echo "\n=== テスト7: DecisionController::resolve() decision='yes' → status='focus'（'confirmed'ではない） ===\n";
+r125_cleanup($pdo, $testUserId);
+$t7Id = 'r125_t7_item';
+r125_insertItemDirect($pdo, $t7Id, 'Yes Task', 'inbox', $testTenantId, $testUserId);
+
+$decisionCtrl = new DecisionController($pdo);
+$result = $decisionCtrl->resolve($t7Id, ['decision' => 'yes']);
+assert_equal("resolve() の new_status が focus（'confirmed'ではない）", $result['new_status'] ?? null, 'focus');
+$item = r125_fetchItem($pdo, $t7Id);
+assert_equal('DBのstatusがfocusに更新された', $item['status'], 'focus');
+
+// ============================================================
 // クリーンアップ
 // ============================================================
 r125_cleanup($pdo, $testUserId);

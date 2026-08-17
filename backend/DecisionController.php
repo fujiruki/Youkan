@@ -39,10 +39,12 @@ class DecisionController {
             // decisionToStatus（logic/decisionResolution.ts）と同じ判断結果になるようにする
             // R-125: 「後日着手」(later)はtodoへ。「保留にする」(hold)は旧レガシー値
             // decision_holdの新規書き込みを廃止しpendingに統一（フロントのdecisionToStatusと一致）
+            // R-125バグ修正: 「今日やる」(yes)は旧レガシー値confirmed（JudgmentStatus型外）を
+            // 書き込んでいた。仕様§4.4.1（yes→focus）に合わせ、フロントのdecisionToStatusと一致させる
             $newStatus = '';
             switch ($decision) {
                 case 'yes':
-                    $newStatus = 'confirmed'; // Ready for Today
+                    $newStatus = 'focus'; // Ready for Today
                     break;
                 case 'later':
                     $newStatus = 'todo';
