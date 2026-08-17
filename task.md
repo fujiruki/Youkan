@@ -1866,10 +1866,10 @@ R-118（詰める）・R-114（自動整理の縦間隔スライダー）デプ�
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-120-flow-preview-confirm master`（R-119マージ後のmasterを使うこと。指揮AIに確認）
-- [ ] `flowHorizontalCompact.ts`新規テスト（`flowVerticalCompact.test.ts`と対になるケース、縦横同時適用の統合ケース）（Red→Green）
-- [ ] プレビュー→保存確定のUI実装。統合テスト: 各ボタン押下でプレビューに入りサーバー保存されないこと／スライダー変更でプレビューが再計算されること／保存でサーバー保存されること／キャンセルで元の位置に戻りサーバー未送信であること／「詰める」のチェックON/OFFでその軸が計算に含まれる・含まれないこと（Red→Green）
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証: 各ボタンでプレビュー→保存/キャンセルの一連の流れ、詰めるのチェックボックスの効果、日付表示ONでの帯のライブ追従を確認
-- [ ] `docs/requests_log.md` R-120の対応状況更新、SPECと実装の齟齬確認
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-120-flow-preview-confirm master`（R-119マージ後のmasterを使うこと。指揮AIに確認）
+- [x] `flowHorizontalCompact.ts`新規テスト（`flowVerticalCompact.test.ts`と対になるケース、縦横同時適用の統合ケース）（Red→Green）
+- [x] プレビュー→保存確定のUI実装。統合テスト: 各ボタン押下でプレビューに入りサーバー保存されないこと／スライダー変更でプレビューが再計算されること／保存でサーバー保存されること／キャンセルで元の位置に戻りサーバー未送信であること／「詰める」のチェックON/OFFでその軸が計算に含まれる・含まれないこと（Red→Green）
+- [x] `npm.cmd run test -- --run`全体Green（1019 passed / 14 skipped）
+- [x] 実機検証: 各ボタンでプレビュー→保存/キャンセルの一連の流れ、詰めるのチェックボックスの効果、日付表示ONでの帯のライブ追従を確認（実機検証で自動整理/日付整列パネルのSave/Cancelが下の固定要素と重なりクリックミスするバグを発見・修正済み）
+- [x] `docs/requests_log.md` R-120の対応状況更新、SPECと実装の齟齬確認（§7.13/7.14のスライダー説明をR-120のリアルタイム再計算仕様に合わせて修正）
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
