@@ -5,7 +5,8 @@ import { NODE_WIDTH } from '../components/Flow/flowGrouping';
 
 const NODE_HEIGHT = 60;
 const GAP_X = 40;
-const GAP_Y = 60;
+// R-114: 既定の縦間隔（R-112時点の60pxの約60%）。スライダーで上書き可能
+export const GAP_Y = 35;
 const PROJECT_GAP = 200;
 const BARYCENTER_SWEEPS = 4;
 
@@ -38,7 +39,8 @@ const buildAdjacency = (
 const layoutGroup = (
   groupItems: Item[],
   deps: Dependency[],
-  sizes: SizeMap | undefined
+  sizes: SizeMap | undefined,
+  gapY: number
 ): { placements: PlacementResult[]; width: number } => {
   if (groupItems.length === 0) return { placements: [], width: 0 };
 
@@ -113,7 +115,7 @@ const layoutGroup = (
     for (const [id, x] of layout.xs) {
       placements.push({ itemId: id, flow_x: offsetX + x, flow_y: y });
     }
-    y += layout.height + GAP_Y;
+    y += layout.height + gapY;
   }
 
   return { placements, width: maxRankWidth };
@@ -123,8 +125,10 @@ const layoutGroup = (
 export const calculateAutoArrange = (
   items: Item[],
   deps: Dependency[],
-  sizes?: SizeMap
+  sizes?: SizeMap,
+  options?: { gapY?: number }
 ): PlacementResult[] => {
+  const gapY = options?.gapY ?? GAP_Y;
   const projectGroups = new Map<string, Item[]>();
   const unassigned: Item[] = [];
   for (const item of items) {
@@ -141,12 +145,12 @@ export const calculateAutoArrange = (
   let xOffset = 0;
 
   for (const [, group] of projectGroups) {
-    const { placements, width } = layoutGroup(group, deps, sizes);
+    const { placements, width } = layoutGroup(group, deps, sizes, gapY);
     for (const p of placements) results.push({ ...p, flow_x: p.flow_x + xOffset });
     if (width > 0) xOffset += width + PROJECT_GAP;
   }
 
-  const { placements: unassignedPlacements } = layoutGroup(unassigned, deps, sizes);
+  const { placements: unassignedPlacements } = layoutGroup(unassigned, deps, sizes, gapY);
   for (const p of unassignedPlacements) results.push({ ...p, flow_x: p.flow_x + xOffset });
 
   return results;

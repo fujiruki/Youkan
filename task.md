@@ -1703,11 +1703,11 @@ R-111/R-112デプロイ後、発注者から「日付表示ONで自動的に位�
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-113-114-flow-date-align master`
-- [ ] R-113: `flowDateGrouping.test.ts`に`calculateDateBands`（外接矩形・実測サイズ反映・ノード移動で帯が動く）追加、`calculateDateGroupLayout`のy原点仕様更新（Red→Green）
-- [ ] R-113: `FlowScreen.dateGrouping.test.tsx`を新仕様へ（チェックONでノード位置が変わらない・帯が表示される／「日付整列」で縦のみ移動＆保存／元に戻す）（Red→Green）
-- [ ] R-114: `flowAutoArrange.test.ts`に`gapY`オプション、`FlowScreen.autoArrange.test.tsx`にスライダー（既定35、localStorage記憶、日付表示ON中も押せる）（Red→Green）
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 日付表示ONでノード不動＆帯表示／端のノードをドラッグすると帯が追従／日付整列で縦のみ移動→帯が積み上がる／元に戻す／自動整理がON中も可、スライダーで縦間隔が変わり再読込後も記憶
-- [ ] `docs/requests_log.md` R-113/R-114の対応状況更新、SPECと実装の齟齬確認
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-113-114-flow-date-align master`
+- [x] R-113: `flowDateGrouping.test.ts`に`calculateDateBands`（外接矩形・実測サイズ反映・ノード移動で帯が動く）追加、`calculateDateGroupLayout`のy原点仕様更新（Red→Green）
+- [x] R-113: `FlowScreen.dateGrouping.test.tsx`を新仕様へ（チェックONでノード位置が変わらない・帯が表示される／「日付整列」で縦のみ移動＆保存／元に戻す）（Red→Green）
+- [x] R-114: `flowAutoArrange.test.ts`に`gapY`オプション、`FlowScreen.autoArrange.test.tsx`にスライダー（既定35、localStorage記憶、日付表示ON中も押せる）（Red→Green）
+- [x] `npm.cmd run test -- --run`全体Green（968 passed / 14 skipped / 0 failed。既知の無関係なunhandled error 2件はmaster baselineと同一の既存事象）
+- [x] 実機検証（`php -S 127.0.0.1:8000`＋Vite、worktree専用ローカルDB）: 日付表示ONでノード不動＆帯表示（16件全て位置不変・サーバー保存なし）／「日付整列」で横位置不変・縦のみ移動しサーバー保存（POST 16件200）／帯がdateKey順に単調増加でy=-60,130,320,510,700,890,1080,1270と積み上がる／「元に戻す」で16件全て元位置へ完全復元・日付表示ON状態は維持／自動整理が日付表示ON中も実行可・「元に戻す」ボタン表示／縦間隔スライダーの値変更がlocalStorageへ保存されリロード後も80のまま復元。※端ノードをドラッグして帯が追従する挙動は、本環境のchrome-devtools/claude-in-chrome双方でd3-drag（pointer capture）ベースの実ドラッグを合成できずUI操作での直接確認はできなかった（claude-in-chrome側は本環境でscreenshot API自体が動作しない既知の制約もあり）。この挙動は`FlowScreen.dateGrouping.test.tsx`の「ノードをドラッグすると帯の位置がその場で追従する」テストで、実際のドラッグ時とサーバー保存より先に発火する同一の`onNodesChange`コールバックを直接叩いて検証済み
+- [x] `docs/requests_log.md` R-113/R-114の対応状況更新、SPECと実装の齟齬確認（齟齬なし）
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）

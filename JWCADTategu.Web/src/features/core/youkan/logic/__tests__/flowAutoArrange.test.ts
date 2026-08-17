@@ -126,4 +126,38 @@ describe('calculateAutoArrange', () => {
   it('アイテムが空なら空配列を返す', () => {
     expect(calculateAutoArrange([], [])).toEqual([]);
   });
+
+  // R-114: 自動整理の縦間隔スライダー
+  it('options.gapYを渡すと層間の縦間隔が変わる', () => {
+    const items = [
+      makeItem({ id: 'a', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'b', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const deps = [dep('a', 'b')];
+
+    const narrow = calculateAutoArrange(items, deps, undefined, { gapY: 10 });
+    const narrowById = new Map(narrow.map((p) => [p.itemId, p]));
+    const narrowGap = narrowById.get('b')!.flow_y - narrowById.get('a')!.flow_y;
+
+    const wide = calculateAutoArrange(items, deps, undefined, { gapY: 100 });
+    const wideById = new Map(wide.map((p) => [p.itemId, p]));
+    const wideGap = wideById.get('b')!.flow_y - wideById.get('a')!.flow_y;
+
+    expect(wideGap).toBeGreaterThan(narrowGap);
+  });
+
+  it('gapY省略時の既定値は35px', () => {
+    const items = [
+      makeItem({ id: 'a', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'b', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const deps = [dep('a', 'b')];
+
+    const withDefault = calculateAutoArrange(items, deps);
+    const withExplicit35 = calculateAutoArrange(items, deps, undefined, { gapY: 35 });
+    const defaultById = new Map(withDefault.map((p) => [p.itemId, p]));
+    const explicitById = new Map(withExplicit35.map((p) => [p.itemId, p]));
+
+    expect(defaultById.get('b')!.flow_y).toBe(explicitById.get('b')!.flow_y);
+  });
 });

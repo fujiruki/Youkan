@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   groupItemsByDeadline,
   calculateCriticalPathMinutes,
+  calculateDateBands,
   calculateDateGroupLayout,
   formatHours,
   ROW_HEIGHT,
@@ -128,6 +129,69 @@ describe('formatHours', () => {
   });
 });
 
+// R-113: 帯（表示専用）はノードの現在位置の外接矩形にライブ追従する
+describe('calculateDateBands', () => {
+  const items = [
+    makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 300, flow_y: 0 } }),
+    makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, meta: { flow_x: 100, flow_y: 50 } }),
+    makeItem({ id: 'c', due_date: '2026-08-17', estimatedMinutes: 60, meta: { flow_x: 0, flow_y: 300 } }),
+  ];
+
+  it('日付グループごとにノードの現在位置の外接矩形（既定サイズ）を返す', () => {
+    const bands = calculateDateBands(items, []);
+    expect(bands).toHaveLength(2);
+    const first = bands[0];
+    // 8/16グループ: minX=100(b), maxRight=300+NODE_WIDTH(a), minY=0(a)-60, maxBottom=50+60(b)+20
+    expect(first.x).toBe(100 - 140);
+    expect(first.width).toBe(300 + NODE_WIDTH - (100 - 140));
+    expect(first.y).toBe(0 - 60);
+    expect(first.height).toBe(50 + 60 + 20 - (0 - 60));
+  });
+
+  it('sizesを渡すと実測サイズが外接矩形に反映される', () => {
+    const withoutSizes = calculateDateBands(items, []);
+    const sizes = new Map([['a', { width: 400, height: 100 }]]);
+    const withSizes = calculateDateBands(items, [], sizes);
+    expect(withSizes[0].width).toBeGreaterThan(withoutSizes[0].width);
+  });
+
+  it('ノードを動かすと帯の位置・大きさが追従する（表示のみ、順序無関係の外接矩形）', () => {
+    const before = calculateDateBands(items, [])[0];
+    const moved = items.map((item) =>
+      item.id === 'a' ? { ...item, meta: { flow_x: -1000, flow_y: -1000 } } : item
+    );
+    const after = calculateDateBands(moved, [])[0];
+    expect(after.x).toBeLessThan(before.x);
+    expect(after.y).toBeLessThan(before.y);
+    expect(after.width).toBeGreaterThan(before.width);
+    expect(after.height).toBeGreaterThan(before.height);
+  });
+
+  it('合計時間・最短時間はcalculateCriticalPathMinutesと一致する', () => {
+    const bands = calculateDateBands(items, [dep('a', 'b')]);
+    expect(bands[0].totalMinutes).toBe(180);
+    expect(bands[0].criticalMinutes).toBe(180);
+    expect(bands[1].totalMinutes).toBe(60);
+  });
+
+  it('区間のラベルは曜日つき「M/d(曜)まで」形式', () => {
+    const bands = calculateDateBands(items, []);
+    // 2026-08-16は日曜日
+    expect(bands[0].label).toBe('8/16(日)まで');
+  });
+
+  it('未定グループも外接矩形とラベル「日付未定」を返す', () => {
+    const bands = calculateDateBands([makeItem({ id: 'x', meta: { flow_x: 0, flow_y: 0 } })], []);
+    expect(bands[0].dateKey).toBe(UNDATED_KEY);
+    expect(bands[0].label).toBe('日付未定');
+  });
+
+  it('アイテムが空なら空配列を返す', () => {
+    expect(calculateDateBands([], [])).toEqual([]);
+  });
+});
+
+// R-113:「日付整列」ボタン用。flow_xは変えず縦方向だけ日付順の区間へ移動する
 describe('calculateDateGroupLayout', () => {
   const items = [
     makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 300, flow_y: 0 } }),
@@ -136,7 +200,7 @@ describe('calculateDateGroupLayout', () => {
   ];
 
   it('flow_xは元の値のまま変更しない', () => {
-    const { placements } = calculateDateGroupLayout(items, []);
+    const placements = calculateDateGroupLayout(items, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
     expect(byId.get('a')!.flow_x).toBe(300);
     expect(byId.get('b')!.flow_x).toBe(100);
@@ -144,7 +208,7 @@ describe('calculateDateGroupLayout', () => {
   });
 
   it('Xが重ならないノード同士は同じ帯なら同じ行（同じy）に詰める', () => {
-    const { placements } = calculateDateGroupLayout(items, []);
+    const placements = calculateDateGroupLayout(items, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
     // a(x=300→[300,480]) と b(x=100→[100,280])はNODE_WIDTH分でも重ならないので同じ行
     expect(byId.get('a')!.flow_y).toBe(byId.get('b')!.flow_y);
@@ -155,7 +219,7 @@ describe('calculateDateGroupLayout', () => {
       makeItem({ id: 'x1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
       makeItem({ id: 'x2', due_date: '2026-08-16', meta: { flow_x: 50, flow_y: 100 } }),
     ];
-    const { placements } = calculateDateGroupLayout(overlapping, []);
+    const placements = calculateDateGroupLayout(overlapping, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
     expect(byId.get('x1')!.flow_x).toBe(0);
     expect(byId.get('x2')!.flow_x).toBe(50);
@@ -163,28 +227,11 @@ describe('calculateDateGroupLayout', () => {
   });
 
   it('依存先は依存元より下の行に置かれる（flow_xは維持したまま縦移動のみ）', () => {
-    const { placements } = calculateDateGroupLayout(items, [dep('a', 'b')]);
+    const placements = calculateDateGroupLayout(items, [dep('a', 'b')]);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
     expect(byId.get('a')!.flow_x).toBe(300);
     expect(byId.get('b')!.flow_x).toBe(100);
     expect(byId.get('b')!.flow_y).toBeGreaterThan(byId.get('a')!.flow_y);
-  });
-
-  it('次の帯のy座標は前の帯の高さ分だけ下にずれる（帯の高さは累積）', () => {
-    const { placements, bands } = calculateDateGroupLayout(items, []);
-    const byId = new Map(placements.map((p) => [p.itemId, p]));
-    expect(byId.get('c')!.flow_y - byId.get('a')!.flow_y).toBe(bands[0].height);
-  });
-
-  it('帯の高さは行数が増えると大きくなる（可変）', () => {
-    const oneRowHeight = calculateDateGroupLayout(items, []).bands[0].height;
-    const threeOverlapping = [
-      makeItem({ id: 'x1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
-      makeItem({ id: 'x2', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
-      makeItem({ id: 'x3', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
-    ];
-    const threeRowsHeight = calculateDateGroupLayout(threeOverlapping, []).bands[0].height;
-    expect(threeRowsHeight).toBeGreaterThan(oneRowHeight);
   });
 
   it('行間隔はROW_HEIGHT刻み', () => {
@@ -192,48 +239,47 @@ describe('calculateDateGroupLayout', () => {
       makeItem({ id: 'x1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
       makeItem({ id: 'x2', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
     ];
-    const { placements } = calculateDateGroupLayout(overlapping, []);
+    const placements = calculateDateGroupLayout(overlapping, []);
     const byId = new Map(placements.map((p) => [p.itemId, p]));
     expect(Math.abs(byId.get('x2')!.flow_y - byId.get('x1')!.flow_y)).toBe(ROW_HEIGHT);
   });
 
-  it('区間ごとの合計時間とクリティカルパス時間を返す', () => {
-    const { bands } = calculateDateGroupLayout(items, [dep('a', 'b')]);
-    expect(bands).toHaveLength(2);
-    expect(bands[0].dateKey).toBe('2026-08-16');
-    expect(bands[0].totalMinutes).toBe(180);
-    expect(bands[0].criticalMinutes).toBe(180);
-    expect(bands[1].totalMinutes).toBe(60);
+  it('y原点は全アイテムの最小flow_yを基準に決まる（丸ごとずれても相対関係は同じ）', () => {
+    const original = calculateDateGroupLayout(items, []);
+    const origById = new Map(original.map((p) => [p.itemId, p]));
+    const shifted = items.map((item) => ({
+      ...item,
+      meta: { ...item.meta, flow_y: (item.meta!.flow_y as number) + 1000 },
+    }));
+    const placements = calculateDateGroupLayout(shifted, []);
+    const byId = new Map(placements.map((p) => [p.itemId, p]));
+    expect(byId.get('a')!.flow_y).toBe(origById.get('a')!.flow_y + 1000);
+    expect(byId.get('c')!.flow_y).toBe(origById.get('c')!.flow_y + 1000);
   });
 
-  it('区間の帯は同じ左端・幅で、y座標が区間順に積み上がる', () => {
-    const { bands } = calculateDateGroupLayout(items, []);
-    expect(bands[0].x).toBe(bands[1].x);
-    expect(bands[0].width).toBe(bands[1].width);
-    expect(bands[1].y).toBe(bands[0].y + bands[0].height);
+  it('行数が増えると次の帯へのy移動幅（帯の高さ）が大きくなる', () => {
+    const oneRow = [
+      makeItem({ id: 'a', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'z', due_date: '2026-08-17', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const oneRowPlacements = calculateDateGroupLayout(oneRow, []);
+    const oneRowById = new Map(oneRowPlacements.map((p) => [p.itemId, p]));
+    const oneRowGap = oneRowById.get('z')!.flow_y - oneRowById.get('a')!.flow_y;
+
+    const threeRows = [
+      makeItem({ id: 'x1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'x2', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'x3', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'z', due_date: '2026-08-17', meta: { flow_x: 0, flow_y: 0 } }),
+    ];
+    const threeRowsPlacements = calculateDateGroupLayout(threeRows, []);
+    const threeRowsById = new Map(threeRowsPlacements.map((p) => [p.itemId, p]));
+    const threeRowsGap = threeRowsById.get('z')!.flow_y - threeRowsById.get('x1')!.flow_y;
+
+    expect(threeRowsGap).toBeGreaterThan(oneRowGap);
   });
 
-  it('帯の横幅は全ノードのX範囲（最小X-余白〜最大X+ノード幅）で全帯共通', () => {
-    const { bands } = calculateDateGroupLayout(items, []);
-    // minX=0(c), maxX=300(a) → x = 0 - LABEL_MARGIN_WIDTH, width = (300+NODE_WIDTH) - x
-    expect(bands[0].x).toBe(0 - 140);
-    expect(bands[0].width).toBe(300 + NODE_WIDTH - (0 - 140));
-  });
-
-  it('区間のラベルは曜日つき「M/d(曜)まで」形式', () => {
-    const { bands } = calculateDateGroupLayout(items, []);
-    // 2026-08-16は日曜日
-    expect(bands[0].label).toBe('8/16(日)まで');
-  });
-
-  it('未定区間のラベルは「日付未定」', () => {
-    const { bands } = calculateDateGroupLayout([makeItem({ id: 'x' })], []);
-    expect(bands[0].label).toBe('日付未定');
-  });
-
-  it('アイテムが空なら空の結果を返す', () => {
-    const { placements, bands } = calculateDateGroupLayout([], []);
-    expect(placements).toEqual([]);
-    expect(bands).toEqual([]);
+  it('アイテムが空なら空配列を返す', () => {
+    expect(calculateDateGroupLayout([], [])).toEqual([]);
   });
 });

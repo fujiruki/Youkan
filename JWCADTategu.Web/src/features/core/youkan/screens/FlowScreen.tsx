@@ -21,7 +21,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Maximize, Printer, Undo2, LayoutGrid, CalendarRange } from 'lucide-react';
 
 import { FlowItemNode } from '../components/Flow/FlowItemNode';
 import { ProjectGroupNode } from '../components/Flow/ProjectGroupNode';
@@ -35,7 +35,7 @@ import { buildGroupNodes } from '../components/Flow/flowGrouping';
 import { shouldIgnoreKeyEvent, getLinkedNodeId } from '../components/Flow/useFlowKeyboard';
 import { DependencyRepository } from '../repositories/DependencyRepository';
 import { calculateAutoPlacement, findNearestEdge, calculateEdgeMidpoint, type PlacementResult } from '../logic/flowAutoPlace';
-import { calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
+import { calculateDateBands, calculateDateGroupLayout, type DateBand } from '../logic/flowDateGrouping';
 import { calculateAutoArrange } from '../logic/flowAutoArrange';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
@@ -51,6 +51,11 @@ const nodeTypes = {
 
 // R-109: 日付区間の帯（1本おきに色を変えて区間の境目を見せる）
 const DATE_BAND_COLORS = ['rgba(99, 102, 241, 0.05)', 'rgba(148, 163, 184, 0.10)'];
+// R-114: 自動整理の縦間隔スライダーの記憶先
+const GAP_Y_STORAGE_KEY = 'youkan_flow_arrange_gap_y';
+const GAP_Y_DEFAULT = 35;
+const GAP_Y_MIN = 10;
+const GAP_Y_MAX = 100;
 const dependencyRepo = new DependencyRepository();
 
 const OVERLAP_THRESHOLD = 40;
@@ -112,12 +117,16 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [highlightEdgeId, setHighlightEdgeId] = useState<string | null>(null);
   const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; itemId: string } | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  // R-109: 日付グルーピング表示
+  // R-109/R-113: 日付表示（帯の表示ON/OFFのみ。ノード位置は書き換えない）
   const [isDateGrouping, setIsDateGrouping] = useState(false);
-  const [dateBands, setDateBands] = useState<DateBand[]>([]);
   const positionBackup = useRef<Map<string, { x: number; y: number }> | null>(null);
-  // R-112: 「元に戻す」の表示条件（日付表示・自動整理どちらの実行後もtrueになる）
+  // R-112: 「元に戻す」の表示条件（日付整列・自動整理どちらの実行後もtrueになる）
   const [hasPositionBackup, setHasPositionBackup] = useState(false);
+  // R-114: 自動整理の縦間隔（localStorageに記憶）
+  const [gapY, setGapY] = useState<number>(() => {
+    const saved = Number(localStorage.getItem(GAP_Y_STORAGE_KEY));
+    return Number.isFinite(saved) && saved > 0 ? saved : GAP_Y_DEFAULT;
+  });
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
 
@@ -208,6 +217,26 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     return { placedItems: placed, unplacedItems: unplaced };
   }, [allItems, currentProjectId]);
 
+  // R-113: 日付表示ONの帯は、ノードの現在位置（ドラッグ中もnodesの位置を優先）にライブ追従する
+  const dateBands = useMemo<DateBand[]>(() => {
+    if (!isDateGrouping) return [];
+    const positions = new Map<string, { x: number; y: number }>();
+    const sizes = new Map<string, { width: number; height: number }>();
+    for (const n of nodes) {
+      if (n.type !== 'flowItem') continue;
+      positions.set(n.id, n.position);
+      if (n.measured?.width && n.measured?.height) {
+        sizes.set(n.id, { width: n.measured.width, height: n.measured.height });
+      }
+    }
+    const itemsWithLivePositions = placedItems.map((item) => {
+      const pos = positions.get(item.id);
+      if (!pos) return item;
+      return { ...item, meta: { ...(item.meta || {}), flow_x: pos.x, flow_y: pos.y } };
+    });
+    return calculateDateBands(itemsWithLivePositions, dependencies, sizes);
+  }, [isDateGrouping, placedItems, dependencies, nodes]);
+
   const handleTitleChange = useCallback(async (itemId: string, newTitle: string) => {
     try {
       await ApiClient.updateItem(itemId, { title: newTitle } as Partial<Item>);
@@ -274,7 +303,26 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           },
         } satisfies Node;
       });
-      const bandNodes: Node[] = dateBands.map((band, index) => ({
+      return [...groupNodes, ...itemNodes];
+    });
+
+    const newEdges: Edge[] = dependencies.map((dep) =>
+      dependencyToEdge(dep, highlightEdgeId === dep.id, selectedEdgeIds.includes(dep.id))
+    );
+    setEdges(newEdges);
+
+    if (prevProjectRef.current !== currentProjectId) {
+      prevProjectRef.current = currentProjectId ?? null;
+      shouldFitViewRef.current = true;
+    }
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+
+  // R-113: 帯（dateBand型ノード）はuseNodesStateの管理外で、renderのたびにdateBandsから合成する。
+  // stateに含めてしまうと、帯の更新→nodes変化→dateBands再計算→帯の再更新…という無限ループの
+  // 危険があるため、純粋な派生値としてReactFlowのnodes propにだけ合成する
+  const bandNodesForRender = useMemo<Node[]>(
+    () =>
+      dateBands.map((band, index) => ({
         id: `dateband-${band.dateKey}`,
         type: 'dateBand',
         position: { x: band.x, y: band.y },
@@ -289,21 +337,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         draggable: false,
         selectable: false,
         zIndex: -2,
-      }));
+      })),
+    [dateBands]
+  );
 
-      return [...bandNodes, ...groupNodes, ...itemNodes];
-    });
-
-    const newEdges: Edge[] = dependencies.map((dep) =>
-      dependencyToEdge(dep, highlightEdgeId === dep.id, selectedEdgeIds.includes(dep.id))
-    );
-    setEdges(newEdges);
-
-    if (prevProjectRef.current !== currentProjectId) {
-      prevProjectRef.current = currentProjectId ?? null;
-      shouldFitViewRef.current = true;
-    }
-  }, [placedItems, dependencies, dateBands, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+  const nodesForRender = useMemo<Node[]>(
+    () => [...bandNodesForRender, ...nodes],
+    [bandNodesForRender, nodes]
+  );
 
   const updateItemMeta = useCallback(async (itemId: string, metaUpdate: Record<string, unknown>) => {
     const item = allItems.find((i) => i.id === itemId);
@@ -774,30 +815,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     }
   }, [updateItemMeta]);
 
-  // R-109: 日付グルーピング表示のON/OFF。ONにすると実際にノード座標を書き換える
-  const handleToggleDateGrouping = useCallback(async (checked: boolean) => {
+  // R-113: 日付表示のON/OFF。帯の表示切替のみで、ノード座標は一切書き換えない
+  const handleToggleDateGrouping = useCallback((checked: boolean) => {
     setIsDateGrouping(checked);
-    if (!checked) {
-      setDateBands([]);
-      return;
-    }
-    positionBackup.current = new Map(
-      placedItems.map((item) => [
-        item.id,
-        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
-      ])
-    );
-    setHasPositionBackup(true);
-    const { placements, bands } = calculateDateGroupLayout(placedItems, dependencies);
-    setDateBands(bands);
-    // 配置が大きく変わるため、帯ノードの計測が済んだタイミングで全体表示に合わせ直す
-    shouldFitViewRef.current = true;
-    await applyPlacements(placements);
-  }, [placedItems, dependencies, applyPlacements]);
+  }, []);
 
-  // R-112: プロジェクトごとに層分け・交差削減した配置へ整理する
+  // R-112/R-114: プロジェクトごとに層分け・交差削減した配置へ整理する（日付表示ON中も使用可）
   const handleAutoArrange = useCallback(async () => {
-    if (isDateGrouping) return;
     positionBackup.current = new Map(
       placedItems.map((item) => [
         item.id,
@@ -810,19 +834,38 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         .filter((n) => n.measured?.width && n.measured?.height)
         .map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }])
     );
-    const placements = calculateAutoArrange(placedItems, dependencies, sizes);
+    const placements = calculateAutoArrange(placedItems, dependencies, sizes, { gapY });
     shouldFitViewRef.current = true;
     await applyPlacements(placements);
-  }, [isDateGrouping, placedItems, dependencies, nodes, applyPlacements]);
+  }, [placedItems, dependencies, nodes, gapY, applyPlacements]);
 
-  // R-109/R-112: グルーピングまたは自動整理の適用直前の位置へ1段階戻す
+  // R-113:「日付整列」ボタン。横位置(flow_x)は変えず、縦方向だけ日付順の区間へ移動する。
+  // 日付表示のON/OFF状態は変更しない
+  const handleDateAlign = useCallback(async () => {
+    positionBackup.current = new Map(
+      placedItems.map((item) => [
+        item.id,
+        { x: item.meta!.flow_x as number, y: item.meta!.flow_y as number },
+      ])
+    );
+    setHasPositionBackup(true);
+    const placements = calculateDateGroupLayout(placedItems, dependencies);
+    shouldFitViewRef.current = true;
+    await applyPlacements(placements);
+  }, [placedItems, dependencies, applyPlacements]);
+
+  // R-114: 縦間隔スライダーの変更をlocalStorageに記憶する
+  const handleGapYChange = useCallback((value: number) => {
+    setGapY(value);
+    localStorage.setItem(GAP_Y_STORAGE_KEY, String(value));
+  }, []);
+
+  // R-109/R-112/R-113: 日付整列または自動整理の適用直前の位置へ1段階戻す（日付表示のON/OFFは維持）
   const handleRestorePositions = useCallback(async () => {
     const backup = positionBackup.current;
     if (!backup) return;
     positionBackup.current = null;
     setHasPositionBackup(false);
-    setIsDateGrouping(false);
-    setDateBands([]);
     await applyPlacements(
       Array.from(backup, ([itemId, pos]) => ({ itemId, flow_x: pos.x, flow_y: pos.y }))
     );
@@ -1163,7 +1206,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   return (
     <div className="h-full w-full relative" ref={reactFlowWrapper} tabIndex={0} data-testid="flow-canvas-root">
       <ReactFlow
-        nodes={nodes}
+        nodes={nodesForRender}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -1266,14 +1309,32 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           <span>元に戻す</span>
         </button>
       )}
+      <div className="absolute top-[180px] right-3 flex items-center gap-2 z-10 no-print">
+        <input
+          type="range"
+          min={GAP_Y_MIN}
+          max={GAP_Y_MAX}
+          value={gapY}
+          onChange={(e) => handleGapYChange(Number(e.target.value))}
+          title="自動整理の縦間隔"
+          className="w-16 accent-indigo-500"
+        />
+        <button
+          onClick={handleAutoArrange}
+          className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          title="ノードが重ならず・エッジ交差が少ない配置へ自動整理"
+        >
+          <LayoutGrid size={12} />
+          <span>自動整理</span>
+        </button>
+      </div>
       <button
-        onClick={handleAutoArrange}
-        disabled={isDateGrouping}
-        className="absolute top-[180px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-        title="ノードが重ならず・エッジ交差が少ない配置へ自動整理"
+        onClick={handleDateAlign}
+        className="absolute top-[212px] right-3 flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors z-10 no-print"
+        title="横位置は変えず、縦方向だけ日付の区間へ整列"
       >
-        <LayoutGrid size={12} />
-        <span>自動整理</span>
+        <CalendarRange size={12} />
+        <span>日付整列</span>
       </button>
       {isHelpOpen && (
         <div

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FilterProvider } from '../../contexts/FilterContext';
 import { ToastProvider } from '../../../../../contexts/ToastContext';
@@ -76,6 +76,7 @@ const renderFlowScreen = () =>
 beforeEach(() => {
     capturedProps = null;
     vi.clearAllMocks();
+    localStorage.clear();
     mockGetAllItems.mockResolvedValue([itemA, itemB, itemC]);
     mockUpdateItem.mockResolvedValue({ success: true });
 });
@@ -131,7 +132,7 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
         });
     });
 
-    it('日付表示チェックON中は自動整理ボタンが無効化される', async () => {
+    it('日付表示チェックON中でも自動整理ボタンは有効（R-113で無効化を撤廃）', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
 
@@ -140,6 +141,38 @@ describe('FlowScreen: 自動整理ボタン（R-112）', () => {
             await user.click(screen.getByRole('checkbox', { name: '日付表示' }));
         });
 
-        await waitFor(() => expect(screen.getByRole('button', { name: '自動整理' })).toBeDisabled());
+        expect(screen.getByRole('button', { name: '自動整理' })).not.toBeDisabled();
+    });
+
+    // R-114: 自動整理の縦間隔スライダー
+    it('縦間隔スライダーの初期値は35', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+        expect(slider.value).toBe('35');
+    });
+
+    it('スライダーを変更するとlocalStorageに保存され、次回起動時も記憶される', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+
+        fireEvent.change(slider, { target: { value: '80' } });
+
+        expect(slider.value).toBe('80');
+        expect(localStorage.getItem('youkan_flow_arrange_gap_y')).toBe('80');
+    });
+
+    it('自動整理はスライダーの値をgapYとして使う', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        const slider = screen.getByTitle('自動整理の縦間隔') as HTMLInputElement;
+        fireEvent.change(slider, { target: { value: '90' } });
+
+        await clickButton('自動整理');
+
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
+        // b(依存元a→依存先b)のy座標がa+層の高さ+gapYになっているはず（厳密な形状はflowAutoArrange.test.tsで検証済み）
+        expect(nodeOf('item-b').position.y).toBeGreaterThan(nodeOf('item-a').position.y);
     });
 });

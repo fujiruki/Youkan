@@ -8,22 +8,24 @@ export { NODE_WIDTH };
 
 export const UNDATED_KEY = 'undated';
 
-// 帯内でノードを縦に並べる行間隔
+// 帯内でノードを縦に並べる行間隔（「日付整列」用）
 export const ROW_HEIGHT = 110;
 // 帯の上端から1行目までの余白（左上3行ラベルとの重なりを避ける）
 const BAND_PADDING_TOP = 60;
 const BAND_PADDING_BOTTOM = 20;
-// 帯の最小高さ（左上3行ラベルが収まる値）
+// 帯の最小高さ（左上3行ラベルが収まる値、「日付整列」用）
 const BAND_MIN_HEIGHT = 150;
 // 帯の左側に確保するラベル領域幅（日付・合計・最短の3行が収まる幅）
 const LABEL_MARGIN_WIDTH = 140;
+// ノードサイズの実測値が無い場合の既定高さ（幅はNODE_WIDTHを使う）
+const DEFAULT_NODE_HEIGHT = 60;
 
 export interface DateGroup {
   dateKey: string;
   items: Item[];
 }
 
-// x/y/width/height は帯（全体幅いっぱいの横長帯、上から下へ積み上げ）の位置とサイズ
+// x/y/width/height は帯（その日付グループに属するノードの現在位置の外接矩形）の位置とサイズ
 export interface DateBand {
   dateKey: string;
   label: string;
@@ -33,11 +35,6 @@ export interface DateBand {
   height: number;
   totalMinutes: number;
   criticalMinutes: number;
-}
-
-export interface DateGroupLayout {
-  placements: PlacementResult[];
-  bands: DateBand[];
 }
 
 // 有効締切の日付ごとにアイテムをまとめる（日付昇順、未設定は末尾）
@@ -129,6 +126,47 @@ const bandLabel = (dateKey: string): string =>
     ? '日付未定'
     : `${format(parseISO(dateKey), 'M/d(E)', { locale: ja })}まで`;
 
+// R-113: 日付グループごとに、ノードの現在位置（ドラッグ中も含む）から外接矩形を計算する。
+// 表示専用で、ノードの位置は一切書き換えない
+export const calculateDateBands = (
+  items: Item[],
+  deps: Dependency[],
+  sizes?: Map<string, { width: number; height: number }>
+): DateBand[] => {
+  const groups = groupItemsByDeadline(items);
+
+  return groups.map((group) => {
+    let minX = Infinity;
+    let maxRight = -Infinity;
+    let minY = Infinity;
+    let maxBottom = -Infinity;
+
+    for (const item of group.items) {
+      const x = (item.meta?.flow_x as number) ?? 0;
+      const y = (item.meta?.flow_y as number) ?? 0;
+      const size = sizes?.get(item.id) ?? { width: NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
+      minX = Math.min(minX, x);
+      maxRight = Math.max(maxRight, x + size.width);
+      minY = Math.min(minY, y);
+      maxBottom = Math.max(maxBottom, y + size.height);
+    }
+
+    const x = minX - LABEL_MARGIN_WIDTH;
+    const y = minY - BAND_PADDING_TOP;
+
+    return {
+      dateKey: group.dateKey,
+      label: bandLabel(group.dateKey),
+      x,
+      y,
+      width: maxRight - x,
+      height: maxBottom + BAND_PADDING_BOTTOM - y,
+      totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
+      criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
+    };
+  });
+};
+
 // 帯内でノードの行（row）を決める: 依存元の行より下を下限に、X区間が重ならない最初の行を選ぶ
 const assignRows = (
   orderedItems: Item[],
@@ -163,19 +201,16 @@ const assignRows = (
   return rowOf;
 };
 
-// 日付グルーピング表示のノード座標と区間帯を計算する
-// R-111: flow_xは一切変更せず、縦方向の移動だけで日付帯の中へ収める
-export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): DateGroupLayout => {
+// R-113「日付整列」ボタン用: R-111で確定した帯内配置ルールどおりに、flow_xは変えず縦方向だけ
+// 各ノードを日付順の区間へ移動する。y原点は全アイテムの最小flow_y - 上パディングから区間を累積する
+export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): PlacementResult[] => {
   const groups = groupItemsByDeadline(items);
-  if (groups.length === 0) return { placements: [], bands: [] };
+  if (groups.length === 0) return [];
 
-  const xs = items.map((item) => (item.meta?.flow_x as number) ?? 0);
-  const bandX = Math.min(...xs) - LABEL_MARGIN_WIDTH;
-  const bandWidth = Math.max(...xs) + NODE_WIDTH - bandX;
+  const ys = items.map((item) => (item.meta?.flow_y as number) ?? 0);
+  let bandY = (ys.length > 0 ? Math.min(...ys) : 0) - BAND_PADDING_TOP;
 
   const placements: PlacementResult[] = [];
-  const bands: DateBand[] = [];
-  let bandY = 0;
 
   for (const group of groups) {
     const depths = computeDepthWithin(group.items, deps);
@@ -201,19 +236,8 @@ export const calculateDateGroupLayout = (items: Item[], deps: Dependency[]): Dat
       });
     }
 
-    bands.push({
-      dateKey: group.dateKey,
-      label: bandLabel(group.dateKey),
-      x: bandX,
-      y: bandY,
-      width: bandWidth,
-      height,
-      totalMinutes: group.items.reduce((sum, item) => sum + getMinutes(item), 0),
-      criticalMinutes: calculateCriticalPathMinutes(group.items, deps),
-    });
-
     bandY += height;
   }
 
-  return { placements, bands };
+  return placements;
 };
