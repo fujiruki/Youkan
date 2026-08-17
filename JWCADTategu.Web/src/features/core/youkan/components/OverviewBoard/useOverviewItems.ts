@@ -17,6 +17,7 @@ export type OverviewItemWrapper =
 export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
+		gdbTodo,
 		gdbPreparation,
 		gdbIntent,
 		gdbSomeday,
@@ -37,8 +38,10 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 
 	return useMemo(() => {
 		// 1. Gather all tasks from ALL zones（someday はデフォルト除外）
+		// R-125: todo（後日着手）は既定で表示（inboxと同じ扱い）
 		const allItemsRaw = [
 			...(gdbActive || []),
+			...(gdbTodo || []),
 			...(gdbPreparation || []),
 			...(gdbIntent || []),
 			...(showSomeday ? (gdbSomeday || []) : []),

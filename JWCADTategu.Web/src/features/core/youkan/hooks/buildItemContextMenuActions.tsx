@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, FolderPlus, CheckCircle2, AlertCircle, Trash2, ListPlus } from 'lucide-react';
+import { Edit2, FolderPlus, CheckCircle2, Clock, AlertCircle, Trash2, ListPlus } from 'lucide-react';
 
 export interface ContextMenuAction {
 	label: string;
@@ -16,6 +16,8 @@ export interface ItemContextMenuCallbacks {
 	onInsertBefore?: (id: string) => void;
 	onInsertAfter?: (id: string) => void;
 	onMarkDone?: (id: string) => void;
+	/** R-125: 後日着手（decisionToStatus('later')→todo）。省略時はメニュー項目自体を表示しない */
+	onResolveLater?: (id: string) => void;
 	onResolveNo: (id: string) => void;
 	onDelete: (id: string) => void;
 }
@@ -52,6 +54,12 @@ export function buildItemContextMenuActions(
 			icon: <CheckCircle2 size={14} className="text-green-500" />,
 			onClick: () => callbacks.onResolveYes(itemId),
 		},
+		// R-125: 後日着手（やると決めたが今日はやらない）
+		...(callbacks.onResolveLater ? [{
+			label: '後日着手',
+			icon: <Clock size={14} className="text-teal-500" />,
+			onClick: () => callbacks.onResolveLater!(itemId),
+		}] : []),
 		...(callbacks.onMarkDone ? [{
 			label: '完了にする (d)',
 			icon: <CheckCircle2 size={14} className="text-slate-600" />,
