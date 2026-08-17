@@ -398,6 +398,44 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     await ApiClient.updateItem(itemId, { meta: newMeta } as Partial<Item>, silent);
   }, [allItems]);
 
+  // R-121: 座標の一括保存（自動整理/日付整列/詰めるの確定保存・未配置アイテムの自動配置保存）は
+  // すべてこの関数を経由させる。以前は呼び出し元ごとにPromise.allSettledで全件を並行送信して
+  // いたが、本番環境（PHPが複数プロセスで並行実行される。dev環境のPHP組み込みサーバーは
+  // リクエストを直列処理するため再現しなかった）ではSQLiteの単一ライターロックに数十件のPUTが
+  // 同時に殺到し、busy_timeout(5秒)を超えて待たされた後発リクエストの大半が
+  // 「database is locked」で失敗していた。1件ずつ逐次送信することでSQLiteへの同時書き込み
+  // そのものを起こさない。個別トーストが積み重なるのを防ぐため、失敗はまとめて1件の
+  // トーストに集約する（R-119由来）
+  const savePlacementsSequentially = useCallback(
+    async (
+      placements: PlacementResult[],
+      logLabel: string,
+      toastTitle: string,
+      toastMessageFor: (count: number) => string
+    ) => {
+      const failures: { itemId: string; reason: unknown }[] = [];
+      for (const p of placements) {
+        try {
+          await updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y }, true);
+        } catch (reason) {
+          failures.push({ itemId: p.itemId, reason });
+        }
+      }
+      if (failures.length > 0) {
+        for (const f of failures) {
+          console.error(`[FlowScreen] ${logLabel} (${f.itemId}):`, f.reason);
+        }
+        showToast({
+          type: 'error',
+          title: toastTitle,
+          message: toastMessageFor(failures.length),
+          duration: 5000,
+        });
+      }
+    },
+    [updateItemMeta, showToast]
+  );
+
   // 依存関係の作成をローカルstateへ直接反映する（dependencies変更を検知して
   // nodes/edgesを再構築する派生useEffectはisDragging中スキップされるため、
   // それだけに頼るとedgeが描画されないまま取り残されることがある。onConnect
@@ -418,24 +456,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
     if (targets.length === 0) return;
     for (const p of targets) autoPlacedIdsRef.current.add(p.itemId);
 
-    // R-119: 個別トーストが積み重なるのを防ぐため、失敗はまとめて1件のトーストに集約する
-    Promise.allSettled(
-      targets.map((p) => updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y }, true))
-    ).then((results) => {
-      const failures = results
-        .map((r, i) => ({ result: r, itemId: targets[i].itemId }))
-        .filter((x) => x.result.status === 'rejected');
-      if (failures.length === 0) return;
-      for (const f of failures) {
-        console.error(`[FlowScreen] 自動配置座標保存失敗 (${f.itemId}):`, (f.result as PromiseRejectedResult).reason);
-      }
-      showToast({
-        type: 'error',
-        title: '自動配置の保存失敗',
-        message: `${failures.length}件のアイテムで座標の自動保存に失敗しました`,
-        duration: 5000,
-      });
-    });
+    // R-121: 逐次送信の共通ヘルパーを経由する（詳細はsavePlacementsSequentially定義部のコメント参照）
+    savePlacementsSequentially(
+      targets,
+      '自動配置座標保存失敗',
+      '自動配置の保存失敗',
+      (count) => `${count}件のアイテムで座標の自動保存に失敗しました`
+    );
 
     setAllItems((prev) =>
       prev.map((item) => {
@@ -447,7 +474,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         };
       })
     );
-  }, [autoPlacedItems, updateItemMeta, showToast]);
+  }, [autoPlacedItems, savePlacementsSequentially]);
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     _onNodesChange(changes);
@@ -870,26 +897,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         };
       })
     );
-    // R-119: 一括配置ボタン（自動整理/日付整列/詰める）は多数のPUTが同時多発しうるため、
-    // 個別トーストではなく失敗をまとめて1件のトーストに集約する
-    const results = await Promise.allSettled(
-      placements.map((p) => updateItemMeta(p.itemId, { flow_x: p.flow_x, flow_y: p.flow_y }, true))
+    await savePlacementsSequentially(
+      placements,
+      '位置保存失敗',
+      '位置の保存失敗',
+      (count) => `${count}件のアイテムで位置の保存に失敗しました`
     );
-    const failures = results
-      .map((r, i) => ({ result: r, itemId: placements[i].itemId }))
-      .filter((x) => x.result.status === 'rejected');
-    if (failures.length > 0) {
-      for (const f of failures) {
-        console.error(`[FlowScreen] 位置保存失敗 (${f.itemId}):`, (f.result as PromiseRejectedResult).reason);
-      }
-      showToast({
-        type: 'error',
-        title: '位置の保存失敗',
-        message: `${failures.length}件のアイテムで位置の保存に失敗しました`,
-        duration: 5000,
-      });
-    }
-  }, [updateItemMeta, showToast]);
+  }, [savePlacementsSequentially]);
 
   // R-113: 日付表示のON/OFF。帯の表示切替のみで、ノード座標は一切書き換えない
   const handleToggleDateGrouping = useCallback((checked: boolean) => {

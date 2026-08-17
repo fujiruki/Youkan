@@ -146,6 +146,37 @@ describe('FlowScreen: 自動整理ボタン（R-112・R-120）', () => {
         expect(screen.getByRole('button', { name: '元に戻す' })).toBeInTheDocument();
     });
 
+    // R-121: 保存確定時の座標PUTが並行送信されると、本番環境（PHPが複数プロセスで並行実行される）で
+    // SQLiteの単一ライターロックに数十件のPUTが同時に殺到し、busy_timeout超過で「database is
+    // locked」失敗が多発した。1件ずつ逐次送信することでこの同時書き込みそのものを防ぐ
+    it('「保存」時の座標PUTは並行送信せず1件ずつ逐次送信する', async () => {
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
+        await clickButton('自動整理');
+        await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument());
+
+        let resolveFirst: (() => void) | undefined;
+        mockUpdateItem.mockImplementation(() => {
+            if (mockUpdateItem.mock.calls.length === 1) {
+                return new Promise((resolve) => {
+                    resolveFirst = () => resolve({ success: true });
+                });
+            }
+            return Promise.resolve({ success: true });
+        });
+
+        await clickButton('保存');
+
+        // 1件目のPUTがまだ応答を返していない間は、2件目以降がまだ送信されていないはず
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(1));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockUpdateItem).toHaveBeenCalledTimes(1);
+
+        resolveFirst?.();
+
+        await waitFor(() => expect(mockUpdateItem).toHaveBeenCalledTimes(3));
+    });
+
     it('「キャンセル」を押すと元の位置に戻り、サーバーへは何も送信されない', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
