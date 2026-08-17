@@ -327,7 +327,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
         id: `dateband-${band.dateKey}`,
         type: 'dateBand',
         position: { x: band.x, y: band.y },
-        data: { label: band.label, totalMinutes: band.totalMinutes, criticalMinutes: band.criticalMinutes },
+        data: {
+          label: band.label,
+          totalMinutes: band.totalMinutes,
+          criticalMinutes: band.criticalMinutes,
+          remainingMinutes: band.remainingMinutes,
+          hasIncomplete: band.hasIncomplete,
+        },
         style: {
           width: band.width,
           height: band.height,
