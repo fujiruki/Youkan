@@ -1762,11 +1762,11 @@ R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-117-flow-date-remaining master`
-- [ ] `flowDateGrouping.test.ts`に`calculateDateBands`の`remainingMinutes`/`hasIncomplete`（未完了あり／全完了／未完了0分タスクのみ、等）テストを追加（Red→Green）
-- [ ] `DateBandNode.tsx`のレンダリングテスト（存在すれば更新、無ければ実機目視でも可）: `hasIncomplete=true`で4行目表示・`false`で非表示
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 未完了タスクを含む日付帯に「残り Xh」が最短の下に表示される／全て完了済みの日付帯には表示されない
-- [ ] `docs/requests_log.md` R-117の対応状況更新、SPECと実装の齟齬確認
+- [x] `git fetch && git checkout -b feature/R-117-flow-date-remaining master`
+- [x] `flowDateGrouping.test.ts`に`calculateDateBands`の`remainingMinutes`/`hasIncomplete`（未完了あり／全完了／未完了0分タスクのみ、等）テストを追加（Red→Green）
+- [x] `DateBandNode.tsx`のレンダリングテスト（存在すれば更新、無ければ実機目視でも可）: `hasIncomplete=true`で4行目表示・`false`で非表示（`FlowScreen.dateGrouping.test.tsx`の既存帯データ検証テストにアサーション追加＋実機目視で確認）
+- [x] `npm.cmd run test -- --run`全体Green（971 passed / 14 skipped、既知の無関係なunhandled error 2件はmaster baselineと同一）
+- [x] 実機検証（`php -S 127.0.0.1:8117`＋Vite、worktree専用ローカルDB）: 未完了タスクを含む日付帯に「残り Xh」が最短の下に表示される／全て完了済みの日付帯には表示されないことをDOM照会・スクリーンショットで確認。検証用アイテムは削除済み
+- [x] `docs/requests_log.md` R-117の対応状況更新、SPECと実装の齟齬確認（`03_画面設計.md` §7.12の「縦に3行表示する」を4行目の存在に触れる形へ微修正）
 - [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込んでからコンフリクト解消（`flowDateGrouping.ts`は同ファイル別関数のため機械的に解消できるはず）
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
