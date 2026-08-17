@@ -1,5 +1,6 @@
 import { JudgableItem, Member, Assignee } from '../features/core/youkan/types';
 import { YOUKAN_KEYS } from '../features/core/session/youkanKeys';
+import { Decision } from '../features/core/youkan/logic/decisionResolution';
 
 // src/api/client.ts
 
@@ -241,7 +242,7 @@ export class ApiClient {
 	}
 
 	// --- Phase 2: Decision API ---
-	public static async resolveDecision(id: string, decision: 'yes' | 'hold' | 'no', note?: string, rdd?: any): Promise<{ success: boolean; new_status: string }> {
+	public static async resolveDecision(id: string, decision: Decision, note?: string, rdd?: any): Promise<{ success: boolean; new_status: string }> {
 		return this.request('POST', `/decision/${id}/resolve`, { decision, note, rdd });
 	}
 

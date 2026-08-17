@@ -1,5 +1,6 @@
 import { ApiClient } from '../../../../api/client';
 import { JudgableItem, JudgmentStatus, GdbShelf } from '../types';
+import { Decision } from '../logic/decisionResolution';
 
 // Cloud-First Repository Implementation
 // Uses Unified Backend API (/api/items)
@@ -58,13 +59,17 @@ export const CloudYoukanRepository = {
 		// 完了(done)と同じ「履歴」バケットへ分類する。decision_rejectedは
 		// データ移行していない既存アイテムの表示互換のため合わせて拾う
 		const isCancelled = (status: unknown) => status === 'cancelled' || status === 'decision_rejected';
+		// R-125: decision_hold（旧「判断保留」）はpendingに概念上吸収する。
+		// 新規書き込みは行わないが、DBマイグレーション未反映の既存データも表示互換として拾う
+		const isPending = (status: unknown) => status === 'pending' || status === 'decision_hold';
 
 		// Categorize based on Youkan Logic
 		return {
 			// [FIX] Include 'focus' items in active list to prevent disappearance from GDB views if not in Today View
 			active: allItems.filter(i => i.status === 'inbox' || i.status === 'focus'),
+			todo: allItems.filter(i => (i.status as string) === 'todo'), // R-125: 後日着手バケット
 			preparation: allItems.filter(i => i.status === 'waiting'),
-			intent: allItems.filter(i => i.status === 'pending'),
+			intent: allItems.filter(i => isPending(i.status)),
 			someday: allItems.filter(i => i.status === 'someday'), // R-029: Someday バケット
 			log: allItems.filter(i => i.status === 'done' || isCancelled(i.status))
 		};
@@ -128,7 +133,7 @@ export const CloudYoukanRepository = {
 	},
 
 	// Decisions
-	resolveDecision: async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, rdd?: number) => {
+	resolveDecision: async (id: string, decision: Decision, note?: string, rdd?: number) => {
 		await ApiClient.resolveDecision(id, decision, note, rdd);
 	},
 
