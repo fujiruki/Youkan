@@ -1,6 +1,6 @@
 # Requests
 
-- **【高】** バグ: フローチャート「自動整理」「日付整列」の保存ボタンを押すと位置の保存に失敗する（本番）
+- **【高】R-121** バグ: フローチャート「自動整理」「日付整列」の保存ボタンを押すと位置の保存に失敗する（本番）
   - 2026-08-17 発注者報告原文（コンソールログ添付）: 「自動整理の方も日付整列の方も保存ボタンを押してもイチを保存できませんでしたっていうエラーが出現します「位置の保存失敗　31件のアイテムで位置の保存に失敗しました」index-lJz_u-n-.js:89 [FlowScreen] 位置保存失敗 (019ff695-1d25-788f-b004-55b676726de2): Error: 通信エラーが発生しました。しばらくしてから再度お試しください。　at _.performRequest (feat-admin-Bk6klIjy.js:1:3271)　at async index-lJz_u-n-.js:89:27141　at async Promise.allSettled (index 1)　at async index-lJz_u-n-.js:89:34220　at async index-lJz_u-n-.js:89:36037　（匿名） @ index-lJz_u-n-.js:89　index-lJz_u-n-.js:89 [FlowScreen] 位置保存失敗 (019ff699-2a83-7ea9-96cb-a7800a4d6085): Error: 通信エラーが発生しました。しばらくしてから再度お試しください。　at _.performRequest (feat-admin-Bk6klIjy.js:1:3271)　at async index-lJz_u-n-.js:89:27141　at async Promise.allSettled (index 1)　at async index-lJz_u-n-.js:89:34220　at async index-lJz_u-n-.js:89:36037」
   - R-120（プレビュー→保存確定方式への統一・2026-08-17デプロイ）以降に発生。31件のPUTがおそらく`Promise.allSettled`で一括送信され、まとめて通信エラーで失敗している。原因未特定。R-119で修正した「未配置アイテム自動配置の無限リトライ」バグとは別経路の可能性があり、実装Agentが調査すること
   - 直前の引き継ぎ資料（`docs/handover/2026-08-17-R111-R120-flow-arrange-session.md`）に記載の「フロー画面のボタン見切れ疑い」と同一セッション内の発注者操作に起因する可能性も含め確認する
