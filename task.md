@@ -1762,11 +1762,44 @@ R-113で日付表示の帯は「表示専用」（`calculateDateBands`、`logic/
 
 ### サブタスク
 
-- [ ] `git fetch && git checkout -b feature/R-117-flow-date-remaining master`
-- [ ] `flowDateGrouping.test.ts`に`calculateDateBands`の`remainingMinutes`/`hasIncomplete`（未完了あり／全完了／未完了0分タスクのみ、等）テストを追加（Red→Green）
-- [ ] `DateBandNode.tsx`のレンダリングテスト（存在すれば更新、無ければ実機目視でも可）: `hasIncomplete=true`で4行目表示・`false`で非表示
-- [ ] `npm.cmd run test -- --run`全体Green
-- [ ] 実機検証（`php -S 127.0.0.1:8000`＋Vite）: 未完了タスクを含む日付帯に「残り Xh」が最短の下に表示される／全て完了済みの日付帯には表示されない
-- [ ] `docs/requests_log.md` R-117の対応状況更新、SPECと実装の齟齬確認
-- [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込んでからコンフリクト解消（`flowDateGrouping.ts`は同ファイル別関数のため機械的に解消できるはず）
-- [ ] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+- [x] `git fetch && git checkout -b feature/R-117-flow-date-remaining master`
+- [x] `flowDateGrouping.test.ts`に`calculateDateBands`の`remainingMinutes`/`hasIncomplete`（未完了あり／全完了／未完了0分タスクのみ、等）テストを追加（Red→Green）
+- [x] `DateBandNode.tsx`のレンダリングテスト（存在すれば更新、無ければ実機目視でも可）: `hasIncomplete=true`で4行目表示・`false`で非表示（`FlowScreen.dateGrouping.test.tsx`の既存帯データ検証テストにアサーション追加＋実機目視で確認）
+- [x] `npm.cmd run test -- --run`全体Green（971 passed / 14 skipped、既知の無関係なunhandled error 2件はmaster baselineと同一）
+- [x] 実機検証（`php -S 127.0.0.1:8117`＋Vite、worktree専用ローカルDB）: 未完了タスクを含む日付帯に「残り Xh」が最短の下に表示される／全て完了済みの日付帯には表示されないことをDOM照会・スクリーンショットで確認。検証用アイテムは削除済み
+- [x] `docs/requests_log.md` R-117の対応状況更新、SPECと実装の齟齬確認（`03_画面設計.md` §7.12の「縦に3行表示する」を4行目の存在に触れる形へ微修正）
+- [x] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込んでからコンフリクト解消（`flowDateGrouping.ts`は同ファイル別関数のため機械的に解消できるはず）
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
+
+## R-118 フロー「詰める」機能（手動配置後の上下方向間隔圧縮）（2026-08-17）
+
+**ブランチ**: `feature/R-118-flow-compact`
+**要望**: `docs/requests_log.md` R-118
+**仕様**: `docs/SPEC/03_画面設計.md` §7.16、`docs/SPEC/02_機能仕様.md` F-49
+
+### 背景
+
+発注者が自動整理→手動調整したフローチャートのスクリーンショットを添付し、「上下方向をできるだけ詰めたい。ただしエッジが見える範囲・曲がりが潰れて見づらくならない範囲で」との要望。相談で確定: 「自動整理」とは別の新ボタン「詰める」（並べ替え・X変更なし、現在の並び順を保ったまま縦の隙間だけを最小化）。縦間隔の最小値は自動整理の縦間隔スライダー（GAP_Y、`youkan_flow_arrange_gap_y`）を共用。
+
+### 対象ファイル・設計
+
+- 新規 `logic/flowVerticalCompact.ts`: `calculateVerticalCompact(items: Item[], deps: Dependency[], sizes?: Map<id,{width,height}>, options?: {gapY?: number}): PlacementResult[]`（既定gapY=35、`flowAutoArrange.ts`の既定値と同じにする）
+  - 対象アイテムを現在の`flow_y`昇順（同値は元の配列順で安定ソート）に処理
+  - 各アイテムについて、`newBottomOf(id)`（そのアイテムの新しい`flow_y` + 高さ）を記録しながら、以下の最大値を下限として新しい`flow_y`を決める:
+    1. 既に処理済み（現在のY順で自分より上）で、Xの区間（`flow_x`〜`flow_x+width`）が自分と重なるアイテムの`newBottomOf` + gapY
+    2. 自分の依存元（predecessor、依存関係グラフでこのアイテム集合内に閉じたもの）の`newBottomOf` + gapY
+    3 下限がなければ現在の`flow_y`をそのまま使う（それ以上は詰めない＝一番上のノード群は動かない）
+  - `flow_x`は変更しない
+  - サイズは`sizes`優先、未指定時は`NODE_WIDTH`×60（`flowAutoArrange.ts`と同じ既定値、`flowDateGrouping.ts`の`NODE_WIDTH`をimport）
+- `screens/FlowScreen.tsx`: 右上ボタン列に「詰める」ボタンを追加（「日付整列」の下）。押すと現在位置をバックアップ→`nodes`の`measured`からサイズMap→`calculateVerticalCompact(placedItems, dependencies, sizes, { gapY })`（`gapY`は既存の自動整理用state/localStorageをそのまま使う）→`applyPlacements`→fitView
+
+### サブタスク
+
+- [x] `git fetch && git checkout -b feature/R-118-flow-compact master`
+- [x] `flowVerticalCompact.test.ts`新規: 依存元より下に来る／Xが重ならなければ独立して詰まる／Xが重なるノードはgapY以上離れる／並び順(どのノードがどのノードより上か)が変わらない／flow_xが変わらない／gapYオプション反映／複数ノードが同じノードに依存する合流ケース（Red→Green、7件）
+- [x] `FlowScreen.tsx`にボタン追加、統合テスト（押下で保存・元に戻す・横位置維持を確認、3件）（Red→Green）
+- [x] `npm.cmd run test -- --run`全体Green（978 passed / 14 skipped / 0 failed。既知の無関係なunhandled error 2件はmaster baselineと同一の既存事象）
+- [x] 実機検証（`php -S 127.0.0.1:8000`＋Vite、worktree専用ローカルDB）: 依存関係のある2ノードを縦に大きく離して手動配置（API経由でmeta設定）→「詰める」で依存元の下端+gapY直下まで詰まる・横位置(flow_x)は全ノードで不変・エッジも短く見やすい距離を維持→「元に戻す」で元の座標に完全復元。検証に使ったテストデータは削除済み
+- [x] `docs/requests_log.md` R-118の対応状況更新、SPECと実装の齟齬確認（齟齬なし）
+- [ ] マージ時、他のR-11x系ブランチ（`feature/R-115-116-flow-tooltip-undated`、`feature/R-117-flow-date-remaining`）が先にmasterへ入っていたら`git fetch && git merge origin/master`で取り込みコンフリクト解消（`FlowScreen.tsx`のボタン列部分は両方の追加を残す）※今回は未実施、指揮AIの指示待ち
+- [x] 指揮AIへ完了報告（マージ・デプロイは指揮AIレビュー後）
