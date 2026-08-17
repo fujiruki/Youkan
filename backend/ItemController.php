@@ -908,7 +908,9 @@ class ItemController extends BaseController {
             'client_name', 'gross_profit_target', 'tenant_id', 'is_archived',
             'deleted_at', 'focus_order', 'is_intent', 'due_status', 'delegation',
             'work_days',
-            'meta'
+            'meta',
+            // [R-125] pending の付帯情報
+            'pending_condition', 'review_date'
         ];
 
         $this->pdo->beginTransaction();

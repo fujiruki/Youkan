@@ -88,7 +88,10 @@ function getDB() {
             'gross_profit_target' => 'INTEGER DEFAULT 0', // [v20]
             'meta' => 'TEXT DEFAULT NULL', // [FIX] Added for Project Settings/Config
             'is_archived' => 'INTEGER DEFAULT 0', // [v25] Archive
-            'deleted_at' => 'INTEGER DEFAULT NULL' // [v25] Trash
+            'deleted_at' => 'INTEGER DEFAULT NULL', // [v25] Trash
+            // [R-125] pending の付帯情報
+            'pending_condition' => 'TEXT DEFAULT NULL',
+            'review_date' => 'TEXT DEFAULT NULL'
         ];
 
         // 1.2 Check 'users' table columns
@@ -138,6 +141,10 @@ function getDB() {
             $pdo->exec("ALTER TABLE users ADD COLUMN updated_at INTEGER DEFAULT NULL");
         }
 
+        // [R-125] pending_condition 未追加（＝このマイグレーション未実施）の場合のみ、
+        // decision_hold（旧「判断保留」）を pending へ1回だけ移行する
+        $needsDecisionHoldMigration = !in_array('pending_condition', $columns);
+
         foreach ($requiredColumns as $col => $def) {
             if (!in_array($col, $columns)) {
                 try {
@@ -147,7 +154,12 @@ function getDB() {
                 }
             }
         }
-        
+
+        if ($needsDecisionHoldMigration) {
+            // R-125: decision_hold（旧レガシー値）はpendingに概念上吸収する。新規書き込みは行わない
+            $pdo->exec("UPDATE items SET status = 'pending' WHERE status = 'decision_hold'");
+        }
+
         // 1.3 Check 'assignees' table columns
         $assigneeCols = [];
         $stmt = $pdo->query("PRAGMA table_info(assignees)");

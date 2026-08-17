@@ -13,14 +13,14 @@ class DecisionController {
     }
 
     /**
-     * Resolve a decision (Yes/Hold/No).
-     * 
+     * Resolve a decision (Yes/Hold/Later/No).
+     *
      * @param string $id Item ID
-     * @param array $data ['decision' => 'yes'|'hold'|'no', 'note' => string]
+     * @param array $data ['decision' => 'yes'|'hold'|'later'|'no', 'note' => string]
      */
     public function resolve($id, $data) {
         $decision = $data['decision'] ?? null;
-        if (!in_array($decision, ['yes', 'hold', 'no'])) {
+        if (!in_array($decision, ['yes', 'hold', 'later', 'no'])) {
             throw new Exception("Invalid decision type: $decision");
         }
 
@@ -37,13 +37,18 @@ class DecisionController {
             // 2. Update Item Status (Domain Logic)
             // R-124: 「断る」はcancelledへ統一（旧: decision_rejected）。フロント側の
             // decisionToStatus（logic/decisionResolution.ts）と同じ判断結果になるようにする
+            // R-125: 「後日着手」(later)はtodoへ。「保留にする」(hold)は旧レガシー値
+            // decision_holdの新規書き込みを廃止しpendingに統一（フロントのdecisionToStatusと一致）
             $newStatus = '';
             switch ($decision) {
                 case 'yes':
                     $newStatus = 'confirmed'; // Ready for Today
                     break;
+                case 'later':
+                    $newStatus = 'todo';
+                    break;
                 case 'hold':
-                    $newStatus = 'decision_hold';
+                    $newStatus = 'pending';
                     break;
                 case 'no':
                     $newStatus = 'cancelled';
