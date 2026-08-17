@@ -1505,30 +1505,29 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           </button>
         </HoverTooltip>
       )}
-      <div className="absolute top-[180px] right-3 flex flex-col items-end gap-1 z-10 no-print">
-        <div className="flex items-center gap-2">
-          <HoverTooltip label="自動整理の縦間隔">
-            <input
-              type="range"
-              min={GAP_Y_MIN}
-              max={GAP_Y_MAX}
-              value={gapY}
-              onChange={(e) => handleGapYChange(Number(e.target.value))}
-              aria-label="自動整理の縦間隔"
-              className="w-16 accent-indigo-500"
-            />
-          </HoverTooltip>
-          <HoverTooltip label="ノードが重ならず・エッジ交差が少ない配置へ自動整理">
-            <button
-              onClick={handleAutoArrange}
-              className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <LayoutGrid size={12} />
-              <span>自動整理</span>
-            </button>
-          </HoverTooltip>
-        </div>
-        {/* R-120: プレビュー中のみ保存/キャンセルを表示。値を変えるたびrecomputeAutoArrangePreviewでリアルタイム再計算する */}
+      <div className="absolute top-[180px] right-3 flex items-center gap-2 z-10 no-print">
+        <HoverTooltip label="自動整理の縦間隔">
+          <input
+            type="range"
+            min={GAP_Y_MIN}
+            max={GAP_Y_MAX}
+            value={gapY}
+            onChange={(e) => handleGapYChange(Number(e.target.value))}
+            aria-label="自動整理の縦間隔"
+            className="w-16 accent-indigo-500"
+          />
+        </HoverTooltip>
+        <HoverTooltip label="ノードが重ならず・エッジ交差が少ない配置へ自動整理">
+          <button
+            onClick={handleAutoArrange}
+            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <LayoutGrid size={12} />
+            <span>自動整理</span>
+          </button>
+        </HoverTooltip>
+        {/* R-120: プレビュー中のみ保存/キャンセルを表示（同じ行に並べ、下の帯の固定位置と重ならないようにする）。
+            値を変えるたびrecomputeAutoArrangePreviewでリアルタイム再計算する */}
         {previewMode === 'autoArrange' && (
           <div className="flex items-center gap-1 bg-white/95 rounded-lg shadow px-2 py-1">
             <button
@@ -1546,30 +1545,28 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
           </div>
         )}
       </div>
-      <div className="absolute top-[212px] right-3 flex flex-col items-end gap-1 z-10 no-print">
-        <div className="flex items-center gap-2">
-          <HoverTooltip label="日付整列の行間隔">
-            <input
-              type="range"
-              min={DATE_ALIGN_ROW_HEIGHT_MIN}
-              max={DATE_ALIGN_ROW_HEIGHT_MAX}
-              value={dateAlignRowHeight}
-              onChange={(e) => handleDateAlignRowHeightChange(Number(e.target.value))}
-              aria-label="日付整列の行間隔"
-              className="w-16 accent-indigo-500"
-            />
-          </HoverTooltip>
-          <HoverTooltip label="横位置は変えず、縦方向だけ日付の区間へ整列">
-            <button
-              onClick={handleDateAlign}
-              className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <CalendarRange size={12} />
-              <span>日付整列</span>
-            </button>
-          </HoverTooltip>
-        </div>
-        {/* R-120: プレビュー中のみ保存/キャンセルを表示。値を変えるたびrecomputeDateAlignPreviewでリアルタイム再計算する */}
+      <div className="absolute top-[212px] right-3 flex items-center gap-2 z-10 no-print">
+        <HoverTooltip label="日付整列の行間隔">
+          <input
+            type="range"
+            min={DATE_ALIGN_ROW_HEIGHT_MIN}
+            max={DATE_ALIGN_ROW_HEIGHT_MAX}
+            value={dateAlignRowHeight}
+            onChange={(e) => handleDateAlignRowHeightChange(Number(e.target.value))}
+            aria-label="日付整列の行間隔"
+            className="w-16 accent-indigo-500"
+          />
+        </HoverTooltip>
+        <HoverTooltip label="横位置は変えず、縦方向だけ日付の区間へ整列">
+          <button
+            onClick={handleDateAlign}
+            className="flex items-center gap-1 px-3 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <CalendarRange size={12} />
+            <span>日付整列</span>
+          </button>
+        </HoverTooltip>
+        {/* R-120: プレビュー中のみ保存/キャンセルを表示（同じ行に並べる。理由は自動整理と同じ） */}
         {previewMode === 'dateAlign' && (
           <div className="flex items-center gap-1 bg-white/95 rounded-lg shadow px-2 py-1">
             <button
