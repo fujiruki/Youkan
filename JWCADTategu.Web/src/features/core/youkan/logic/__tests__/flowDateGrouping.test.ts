@@ -130,25 +130,35 @@ describe('formatHours', () => {
 });
 
 // R-113: 帯（表示専用）はノードの現在位置の外接矩形にライブ追従する
+// R-122: 帯幅は日付グループ単独ではなく「案件（projectId）ごと」の全ノードの外接矩形へ統一する
 describe('calculateDateBands', () => {
   const items = [
-    makeItem({ id: 'a', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 300, flow_y: 0 } }),
-    makeItem({ id: 'b', due_date: '2026-08-16', estimatedMinutes: 120, meta: { flow_x: 100, flow_y: 50 } }),
-    makeItem({ id: 'c', due_date: '2026-08-17', estimatedMinutes: 60, meta: { flow_x: 0, flow_y: 300 } }),
+    makeItem({ id: 'a', projectId: 'p1', due_date: '2026-08-16', estimatedMinutes: 60, meta: { flow_x: 300, flow_y: 0 } }),
+    makeItem({ id: 'b', projectId: 'p1', due_date: '2026-08-16', estimatedMinutes: 120, meta: { flow_x: 100, flow_y: 50 } }),
+    makeItem({ id: 'c', projectId: 'p1', due_date: '2026-08-17', estimatedMinutes: 60, meta: { flow_x: 0, flow_y: 300 } }),
   ];
 
-  it('日付グループごとにノードの現在位置の外接矩形（既定サイズ）を返す', () => {
+  it('R-122: 帯のx/widthは日付グループではなく案件(projectId)内の全ノードの外接矩形で統一される', () => {
     const bands = calculateDateBands(items, []);
     expect(bands).toHaveLength(2);
-    const first = bands[0];
-    // 8/16グループ: minX=100(b), maxRight=300+NODE_WIDTH(a), minY=0(a)-60, maxBottom=50+60(b)+20
-    expect(first.x).toBe(100 - 140);
-    expect(first.width).toBe(300 + NODE_WIDTH - (100 - 140));
-    expect(first.y).toBe(0 - 60);
-    expect(first.height).toBe(50 + 60 + 20 - (0 - 60));
+    // p1内の全ノード(a,b,c): minX=0(c), maxRight=300+NODE_WIDTH(a)
+    const expectedX = 0 - 140;
+    const expectedWidth = 300 + NODE_WIDTH - expectedX;
+    expect(bands[0].x).toBe(expectedX);
+    expect(bands[0].width).toBe(expectedWidth);
+    // 8/17帯（cのみ含む）も同じ幅へ統一される
+    expect(bands[1].x).toBe(expectedX);
+    expect(bands[1].width).toBe(expectedWidth);
   });
 
-  it('sizesを渡すと実測サイズが外接矩形に反映される', () => {
+  it('yと高さは引き続きその日付グループ内ノードだけの外接矩形（案件全体には広げない）', () => {
+    const bands = calculateDateBands(items, []);
+    // 8/16グループ: minY=0(a)-60, maxBottom=50+60(b)+20
+    expect(bands[0].y).toBe(0 - 60);
+    expect(bands[0].height).toBe(50 + 60 + 20 - (0 - 60));
+  });
+
+  it('sizesを渡すと実測サイズが案件の外接矩形（帯幅）に反映される', () => {
     const withoutSizes = calculateDateBands(items, []);
     const sizes = new Map([['a', { width: 400, height: 100 }]]);
     const withSizes = calculateDateBands(items, [], sizes);
@@ -178,6 +188,12 @@ describe('calculateDateBands', () => {
     const bands = calculateDateBands(items, []);
     // 2026-08-16は日曜日
     expect(bands[0].label).toBe('8/16(日)まで');
+  });
+
+  it('各帯にprojectIdを持つ', () => {
+    const bands = calculateDateBands(items, []);
+    expect(bands[0].projectId).toBe('p1');
+    expect(bands[1].projectId).toBe('p1');
   });
 
   it('未定グループも外接矩形とラベル「日付未定」を返す', () => {
@@ -217,6 +233,101 @@ describe('calculateDateBands', () => {
     const bands = calculateDateBands(zeroMinute, []);
     expect(bands[0].hasIncomplete).toBe(true);
     expect(bands[0].remainingMinutes).toBe(0);
+  });
+});
+
+// R-122: フォーカスなし（全案件表示）時、同じ日付でも案件が異なれば別々の帯として、
+// それぞれの案件のノード外接矩形幅で表示する
+describe('calculateDateBands: 複数案件が混在する場合（R-122）', () => {
+  it('同じ日付でも案件(projectId)が異なれば別々の帯になり、案件ごとに幅が異なる', () => {
+    const items = [
+      // p1: 横に広い(x=0〜500)
+      makeItem({ id: 'p1-a', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'p1-b', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: 500, flow_y: 0 } }),
+      // p2: 横に狭い(x=1000のみ)、p1と同じ日付
+      makeItem({ id: 'p2-a', projectId: 'p2', due_date: '2026-08-16', meta: { flow_x: 1000, flow_y: 100 } }),
+    ];
+    const bands = calculateDateBands(items, []);
+    expect(bands).toHaveLength(2);
+
+    const p1Band = bands.find((b) => b.projectId === 'p1')!;
+    const p2Band = bands.find((b) => b.projectId === 'p2')!;
+    expect(p1Band.dateKey).toBe('2026-08-16');
+    expect(p2Band.dateKey).toBe('2026-08-16');
+    // p1: minX=0, maxRight=500+NODE_WIDTH
+    expect(p1Band.x).toBe(0 - 140);
+    expect(p1Band.width).toBe(500 + NODE_WIDTH - (0 - 140));
+    // p2: minX=1000, maxRight=1000+NODE_WIDTH（p1の幅とは別・案件をまたいでまとめない）
+    expect(p2Band.x).toBe(1000 - 140);
+    expect(p2Band.width).toBe(NODE_WIDTH + 140);
+  });
+
+  it('プロジェクトフォーカス中（該当案件のアイテムのみ渡された場合）も同じ幅基準になる', () => {
+    const items = [
+      makeItem({ id: 'p1-a', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'p1-b', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: 500, flow_y: 0 } }),
+    ];
+    // フォーカスなし(p2含む)で計算したp1帯と、p1のみ渡した場合の帯が一致する
+    const withOtherProject = calculateDateBands(
+      [...items, makeItem({ id: 'p2-a', projectId: 'p2', due_date: '2026-08-16', meta: { flow_x: 1000, flow_y: 0 } })],
+      []
+    ).find((b) => b.projectId === 'p1')!;
+    const focusedOnly = calculateDateBands(items, [])[0];
+    expect(focusedOnly.x).toBe(withOtherProject.x);
+    expect(focusedOnly.width).toBe(withOtherProject.width);
+  });
+
+  it('projectIdが無いアイテム同士は1つの無所属バケットとしてまとめられる', () => {
+    const items = [
+      makeItem({ id: 'x', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'y', due_date: '2026-08-17', meta: { flow_x: 400, flow_y: 0 } }),
+    ];
+    const bands = calculateDateBands(items, []);
+    expect(bands).toHaveLength(2);
+    expect(bands[0].projectId).toBeNull();
+    expect(bands[1].projectId).toBeNull();
+    // 無所属バケット全体(x,y)の外接矩形: minX=0, maxRight=400+NODE_WIDTH
+    expect(bands[0].x).toBe(bands[1].x);
+    expect(bands[0].width).toBe(bands[1].width);
+    expect(bands[0].width).toBe(400 + NODE_WIDTH - (0 - 140));
+  });
+
+  it('日付未定の専用列（R-115）は帯幅拡張の対象外で、案件をまたいでも現状維持のまま1つの帯になる', () => {
+    const items = [
+      makeItem({ id: 'p1-a', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      makeItem({ id: 'p1-x', projectId: 'p1', meta: { flow_x: -300, flow_y: 0 } }),
+      makeItem({ id: 'p2-x', projectId: 'p2', meta: { flow_x: -300, flow_y: 200 } }),
+    ];
+    const bands = calculateDateBands(items, []);
+    const undatedBands = bands.filter((b) => b.dateKey === UNDATED_KEY);
+    // 案件が異なっても分割されず、常に1つの帯のまま（現状維持）
+    expect(undatedBands).toHaveLength(1);
+    expect(undatedBands[0].projectId).toBeNull();
+  });
+});
+
+// R-122確定仕様3: サブプロジェクト（isProject + parentIdの入れ子）は技術調査の結果、
+// 本要望のスコープ外として見送り。理由は requests_log.md を参照。
+// このテストは「見送り」を仕様として固定するための回帰テスト:
+// 同じ案件(projectId)内にサブプロジェクト構造(parentId)があっても、
+// サブプロジェクト単位では分割されず、案件全体で1つの帯にまとまることを保証する
+describe('calculateDateBands: サブプロジェクト混在時の現状仕様（R-122スコープ外）', () => {
+  it('同じprojectId内にparentIdによる入れ子があっても、サブプロジェクトごとには分割されない', () => {
+    const items = [
+      // サブプロジェクト自体のコンテナアイテム
+      makeItem({ id: 'sub', projectId: 'p1', isProject: true, due_date: '2026-08-16', meta: { flow_x: 0, flow_y: 0 } }),
+      // サブプロジェクト配下の子タスク（parentId='sub'だがprojectIdは同じp1のまま）
+      makeItem({ id: 'sub-child', projectId: 'p1', parentId: 'sub', due_date: '2026-08-16', meta: { flow_x: 900, flow_y: 0 } }),
+      // サブプロジェクトに属さないp1直下のタスク
+      makeItem({ id: 'plain', projectId: 'p1', due_date: '2026-08-16', meta: { flow_x: -300, flow_y: 0 } }),
+    ];
+    const bands = calculateDateBands(items, []);
+    // 案件(p1)全体で1つの帯のまま。サブプロジェクト単位の追加分割はスコープ外
+    expect(bands).toHaveLength(1);
+    expect(bands[0].projectId).toBe('p1');
+    // 幅はp1内の全ノード(sub, sub-child, plain)の外接矩形になる
+    expect(bands[0].x).toBe(-300 - 140);
+    expect(bands[0].width).toBe(900 + NODE_WIDTH - (-300 - 140));
   });
 });
 
