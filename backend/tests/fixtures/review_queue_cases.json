@@ -1,0 +1,60 @@
+{
+  "_comment": "R-140: 要判断キュー（F-52）の共有フィクスチャ。TS logic/reviewQueue.ts と PHP ReviewQueueService の両テストが読む。定義を変えるときはこのファイルを先に変える。items は DB 行（snake_case）形。prep_date は Unix 秒（UTC/JST どちらでも同じ日になる 03:00Z）。",
+  "cases": [
+    {
+      "name": "対象判定: 期限超過(due/prep)・再確認到来のみ対象。今日/未来・締切なし・再確認未到来は対象外",
+      "today": "2026-08-18",
+      "items": [
+        { "id": "overdue-due", "title": "納期超過", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-10", "prep_date": null, "review_date": null, "estimated_minutes": 30 },
+        { "id": "overdue-prep", "title": "マイ期限超過", "status": "todo", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": 1786330800, "review_date": null, "estimated_minutes": 45 },
+        { "id": "review-due-today", "title": "再確認日=今日", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-18", "estimated_minutes": 60 },
+        { "id": "review-due-past", "title": "再確認日=過去", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-01", "estimated_minutes": 10 },
+        { "id": "due-today", "title": "納期=今日", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-18", "prep_date": null, "review_date": null, "estimated_minutes": 5 },
+        { "id": "due-future", "title": "納期=未来", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-25", "prep_date": null, "review_date": null, "estimated_minutes": 5 },
+        { "id": "no-deadline", "title": "締切なし", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": null, "estimated_minutes": 5 },
+        { "id": "review-future", "title": "再確認日=未来", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-19", "estimated_minutes": 5 },
+        { "id": "review-not-pending", "title": "review_dateありだがpendingでない", "status": "todo", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-01", "estimated_minutes": 5 }
+      ],
+      "expected_ids": ["review-due-past", "review-due-today", "overdue-due", "overdue-prep"]
+    },
+    {
+      "name": "除外: done/cancelled/someday・プロジェクト・削除済み・アーカイブ済みは期限超過でも対象外",
+      "today": "2026-08-18",
+      "items": [
+        { "id": "done", "title": "完了", "status": "done", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "cancelled", "title": "断った", "status": "cancelled", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "someday", "title": "いつか", "status": "someday", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "project", "title": "案件", "status": "inbox", "is_project": 1, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "deleted", "title": "ゴミ箱", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": 1786503600, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "archived", "title": "アーカイブ", "status": "inbox", "is_project": 0, "is_archived": 1, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 10 },
+        { "id": "pending-review-done", "title": "pending再確認到来だが完了扱いにはならない対照", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-18", "estimated_minutes": 10 }
+      ],
+      "expected_ids": ["pending-review-done"]
+    },
+    {
+      "name": "並び: ①再確認到来 → ②目安の短い順（未入力=null は最後、0は0として扱う）→ ③有効締切の古い順。同値は入力順を保つ",
+      "today": "2026-08-18",
+      "items": [
+        { "id": "od-120-0801", "title": "超過 120分 8/1", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": null, "estimated_minutes": 120 },
+        { "id": "od-null-0805", "title": "超過 目安なし 8/5", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-05", "prep_date": null, "review_date": null, "estimated_minutes": null },
+        { "id": "od-30-0810", "title": "超過 30分 8/10", "status": "todo", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-10", "prep_date": null, "review_date": null, "estimated_minutes": 30 },
+        { "id": "od-30-0803", "title": "超過 30分 8/3", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-03", "prep_date": null, "review_date": null, "estimated_minutes": 30 },
+        { "id": "rv-999", "title": "再確認到来 999分", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-17", "estimated_minutes": 999 },
+        { "id": "od-0-0812", "title": "超過 目安0 8/12", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-12", "prep_date": null, "review_date": null, "estimated_minutes": 0 },
+        { "id": "od-null-0802", "title": "超過 目安なし 8/2", "status": "inbox", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-02", "prep_date": null, "review_date": null, "estimated_minutes": null },
+        { "id": "rv-15-od", "title": "再確認到来かつ超過 15分", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-01", "prep_date": null, "review_date": "2026-08-10", "estimated_minutes": 15 },
+        { "id": "rv-null", "title": "再確認到来 目安なし", "status": "pending", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": null, "prep_date": null, "review_date": "2026-08-18", "estimated_minutes": null },
+        { "id": "od-30-prep0803", "title": "超過 30分 due8/20だがprep8/3", "status": "todo", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2026-08-20", "prep_date": 1785726000, "review_date": null, "estimated_minutes": 30 }
+      ],
+      "expected_ids": ["rv-15-od", "rv-999", "rv-null", "od-0-0812", "od-30-0803", "od-30-prep0803", "od-30-0810", "od-120-0801", "od-null-0802", "od-null-0805"]
+    },
+    {
+      "name": "境界: 古いものを除外しない（2020年の超過も対象）。空入力は空",
+      "today": "2026-08-18",
+      "items": [
+        { "id": "very-old", "title": "2020年", "status": "waiting", "is_project": 0, "is_archived": 0, "deleted_at": null, "due_date": "2020-01-01", "prep_date": null, "review_date": null, "estimated_minutes": 0 }
+      ],
+      "expected_ids": ["very-old"]
+    }
+  ]
+}

@@ -194,6 +194,38 @@ class BaseController {
     }
 
     /**
+     * R-140: 呼び出しユーザーの `scope=aggregated`（project_id なし）と同じアイテム集合を返す。
+     * ItemController::getMyItems と IntegrationController::digest が共用する（SQL を二重に書かない）。
+     *
+     * @param string $filterClause 既定は未アーカイブ・未削除のみ
+     * @return array DB行（parent_title / real_project_title / tenant_name 付き）
+     */
+    protected function fetchAggregatedItems(string $filterClause = " AND items.is_archived = 0 AND items.deleted_at IS NULL "): array {
+        $tenantIds = $this->joinedTenants ?: [];
+        $placeholders = '0'; // Default to "tenant_id IN (0)" which is false safely
+        if (!empty($tenantIds)) {
+            $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
+        }
+        $sql = "
+            SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name
+            FROM items
+            LEFT JOIN items parent ON items.parent_id = parent.id
+            LEFT JOIN items proj ON items.project_id = proj.id
+            LEFT JOIN tenants t ON items.tenant_id = t.id
+            WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
+            AND (
+                items.created_by = ?
+                OR items.assigned_to = ?
+            )
+            $filterClause
+            ORDER BY items.updated_at DESC
+        ";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(array_merge($tenantIds, [$this->currentUserId, $this->currentUserId]));
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * item_dependencies を1回だけ一括取得し、アイテムIDごとの隣接マップを構築する（R-099）
      * N+1回避のため、一覧取得のたびにこの関数を1回だけ呼び出し、mapItemRow() の第2引数へ渡すこと。
      * DependencyController::getDependenciesDirect() と同じテナントスコープの絞り込みパターンを流用。
