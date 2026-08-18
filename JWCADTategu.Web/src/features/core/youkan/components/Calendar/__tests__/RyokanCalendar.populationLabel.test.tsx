@@ -77,8 +77,8 @@ describe('R-148: グリッド CapacityBar の母集団ラベル', () => {
 		expect(await firstBarTitle(container)).toBe('予定込／完了込／個人枠');
 	});
 
-	it('filterMode=company・includesCompleted=false は「予定込／未完了のみ／会社枠」', async () => {
-		const { container } = render(<RyokanCalendar {...baseProps} filterMode="company" includesCompleted={false} />);
+	it('filterMode=テナントID・includesCompleted=false は「予定込／未完了のみ／会社枠」', async () => {
+		const { container } = render(<RyokanCalendar {...baseProps} filterMode="tenant-1" includesCompleted={false} />);
 		expect(await firstBarTitle(container)).toBe('予定込／未完了のみ／会社枠');
 	});
 });

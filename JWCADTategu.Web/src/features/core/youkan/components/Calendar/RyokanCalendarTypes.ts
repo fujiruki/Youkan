@@ -80,6 +80,8 @@ export interface RyokanCalendarProps {
     googleCalendars?: GoogleCalendar[];
     /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
     hideExternalEventTime?: boolean;
+    /** R-148: items に完了（done）アイテムが含まれているか（母集団ラベル「完了込／未完了のみ」用）。既定 true */
+    includesCompleted?: boolean;
     /** R-097: ガントビューの日付列幅（px）。未指定時は既存動作維持のため 24px */
     ganttColWidth?: number;
     /** R-097: ガントビューの行高さ（px）。未指定時は既存動作維持のため 28px（h-7相当） */

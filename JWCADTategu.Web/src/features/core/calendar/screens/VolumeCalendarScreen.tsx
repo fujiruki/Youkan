@@ -289,6 +289,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					ref={calendarRef}
 					items={visibleItems || []}
 					completedItems={hideCompleted ? [] : (filteredCompletedItems || [])}
+					includesCompleted={!hideCompleted}
 					members={members || []}
 					projects={projects || []}
 					focusedProjectId={activeProjectId}

@@ -402,6 +402,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId, a
         position: { x: band.x, y: band.y },
         data: {
           label: band.label,
+          // R-148: 帯ラベル先頭に案件名1語（母集団＝この案件のこの締切日のノード群）
+          projectName: band.projectId ? allProjects.find((p) => p.id === band.projectId)?.title : undefined,
           totalMinutes: band.totalMinutes,
           criticalMinutes: band.criticalMinutes,
           remainingMinutes: band.remainingMinutes,
@@ -418,7 +420,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId, a
         selectable: false,
         zIndex: -2,
       })),
-    [dateBands]
+    [dateBands, allProjects]
   );
 
   const nodesForRender = useMemo<Node[]>(

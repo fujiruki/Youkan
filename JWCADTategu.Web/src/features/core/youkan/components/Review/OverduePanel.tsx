@@ -103,7 +103,7 @@ export const OverduePanel: React.FC<OverduePanelProps> = ({ groups, today, onUpd
             >
                 <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                        超過分 {totalCount}件 ／ 合計 {formatWeekLoadHours(totalMinutes)}
+                        期限超過 {totalCount}件 ／ 合計 {formatWeekLoadHours(totalMinutes)}
                     </h3>
                     <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xs shrink-0" title="閉じる (Esc)">✕</button>
                 </div>

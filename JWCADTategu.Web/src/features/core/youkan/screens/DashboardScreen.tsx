@@ -360,6 +360,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									currentUserId={currentUserId}
 									displayMode="gantt"
 									filterMode={filterMode}
+									includesCompleted={!hideCompleted}
 									hideHeader={true}
 									onItemClick={(item) => setSelectedItem(item)}
 									onUpdateItem={updateItem as any}
