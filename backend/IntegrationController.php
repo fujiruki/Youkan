@@ -1,6 +1,7 @@
 <?php
 // backend/IntegrationController.php
 require_once 'db.php';
+require_once 'QuantityService.php';
 
 class IntegrationController {
     private $pdo;
@@ -115,6 +116,13 @@ class IntegrationController {
         
         $stmt->execute([$id, $title, $memo, $now, $now]);
 
-        echo json_encode(['id' => $id, 'message' => 'Added to Inbox via Shortcut']);
+        // R-128: 今週の残量（F-27）。番頭が不足時に一言返せるようレスポンスに同梱する
+        $tenantStmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
+        $tenantStmt->execute([$user['id']]);
+        $tenantIds = $tenantStmt->fetchAll(PDO::FETCH_COLUMN);
+        $weekLoad = (new QuantityService($this->pdo))
+            ->calcWeekLoadForUser($user['id'], $tenantIds, date('Y-m-d'), $id);
+
+        echo json_encode(['id' => $id, 'message' => 'Added to Inbox via Shortcut', 'week_load' => $weekLoad]);
     }
 }

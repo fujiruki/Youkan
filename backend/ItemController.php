@@ -2,6 +2,7 @@
 // backend/ItemController.php
 require_once 'BaseController.php';
 require_once 'ManufacturingSyncService.php';
+require_once 'QuantityService.php';
 
 class ItemController extends BaseController {
 
@@ -743,7 +744,11 @@ class ItemController extends BaseController {
                 $this->autoChainAndPlace($id, $projectIdForChain);
             }
 
-            $this->sendJSON(['id' => $id, 'success' => true]);
+            // R-128: 今週の残量（F-27）。新規登録直後のレスポンスに同梱する
+            $weekLoad = (new QuantityService($this->pdo))
+                ->calcWeekLoadForUser($this->currentUserId, $this->joinedTenants, date('Y-m-d'), $id);
+
+            $this->sendJSON(['id' => $id, 'success' => true, 'week_load' => $weekLoad]);
         } catch (PDOException $e) {
             $this->sendError(500, 'Database Error: ' . $e->getMessage());
         }
@@ -946,7 +951,17 @@ class ItemController extends BaseController {
             }
 
             $this->pdo->commit();
-            $this->sendJSON(['success' => true, 'affectedDescendantIds' => $affectedDescendantIds]);
+
+            // R-128: 期限/目安を含む更新の直後だけ、今週の残量（F-27）をレスポンスに同梱する
+            $response = ['success' => true, 'affectedDescendantIds' => $affectedDescendantIds];
+            $touchesWeekLoad = array_key_exists('due_date', $data) || array_key_exists('dueDate', $data)
+                || array_key_exists('prep_date', $data) || array_key_exists('prepDate', $data)
+                || array_key_exists('estimated_minutes', $data) || array_key_exists('estimatedMinutes', $data);
+            if ($touchesWeekLoad) {
+                $response['week_load'] = (new QuantityService($this->pdo))
+                    ->calcWeekLoadForUser($this->currentUserId, $this->joinedTenants, date('Y-m-d'), $id);
+            }
+            $this->sendJSON($response);
         } catch (Exception $e) {
             $this->pdo->rollBack();
             $this->sendError(500, 'Update failed: ' . $e->getMessage());
