@@ -7,7 +7,7 @@ import { ManufacturingBus } from '../logic/ManufacturingBus';
 import { getDailyCapacity, isHoliday } from '../logic/capacity';
 import { QuantityEngine } from '../logic/QuantityEngine';
 import { ApiClient } from '../../../../api/client';
-import { YOUKAN_KEYS, YOUKAN_EVENTS } from '../../session/youkanKeys';
+import { YOUKAN_EVENTS } from '../../session/youkanKeys';
 import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
 import { sanitizeItems } from '../logic/sanitizeItems';
@@ -1273,7 +1273,8 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// --- Youkan v2: View Matrix Context ---
 	const getQuantityContext = useCallback((): any => {
 		// [Haruki Model] Detect if Company or Person
-		const accountId = localStorage.getItem(YOUKAN_KEYS.USER) ? (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || '') : '';
+		// [R-137] currentUserId は AuthContext（/auth/me）が唯一の正。localStorage['youkan_user']は参照しない
+		const accountId = currentUserId || '';
 		const isCompanyAcc = accountId.length > 20; // Rough check (UUID length vs individual short IDs)
 
 		// [NEW] Create Tenant Profiles Map for QuantityEngine
@@ -1500,7 +1501,8 @@ export const useYoukanViewModel = (projectId?: string) => {
 		// 2. Persist to Backend (only for focused tenant context where we have memberId)
 		// In a real multi-tenant app, we would need an API to update "my profile in tenant X".
 		// Here we fallback to updateMember if the tenant matches.
-		const currentMember = members.find(m => m.userId === currentUserId || m.userId === (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || '')); // Robust check
+		// [R-137] currentUserId（AuthContext由来）が唯一の正。localStorage['youkan_user']は参照しない
+		const currentMember = members.find(m => m.userId === currentUserId);
 
 		if (currentMember && focusedTenantId) {
 			const updateForCurrentContext = updates.find(u => u.tenantId === focusedTenantId);

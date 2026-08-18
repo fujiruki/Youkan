@@ -159,7 +159,7 @@ const DetailQuantityCalendarInner: React.FC<DetailQuantityCalendarProps> = ({
 					capacityConfig={capacityConfig}
 					projects={projects}
 					joinedTenants={joinedTenants}
-					currentUserId={currentUserId || (() => { try { const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}'); return u?.id || null; } catch { return null; } })()}
+					currentUserId={currentUserId}
 
 					layoutMode={density === 'full' ? 'panorama' : 'mini'}
 					displayMode="grid"

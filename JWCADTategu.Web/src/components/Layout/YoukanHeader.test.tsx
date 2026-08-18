@@ -8,8 +8,12 @@ import { YOUKAN_EVENTS, YOUKAN_KEYS } from '../../features/core/session/youkanKe
 vi.mock('../../features/core/youkan/components/Layout/HealthCheck', () => ({
     HealthCheck: () => null
 }));
+let capturedUserName: string | undefined;
 vi.mock('./MenuDrawer', () => ({
-    MenuDrawer: () => null
+    MenuDrawer: ({ userName }: { userName?: string }) => {
+        capturedUserName = userName;
+        return null;
+    }
 }));
 vi.mock('../../features/core/youkan/components/Layout/MotivatorWhisper', () => ({
     MotivatorWhisper: () => null
@@ -188,5 +192,22 @@ describe('YoukanHeader CustomEvent', () => {
         fireEvent.click(screen.getByText('全体一覧'));
         window.removeEventListener('youkan-view-mode-change', handler);
         expect(capturedMode).toBe('overview');
+    });
+});
+
+describe('R-137: YoukanHeader のユーザー名表示は localStorage["youkan_user"] を参照しない', () => {
+    beforeEach(() => {
+        capturedUserName = undefined;
+        localStorage.clear();
+    });
+
+    it('localStorageにyoukan_userが無くても、user propがあればその名前が使われる', () => {
+        renderHeader({ user: { id: 'u1', name: 'ユーザーA', email: 'a@example.com' } });
+        expect(capturedUserName).toBe('ユーザーA');
+    });
+
+    it('localStorageにyoukan_userが無く、user propも無ければ"User"にフォールバックする', () => {
+        renderHeader();
+        expect(capturedUserName).toBe('User');
     });
 });
