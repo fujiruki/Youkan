@@ -23,10 +23,11 @@
 ## 共通ルール
 - 指揮AIはコードを編集しない。TDD。ステップ単位で1コミット。評価語禁止。マージ・デプロイは指揮AI経由
 
-## R-131〜R-134 改善要望フォーム4件（1Agentで順に）
+## R-131〜R-134 改善要望フォーム4件（1Agentで順に、完了・2026-08-18）
 **ブランチ**: `feat/R-131-134-form-requests` ／ **担当**: Sonnet Agent（worktree）
-- [ ] R-131 `DecisionDetailModal` Ctrl+Shift+H → 保留（テスト先行、入力欄内は無視）
-- [ ] R-132 `FlowItemNode` todo配色を通常色に（テストで inbox と同一クラスを確認）
-- [ ] R-133 `FlowItemNode` タイトル編集中の2回目クリックでキャレット位置（R-079回帰テスト維持）
-- [ ] R-134 `ReviewPrompt` に「後で（1時間後）」＋snooze再表示＋Notification 1回、バッジtitle
-- [ ] 全テスト・tsc、06 Impact追記、完了報告
+- [x] R-131 `DecisionDetailModal` Ctrl+Shift+H → 保留（テスト先行、入力欄内は無視）
+- [x] R-132 `FlowItemNode` todo配色を通常色に（テストで inbox と同一クラスを確認）
+- [x] R-133 `FlowItemNode` タイトル編集中の2回目クリックでキャレット位置（`nodrag`クラス付与、R-079回帰テスト維持）
+- [x] R-134 `ReviewPrompt` に「後で（1時間後）」＋snooze再表示＋Notification 1回、バッジtitle
+- [x] 全テスト・tsc、06 Impact追記、完了報告
+- マージ・デプロイは未実施（指揮AI経由待ち）
