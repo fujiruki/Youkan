@@ -31,9 +31,10 @@ const buildItems = (count: number): OverdueItem[] =>
     }));
 
 describe('OverduePanel (R-136 / F-55)', () => {
-    it('見出しに件数と合計hを表示する', () => {
+    it('見出しに件数と合計hを表示する（R-148: 接頭辞は「期限超過」）', () => {
         render(<OverduePanel groups={[buildGroup()]} today={TODAY} onUpdateItem={vi.fn()} onClose={vi.fn()} />);
-        expect(screen.getByText(/超過分\s*2件/)).toBeInTheDocument();
+        expect(screen.getByText(/期限超過\s*2件/)).toBeInTheDocument();
+        expect(screen.queryByText(/超過分\s*2件/)).toBeNull();
         expect(screen.getByText(/合計\s*3h/)).toBeInTheDocument();
     });
 
@@ -187,7 +188,7 @@ describe('OverduePanel (R-136 / F-55)', () => {
 
     it('対象が0件でも見出しは表示する', () => {
         render(<OverduePanel groups={[]} today={TODAY} onUpdateItem={vi.fn()} onClose={vi.fn()} />);
-        expect(screen.getByText(/超過分\s*0件/)).toBeInTheDocument();
+        expect(screen.getByText(/期限超過\s*0件/)).toBeInTheDocument();
     });
 
     it('評価語を含まない（文言は事実のみ）', () => {

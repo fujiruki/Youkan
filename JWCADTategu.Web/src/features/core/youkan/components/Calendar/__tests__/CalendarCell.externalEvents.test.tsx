@@ -113,3 +113,27 @@ describe('CalendarCell — Google カレンダー外部イベント表示', () =
         expect(screen.queryByText(/予定0/)).toBeNull();
     });
 });
+
+// R-148: 量感カレンダーのセルは capacityBarLabel を CapacityBar の title に渡す
+describe('CalendarCell — R-148 母集団ラベル', () => {
+    const metric = {
+        date: baseDate,
+        volumeMinutes: 120,
+        completedVolumeMinutes: 0,
+        capacityMinutes: 480,
+        ratio: 0.25,
+        intensity: 25,
+        isHoliday: false,
+        contributingItems: [],
+    } as any;
+
+    it('capacityBarLabel を渡すと CapacityBar の title になる', () => {
+        render(<CalendarCell {...baseProps} metric={metric} capacityBarLabel="予定込／完了込／個人枠" />);
+        expect(screen.getByTestId('capacity-bar').getAttribute('title')).toBe('予定込／完了込／個人枠');
+    });
+
+    it('capacityBarLabel なしは従来どおり title なし', () => {
+        render(<CalendarCell {...baseProps} metric={metric} />);
+        expect(screen.getByTestId('capacity-bar').getAttribute('title')).toBeNull();
+    });
+});

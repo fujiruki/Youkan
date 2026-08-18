@@ -332,6 +332,24 @@ describe('FlowScreen: 日付表示（R-113、帯の表示のみ）', () => {
         expect(band1.style.width).not.toBe(band2.style.width);
     });
 
+    // R-148: 帯ラベルの先頭に案件名1語（帯データ projectName。label 自体は従来どおり）
+    it('案件に属する帯には data.projectName に案件名が入り、案件なしの帯には入らない', async () => {
+        const proj = { ...makeItem('p1', null, 0, 0), title: '案件P1', isProject: true };
+        const p1a = { ...makeItem('p1-a', '2026-08-16', 60, 0), projectId: 'p1' };
+        mockGetAllItems.mockResolvedValue([proj, p1a, itemC]);
+
+        renderFlowScreen();
+        await waitFor(() => expect(nodeOf('p1-a')).toBeTruthy());
+        await toggleDateGrouping();
+
+        await waitFor(() => expect(bandNodes().length).toBeGreaterThanOrEqual(2));
+        const projBand = bandNodes().find((n: any) => n.id === 'dateband-p1-2026-08-16');
+        expect(projBand.data.projectName).toBe('案件P1');
+        expect(projBand.data.label).toBe('8/16(日)まで');
+        const noneBand = bandNodes().find((n: any) => n.id === 'dateband-none-2026-08-17');
+        expect(noneBand.data.projectName).toBeUndefined();
+    });
+
     it('別の配置系ボタン（自動整理）を押すと日付整列のプレビューはキャンセル扱いで閉じる', async () => {
         renderFlowScreen();
         await waitFor(() => expect(nodeOf('item-a')).toBeTruthy());
