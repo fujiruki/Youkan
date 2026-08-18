@@ -99,6 +99,14 @@ describe('YoukanHeader R-127 要判断キュー件数バッジ', () => {
         expect(screen.getByLabelText('要判断 7件')).toBeInTheDocument();
     });
 
+    it('R-134: バッジのtitleが「クリックで捌く」になる', () => {
+        renderHeader();
+        act(() => {
+            window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, { detail: { count: 3 } }));
+        });
+        expect(screen.getByLabelText('要判断 3件')).toHaveAttribute('title', 'クリックで捌く');
+    });
+
     it('バッジクリックでOPEN_REVIEW_SWEEPイベントとsessionStorageのpendingフラグが発生する', () => {
         renderHeader();
         act(() => {
