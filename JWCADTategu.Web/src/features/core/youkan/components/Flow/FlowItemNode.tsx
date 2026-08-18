@@ -4,12 +4,17 @@ import { format } from 'date-fns';
 import type { Item } from '../../types';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { formatLatestStartToken, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
 
 export interface FlowItemNodeData {
   item: Item;
   isEditing?: boolean;
   isNewNode?: boolean;
   isHighlighted?: boolean;
+  /** R-129 / F-28: 最遅着手日トークン（親画面で1回だけ計算した結果を渡す。ノード側では再計算しない） */
+  latestStart?: LatestStartResult;
+  /** R-129: 最遅着手日トークンの計算に使った安全係数（ツールチップ表示用） */
+  safetyFactor?: number;
   onTitleChange?: (itemId: string, newTitle: string) => void;
   onEditComplete?: (itemId: string) => void;
   onEstimatedMinutesChange?: (itemId: string, minutes: number) => void | Promise<void>;
@@ -233,6 +238,22 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
               {format(prepDateObj, 'M/d')}
             </span>
           )}
+          {(() => {
+            const latestStart = nodeData.latestStart;
+            const token = latestStart ? formatLatestStartToken(latestStart) : null;
+            if (!token) return null;
+            // R-129: フローは省スペースのため「着手 M/d」→「着手M/d」に詰める（計算は再実装しない）
+            const compactToken = token.replace('着手 ', '着手');
+            const highlighted = latestStart!.isLate;
+            return (
+              <span
+                className={`text-[8px] leading-tight ${highlighted ? 'text-red-500 font-bold' : 'text-slate-400'}`}
+                title={formatLatestStartTooltip(latestStart!, nodeData.safetyFactor ?? 1.5)}
+              >
+                {compactToken}
+              </span>
+            );
+          })()}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !w-3 !h-3" />
