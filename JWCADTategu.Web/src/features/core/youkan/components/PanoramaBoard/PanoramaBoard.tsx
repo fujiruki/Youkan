@@ -419,6 +419,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 				onGetSubTasks={vm.getSubTasks}
 				members={vm.members}
 				joinedTenants={joinedTenants}
+				allProjects={allProjects}
 				quantityItems={[...vm.gdbActive, ...gdbTodo, ...vm.gdbPreparation, ...vm.gdbLog, ...vm.gdbIntent]}
 				filterMode={vm.filterMode}
 				capacityConfig={vm.capacityConfig}

@@ -104,9 +104,10 @@ interface FlowScreenProps {
 interface FlowCanvasProps {
   onOpenItem?: (item: Item) => void;
   currentProjectId?: string;
+  allProjects?: Item[];
 }
 
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId }) => {
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId, allProjects = [] }) => {
   const [allItems, setAllItems] = useState<Item[]>([]);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
   const [nodes, setNodes, _onNodesChange] = useNodesState<Node>([]);
@@ -1834,6 +1835,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
             setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
             setSelectedItem(prev => prev?.id === id ? { ...prev, ...updates } : prev);
           }}
+          joinedTenants={auth.joinedTenants || []}
+          allProjects={allProjects}
         />
       )}
     </div>
@@ -1912,6 +1915,8 @@ export const FlowScreen: React.FC<FlowScreenProps> = ({ onOpenItem, initialProje
 
   const [selectorItems, setSelectorItems] = useState<Item[]>([]);
   const [projectList, setProjectList] = useState<{ id: string; title: string }[]>([]);
+  // R-142: 詳細モーダルの所属プロジェクト選択肢。project_id 絞り込み中でも全プロジェクトを渡すため外側で保持する
+  const allProjects = useMemo(() => selectorItems.filter((i) => i.isProject), [selectorItems]);
 
   useEffect(() => {
     ApiClient.getAllItems({ scope: 'aggregated' }).then((items) => {
@@ -2006,6 +2011,7 @@ export const FlowScreen: React.FC<FlowScreenProps> = ({ onOpenItem, initialProje
           <FlowCanvas
             onOpenItem={onOpenItem}
             currentProjectId={selectedProjectId === '__all__' ? undefined : selectedProjectId}
+            allProjects={allProjects}
           />
         </ReactFlowProvider>
       </div>
