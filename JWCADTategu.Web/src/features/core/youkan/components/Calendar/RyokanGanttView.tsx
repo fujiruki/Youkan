@@ -4,6 +4,7 @@ import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
+import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, formatLatestStartToken, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
@@ -574,11 +575,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		}
 	}, [inlineInsert, items, dependencies, focusedProjectId, focusedTenantId, onCreateItem, onReloadItems, transformedItems]);
 
-	// Calculate detailed allocations using QuantityEngine
-	const allocationMap = useMemo(() => {
-		if (!capacityConfig || !currentUserId) return new Map();
-
-		const context: QuantityContext = {
+	// R-129: 量感計算の共通コンテキスト（逆算配分・最遅着手日トークンの両方で使う）
+	const quantityContext = useMemo<QuantityContext | null>(() => {
+		if (!capacityConfig || !currentUserId) return null;
+		return {
 			items,
 			members: [],
 			capacityConfig,
@@ -591,6 +591,11 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 				joinedTenants: joinedTenants?.map(t => ({ id: t.id, name: t.name })) || []
 			}
 		};
+	}, [items, capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId]);
+
+	// Calculate detailed allocations using QuantityEngine
+	const allocationMap = useMemo(() => {
+		if (!quantityContext) return new Map();
 
 		const map = new Map();
 
@@ -598,13 +603,32 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			const endDate = item.prep_date ? new Date((item.prep_date as number) * 1000) : null;
 			if (endDate) {
 				const estMinutes = item.estimatedMinutes || (item.work_days ? item.work_days * 480 : 60);
-				const steps = QuantityEngine.calculateAllocationDetails(endDate, estMinutes, context, item.tenantId);
+				const steps = QuantityEngine.calculateAllocationDetails(endDate, estMinutes, quantityContext, item.tenantId);
 				map.set(item.id, steps);
 			}
 		});
 
 		return map;
-	}, [items, capacityConfig, currentUserId, joinedTenants, focusedTenantId, focusedProjectId]);
+	}, [items, quantityContext]);
+
+	// R-129 / F-28: 最遅着手日トークン。表示順（transformedItems）で飽和ガード（赤字は先頭10件）を適用する
+	const safetyFactor = resolveSafetyFactor(capacityConfig);
+	const todayKey = format(_today, 'yyyy-MM-dd');
+	const latestStartMap = useMemo(() => {
+		const map = new Map<string, LatestStartResult>();
+		if (!quantityContext) return map;
+		items.forEach(item => {
+			map.set(item.id, getLatestStart(item, quantityContext, safetyFactor, todayKey));
+		});
+		return map;
+	}, [items, quantityContext, safetyFactor, todayKey]);
+
+	const lateStartHighlightIds = useMemo(() => {
+		const ordered = transformedItems
+			.filter((w): w is Extract<HierarchicalWrapper, { type: 'item' }> => w.type === 'item')
+			.map(w => ({ id: w.item.id, isLate: latestStartMap.get(w.item.id)?.isLate ?? false }));
+		return selectLateStartHighlightIds(ordered);
+	}, [transformedItems, latestStartMap]);
 
 	// R-105: 時間軸タイムライン表示時のみ、日付ごとにブロックの横位置を計算する
 	const timeBlockLayoutsByDate = useMemo(() => {
@@ -1107,6 +1131,24 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 												{formatMinutes(item.estimatedMinutes) || '--'}
 											</span>
 										)}
+										{/* R-129 / F-28: 最遅着手日トークン */}
+										{(() => {
+											const latestStart = latestStartMap.get(item.id);
+											const token = latestStart ? formatLatestStartToken(latestStart) : null;
+											if (!token) return null;
+											const highlighted = latestStart!.isLate && lateStartHighlightIds.has(item.id);
+											return (
+												<span
+													className={cn(
+														"text-[9px] whitespace-nowrap shrink-0",
+														highlighted ? "text-red-500 dark:text-red-400 font-bold" : "text-slate-400 dark:text-slate-500"
+													)}
+													title={formatLatestStartTooltip(latestStart!, safetyFactor)}
+												>
+													{token}
+												</span>
+											);
+										})()}
 										{hoveredItemId === item.id && editingTimeItemId !== item.id && (
 											<button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors shrink-0">
 												<ChevronRight size={14} />
