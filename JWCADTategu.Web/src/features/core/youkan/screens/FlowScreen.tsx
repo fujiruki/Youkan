@@ -49,7 +49,7 @@ import { format } from 'date-fns';
 import { useCapacityConfig } from '../hooks/useCapacityConfig';
 import { getLatestStart, resolveSafetyFactor, LatestStartResult } from '../logic/latestStart';
 import type { QuantityContext } from '../logic/QuantityEngine';
-import { YOUKAN_KEYS } from '../../session/youkanKeys';
+import { useAuth } from '../../auth/providers/AuthProvider';
 
 const nodeTypes = {
   flowItem: FlowItemNode,
@@ -167,15 +167,10 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   // capacityConfigとログイン中ユーザーIDから最小限のQuantityContextを組み立てる（v1は各アイテム独立計算）
   const { capacityConfig } = useCapacityConfig();
   const safetyFactor = resolveSafetyFactor(capacityConfig);
-  const currentUserId = useMemo<string | null>(() => {
-    const raw = localStorage.getItem(YOUKAN_KEYS.USER);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw).id || null;
-    } catch {
-      return null;
-    }
-  }, []);
+  // [R-135] currentUserIdはAuthContext（/auth/me）が唯一の正。
+  // 旧実装はCookieセッション認証では書かれないlocalStorage['youkan_user']を読んでおり常にnullだった
+  const auth = useAuth();
+  const currentUserId = (auth as any)?.user?.id ?? null;
   const quantityContext = useMemo<QuantityContext | null>(() => {
     if (!currentUserId) return null;
     return {
