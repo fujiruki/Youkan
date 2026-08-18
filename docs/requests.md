@@ -1,5 +1,10 @@
 # Requests
 
+- **【中】R-143** 右クリックメニューに「今日やる」の直下「後日着手」を追加、メニュー表示中のショートカット `h`
+  - 2026-08-19 会話原文: 「軽微な変更、右クリックメニューに、今日やるの下に「後日着手」を追加して。ショートカットキーは右クリックメニュー表示時にｈ」
+  - 指揮AI事前調査: 共通ビルダー `hooks/buildItemContextMenuActions.tsx` には R-125 で「後日着手」が条件付き（`onResolveLater` 渡し時のみ・ショートカット無し）で存在。全体一覧 `OverviewBoard.tsx` は独自メニュー定義で「後日着手」自体が無い。既存ショートカットは a/b/d/Delete で `h` は未使用
+  - **→ R-143 として requests_log.md に移記済み（2026-08-19）**
+
 - **【高】R-142** バグ: フローチャート・状況把握から開いた詳細モーダルでテナントが「PRIVATE」・プロジェクトが「Inbox（未分類）」と表示される
   - 上記「板２上下加工」①の原因。調査Agent結論（2026-08-19）: 本番データは正常（tenant=藤田建具店、project=石鎚山）。`FlowScreen.tsx:1814` の `<DecisionDetailModal>` が `joinedTenants`/`allProjects` を渡しておらず照合先が空でフォールバック文言になる。`PanoramaBoard.tsx:421` も `allProjects` 漏れ。選択肢が空のため発注者が「Private」を押すと実際に `tenantId=null, projectId=null` が書き込まれるリスクあり
   - **→ R-142 として requests_log.md に移記済み（2026-08-19）**
