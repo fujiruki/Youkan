@@ -73,7 +73,6 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// [NEW] All Projects & Tenants
 	const [allProjectsRaw, setAllProjectsRaw] = useState<Item[]>([]);
 	const [joinedTenants, setJoinedTenants] = useState<JoinedTenant[]>([]);
-	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
 	// [REFACTORED] FilterContextからフィルタモードを取得（ローカルステート廃止）
 	const { filterMode } = useFilter();
@@ -81,6 +80,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// [R-044] AuthContext から joinedTenants を再利用し、/auth/me の重複呼び出しを避ける
 	const auth = useAuth();
 	const authJoinedTenants = (auth as any)?.joinedTenants as any[] | undefined;
+	// [R-135] currentUserId は AuthContext（/auth/me）が唯一の正。
+	// 旧実装はRepositoryに存在しない getCurrentUser?.() を呼んでおり常にundefinedだった
+	const currentUserId = (auth as any)?.user?.id ?? null;
 
 	// Loading & Error
 	const [error, setError] = useState<string | null>(null);
@@ -255,15 +257,6 @@ export const useYoukanViewModel = (projectId?: string) => {
 				};
 			});
 			setJoinedTenants(mappedTenants);
-
-			// [NEW] Try to resolve currentUserId from repository
-			// Many repositories expose a getCurrentUser or similar
-			try {
-				const user = await (getRepository() as any).getCurrentUser?.();
-				if (user) setCurrentUserId(user.id);
-			} catch (e) {
-				console.warn('Failed to fetch current user id:', e);
-			}
 		} catch (e) {
 			console.error('Failed to fetch context metadata:', e);
 		}
