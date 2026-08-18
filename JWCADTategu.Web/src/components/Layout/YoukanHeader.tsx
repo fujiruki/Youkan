@@ -174,6 +174,14 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 		handleDashboardViewChange('overview');
 	};
 
+	// R-136: ヘッダーの週負荷1行クリックで超過分パネルを開く。同じ疎結合パターン
+	const handleOpenOverduePanel = () => {
+		sessionStorage.setItem(YOUKAN_KEYS.OVERDUE_PANEL_PENDING, '1');
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.OPEN_OVERDUE_PANEL));
+		onNavigateToDashboard();
+		handleDashboardViewChange('overview');
+	};
+
 	const isCompanyAccount = user?.accountType === 'tenant';
 	const isCompanyContext = checkCompanyContext(filterMode);
 	const { perspective, perspectiveLabel } = calculatePerspective(
@@ -312,8 +320,13 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 					</div>
 
 					{/* R-128: 今週の残量1行（F-27）。旧「Reality (Total Load)」を日本語1行に置き換え */}
+					{/* R-136: 1行全体をクリック可能にし、超過分パネルを開く（F-55） */}
 					{weekLoad && (
-					<div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50 shrink-0">
+					<div
+						onClick={handleOpenOverduePanel}
+						title="超過分を見る"
+						className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50 shrink-0 cursor-pointer hover:bg-slate-700/50 transition-colors"
+					>
 						<div className="flex flex-col">
 							<span className="text-xs font-bold text-slate-100 leading-tight whitespace-nowrap">
 								今週 必要 {formatWeekLoadHours(weekLoad.needMinutes)}／枠 {formatWeekLoadHours(weekLoad.capacityMinutes)}

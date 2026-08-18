@@ -123,6 +123,48 @@ describe('YoukanHeader R-127 要判断キュー件数バッジ', () => {
     });
 });
 
+describe('YoukanHeader R-136 超過分パネル導線', () => {
+    beforeEach(() => {
+        sessionStorage.clear();
+    });
+
+    const dispatchWeekLoad = (shortfallMinutes: number) => {
+        act(() => {
+            window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.CAPACITY_UPDATE, {
+                detail: {
+                    weekLoad: {
+                        capacityMinutes: 1920,
+                        needMinutes: 1920 + shortfallMinutes,
+                        shortfallMinutes,
+                        weekEnd: '2026-08-23',
+                        overCandidates: [],
+                    },
+                },
+            }));
+        });
+    };
+
+    it('週負荷1行に「超過分を見る」のtitleが付き、クリック可能になる', () => {
+        renderHeader();
+        dispatchWeekLoad(480);
+        expect(screen.getByTitle('超過分を見る')).toBeInTheDocument();
+    });
+
+    it('週負荷1行クリックでOPEN_OVERDUE_PANELイベントとsessionStorageのpendingフラグが発生する', () => {
+        renderHeader();
+        dispatchWeekLoad(480);
+
+        let opened = false;
+        const handler = () => { opened = true; };
+        window.addEventListener(YOUKAN_EVENTS.OPEN_OVERDUE_PANEL, handler);
+        fireEvent.click(screen.getByTitle('超過分を見る'));
+        window.removeEventListener(YOUKAN_EVENTS.OPEN_OVERDUE_PANEL, handler);
+
+        expect(opened).toBe(true);
+        expect(sessionStorage.getItem(YOUKAN_KEYS.OVERDUE_PANEL_PENDING)).toBe('1');
+    });
+});
+
 describe('YoukanHeader CustomEvent', () => {
     it('「状況把握」クリックで youkan-view-mode-change イベントが発火し detail.mode === "panorama"', () => {
         renderHeader();

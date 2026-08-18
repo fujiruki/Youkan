@@ -32,8 +32,10 @@ import { Decision } from '../logic/decisionResolution';
 import { safeFormat } from '../logic/dateUtils';
 import { buildReviewQueue, countDeclinedThisWeek } from '../logic/reviewQueue';
 import { calcWeekLoad } from '../logic/weekLoad';
+import { buildOverdueGroups } from '../logic/overdueGroups';
 import { ReviewSweep } from '../components/Review/ReviewSweep';
 import { ReviewPrompt } from '../components/Review/ReviewPrompt';
+import { OverduePanel } from '../components/Review/OverduePanel';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
@@ -218,7 +220,20 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	const judgmentPhrases: string[] = Array.isArray(authUser?.preferences?.judgment_phrases)
 		? authUser!.preferences.judgment_phrases
 		: [];
-	const [isReviewSweepOpen, setIsReviewSweepOpen] = useState(false);
+	const [isReviewSweepOpen, setIsReviewSweepOpenRaw] = useState(false);
+	// R-136: 超過分パネル（F-55）。抽出条件はweekLoadの超過判定と一致させる
+	const [isOverduePanelOpen, setIsOverduePanelOpenRaw] = useState(false);
+	const overdueGroups = useMemo(() => buildOverdueGroups(unifiedAllItems, today), [unifiedAllItems, today]);
+
+	// ReviewSweepとOverduePanelは排他（片方を開いたら他方を閉じる）
+	const setIsReviewSweepOpen = (open: boolean) => {
+		if (open) setIsOverduePanelOpenRaw(false);
+		setIsReviewSweepOpenRaw(open);
+	};
+	const setIsOverduePanelOpen = (open: boolean) => {
+		if (open) setIsReviewSweepOpenRaw(false);
+		setIsOverduePanelOpenRaw(open);
+	};
 
 	// ヘッダー（別コンポーネントツリー）へ件数を通知する。CAPACITY_UPDATEと同じ
 	// カスタムイベント経由の疎結合パターン（新規APIやProps貫通は追加しない）
@@ -238,6 +253,19 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		const handler = () => setIsReviewSweepOpen(true);
 		window.addEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
 		return () => window.removeEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// R-136: ヘッダーの週負荷1行クリック（YOUKAN_EVENTS.OPEN_OVERDUE_PANEL）でOverduePanelを開く
+	useEffect(() => {
+		if (sessionStorage.getItem(YOUKAN_KEYS.OVERDUE_PANEL_PENDING) === '1') {
+			sessionStorage.removeItem(YOUKAN_KEYS.OVERDUE_PANEL_PENDING);
+			setIsOverduePanelOpen(true);
+		}
+		const handler = () => setIsOverduePanelOpen(true);
+		window.addEventListener(YOUKAN_EVENTS.OPEN_OVERDUE_PANEL, handler);
+		return () => window.removeEventListener(YOUKAN_EVENTS.OPEN_OVERDUE_PANEL, handler);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 
@@ -604,6 +632,16 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					onDecision={vm.resolveDecision}
 					onOpenDetail={setSelectedItem}
 					onClose={() => setIsReviewSweepOpen(false)}
+				/>
+			)}
+
+			{/* R-136: 超過分パネル（F-55）。ReviewSweepとは排他 */}
+			{isOverduePanelOpen && (
+				<OverduePanel
+					groups={overdueGroups}
+					today={today}
+					onUpdateItem={vm.updateItem}
+					onClose={() => setIsOverduePanelOpen(false)}
 				/>
 			)}
 		</div>

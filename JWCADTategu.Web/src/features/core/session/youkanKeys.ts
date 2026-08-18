@@ -53,6 +53,8 @@ export const YOUKAN_KEYS = {
 	// === 誘導カードの「後で」と再呼び出し（R-134） ===
 	REVIEW_PROMPT_SNOOZE_UNTIL: 'youkan_review_prompt_snooze_until',
 	REVIEW_NOTIFY_ASKED: 'youkan_review_notify_asked',
+	// === 超過分パネル（R-136） ===
+	OVERDUE_PANEL_PENDING: 'youkan_overdue_panel_pending',
 } as const;
 
 /** カスタムイベント名 */
@@ -69,4 +71,6 @@ export const YOUKAN_EVENTS = {
 	OPEN_REVIEW_SWEEP: 'youkan-open-review-sweep',
 	// R-128: 今週の残量（F-27）。新規登録・期限/目安変更の直後、不足時のみ1回発火する
 	WEEK_LOAD_SHORTFALL: 'youkan-week-load-shortfall',
+	// R-136: 超過分パネル。ヘッダーの週負荷1行クリックで開く
+	OPEN_OVERDUE_PANEL: 'youkan-open-overdue-panel',
 } as const;
