@@ -30,6 +30,10 @@ import { applyGanttCompletedFilter } from '../logic/filterUtils';
 import { isReviewDue } from '../logic/statusUtils';
 import { Decision } from '../logic/decisionResolution';
 import { safeFormat } from '../logic/dateUtils';
+import { buildReviewQueue, countDeclinedThisWeek } from '../logic/reviewQueue';
+import { ReviewSweep } from '../components/Review/ReviewSweep';
+import { ReviewPrompt } from '../components/Review/ReviewPrompt';
+import { useAuth } from '../../../core/auth/providers/AuthProvider';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -190,6 +194,36 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 		() => applyGanttCompletedFilter(unifiedAllItems, !hideCompleted),
 		[unifiedAllItems, hideCompleted]
 	);
+
+	// R-127: 要判断キュー「捌く」。対象・並びは logic/reviewQueue.ts の1関数に集約。
+	const today = useMemo(() => safeFormat(new Date(), 'yyyy-MM-dd'), []);
+	const reviewQueue = useMemo(() => buildReviewQueue(unifiedAllItems, today), [unifiedAllItems, today]);
+	const declinedThisWeek = useMemo(() => countDeclinedThisWeek(unifiedAllItems, today), [unifiedAllItems, today]);
+	const { user: authUser } = useAuth();
+	const judgmentPhrases: string[] = Array.isArray(authUser?.preferences?.judgment_phrases)
+		? authUser!.preferences.judgment_phrases
+		: [];
+	const [isReviewSweepOpen, setIsReviewSweepOpen] = useState(false);
+
+	// ヘッダー（別コンポーネントツリー）へ件数を通知する。CAPACITY_UPDATEと同じ
+	// カスタムイベント経由の疎結合パターン（新規APIやProps貫通は追加しない）
+	useEffect(() => {
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, {
+			detail: { count: reviewQueue.length }
+		}));
+	}, [reviewQueue.length]);
+
+	// ヘッダーの件数バッジクリック（YOUKAN_EVENTS.OPEN_REVIEW_SWEEP）でReviewSweepを開く。
+	// このコンポーネントが未マウントの間のクリックはsessionStorageの一時フラグで拾う
+	useEffect(() => {
+		if (sessionStorage.getItem(YOUKAN_KEYS.REVIEW_SWEEP_PENDING) === '1') {
+			sessionStorage.removeItem(YOUKAN_KEYS.REVIEW_SWEEP_PENDING);
+			setIsReviewSweepOpen(true);
+		}
+		const handler = () => setIsReviewSweepOpen(true);
+		window.addEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
+		return () => window.removeEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
+	}, []);
 
 
 	useEffect(() => {
@@ -535,6 +569,26 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					capacityConfig={capacityConfig}
 					currentUserId={vm.currentUserId}
 					updateItemMetrics={vm.updateItemMetrics}
+				/>
+			)}
+
+			{/* R-127: 要判断キュー「捌く」 */}
+			{!isReviewSweepOpen && (
+				<ReviewPrompt
+					count={reviewQueue.length}
+					today={today}
+					onStart={() => setIsReviewSweepOpen(true)}
+				/>
+			)}
+			{isReviewSweepOpen && (
+				<ReviewSweep
+					items={reviewQueue}
+					today={today}
+					judgmentPhrases={judgmentPhrases}
+					declinedThisWeek={declinedThisWeek}
+					onDecision={vm.resolveDecision}
+					onOpenDetail={setSelectedItem}
+					onClose={() => setIsReviewSweepOpen(false)}
 				/>
 			)}
 		</div>

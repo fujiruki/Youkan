@@ -46,6 +46,10 @@ export const YOUKAN_KEYS = {
 
 	// === 詳細カレンダー設定 ===
 	DETAIL_CALENDAR_DENSITY: 'youkan_detail_calendar_density',
+
+	// === 要判断キュー「捌く」（R-127） ===
+	REVIEW_PROMPT_DISMISSED: 'youkan_review_prompt_dismissed',
+	REVIEW_SWEEP_PENDING: 'youkan_review_sweep_pending',
 } as const;
 
 /** カスタムイベント名 */
@@ -57,4 +61,7 @@ export const YOUKAN_EVENTS = {
 	OPEN_PROJECT_MODAL: 'youkan-open-project-modal',
 	CALENDAR_VIEW_MODE_CHANGE: 'youkan-calendar-view-mode-change',
 	PROJECT_VIEW_MODE_CHANGE: 'youkan-project-view-mode-change',
+	// R-127: 要判断キュー「捌く」
+	REVIEW_QUEUE_UPDATE: 'youkan-review-queue-update',
+	OPEN_REVIEW_SWEEP: 'youkan-open-review-sweep',
 } as const;

@@ -11,9 +11,13 @@
 - 面積を奪わない・動かない（フェードのみ）・3件で止まる・評価語なし・`decisionToStatus` 経由
 
 ## ステップ
-- [ ] 1. `logic/reviewQueue.ts` `buildReviewQueue` ＋ `countDeclinedThisWeek`（テスト先行）
-- [ ] 2. 判断の言葉: `users.preferences.judgment_phrases` の読み書き（Repository/API/バックエンドpreferences JSON）＋ `PersonalSettingsScreen` テキストエリア
-- [ ] 3. `components/Review/ReviewSweep.tsx`（右下オーバーレイ、1/2/3/Esc、後日+7日、断った=cancelled+meta.declined、3件で完了ビュー、詳細を開く→既存モーダル）
-- [ ] 4. `components/Review/ReviewPrompt.tsx`（1日1回、`localStorage['youkan_review_prompt_dismissed']`）
-- [ ] 5. `YoukanHeader` 全体一覧ナビに件数バッジ（0で非表示）／全体一覧フィルタ「要判断」チップ
-- [ ] 6. 全テスト・tsc、`06_変更履歴.md` Impact 追記、task.md 更新、完了報告
+- [x] 1. `logic/reviewQueue.ts` `buildReviewQueue` ＋ `countDeclinedThisWeek`（テスト先行）
+- [x] 2. 判断の言葉: `users.preferences.judgment_phrases` の読み書き（既存の設定保存経路＝`ApiClient.getUserProfile`/`updateUserProfile`）＋ `PersonalSettingsScreen` テキストエリア。`useAuth().user.preferences`経由でReviewSweepからも新規APIなしで参照
+- [x] 3. `components/Review/ReviewSweep.tsx`（右下オーバーレイ、1/2/3/Esc、後日+7日、断った=cancelled+meta.declined、3件で完了ビュー、詳細を開く→既存モーダル）
+- [x] 4. `components/Review/ReviewPrompt.tsx`（1日1回、`localStorage['youkan_review_prompt_dismissed']`）
+- [x] 5. `YoukanHeader` 全体一覧ナビに件数バッジ（0で非表示）／全体一覧フィルタ「要判断」チップ
+- [x] 6. 全テスト・tsc、`06_変更履歴.md` Impact 追記、task.md 更新、完了報告
+
+## 完了（2026-08-18）
+- 全テストGreen（1096 passed / 14 skipped、既知の許容2 unhandled errors）、`npx tsc --noEmit` エラーなし
+- マージ・デプロイは未実施（指揮AIレビュー待ち）

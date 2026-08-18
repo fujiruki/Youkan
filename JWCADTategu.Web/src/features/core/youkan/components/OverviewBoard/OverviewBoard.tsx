@@ -27,7 +27,9 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const { filterMode } = useFilter();
 	const { joinedTenants } = useAuth();
 	const [showSomeday, setShowSomeday] = useState(false);
-	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday);
+	// R-127: 全体一覧フィルタ「要判断」（buildReviewQueueの対象のみ表示）
+	const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly);
 
 	const [inlineAddProjectId, setInlineAddProjectId] = useState<string | null>(null);
 
@@ -212,6 +214,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					onChangeTitleLimit={setTitleLimit}
 					showSomeday={showSomeday}
 					onChangeShowSomeday={setShowSomeday}
+					needsReviewOnly={needsReviewOnly}
+					onChangeNeedsReviewOnly={setNeedsReviewOnly}
 				/>
 				{/* R-098: 印刷ボタン */}
 				<button

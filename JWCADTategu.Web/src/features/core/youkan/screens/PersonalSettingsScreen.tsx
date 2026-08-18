@@ -46,6 +46,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 	// Motivation Quotes State
 	const [motivationQuotes, setMotivationQuotes] = useState('');
 
+	// R-127: 判断の言葉（要判断キューのReviewSweepで1つずつ表示）
+	const [judgmentPhrases, setJudgmentPhrases] = useState('');
+
 	// App Settings
 	const [showLifeMode, setShowLifeMode] = useState(() => {
 		return localStorage.getItem(YOUKAN_KEYS.SHOW_LIFE_MODE) !== 'false';
@@ -76,6 +79,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 			// Handle preferences (Motivation Quotes & Capacity Profile)
 			const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
 			setMotivationQuotes(prefs.motivation_quotes || '');
+			setJudgmentPhrases(Array.isArray(prefs.judgment_phrases) ? prefs.judgment_phrases.join('\n') : '');
 
 			if (prefs.capacity_profile) {
 				setCapacityProfile(prefs.capacity_profile);
@@ -107,6 +111,10 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 			const prefs = currentProfile.preferences ? (typeof currentProfile.preferences === 'string' ? JSON.parse(currentProfile.preferences) : currentProfile.preferences) : {};
 			prefs.motivation_quotes = motivationQuotes;
 			prefs.capacity_profile = capacityProfile;
+			prefs.judgment_phrases = judgmentPhrases
+				.split('\n')
+				.map(p => p.trim())
+				.filter(p => p.length > 0);
 
 			await ApiClient.updateUserProfile({
 				display_name: displayName,
@@ -359,6 +367,26 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 							placeholder={"一歩ずつ進もう\n今日できることをやる\n完璧よりもまず完成させよう"}
 						/>
 						<p className="text-xs text-slate-400">※ 入力した言葉は、作業の邪魔にならないように画面背景にひっそりと表示されます。</p>
+					</div>
+				</section>
+				{/* R-127: 判断の言葉（要判断キュー ReviewSweep で1つずつ表示） */}
+				<section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+					<h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+						<Save className="w-5 h-5 text-indigo-500" />
+						判断の言葉
+					</h2>
+					<div className="space-y-4">
+						<p className="text-sm text-slate-500 dark:text-slate-400">
+							要判断キュー（捌く）のカードに1つずつ表示する短文を、1行1フレーズで入力してください。
+						</p>
+						<textarea
+							value={judgmentPhrases}
+							onChange={(e) => setJudgmentPhrases(e.target.value)}
+							rows={6}
+							className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
+							placeholder={"正しさより速さが正義"}
+						/>
+						<p className="text-xs text-slate-400">※ 空の場合はカードに表示されません。</p>
 					</div>
 				</section>
 				<section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

@@ -1,8 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { YoukanHeader } from './YoukanHeader';
 import { FilterProvider } from '../../features/core/youkan/contexts/FilterContext';
 import { ViewModeProvider } from '../../features/core/youkan/contexts/ViewModeContext';
+import { YOUKAN_EVENTS, YOUKAN_KEYS } from '../../features/core/session/youkanKeys';
 
 vi.mock('../../features/core/youkan/components/Layout/HealthCheck', () => ({
     HealthCheck: () => null
@@ -77,6 +78,40 @@ describe('YoukanHeader R-071 改善要望送信フォーム', () => {
         expect(screen.queryByTestId('improvement-request-modal')).toBeNull();
         fireEvent.click(screen.getByTitle('改善要望を送る'));
         expect(screen.getByTestId('improvement-request-modal')).toBeInTheDocument();
+    });
+});
+
+describe('YoukanHeader R-127 要判断キュー件数バッジ', () => {
+    beforeEach(() => {
+        sessionStorage.clear();
+    });
+
+    it('件数0（初期状態）ではバッジを表示しない', () => {
+        renderHeader();
+        expect(screen.queryByLabelText(/要判断/)).toBeNull();
+    });
+
+    it('youkan-review-queue-update イベントで件数バッジを表示する', () => {
+        renderHeader();
+        act(() => {
+            window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, { detail: { count: 7 } }));
+        });
+        expect(screen.getByLabelText('要判断 7件')).toBeInTheDocument();
+    });
+
+    it('バッジクリックでOPEN_REVIEW_SWEEPイベントとsessionStorageのpendingフラグが発生する', () => {
+        renderHeader();
+        act(() => {
+            window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, { detail: { count: 3 } }));
+        });
+        let opened = false;
+        const handler = () => { opened = true; };
+        window.addEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
+        fireEvent.click(screen.getByLabelText('要判断 3件'));
+        window.removeEventListener(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP, handler);
+
+        expect(opened).toBe(true);
+        expect(sessionStorage.getItem(YOUKAN_KEYS.REVIEW_SWEEP_PENDING)).toBe('1');
     });
 });
 

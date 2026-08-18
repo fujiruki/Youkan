@@ -3,6 +3,7 @@ import { Dependency, Item } from '../../types';
 import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { format } from 'date-fns';
 import { buildHierarchicalList } from '../../logic/hierarchy';
+import { buildReviewQueue } from '../../logic/reviewQueue';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
@@ -14,7 +15,7 @@ export type OverviewItemWrapper =
 // R-048: 起動時の /dependencies 多重取得を避けるため OverviewBoard では従来 dependencies: [] 固定だった。
 // R-091: 依存関係順ソートを全体一覧にも展開するため、画面表示時に1回だけ取得する方針に変更（R-048を上書き）。
 // items（gdbActive等）の変化のたびには再取得しない（マウント時1回のみ）。
-export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false): OverviewItemWrapper[] => {
+export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any | null, hideCompleted: boolean = false, showSomeday: boolean = false, needsReviewOnly: boolean = false): OverviewItemWrapper[] => {
 	const {
 		gdbActive,
 		gdbTodo,
@@ -50,9 +51,19 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			...(executionItem ? [executionItem] : []),
 			...(gdbLog || [])
 		];
-		const allItems = Array.from(
+		const dedupedItems = Array.from(
 			new Map(allItemsRaw.filter(Boolean).map(item => [String(item.id), item])).values()
 		);
+
+		// R-127: 「要判断」フィルタチップON時は buildReviewQueue の対象のみに絞る。
+		// 対象・並びの定義はlogic/reviewQueue.tsに一本化し、この画面用に再実装しない
+		const allItems = needsReviewOnly
+			? (() => {
+				const today = format(new Date(), 'yyyy-MM-dd');
+				const reviewIds = new Set(buildReviewQueue(dedupedItems, today).map(i => i.id));
+				return dedupedItems.filter(item => reviewIds.has(item.id));
+			})()
+			: dedupedItems;
 
 		// 2. Build Hierarchy using Common Logic
 		// R-091: 依存関係のあるタスクは前後の序列を崩さずに並べる
@@ -97,5 +108,5 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			return wrapper as OverviewItemWrapper;
 		});
 
-	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday, dependencies]);
+	}, [gdbActive, gdbPreparation, gdbIntent, gdbSomeday, gdbLog, todayCandidates, todayCommits, executionItem, viewModelProjects, activeProject, hideCompleted, showSomeday, needsReviewOnly, dependencies]);
 };
