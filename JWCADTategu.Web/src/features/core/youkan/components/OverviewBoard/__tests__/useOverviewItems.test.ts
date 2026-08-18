@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { addDays, format } from 'date-fns';
 import { useOverviewItems, OverviewItemWrapper } from '../useOverviewItems';
 import { Item, Project, Dependency } from '../../../types';
 import { DependencyRepository } from '../../../repositories/DependencyRepository';
@@ -137,5 +138,68 @@ describe('useOverviewItems', () => {
         expect(ids.indexOf('pred')).toBeLessThan(ids.indexOf('succ'));
 
         spy.mockRestore();
+    });
+});
+
+// R-129: 最遅着手日トークン（F-28）の全体一覧フィルタ「着手遅れ」・latestStart付与の検証
+describe('useOverviewItems（R-129 着手遅れフィルタ・latestStart付与）', () => {
+    const capacityViewModel = {
+        gdbActive: [] as Item[],
+        gdbPreparation: [],
+        gdbIntent: [],
+        gdbLog: [],
+        allProjects: [],
+        todayCandidates: [],
+        todayCommits: [],
+        executionItem: null,
+        capacityConfig: { defaultDailyMinutes: 480, holidays: [], exceptions: {} },
+        currentUserId: 'u1',
+        joinedTenants: [],
+        members: [],
+    };
+
+    // 締切は明日（期限超過ではない）だが、目安が莫大なため最遅着手日は必ず過去になる
+    const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+    // 締切は10年後で、目安がわずかなため最遅着手日は必ず未来になる
+    const farFuture = format(addDays(new Date(), 3650), 'yyyy-MM-dd');
+
+    const lateItem: Item = {
+        id: 'late', title: '着手遅れタスク', status: 'inbox', projectId: null,
+        createdAt: 1000, updatedAt: 1000, statusUpdatedAt: 1000, focusOrder: 0, isEngaged: false, interrupt: false, weight: 1,
+        due_date: tomorrow, estimatedMinutes: 480 * 1000,
+    };
+    const onTimeItem: Item = {
+        id: 'ontime', title: '余裕タスク', status: 'inbox', projectId: null,
+        createdAt: 2000, updatedAt: 2000, statusUpdatedAt: 2000, focusOrder: 0, isEngaged: false, interrupt: false, weight: 1,
+        due_date: farFuture, estimatedMinutes: 60,
+    };
+    const noDeadlineItem: Item = {
+        id: 'no-deadline', title: '締切なしタスク', status: 'inbox', projectId: null,
+        createdAt: 3000, updatedAt: 3000, statusUpdatedAt: 3000, focusOrder: 0, isEngaged: false, interrupt: false, weight: 1,
+    };
+
+    it('各アイテムに latestStart 結果を付与する', () => {
+        const viewModel = { ...capacityViewModel, gdbActive: [lateItem, onTimeItem, noDeadlineItem] };
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+        const wrappers = result.current.filter(w => w.type === 'item') as Extract<OverviewItemWrapper, { type: 'item' }>[];
+
+        expect(wrappers.find(w => w.item.id === 'late')?.latestStart?.isLate).toBe(true);
+        expect(wrappers.find(w => w.item.id === 'ontime')?.latestStart?.isLate).toBe(false);
+        expect(wrappers.find(w => w.item.id === 'no-deadline')?.latestStart?.reason).toBe('not-applicable');
+    });
+
+    it('lateStartOnly=true のとき isLate な項目のみに絞る', () => {
+        const viewModel = { ...capacityViewModel, gdbActive: [lateItem, onTimeItem, noDeadlineItem] };
+        const { result } = renderHook(() => useOverviewItems(viewModel as any, null, false, false, false, true));
+        const ids = result.current.filter(w => w.type === 'item').map(w => (w as any).item.id);
+
+        expect(ids).toEqual(['late']);
+    });
+
+    it('capacityConfig/currentUserIdが無いときはlatestStartを計算しない（クラッシュしない）', () => {
+        const viewModel = { gdbActive: [lateItem], gdbPreparation: [], gdbIntent: [], gdbLog: [], allProjects: [], todayCandidates: [], todayCommits: [], executionItem: null };
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+        const wrapper = result.current.find(w => w.type === 'item') as Extract<OverviewItemWrapper, { type: 'item' }>;
+        expect(wrapper.latestStart).toBeUndefined();
     });
 });

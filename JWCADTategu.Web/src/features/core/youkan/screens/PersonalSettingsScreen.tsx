@@ -9,6 +9,7 @@ import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings'
 import { CapacityTableEditor } from '../components/Settings/CapacityTableEditor';
 import { GoogleCalendarSection } from '../components/Settings/GoogleCalendarSection';
 import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
+import { DEFAULT_SAFETY_FACTOR } from '../logic/latestStart';
 
 interface PersonalSettingsScreenProps {
 	onBack: () => void;
@@ -32,6 +33,8 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 		exceptions: {}
 	});
 	const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
+	// R-129: 最遅着手日トークンの安全係数（目安時間×この係数で逆算する）
+	const [safetyFactor, setSafetyFactor] = useState(DEFAULT_SAFETY_FACTOR);
 
 	// Password State
 	const [currentPassword, setCurrentPassword] = useState('');
@@ -83,6 +86,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
 			if (prefs.capacity_profile) {
 				setCapacityProfile(prefs.capacity_profile);
+				if (typeof prefs.capacity_profile.safetyFactor === 'number') {
+					setSafetyFactor(prefs.capacity_profile.safetyFactor);
+				}
 			}
 		} catch (error) {
 			console.error('Failed to load profile', error);
@@ -110,7 +116,7 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 			const currentProfile = await ApiClient.getUserProfile();
 			const prefs = currentProfile.preferences ? (typeof currentProfile.preferences === 'string' ? JSON.parse(currentProfile.preferences) : currentProfile.preferences) : {};
 			prefs.motivation_quotes = motivationQuotes;
-			prefs.capacity_profile = capacityProfile;
+			prefs.capacity_profile = { ...capacityProfile, safetyFactor };
 			prefs.judgment_phrases = judgmentPhrases
 				.split('\n')
 				.map(p => p.trim())
@@ -291,6 +297,27 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 										</span>
 									</div>
 									<p className="text-xs text-slate-400">特定の曜日設定がない場合の基本値として使用されます。</p>
+								</div>
+
+								<div className="space-y-2">
+									<label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+										安全係数（最遅着手日トークン）
+									</label>
+									<div className="flex items-center gap-4">
+										<input
+											type="number"
+											min={1.0}
+											max={3.0}
+											step={0.1}
+											value={safetyFactor}
+											onChange={(e) => {
+												const v = Number(e.target.value);
+												if (Number.isFinite(v)) setSafetyFactor(Math.min(3.0, Math.max(1.0, v)));
+											}}
+											className="w-32 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+										/>
+									</div>
+									<p className="text-xs text-slate-400">最遅着手日の計算に目安時間×この係数を使う（既定1.5、範囲1.0〜3.0）。</p>
 								</div>
 
 								<div className="space-y-2">

@@ -29,7 +29,9 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const [showSomeday, setShowSomeday] = useState(false);
 	// R-127: 全体一覧フィルタ「要判断」（buildReviewQueueの対象のみ表示）
 	const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
-	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly);
+	// R-129: 全体一覧フィルタ「着手遅れ」（最遅着手日を過ぎた項目のみ表示）
+	const [lateStartOnly, setLateStartOnly] = useState(false);
+	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly, lateStartOnly);
 
 	const [inlineAddProjectId, setInlineAddProjectId] = useState<string | null>(null);
 
@@ -216,6 +218,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 					onChangeShowSomeday={setShowSomeday}
 					needsReviewOnly={needsReviewOnly}
 					onChangeNeedsReviewOnly={setNeedsReviewOnly}
+					lateStartOnly={lateStartOnly}
+					onChangeLateStartOnly={setLateStartOnly}
 				/>
 				{/* R-098: 印刷ボタン */}
 				<button

@@ -45,6 +45,11 @@ import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
 import { useFilter } from '../contexts/FilterContext';
 import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
+import { format } from 'date-fns';
+import { useCapacityConfig } from '../hooks/useCapacityConfig';
+import { getLatestStart, resolveSafetyFactor, LatestStartResult } from '../logic/latestStart';
+import type { QuantityContext } from '../logic/QuantityEngine';
+import { YOUKAN_KEYS } from '../../session/youkanKeys';
 
 const nodeTypes = {
   flowItem: FlowItemNode,
@@ -157,6 +162,38 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
   const [compactHorizontalEnabled, setCompactHorizontalEnabled] = useState(true);
   // R-074: 目安時間欄のEnterからの連鎖ノード作成用（後方で定義される createNodeBelow への参照）
   const createNodeBelowRef = useRef<(parentNodeId: string, offsetX?: number) => void>(() => {});
+
+  // R-129 / F-28: 最遅着手日トークン。QuantityEngine本体は変更せず、既存 useCapacityConfig で取得した
+  // capacityConfigとログイン中ユーザーIDから最小限のQuantityContextを組み立てる（v1は各アイテム独立計算）
+  const { capacityConfig } = useCapacityConfig();
+  const safetyFactor = resolveSafetyFactor(capacityConfig);
+  const currentUserId = useMemo<string | null>(() => {
+    const raw = localStorage.getItem(YOUKAN_KEYS.USER);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw).id || null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const quantityContext = useMemo<QuantityContext | null>(() => {
+    if (!currentUserId) return null;
+    return {
+      items: [],
+      members: [],
+      capacityConfig,
+      currentUser: { id: currentUserId, isCompanyAccount: false, joinedTenants: [] },
+    };
+  }, [capacityConfig, currentUserId]);
+  const latestStartMap = useMemo(() => {
+    const map = new Map<string, LatestStartResult>();
+    if (!quantityContext) return map;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    allItems.forEach(item => {
+      map.set(item.id, getLatestStart(item, quantityContext, safetyFactor, today));
+    });
+    return map;
+  }, [allItems, quantityContext, safetyFactor]);
 
   const fetchData = useCallback(async () => {
     const [itemsResult, depsResult] = await Promise.allSettled([
@@ -333,6 +370,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
             isEditing: editingNodeId === item.id,
             isNewNode: newNodeId === item.id,
             isHighlighted,
+            latestStart: latestStartMap.get(item.id),
+            safetyFactor,
             onTitleChange: handleTitleChange,
             onEditComplete: handleEditComplete,
             onEstimatedMinutesChange: handleEstimatedMinutesChange,
@@ -354,7 +393,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId })
       prevProjectRef.current = currentProjectId ?? null;
       shouldFitViewRef.current = true;
     }
-  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, previewPositionById, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
+  }, [placedItems, dependencies, editingNodeId, newNodeId, highlightNodeId, highlightEdgeId, selectedEdgeIds, previewPositionById, latestStartMap, safetyFactor, handleTitleChange, handleEditComplete, handleEstimatedMinutesChange, handleStartEditing, handleItemContextMenu, setNodes, setEdges, currentProjectId, fitView]);
 
   // R-113: 帯（dateBand型ノード）はuseNodesStateの管理外で、renderのたびにdateBandsから合成する。
   // stateに含めてしまうと、帯の更新→nodes変化→dateBands再計算→帯の再更新…という無限ループの
