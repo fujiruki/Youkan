@@ -14,6 +14,7 @@ import { useAuth } from '../../../auth/providers/AuthProvider';
 import { getSelectedTenantId } from '../../logic/filterUtils';
 import { getInlineAddInsertIndex } from './inlineAddPosition';
 import { Item } from '../../types';
+import { decisionToStatus } from '../../logic/decisionResolution';
 
 interface OverviewBoardProps {
 	viewModel: any;
@@ -357,6 +358,11 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 						{
 							label: '今日やる (Focus)',
 							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: 'focus' }); }
+						},
+						{
+							label: '後日着手 (h)',
+							shortcut: 'h',
+							onClick: () => { viewModel.updateItem(contextMenu.targetId!, { status: decisionToStatus('later') }); }
 						},
 						{
 							label: 'とりかかる (Execute)',
