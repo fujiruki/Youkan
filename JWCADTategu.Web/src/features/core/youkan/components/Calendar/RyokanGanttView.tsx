@@ -673,10 +673,9 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		return result;
 	}, [timelineMode, transformedItems, allocationMap, visibleDependencies, items]);
 
-	// R-034 Phase 1: ガント一覧表示用に日付別の量感を集計
-	// 一覧（showGroups=false）のときだけ計算する（プロジェクト別では非表示）
+	// R-034 Phase 1 / R-146: 日付別の量感を集計（一覧・プロジェクト別とも表示）
+	// 集計対象はガントに渡された items（プロジェクト絞り込みは上流の取得時点で済んでいる）
 	const dailyCapacityStats = useMemo(() => {
-		if (showGroups) return new Map<string, { total: number; completed: number; capacity: number }>();
 		const map = new Map<string, { total: number; completed: number; capacity: number }>();
 		items.forEach(item => {
 			const steps = allocationMap.get(item.id);
@@ -692,7 +691,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			});
 		});
 		return map;
-	}, [items, allocationMap, showGroups]);
+	}, [items, allocationMap]);
 
 	// Helper to calculate bar style with drag offset
 	const getBarStyle = (item: Item, type: 'prep', baseStyle: React.CSSProperties) => {
@@ -771,8 +770,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 							const isSat = day.getDay() === 6;
 							const isFirst = day.getDate() === 1;
 							const isToday = isSameDate(day, _today);
-							// R-034 Phase 1: ガント一覧表示時のみ進捗バーを描画
-							const stats = !showGroups ? dailyCapacityStats.get(normalizeDateKey(day)) : undefined;
+							// R-034 Phase 1 / R-146: 進捗バー（一覧・プロジェクト別とも描画）
+							const stats = dailyCapacityStats.get(normalizeDateKey(day));
 							// R-039 Phase 3 UX: その日の Google カレンダー予定
 							// dayKey は data-testid のサフィックスなど従来用途で利用（toDateString 形式）
 							const dayKey = normalizeDateKey(day);
