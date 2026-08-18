@@ -2,7 +2,6 @@ import { db, Door, Project } from '../../../../db/db';
 import { JudgableItem, JudgmentStatus, Item, CapacityConfig } from '../types';
 import { Deliverable } from '../../../../features/plugins/manufacturing/types';
 import { ApiClient } from '../../../../api/client';
-import { YOUKAN_KEYS } from '../../session/youkanKeys';
 import { v4 as uuidv4 } from 'uuid';
 import { Decision, decisionToStatus } from '../logic/decisionResolution';
 
@@ -282,12 +281,10 @@ export const YoukanRepository = {
 		// 2. Fetch Local Data (Projects & Doors)
 		let localItems: JudgableItem[] = [];
 		try {
-			// Get Current User ID
-			let userId = 'legacy_user';
-			try {
-				const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
-				if (u.id) userId = u.id;
-			} catch { }
+			// [R-137] このRepository（ローカルDexie版）は getRepository() が常にCloudYoukanRepositoryを
+			// 返すため本番では到達しない。localStorage['youkan_user']（Cookieセッション認証では常に空）への
+			// フォールバックは無意味だったため廃止し、固定のlegacy_userを使う
+			const userId = 'legacy_user';
 
 			// A. Projects (Treat as Inbox/Active if not archived)
 			// Filter by userId
