@@ -50,6 +50,9 @@ export const YOUKAN_KEYS = {
 	// === 要判断キュー「捌く」（R-127） ===
 	REVIEW_PROMPT_DISMISSED: 'youkan_review_prompt_dismissed',
 	REVIEW_SWEEP_PENDING: 'youkan_review_sweep_pending',
+	// === 誘導カードの「後で」と再呼び出し（R-134） ===
+	REVIEW_PROMPT_SNOOZE_UNTIL: 'youkan_review_prompt_snooze_until',
+	REVIEW_NOTIFY_ASKED: 'youkan_review_notify_asked',
 } as const;
 
 /** カスタムイベント名 */

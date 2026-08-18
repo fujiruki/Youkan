@@ -129,4 +129,77 @@ describe('DecisionDetailModal - Interactions', () => {
             expect(mockOnClose).toHaveBeenCalled();
         });
     });
+
+    it('R-131: Ctrl+Shift+Hで「保留にする」が実行される', async () => {
+        render(
+            <BrowserRouter>
+                <DecisionDetailModal
+                    item={mockItem}
+                    onClose={mockOnClose}
+                    onDecision={mockOnDecision}
+                    onDelete={mockOnDelete}
+                    onUpdate={mockOnUpdate}
+                />
+            </BrowserRouter>
+        );
+
+        fireEvent.keyDown(window, { key: 'H', ctrlKey: true, shiftKey: true });
+
+        await waitFor(() => {
+            expect(mockOnDecision).toHaveBeenCalledWith(
+                mockItem.id,
+                'hold',
+                expect.any(String),
+                expect.any(Object)
+            );
+        });
+    });
+
+    it('R-131: 保留ボタンのtitleにショートカットが表記される', async () => {
+        render(
+            <BrowserRouter>
+                <DecisionDetailModal
+                    item={mockItem}
+                    onClose={mockOnClose}
+                    onDecision={mockOnDecision}
+                    onDelete={mockOnDelete}
+                    onUpdate={mockOnUpdate}
+                />
+            </BrowserRouter>
+        );
+
+        await waitFor(() => {
+            const buttons = screen.getAllByRole('button');
+            const holdButton = buttons.find(b => b.textContent?.includes('保留にする'));
+            expect(holdButton).toBeTruthy();
+            expect(holdButton?.getAttribute('title')).toBe('Ctrl+Shift+H');
+        });
+    });
+
+    it('R-131: 入力欄にフォーカス中はCtrl+Shift+Hを無視する', async () => {
+        render(
+            <BrowserRouter>
+                <DecisionDetailModal
+                    item={mockItem}
+                    onClose={mockOnClose}
+                    onDecision={mockOnDecision}
+                    onDelete={mockOnDelete}
+                    onUpdate={mockOnUpdate}
+                />
+            </BrowserRouter>
+        );
+
+        const titleInput = await screen.findByTestId('decision-detail-title-input');
+        titleInput.focus();
+        fireEvent.keyDown(titleInput, { key: 'H', ctrlKey: true, shiftKey: true });
+
+        // 少し待ってもhold決定は呼ばれない
+        await new Promise(resolve => setTimeout(resolve, 50));
+        expect(mockOnDecision).not.toHaveBeenCalledWith(
+            mockItem.id,
+            'hold',
+            expect.any(String),
+            expect.any(Object)
+        );
+    });
 });

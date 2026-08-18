@@ -568,7 +568,7 @@ const SubNavTab: React.FC<{
 			<span
 				role="button"
 				aria-label={`要判断 ${badge}件`}
-				title={`要判断 ${badge}件`}
+				title="クリックで捌く"
 				onClick={(e) => { e.stopPropagation(); onBadgeClick?.(); }}
 				className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-rose-500 text-white text-[9px] font-black leading-none shadow-sm"
 			>

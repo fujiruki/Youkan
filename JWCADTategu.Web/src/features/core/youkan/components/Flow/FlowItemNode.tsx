@@ -25,8 +25,8 @@ export interface FlowItemNodeData {
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
   inbox: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
-  // R-125: 後日着手。既存の状態色と被らないteal系
-  todo: { bg: 'bg-teal-100', border: 'border-teal-400', text: 'text-teal-800' },
+  // R-132: 後日着手（todo）もinboxと同じ通常色にする（バッジ文言「後日着手」は維持）
+  todo: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
   focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
   pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
   waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
@@ -177,7 +177,7 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
             onKeyDown={handleKeyDown}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            className={`text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
+            className={`nodrag text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
           />
         ) : (
           <span

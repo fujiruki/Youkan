@@ -281,6 +281,18 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 				e.preventDefault();
 				handleClose();
 			}
+
+			// R-131: Ctrl+Shift+H で「保留にする」（入力欄内は無視）
+			if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+				const target = e.target as HTMLElement | null;
+				if (target && (
+					target.tagName === 'INPUT' ||
+					target.tagName === 'TEXTAREA' ||
+					target.isContentEditable
+				)) return;
+				e.preventDefault();
+				handleDecisionWithSave('hold');
+			}
 		};
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
@@ -1239,6 +1251,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 					<button
 						onClick={() => handleDecisionWithSave('hold')}
 						className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-xs"
+						title="Ctrl+Shift+H"
 					>
 						<PauseCircle size={16} />
 						保留にする
