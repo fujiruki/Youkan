@@ -27,9 +27,10 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 
 	// Capacity State
 	const [dailyCapacity, setDailyCapacity] = useState(480); // minutes
-	const [nonWorkingHours, setNonWorkingHours] = useState('');
+	// R-130: 曜日パターンは0=定休日として扱われるため、既定値も土日を明示的に0にしておく
+	// （土日キーを省略すると「未設定」扱いになり、defaultDailyMinutesが適用されてしまう）
 	const [capacityProfile, setCapacityProfile] = useState<CapacityProfile>({
-		standardWeeklyPattern: { 1: 480, 2: 480, 3: 480, 4: 480, 5: 480 },
+		standardWeeklyPattern: { 0: 0, 1: 480, 2: 480, 3: 480, 4: 480, 5: 480, 6: 0 },
 		exceptions: {}
 	});
 	const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
@@ -70,15 +71,6 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 			setBirthday(profile.birthday || '');
 			setDailyCapacity(profile.daily_capacity_minutes || 480);
 
-			// Handle JSON or string for non_working_hours
-			let nwh = profile.non_working_hours;
-			if (nwh === null || nwh === 'null') {
-				nwh = '';
-			} else if (typeof nwh !== 'string') {
-				nwh = JSON.stringify(nwh, null, 2);
-			}
-			setNonWorkingHours(nwh || '');
-
 			// Handle preferences (Motivation Quotes & Capacity Profile)
 			const prefs = profile.preferences ? (typeof profile.preferences === 'string' ? JSON.parse(profile.preferences) : profile.preferences) : {};
 			setMotivationQuotes(prefs.motivation_quotes || '');
@@ -101,16 +93,6 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 	const handleSaveProfile = async () => {
 		try {
 			setIsLoading(true);
-			// Validate JSON if not empty
-			let parsedNwh = nonWorkingHours;
-			if (nonWorkingHours.trim()) {
-				try {
-					parsedNwh = JSON.parse(nonWorkingHours);
-				} catch (e) {
-					showToast({ type: 'error', title: '保存エラー', message: '定休日・祝日のJSON形式が正しくありません' });
-					return;
-				}
-			}
 
 			// Handle preferences
 			const currentProfile = await ApiClient.getUserProfile();
@@ -126,7 +108,6 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 				display_name: displayName,
 				birthday: birthday,
 				daily_capacity_minutes: dailyCapacity,
-				non_working_hours: parsedNwh,
 				preferences: prefs
 			});
 			await checkAuth(); // Refresh global auth state
@@ -320,18 +301,9 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 									<p className="text-xs text-slate-400">最遅着手日の計算に目安時間×この係数を使う（既定1.5、範囲1.0〜3.0）。</p>
 								</div>
 
-								<div className="space-y-2">
-									<label className="text-sm font-medium text-slate-600 dark:text-slate-400">
-										定休日・祝日設定 (Advanced JSON)
-									</label>
-									<textarea
-										value={nonWorkingHours}
-										onChange={(e) => setNonWorkingHours(e.target.value)}
-										rows={2}
-										className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-mono text-sm"
-										placeholder='{"weekends": ["Sat", "Sun"], "holidays": []}'
-									/>
-								</div>
+								<p className="text-xs text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+									曜日パターンで0＝定休日。未設定なら土日休み。日別例外が最優先です。
+								</p>
 							</div>
 						) : (
 							<div className="animate-in fade-in slide-in-from-top-2 duration-300">

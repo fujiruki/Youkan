@@ -140,6 +140,29 @@ describe('calcWeekLoad (R-128 / F-27)', () => {
         const withException = calcWeekLoad([], config, TODAY).capacityMinutes;
         expect(withException).toBe(base - 480);
     });
+
+    // R-130: 曜日パターンで平日キャパを変えると週の残量の枠が連動する（PHP版 QuantityServiceWeekLoadTest と同一フィクスチャ）
+    it('曜日パターンで平日を240分にすると capacity_minutes が連動して変わる', () => {
+        const config: CapacityConfig = {
+            ...CAPACITY_CONFIG,
+            standardWeeklyPattern: { 1: 240, 2: 240, 3: 240, 4: 240, 5: 240 },
+        };
+        const result = calcWeekLoad([], config, TODAY);
+        // 火水木金(240*4=960) + 土日(0、holidaysのまま) = 960
+        expect(result.capacityMinutes).toBe(960);
+    });
+
+    it('曜日パターンで0を指定した曜日はholidays未設定でも定休日として扱われる', () => {
+        const config: CapacityConfig = {
+            defaultDailyMinutes: 480,
+            holidays: [],
+            exceptions: {},
+            standardWeeklyPattern: { 0: 0, 1: 480, 2: 480, 3: 480, 4: 480, 5: 480, 6: 0 },
+        };
+        const result = calcWeekLoad([], config, TODAY);
+        // 火水木金(480*4=1920) + 土日(曜日パターンで0) = 1920
+        expect(result.capacityMinutes).toBe(1920);
+    });
 });
 
 describe('formatWeekLoadHours (R-128 / §16)', () => {

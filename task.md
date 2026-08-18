@@ -32,10 +32,12 @@
 - [x] R-134 `ReviewPrompt` に「後で（1時間後）」＋snooze再表示＋Notification 1回、バッジtitle
 - [x] 全テスト・tsc、06 Impact追記、完了報告
 
-## R-130 日次キャパ決定規則の一本化（R-128/129デプロイ後に着手）
+## R-130 日次キャパ決定規則の一本化（完了・2026-08-18）
 **ブランチ**: `fix/R-130-daily-capacity-unify` ／ **担当**: Sonnet Agent（worktree）
-- [ ] 1. `logic/capacity.ts` `getDailyCapacity`/`isHoliday` を F-11 の規則どおりに（曜日パターン反映）。テスト先行
-- [ ] 2. `QuantityEngine.calculateTotalCapacityForDate` の独自規則を削除し `getDailyCapacity` を呼ぶ（会社キャパ側の `profile.standardWeeklyPattern` 参照は現状維持）。既存テストGreen
-- [ ] 3. PHP `QuantityService::getDailyCapacity`（および `calcWeekLoadForUser`）を同規則に。TS/PHP同一フィクスチャ一致テスト
-- [ ] 4. `PersonalSettingsScreen` の Advanced JSON 欄を削除、説明文追加
-- [ ] 5. 全テスト・tsc、06 Impact追記、完了報告
+- [x] 1. `logic/capacity.ts` `getDailyCapacity`/`isHoliday` を F-11 の規則どおりに（曜日パターン反映）。テスト先行
+- [x] 2. `QuantityEngine.calculateTotalCapacityForDate` の独自規則を削除し `getDailyCapacity` を呼ぶ（会社キャパ側の `profile.standardWeeklyPattern` 参照は現状維持）。既存テストGreen
+- [x] 3. PHP `QuantityService::getDailyCapacityFromConfig`（および `calcWeekLoadForUser`）を同規則に。TS/PHP同一フィクスチャ一致テスト
+- [x] 4. `PersonalSettingsScreen` の Advanced JSON 欄を削除、説明文追加
+- [x] 5. 全テスト・tsc、06 Impact追記、完了報告
+- [x] 6. 規則4見直し（指揮AI指示）: 「holidaysも曜日パターンも未設定なら土日は0」→「1〜3で決まらずその曜日が土日なら0」に変更。曜日パターンに平日しかない既存データでも土日は休みのまま（既知のリスクを解消）。TS/PHP両方修正・テスト追加、Red→Green
+- マージ・デプロイは未実施（指揮AI経由待ち）

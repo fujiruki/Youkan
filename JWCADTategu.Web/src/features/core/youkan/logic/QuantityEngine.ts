@@ -1,5 +1,5 @@
 import { Item, Member, CapacityConfig, FilterMode, Dependency } from '../types';
-import { isHoliday as baseIsHoliday } from './capacity';
+import { isHoliday as baseIsHoliday, getDailyCapacity as baseGetDailyCapacity } from './capacity';
 import { safeParseDate, normalizeDateKey } from './dateUtils';
 import { ExternalEvent, DEFAULT_ALL_DAY_WEIGHT_MINUTES } from '../types/externalEvent';
 import { sortWithDependencies } from './hierarchy';
@@ -305,16 +305,10 @@ export class QuantityEngine {
         return result;
     }
 
+    // R-130 / F-11: 日次キャパの決定規則は logic/capacity.ts の getDailyCapacity に一本化。
+    // ここに独自の規則を持たない（分母のズレの原因だった重複実装）。
     private static calculateTotalCapacityForDate(date: Date, context: QuantityContext): number {
-        const { capacityConfig } = context;
-        const dateKey = this.formatDateKey(date);
-        if (capacityConfig.exceptions && capacityConfig.exceptions[dateKey] !== undefined) {
-            return capacityConfig.exceptions[dateKey];
-        }
-        if (this.checkIsHoliday(date, context)) return 0;
-        const dayOfWeek = date.getDay();
-        const weeklyVal = capacityConfig.standardWeeklyPattern?.[dayOfWeek];
-        return weeklyVal !== undefined ? weeklyVal : (capacityConfig.defaultDailyMinutes || 480);
+        return baseGetDailyCapacity(date, context.capacityConfig);
     }
 
     private static calculateCompanyCapacityTotalForDate(date: Date, context: QuantityContext, capacityCache?: Map<string, number>): number {

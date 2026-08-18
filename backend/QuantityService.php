@@ -46,23 +46,36 @@ class QuantityService {
     }
 
     /**
-     * R-128: 曜日休日ルールの判定。
-     * フロント logic/capacity.ts の isHoliday と同じ式（1箇所ずつ・式は揃える）。
-     * holidays が空配列のときは土日をデフォルト休日として扱う
-     * （CloudYoukanRepository.getCapacityConfig が holidays を常に空配列で返すため、
-     * 実運用ではこの分岐が土日判定を担っている）。
+     * R-130 / F-11: 日次キャパの決定規則。フロント logic/capacity.ts の getDailyCapacity と同じ規則
+     * （式は1箇所ずつ・優先順を揃える）。QuantityService側の唯一の実装。
+     * 優先順:
+     * 1. 日別例外 exceptions[YYYY-MM-DD]（0＝休み）
+     * 2. 曜日パターン standard_weekly_pattern[曜日]（0＝定休日）
+     * 3. holidays（weekly指定）に該当すれば0
+     * 4. 1〜3で値が決まらず、その曜日が土日なら0（既定の週休2日。曜日パターンに平日しか
+     *    保存されていない既存データでも土日は休みのまま）
+     * 5. それ以外は default_daily_minutes
+     * $capacityConfig = ['default_daily_minutes' => int, 'holidays' => HolidayRule[], 'exceptions' => [date => minutes], 'standard_weekly_pattern' => [曜日 => 分]|null]
      */
-    private function isHolidayFromConfig(DateTime $date, array $capacityConfig): bool {
+    public function getDailyCapacityFromConfig(DateTime $date, array $capacityConfig): int {
         $dateStr = $date->format('Y-m-d');
         $exceptions = $capacityConfig['exceptions'] ?? [];
 
-        if (array_key_exists($dateStr, $exceptions) && (int)$exceptions[$dateStr] === 0) {
-            return true;
+        // 1. 日別例外（最優先）
+        if (array_key_exists($dateStr, $exceptions)) {
+            return (int)$exceptions[$dateStr];
         }
 
         $dayIndex = (int)$date->format('w'); // 0=Sun ... 6=Sat
-        $holidays = $capacityConfig['holidays'] ?? [];
+        $weeklyPattern = $capacityConfig['standard_weekly_pattern'] ?? null;
 
+        // 2. 曜日パターン
+        if (is_array($weeklyPattern) && array_key_exists($dayIndex, $weeklyPattern)) {
+            return (int)$weeklyPattern[$dayIndex];
+        }
+
+        // 3. holidays（weekly指定）
+        $holidays = $capacityConfig['holidays'] ?? [];
         $isWeekly = false;
         foreach ($holidays as $h) {
             if (($h['type'] ?? '') === 'weekly' && (string)($h['value'] ?? '') === (string)$dayIndex) {
@@ -70,32 +83,16 @@ class QuantityService {
                 break;
             }
         }
-        $isDefaultWeekend = (count($holidays) === 0 && ($dayIndex === 0 || $dayIndex === 6));
-
-        if ($isWeekly || $isDefaultWeekend) {
-            if (array_key_exists($dateStr, $exceptions) && (int)$exceptions[$dateStr] > 0) {
-                return false;
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * R-128: 1日分の日次キャパ。フロント logic/capacity.ts の getDailyCapacity と同じ式。
-     * $capacityConfig = ['default_daily_minutes' => int, 'holidays' => HolidayRule[], 'exceptions' => [date => minutes]]
-     */
-    private function getDailyCapacityFromConfig(DateTime $date, array $capacityConfig): int {
-        $dateStr = $date->format('Y-m-d');
-        $exceptions = $capacityConfig['exceptions'] ?? [];
-
-        if (array_key_exists($dateStr, $exceptions)) {
-            return (int)$exceptions[$dateStr];
-        }
-        if ($this->isHolidayFromConfig($date, $capacityConfig)) {
+        if ($isWeekly) {
             return 0;
         }
+
+        // 4. 1〜3で値が決まらず、その曜日が土日なら既定の週休2日
+        if ($dayIndex === 0 || $dayIndex === 6) {
+            return 0;
+        }
+
+        // 5. 既定値
         return (int)($capacityConfig['default_daily_minutes'] ?? 480);
     }
 
@@ -206,14 +203,27 @@ class QuantityService {
             if (is_array($decoded)) $preferences = $decoded;
         }
         $exceptions = $preferences['capacity_profile']['exceptions'] ?? [];
+        // R-130: 曜日パターン（フロント PersonalSettingsScreen の表形式エディタで保存、users.preferences.capacity_profile.standardWeeklyPattern）
+        $standardWeeklyPattern = $preferences['capacity_profile']['standardWeeklyPattern'] ?? null;
+        if (is_array($standardWeeklyPattern)) {
+            // JSON経由で数値キーが文字列化されるため、getDailyCapacityFromConfigの int キー参照に合わせて正規化
+            $normalizedPattern = [];
+            foreach ($standardWeeklyPattern as $day => $minutes) {
+                $normalizedPattern[(int)$day] = (int)$minutes;
+            }
+            $standardWeeklyPattern = $normalizedPattern;
+        } else {
+            $standardWeeklyPattern = null;
+        }
 
         $capacityConfig = [
             'default_daily_minutes' => (int)($user['daily_capacity_minutes'] ?? 480),
             // [NEW] CloudYoukanRepository.getCapacityConfig はholidaysを常に空配列で返す
-            // （曜日休日設定はDBに保存されない）。isHolidayFromConfigの「空配列なら土日休日」
+            // （曜日休日設定はDBに保存されない）。getDailyCapacityFromConfigの「未設定なら土日休日」
             // フォールバックで、フロントの実運用動作と一致させる
             'holidays' => [],
             'exceptions' => $exceptions,
+            'standard_weekly_pattern' => $standardWeeklyPattern,
         ];
 
         $tenantIds = array_values(array_unique(array_filter($tenantIds, fn($t) => $t !== null && $t !== '')));

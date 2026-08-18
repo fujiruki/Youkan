@@ -50,6 +50,7 @@ class QuantityServiceWeekLoadTest {
         $this->testOverCandidates();
         $this->testExcludeItemId();
         $this->testExceptionOverridesHoliday();
+        $this->testStandardWeeklyPatternAffectsCapacity();
         echo "All tests passed!\n";
     }
 
@@ -134,6 +135,20 @@ class QuantityServiceWeekLoadTest {
         $withException = $this->service->calcWeekLoad([], $config, $this->today)['capacity_minutes'];
 
         assert($withException === $base - 480, "Expected " . ($base - 480) . ", got $withException");
+
+        echo " OK\n";
+    }
+
+    // R-130: 曜日パターンで平日を240分にすると capacity_minutes が連動する。
+    // フロント weekLoad.test.ts「曜日パターンで平日を240分にすると capacity_minutes が連動して変わる」と同一フィクスチャ・同一数値
+    private function testStandardWeeklyPatternAffectsCapacity() {
+        echo "  [Test] R-130: 曜日パターンで平日を240分にすると capacity_minutes が連動する...";
+
+        $config = $this->capacityConfig;
+        $config['standard_weekly_pattern'] = [1 => 240, 2 => 240, 3 => 240, 4 => 240, 5 => 240];
+        $result = $this->service->calcWeekLoad([], $config, $this->today);
+        // 火水木金(240*4=960) + 土日(0、holidaysのまま) = 960
+        assert($result['capacity_minutes'] === 960, "Expected 960, got {$result['capacity_minutes']}");
 
         echo " OK\n";
     }
