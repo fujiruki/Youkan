@@ -72,7 +72,7 @@ describe('R-105: computeDailyTimeBlockLayout', () => {
 		expect(layout.get('B')?.startOffsetMinutes).toBe(540);
 	});
 
-	it('手動オフセットは 0〜1439 分にクランプされる', () => {
+	it('手動オフセットは負なら 0 に、大きすぎれば幅を保って右端揃えになる', () => {
 		const negative = computeDailyTimeBlockLayout(
 			[{ itemId: 'A', allocatedMinutes: 60 }],
 			noPredecessors,
@@ -80,15 +80,21 @@ describe('R-105: computeDailyTimeBlockLayout', () => {
 		);
 		expect(negative.get('A')?.startOffsetMinutes).toBe(0);
 
+		// R-145: 仕様 F-40「右端を24:00に揃える（幅は保つ）」に合わせる（旧: 1439 に据え置き）
 		const tooLarge = computeDailyTimeBlockLayout(
 			[{ itemId: 'A', allocatedMinutes: 60 }],
 			noPredecessors,
 			() => 9999
 		);
-		expect(tooLarge.get('A')?.startOffsetMinutes).toBe(DAY_MINUTES - 1);
+		expect(tooLarge.get('A')).toEqual({
+			startOffsetMinutes: DAY_MINUTES - 60,
+			displayWidthMinutes: 60,
+			overflow: true,
+		});
 	});
 
-	it('24時間をはみ出す場合は overflow フラグが立ち、幅は日末尾までにクランプされる', () => {
+	it('24時間をはみ出す場合は overflow フラグが立ち、幅を保ったまま右端が 24:00 に揃う', () => {
+		// R-145: 仕様 F-40 に合わせる（旧: 開始据え置きで幅を切り落としていた）
 		const layout = computeDailyTimeBlockLayout(
 			[{ itemId: 'A', allocatedMinutes: 300 }],
 			noPredecessors,
@@ -96,13 +102,28 @@ describe('R-105: computeDailyTimeBlockLayout', () => {
 		);
 
 		expect(layout.get('A')).toEqual({
-			startOffsetMinutes: 1320,
-			displayWidthMinutes: DAY_MINUTES - 1320,
+			startOffsetMinutes: DAY_MINUTES - 300,
+			displayWidthMinutes: 300,
 			overflow: true,
 		});
 	});
 
-	it('はみ出したタスクの後続は 24:00 を起点に扱われる（さらにはみ出す）', () => {
+	it('R-145: 手動オフセット飽和値 1439 ＋ 6h は 18:00 開始・6h 幅・overflow', () => {
+		const layout = computeDailyTimeBlockLayout(
+			[{ itemId: 'A', allocatedMinutes: 360 }],
+			noPredecessors,
+			() => DAY_MINUTES - 1
+		);
+
+		expect(layout.get('A')).toEqual({
+			startOffsetMinutes: 18 * 60,
+			displayWidthMinutes: 360,
+			overflow: true,
+		});
+	});
+
+	it('はみ出したタスクの後続は 24:00 を起点に扱われ、幅を保って右端揃えになる（1分幅にならない）', () => {
+		// R-145: 仕様 F-40 に合わせる（旧: 1439 起点で幅1分になっていた）
 		const layout = computeDailyTimeBlockLayout(
 			[
 				{ itemId: 'A', allocatedMinutes: 1500 },
@@ -112,9 +133,35 @@ describe('R-105: computeDailyTimeBlockLayout', () => {
 			noManual
 		);
 
-		expect(layout.get('A')?.overflow).toBe(true);
-		expect(layout.get('B')?.startOffsetMinutes).toBe(DAY_MINUTES - 1);
-		expect(layout.get('B')?.overflow).toBe(true);
+		expect(layout.get('A')).toEqual({
+			startOffsetMinutes: 0,
+			displayWidthMinutes: DAY_MINUTES,
+			overflow: true,
+		});
+		expect(layout.get('B')).toEqual({
+			startOffsetMinutes: DAY_MINUTES - 60,
+			displayWidthMinutes: 60,
+			overflow: true,
+		});
+	});
+
+	it('R-145: 先行が 24:00 ちょうどで終わる場合も後続は 1 分幅にならない', () => {
+		const layout = computeDailyTimeBlockLayout(
+			[
+				{ itemId: 'A', allocatedMinutes: 1200 },
+				{ itemId: 'B', allocatedMinutes: 240 },
+				{ itemId: 'C', allocatedMinutes: 120 },
+			],
+			(id) => (id === 'B' ? ['A'] : id === 'C' ? ['B'] : []),
+			noManual
+		);
+
+		expect(layout.get('B')?.overflow).toBe(false);
+		expect(layout.get('C')).toEqual({
+			startOffsetMinutes: DAY_MINUTES - 120,
+			displayWidthMinutes: 120,
+			overflow: true,
+		});
 	});
 
 	it('ちょうど 24 時間ぴったりに収まる場合は overflow しない', () => {

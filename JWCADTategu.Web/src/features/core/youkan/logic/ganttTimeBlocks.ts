@@ -16,7 +16,7 @@ export interface DailyAllocationEntry {
 export interface TimeBlockLayout {
 	/** その日の 0:00 からの開始オフセット（分） */
 	startOffsetMinutes: number;
-	/** 描画上の幅（分）。24:00 を超える分は切り詰める */
+	/** 描画上の幅（分）。割当分をそのまま保つ（上限 1440。はみ出し時は開始位置を左へずらして右端を 24:00 に揃える） */
 	displayWidthMinutes: number;
 	/** 24:00 をはみ出しているか（警告マーク表示用） */
 	overflow: boolean;
@@ -41,15 +41,18 @@ export function computeDailyTimeBlockLayout(
 		const manual = manualOffsetOf(entry.itemId);
 		// 同日に先行タスクの割当があればその直後、なければその日の先頭
 		const auto = predecessorsOf(entry.itemId).reduce((max, pid) => Math.max(max, ends.get(pid) ?? 0), 0);
-		const start = Math.min(Math.max(manual ?? auto, 0), DAY_MINUTES - 1);
-		const rawEnd = start + entry.allocatedMinutes;
+		const desired = Math.max(manual ?? auto, 0);
+		const alloc = entry.allocatedMinutes;
+		// R-145: 24:00 をはみ出す場合は幅を保ったまま右端を 24:00 に揃える（F-40）
+		const overflow = desired + alloc > DAY_MINUTES;
+		const start = overflow ? Math.max(0, DAY_MINUTES - alloc) : desired;
 
 		result.set(entry.itemId, {
 			startOffsetMinutes: start,
-			displayWidthMinutes: Math.max(0, Math.min(entry.allocatedMinutes, DAY_MINUTES - start)),
-			overflow: rawEnd > DAY_MINUTES,
+			displayWidthMinutes: Math.min(alloc, DAY_MINUTES),
+			overflow,
 		});
-		ends.set(entry.itemId, Math.min(rawEnd, DAY_MINUTES));
+		ends.set(entry.itemId, Math.min(start + alloc, DAY_MINUTES));
 	}
 
 	return result;
