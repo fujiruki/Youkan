@@ -100,8 +100,9 @@ class QuantityService {
      * R-128: 納期/マイ期限の早い方（有効締切）を Unix timestamp（日単位）で返す。
      * フロント logic/flowAutoPlace.ts の getEffectiveDeadline と同じ式。
      * $item = ['due_date' => 'YYYY-MM-DD'|null, 'prep_date' => int(unix seconds)|null]
+     * R-140: ReviewQueueService／IntegrationController::digest からも使うため public static
      */
-    private function getEffectiveDeadlineFromItem(array $item): ?int {
+    public static function getEffectiveDeadlineFromItem(array $item): ?int {
         $dueTime = null;
         if (!empty($item['due_date'])) {
             $ts = strtotime($item['due_date']);
@@ -153,7 +154,7 @@ class QuantityService {
             if (!empty($item['is_project'])) continue;
             if (in_array($item['status'] ?? null, $excludedStatuses, true)) continue;
 
-            $deadline = $this->getEffectiveDeadlineFromItem($item);
+            $deadline = self::getEffectiveDeadlineFromItem($item);
             if ($deadline === null || $deadline > $weekEndTs) continue;
 
             $targets[] = ['item' => $item, 'deadline' => $deadline];

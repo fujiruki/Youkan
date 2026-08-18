@@ -17,6 +17,8 @@ vi.mock('@/api/client', () => ({
             preferences: {},
         })),
         updateUserProfile: vi.fn(() => Promise.resolve({ success: true })),
+        // R-140: ApiTokenSection の一覧取得（GET /user/api-tokens）
+        request: vi.fn(() => Promise.resolve([])),
     },
 }));
 

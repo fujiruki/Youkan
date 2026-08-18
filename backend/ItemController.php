@@ -102,27 +102,13 @@ class ItemController extends BaseController {
                     ORDER BY items.updated_at DESC
                  ";
                  $params = array_merge($params, [$this->currentUserId, $this->currentUserId], $descendants);
+                 $stmt = $this->pdo->prepare($sql);
+                 $stmt->execute($params);
+                 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
              } else {
-                 $sql = "
-                    SELECT items.*, parent.title as parent_title, proj.title as real_project_title, t.name as tenant_name
-                    FROM items
-                    LEFT JOIN items parent ON items.parent_id = parent.id
-                    LEFT JOIN items proj ON items.project_id = proj.id
-                    LEFT JOIN tenants t ON items.tenant_id = t.id
-                    WHERE (items.tenant_id IN ($placeholders) OR items.tenant_id IS NULL OR items.tenant_id = '')
-                    AND (
-                        items.created_by = ?
-                        OR items.assigned_to = ?
-                    )
-                    $filterClause
-                    ORDER BY items.updated_at DESC
-                 ";
-                 $params = array_merge($params, [$this->currentUserId, $this->currentUserId]);
+                 // R-140: IntegrationController::digest と同じ集合（SQL は BaseController に一本化）
+                 $items = $this->fetchAggregatedItems($filterClause);
              }
-             
-             $stmt = $this->pdo->prepare($sql);
-             $stmt->execute($params);
-             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
              $dependencyMap = $this->buildDependencyMap();
              $this->sendJSON(array_map(function($row) use ($dependencyMap) {

@@ -8,6 +8,7 @@ import { ItemsBackupSettings } from '../components/Settings/ItemsBackupSettings'
 // [PRESERVED] スライダーUI版（復旧用）: import { WeeklyPatternEditor } from '../components/Settings/WeeklyPatternEditor';
 import { CapacityTableEditor } from '../components/Settings/CapacityTableEditor';
 import { GoogleCalendarSection } from '../components/Settings/GoogleCalendarSection';
+import { ApiTokenSection } from '../components/Settings/ApiTokenSection';
 import { CapacityProfile, WeeklyPattern, WeeklyCompanyPattern } from '../types';
 import { DEFAULT_SAFETY_FACTOR } from '../logic/latestStart';
 
@@ -388,6 +389,8 @@ export const PersonalSettingsScreen: React.FC<PersonalSettingsScreenProps> = ({ 
 						<p className="text-xs text-slate-400">※ 空の場合はカードに表示されません。</p>
 					</div>
 				</section>
+				{/* R-140: 外部連携トークン（03_画面設計.md §20） */}
+				<ApiTokenSection />
 				<section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
 					<h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
 						<Lock className="w-5 h-5 text-slate-500" />

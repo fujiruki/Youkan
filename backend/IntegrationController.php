@@ -1,71 +1,28 @@
 <?php
 // backend/IntegrationController.php
-require_once 'db.php';
+require_once 'BaseController.php';
 require_once 'QuantityService.php';
+require_once 'ReviewQueueService.php';
+require_once 'TodayController.php';
 
-class IntegrationController {
-    private $pdo;
-
-    public function __construct() {
-        $this->pdo = getDB();
-    }
+class IntegrationController extends BaseController {
 
     public function handleRequest($method, $path) {
         // /integrations/inbox
         if (preg_match('#^/inbox$#', $path) && $method === 'POST') {
             $this->createInboxItem();
+        } elseif (preg_match('#^/digest$#', $path) && $method === 'GET') {
+            $this->digest();
         } else {
             http_response_code(404);
             echo json_encode(['error' => 'Integration endpoint not found']);
         }
     }
 
-    private function authenticate() {
-        $headers = null;
-        // Same header logic as JWTService ideally, but simplified here
-        if (isset($_SERVER['Authorization'])) {
-            $headers = trim($_SERVER["Authorization"]);
-        } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            $headers = trim($_SERVER["HTTP_AUTHORIZATION"]);
-        }
-
-        $token = null;
-        if (!empty($headers)) {
-            if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
-                $token = $matches[1];
-            }
-        }
-
-        if (!$token) {
-            return null;
-        }
-
-        // Validate Token
-        $stmt = $this->pdo->prepare("SELECT * FROM api_tokens WHERE token = ?");
-        $stmt->execute([$token]);
-        $apiToken = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$apiToken) {
-            return null;
-        }
-
-        // Update Last Used
-        $this->pdo->prepare("UPDATE api_tokens SET last_used_at = ? WHERE id = ?")
-            ->execute([time(), $apiToken['id']]);
-
-        // Get User
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$apiToken['user_id']]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
     private function createInboxItem() {
-        $user = $this->authenticate();
-        if (!$user) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid API Token']);
-            return;
-        }
+        // R-140: BaseController::authenticate()（JWT／api_token 両対応）に一本化
+        $this->authenticate();
+        $userId = $this->currentUserId;
 
         $input = json_decode(file_get_contents('php://input'), true);
         if (!$input || !isset($input['title'])) {
@@ -77,7 +34,7 @@ class IntegrationController {
         // Get Tenant (Default)
         // For shortcuts, we assume the user's primary tenant or default to the first one found.
         $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ? LIMIT 1");
-        $stmt->execute([$user['id']]);
+        $stmt->execute([$userId]);
         $tenantId = $stmt->fetchColumn();
 
         if (!$tenantId) {
@@ -105,24 +62,115 @@ class IntegrationController {
         // Standardize: Use Unix Timestamp (Seconds) for SQLite compatibility, multiply by 1000 for JS frontend if needed.
         // But existing items table? Let's check `ItemController`.
         // `ItemController`: $now = time() * 1000;
-        
+
         $stmt = $this->pdo->prepare("
             INSERT INTO items (id, title, status, memo, created_at, updated_at)
             VALUES (?, ?, 'inbox', ?, ?, ?)
         ");
-        
+
         $title = $input['title'];
         $memo = $input['memo'] ?? '';
-        
+
         $stmt->execute([$id, $title, $memo, $now, $now]);
 
         // R-128: 今週の残量（F-27）。番頭が不足時に一言返せるようレスポンスに同梱する
         $tenantStmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
-        $tenantStmt->execute([$user['id']]);
+        $tenantStmt->execute([$userId]);
         $tenantIds = $tenantStmt->fetchAll(PDO::FETCH_COLUMN);
         $weekLoad = (new QuantityService($this->pdo))
-            ->calcWeekLoadForUser($user['id'], $tenantIds, date('Y-m-d'), $id);
+            ->calcWeekLoadForUser($userId, $tenantIds, date('Y-m-d'), $id);
 
         echo json_encode(['id' => $id, 'message' => 'Added to Inbox via Shortcut', 'week_load' => $weekLoad]);
+    }
+
+    /**
+     * R-140 / F-56: GET /integrations/digest?date=YYYY-MM-DD&limit=3
+     * 番頭の朝・昼・夜のメッセージに必要な数字を1リクエストで返す。文言・評価語は含めない。
+     */
+    private function digest() {
+        $this->authenticate();
+
+        $today = $_GET['date'] ?? '';
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $today)) {
+            $today = date('Y-m-d');
+        }
+        $limit = min(20, max(1, (int)($_GET['limit'] ?? 3)));
+        $todayStart = strtotime($today . ' 00:00:00');
+        $weekStart = $todayStart - ((int)date('N', $todayStart) - 1) * 86400; // 今週月曜 0:00
+
+        $items = $this->fetchAggregatedItems();
+
+        // review_queue（F-52 と同一定義: ReviewQueueService）
+        $queue = ReviewQueueService::build($items, $today);
+        $queueItems = array_map(function ($i) use ($todayStart) {
+            $deadline = QuantityService::getEffectiveDeadlineFromItem($i);
+            return [
+                'id' => $i['id'],
+                'title' => $i['title'],
+                'project_title' => $i['real_project_title'] ?? null,
+                'status' => $i['status'],
+                'due_date' => $i['due_date'] ?? null,
+                'prep_date' => isset($i['prep_date']) ? (int)$i['prep_date'] : null,
+                'review_date' => $i['review_date'] ?? null,
+                'estimated_minutes' => (int)($i['estimated_minutes'] ?? 0),
+                'overdue_days' => $deadline === null ? null : max(0, (int)round(($todayStart - $deadline) / 86400)),
+            ];
+        }, array_slice($queue, 0, $limit));
+
+        // uncontacted_overdue（F-55 の超過分のうち meta.contacted_at 無し。案件別、案件なしは最後）
+        $groups = [];
+        foreach ($items as $i) {
+            if (!empty($i['is_project']) || in_array($i['status'], ['done', 'cancelled', 'someday'], true)) continue;
+            $deadline = QuantityService::getEffectiveDeadlineFromItem($i);
+            if ($deadline === null || $deadline >= $todayStart) continue;
+            $meta = !empty($i['meta']) ? json_decode($i['meta'], true) : null;
+            if (!empty($meta['contacted_at'])) continue;
+
+            $key = $i['project_id'] ?: '__none__';
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'project_id' => $i['project_id'] ?: null,
+                    'project_title' => $i['project_id'] ? ($i['real_project_title'] ?? null) : null,
+                    'client_name' => null,
+                    'count' => 0,
+                    'total_minutes' => 0,
+                    'oldest_due_date' => null,
+                ];
+            }
+            $g = &$groups[$key];
+            $g['count']++;
+            $g['total_minutes'] += (int)($i['estimated_minutes'] ?? 0);
+            if ($g['client_name'] === null && !empty($i['client_name'])) $g['client_name'] = $i['client_name'];
+            $d = date('Y-m-d', $deadline);
+            if ($g['oldest_due_date'] === null || $d < $g['oldest_due_date']) $g['oldest_due_date'] = $d;
+            unset($g);
+        }
+        $uncontacted = array_values($groups);
+        usort($uncontacted, function ($a, $b) {
+            if (($a['project_id'] === null) !== ($b['project_id'] === null)) return $a['project_id'] === null ? 1 : -1;
+            return strcmp($a['oldest_due_date'], $b['oldest_due_date']);
+        });
+
+        // declined_this_week（F-52 の断ったKPIと同一）
+        $declined = count(array_filter($items, fn($i) => $i['status'] === 'cancelled' && (int)($i['status_updated_at'] ?? 0) >= $weekStart));
+
+        // focus（既存 focus 並び順）
+        $focus = array_values(array_filter($items, fn($i) => $i['status'] === 'focus'));
+        usort($focus, ['TodayController', 'compareFocusOrder']);
+        $focus = array_map(fn($i) => [
+            'id' => $i['id'],
+            'title' => $i['title'],
+            'project_title' => $i['real_project_title'] ?? null,
+            'estimated_minutes' => (int)($i['estimated_minutes'] ?? 0),
+            'due_date' => $i['due_date'] ?? null,
+        ], $focus);
+
+        $this->sendJSON([
+            'review_queue' => ['total' => count($queue), 'items' => $queueItems],
+            'week_load' => (new QuantityService($this->pdo))->calcWeekLoadForUser($this->currentUserId, $this->joinedTenants, $today),
+            'uncontacted_overdue' => $uncontacted,
+            'declined_this_week' => $declined,
+            'focus' => $focus,
+        ]);
     }
 }

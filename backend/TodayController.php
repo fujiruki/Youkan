@@ -13,6 +13,27 @@ class TodayController extends BaseController {
     }
 
     /**
+     * focus の並び順: sort_orderが手動設定済み(>0)なら優先、未設定(0)ならdue_dateが近い順（NULLS LAST）。
+     * R-140: IntegrationController::digest の focus 一覧も同じ並びを使う
+     */
+    public static function compareFocusOrder(array $a, array $b): int {
+        $aOrder = (int)($a['sort_order'] ?? 0);
+        $bOrder = (int)($b['sort_order'] ?? 0);
+        if ($aOrder > 0 && $bOrder > 0) {
+            return $aOrder - $bOrder;
+        }
+        if ($aOrder > 0) return -1;
+        if ($bOrder > 0) return 1;
+
+        $aDue = $a['due_date'] ?? null;
+        $bDue = $b['due_date'] ?? null;
+        if ($aDue === null && $bDue === null) return 0;
+        if ($aDue === null) return 1;
+        if ($bDue === null) return -1;
+        return strcmp($aDue, $bDue);
+    }
+
+    /**
      * Get Today's View (Commit + Execution + Life).
      * [UUID v7] Simplified: No dual-ID format support needed
      */
@@ -108,27 +129,7 @@ class TodayController extends BaseController {
         $stmtCommits->execute($queryParams);
         $commits = array_values(array_filter(array_map([$this, 'mapItemRow'], $stmtCommits->fetchAll(PDO::FETCH_ASSOC))));
 
-        // ソート: sort_orderが手動設定済み(>0)なら優先、未設定(0)ならdue_dateが近い順
-        usort($commits, function($a, $b) {
-            $aOrder = (int)($a['sort_order'] ?? 0);
-            $bOrder = (int)($b['sort_order'] ?? 0);
-
-            // 両方手動設定済み → sort_order昇順
-            if ($aOrder > 0 && $bOrder > 0) {
-                return $aOrder - $bOrder;
-            }
-            // 片方だけ手動設定済み → 手動設定済みが先
-            if ($aOrder > 0) return -1;
-            if ($bOrder > 0) return 1;
-
-            // 両方未設定 → due_dateが近い順（NULLS LAST）
-            $aDue = $a['due_date'] ?? null;
-            $bDue = $b['due_date'] ?? null;
-            if ($aDue === null && $bDue === null) return 0;
-            if ($aDue === null) return 1;
-            if ($bDue === null) return -1;
-            return strcmp($aDue, $bDue);
-        });
+        usort($commits, [self::class, 'compareFocusOrder']);
 
         // Zone 2: Execution (Status: execution_in_progress, execution_paused)
         $sqlExec = "
