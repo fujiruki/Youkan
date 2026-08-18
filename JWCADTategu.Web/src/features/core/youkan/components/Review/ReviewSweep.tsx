@@ -131,7 +131,7 @@ export const ReviewSweep: React.FC<ReviewSweepProps> = ({
     return (
         <div
             data-testid="review-sweep"
-            className="fixed bottom-4 right-4 z-[9998] w-[340px] pointer-events-none"
+            className="fixed bottom-4 right-4 z-40 w-[340px] pointer-events-none"
         >
             {isDone ? (
                     <motion.div

@@ -9,6 +9,9 @@ interface ViewControlsProps {
     onChangeTitleLimit: (limit: number) => void;
     showSomeday?: boolean;
     onChangeShowSomeday?: (value: boolean) => void;
+    /** R-127: 要判断キュー該当のみ表示するフィルタチップ */
+    needsReviewOnly?: boolean;
+    onChangeNeedsReviewOnly?: (value: boolean) => void;
 }
 
 export const ViewControls: React.FC<ViewControlsProps> = ({
@@ -19,7 +22,9 @@ export const ViewControls: React.FC<ViewControlsProps> = ({
     onChangeColumnCount,
     onChangeTitleLimit,
     showSomeday = false,
-    onChangeShowSomeday
+    onChangeShowSomeday,
+    needsReviewOnly = false,
+    onChangeNeedsReviewOnly
 }) => {
     return (
         <div className="flex items-center gap-6 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 overflow-x-auto whitespace-nowrap scrollbar-none">
@@ -62,6 +67,20 @@ export const ViewControls: React.FC<ViewControlsProps> = ({
                     >
                         <span>💭</span>
                         <span>いつかやる</span>
+                    </button>
+                </div>
+            )}
+            {onChangeNeedsReviewOnly && (
+                <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-800 pl-4">
+                    <button
+                        onClick={() => onChangeNeedsReviewOnly(!needsReviewOnly)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors ${needsReviewOnly
+                            ? 'bg-rose-100 border-rose-300 text-rose-700 dark:bg-rose-900/40 dark:border-rose-700 dark:text-rose-300'
+                            : 'bg-white border-slate-200 text-slate-400 hover:border-rose-300 hover:text-rose-500 dark:bg-slate-800 dark:border-slate-700'
+                        }`}
+                        title="要判断キュー該当のみ表示"
+                    >
+                        <span>要判断</span>
                     </button>
                 </div>
             )}

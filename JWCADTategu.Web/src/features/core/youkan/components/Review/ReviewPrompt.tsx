@@ -40,7 +40,7 @@ export const ReviewPrompt: React.FC<ReviewPromptProps> = ({ count, today, onStar
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="fixed bottom-4 right-4 z-[9997] w-[320px] bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 p-4"
+            className="fixed bottom-4 right-4 z-40 w-[320px] bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 p-4"
         >
             <p className="text-sm text-slate-700 dark:text-slate-200">
                 要判断 {count}件。3件だけ、1分で捌く？

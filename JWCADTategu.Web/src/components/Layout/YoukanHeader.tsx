@@ -109,6 +109,9 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	const { dashboardViewMode, setDashboardViewMode, projectViewMode, setProjectViewMode, calendarViewMode, setCalendarViewMode } = useViewMode();
 
 	const [capacity, setCapacity] = useState({ used: initialUsed, limit: initialLimit });
+	// R-127: 要判断キュー件数（DashboardScreen側の別ツリーからカスタムイベントで受け取る。
+	// Reality Load(CAPACITY_UPDATE)と同じ疎結合パターン）
+	const [reviewQueueCount, setReviewQueueCount] = useState(0);
 
 	// [REFACTORED] テナント切替時のフィルタモード自動設定（Context経由）
 	// 初回マウント時は FilterContext の初期値 ('all') を尊重するためスキップ
@@ -141,6 +144,28 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 			window.removeEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
 		};
 	}, [capacity]);
+
+	// R-127: 要判断キュー件数の受信
+	useEffect(() => {
+		const handleReviewQueueUpdate = (e: any) => {
+			if (e.detail && typeof e.detail.count === 'number') {
+				setReviewQueueCount(e.detail.count);
+			}
+		};
+		window.addEventListener(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, handleReviewQueueUpdate as EventListener);
+		return () => {
+			window.removeEventListener(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, handleReviewQueueUpdate as EventListener);
+		};
+	}, []);
+
+	// R-127: ヘッダーの件数バッジクリックでReviewSweepを開く。
+	// DashboardScreenが未マウントの場合に備え、pendingフラグをsessionStorageに残してから遷移する
+	const handleOpenReviewSweep = () => {
+		sessionStorage.setItem(YOUKAN_KEYS.REVIEW_SWEEP_PENDING, '1');
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.OPEN_REVIEW_SWEEP));
+		onNavigateToDashboard();
+		handleDashboardViewChange('overview');
+	};
 
 	const isCompanyAccount = user?.accountType === 'tenant';
 	const isCompanyContext = checkCompanyContext(filterMode);
@@ -346,7 +371,13 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 							<div className="flex gap-1">
 								<SubNavTab label="登録と集中" isActive={isDashboard && dashboardViewMode === 'stream'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('stream'); }} />
 								<SubNavTab label="状況把握" isActive={isDashboard && dashboardViewMode === 'panorama'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('panorama'); }} />
-								<SubNavTab label="全体一覧" isActive={isDashboard && dashboardViewMode === 'overview'} onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('overview'); }} />
+								<SubNavTab
+									label="全体一覧"
+									isActive={isDashboard && dashboardViewMode === 'overview'}
+									onClick={() => { onNavigateToDashboard(); handleDashboardViewChange('overview'); }}
+									badge={reviewQueueCount}
+									onBadgeClick={handleOpenReviewSweep}
+								/>
 							</div>
 						</NavSection>
 
@@ -505,11 +536,14 @@ const SubNavTab: React.FC<{
 	isActive: boolean;
 	onClick: () => void;
 	disabled?: boolean;
-}> = ({ label, isActive, onClick, disabled }) => (
+	/** R-127: 要判断キュー件数。0以下は非表示。絶対配置のためレイアウトは動かない */
+	badge?: number;
+	onBadgeClick?: () => void;
+}> = ({ label, isActive, onClick, disabled, badge, onBadgeClick }) => (
 	<button
 		onClick={onClick}
 		disabled={disabled}
-		className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all border ${disabled
+		className={`relative px-3 py-1.5 rounded-md text-[11px] font-bold transition-all border ${disabled
 			? 'text-slate-600 border-transparent cursor-not-allowed'
 			: isActive
 				? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]'
@@ -517,5 +551,16 @@ const SubNavTab: React.FC<{
 			}`}
 	>
 		{label}
+		{typeof badge === 'number' && badge > 0 && (
+			<span
+				role="button"
+				aria-label={`要判断 ${badge}件`}
+				title={`要判断 ${badge}件`}
+				onClick={(e) => { e.stopPropagation(); onBadgeClick?.(); }}
+				className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-rose-500 text-white text-[9px] font-black leading-none shadow-sm"
+			>
+				{badge > 99 ? '99+' : badge}
+			</span>
+		)}
 	</button>
 );
