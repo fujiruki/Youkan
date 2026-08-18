@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import { OverduePanel } from '../OverduePanel';
-import { OverdueGroup } from '../../../logic/overdueGroups';
+import { OverdueGroup, OverdueItem } from '../../../logic/overdueGroups';
 
 const TODAY = '2026-08-18';
 
@@ -18,6 +18,17 @@ const buildGroup = (overrides: Partial<OverdueGroup> = {}): OverdueGroup => ({
     contactedAt: null,
     ...overrides,
 });
+
+const buildItems = (count: number): OverdueItem[] =>
+    Array.from({ length: count }, (_, i) => ({
+        id: `item-${i}`,
+        title: `タスク${i}`,
+        estimatedMinutes: 60,
+        dueDate: '2026-08-10',
+        deadline: new Date('2026-08-10').getTime(),
+        overdueDays: 8,
+        meta: null,
+    }));
 
 describe('OverduePanel (R-136 / F-55)', () => {
     it('見出しに件数と合計hを表示する', () => {
@@ -64,16 +75,16 @@ describe('OverduePanel (R-136 / F-55)', () => {
         expect(onUpdateItem).toHaveBeenCalledWith('a', { due_date: '2026-08-25' });
     });
 
-    it('「連絡した」を押すとブロック内全アイテムのmeta.contacted_atが今日で保存される（既存metaは保持）', () => {
-        const onUpdateItem = vi.fn();
+    it('「連絡した」を押すとブロック内全アイテムのmeta.contacted_atが今日で保存される（既存metaは保持）', async () => {
+        const onUpdateItem = vi.fn().mockResolvedValue(undefined);
         render(<OverduePanel groups={[buildGroup()]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
         fireEvent.click(screen.getByRole('button', { name: '連絡した' }));
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledWith('b', { meta: { flow_x: 1, contacted_at: TODAY } }));
         expect(onUpdateItem).toHaveBeenCalledWith('a', { meta: { contacted_at: TODAY } });
-        expect(onUpdateItem).toHaveBeenCalledWith('b', { meta: { flow_x: 1, contacted_at: TODAY } });
     });
 
-    it('連絡済みブロックは「連絡 M/d」を表示し、押すと取り消される（contacted_atだけ消える）', () => {
-        const onUpdateItem = vi.fn();
+    it('連絡済みブロックは「連絡 M/d」を表示し、押すと取り消される（contacted_atだけ消える）', async () => {
+        const onUpdateItem = vi.fn().mockResolvedValue(undefined);
         const group = buildGroup({
             contacted: true,
             contactedAt: '2026-08-17',
@@ -84,7 +95,76 @@ describe('OverduePanel (R-136 / F-55)', () => {
         render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
         const toggleButton = screen.getByRole('button', { name: /連絡\s*8\/17/ });
         fireEvent.click(toggleButton);
-        expect(onUpdateItem).toHaveBeenCalledWith('a', { meta: {} });
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledWith('a', { meta: {} }));
+    });
+
+    it('50件のブロックでonUpdateItemが逐次呼び出しされる（前の呼び出しが完了する前に次を呼ばない）', async () => {
+        const items = buildItems(50);
+        const group = buildGroup({ items, totalMinutes: 3000, oldestOverdueDays: 8 });
+        let resolveFirst: (() => void) | undefined;
+        const onUpdateItem = vi.fn().mockImplementation((id: string) => {
+            if (id === 'item-0') {
+                return new Promise<void>((resolve) => { resolveFirst = resolve; });
+            }
+            return Promise.resolve();
+        });
+        render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: '連絡した' }));
+
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledTimes(1));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(onUpdateItem).toHaveBeenCalledTimes(1);
+
+        resolveFirst?.();
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledTimes(50));
+    });
+
+    it('送信中はボタンが無効化され、n/N の進捗が表示される', async () => {
+        const items = buildItems(3);
+        const group = buildGroup({ items, totalMinutes: 180, oldestOverdueDays: 8 });
+        let resolveFirst: (() => void) | undefined;
+        const onUpdateItem = vi.fn().mockImplementation((id: string) => {
+            if (id === 'item-0') {
+                return new Promise<void>((resolve) => { resolveFirst = resolve; });
+            }
+            return Promise.resolve();
+        });
+        render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
+        const button = screen.getByRole('button', { name: '連絡した' });
+        fireEvent.click(button);
+
+        await waitFor(() => expect(screen.getByRole('button', { name: '1/3' })).toBeDisabled());
+
+        resolveFirst?.();
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledTimes(3));
+    });
+
+    it('途中1件が失敗しても残りは続行し、失敗件数が表示され、同じボタンで失敗分だけ再試行される', async () => {
+        const items = buildItems(3);
+        const group = buildGroup({ items, totalMinutes: 180, oldestOverdueDays: 8 });
+        const onUpdateItem = vi.fn().mockImplementation((id: string) => {
+            if (id === 'item-1') return Promise.reject(new Error('通信エラー'));
+            return Promise.resolve();
+        });
+        render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: '連絡した' }));
+
+        await waitFor(() => expect(screen.getByRole('button', { name: '1件更新できませんでした' })).toBeInTheDocument());
+        expect(onUpdateItem).toHaveBeenCalledTimes(3);
+
+        onUpdateItem.mockClear();
+        onUpdateItem.mockImplementation(() => Promise.resolve());
+        fireEvent.click(screen.getByRole('button', { name: '1件更新できませんでした' }));
+
+        await waitFor(() => expect(onUpdateItem).toHaveBeenCalledTimes(1));
+        expect(onUpdateItem).toHaveBeenCalledWith('item-1', expect.anything());
+    });
+
+    it('「その他」（案件なし）ブロックには「連絡した」ボタンを出さない（納期入力は残す）', () => {
+        const group = buildGroup({ projectId: null, groupTitle: 'その他' });
+        render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={vi.fn()} onClose={vi.fn()} />);
+        expect(screen.queryByRole('button', { name: '連絡した' })).not.toBeInTheDocument();
+        expect(screen.getAllByPlaceholderText("YYYY/MM/DD or 'tomorrow'").length).toBe(2);
     });
 
     it('対象が0件でも見出しは表示する', () => {
