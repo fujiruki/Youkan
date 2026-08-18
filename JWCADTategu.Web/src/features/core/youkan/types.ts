@@ -263,6 +263,8 @@ export interface CapacityConfig {
     standardWeeklyPattern?: WeeklyPattern; // [NEW] 曜日ごとの基本稼働時間
     defaultCompanyWeeklyPattern?: WeeklyCompanyPattern; // [NEW] 曜日ごとの会社別配分
     dailyCompanyExceptions?: Record<string, CompanyAllocation>; // [NEW] 日ごとの会社別例外設定
+    /** R-129: 最遅着手日トークンの安全係数（既定1.5、範囲1.0〜3.0）。最遅着手日の計算にのみ使う */
+    safetyFactor?: number;
 }
 
 // --- Delegation (外注) [NEW] ---
