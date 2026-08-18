@@ -212,6 +212,8 @@ export const CloudYoukanRepository = {
 				if (cp.defaultCompanyWeeklyPattern) baseConfig.defaultCompanyWeeklyPattern = cp.defaultCompanyWeeklyPattern;
 				if (cp.dailyCompanyExceptions) baseConfig.dailyCompanyExceptions = cp.dailyCompanyExceptions;
 				if (cp.exceptions && Object.keys(cp.exceptions).length > 0) baseConfig.exceptions = cp.exceptions;
+				// R-129: 最遅着手日トークンの安全係数
+				if (typeof cp.safetyFactor === 'number') baseConfig.safetyFactor = cp.safetyFactor;
 			}
 			return baseConfig;
 		} catch (e) {
