@@ -1,23 +1,23 @@
-# Youkan — R-127 実装タスク
+# Youkan — R-128 / R-129 実装タスク（並行）
 
-**要望**: 要判断キュー「捌く」（R-126会議 採用案B）
-**ブランチ**: `feat/R-127-review-sweep`
-**実装担当**: Sonnet Agent（worktree隔離）
-**仕様**: `docs/SPEC/02_機能仕様.md` F-26、`03_画面設計.md` §15、`04_データ設計.md` §3.2 preferences・§3.5 meta.declined、`05_技術設計.md` R-127節
-**背景**: `docs/kaigi/2026-08-18-R126新しいYoukan構想.md`
+## R-128 今週の残量1行と登録時の一言
+**ブランチ**: `feat/R-128-week-load` ／ **担当**: Sonnet Agent（worktree）
+**仕様**: `02_機能仕様.md` F-27、`03_画面設計.md` §16、`05_技術設計.md` R-128節
+- [ ] 1. `logic/weekLoad.ts` `calcWeekLoad`（テスト先行）
+- [ ] 2. `QuantityService::calcWeekLoad`（PHP、TSと同一フィクスチャで数値一致テスト）＋ `GET /quantity/week`
+- [ ] 3. `POST /items`・`POST /integrations/inbox`・`PATCH /items/{id}`（期限/目安変更時）応答に `week_load` 同梱
+- [ ] 4. `YoukanHeader` Reality ブロックを日本語1行に置換（不足時のみ赤）
+- [ ] 5. 登録・期限/目安変更直後の不足Toast（1回）
+- [ ] 6. 既存キャパ設定UIの実用性確認（不備は報告のみ）、全テスト・tsc、06 Impact追記、完了報告
 
-## 絶対ルール
-- 指揮AIはコードを編集しない。TDD（純粋関数はRed→Green）。ステップ単位で1コミット
-- 面積を奪わない・動かない（フェードのみ）・3件で止まる・評価語なし・`decisionToStatus` 経由
+## R-129 最遅着手日トークン
+**ブランチ**: `feat/R-129-latest-start` ／ **担当**: Sonnet Agent（worktree）
+**仕様**: `02_機能仕様.md` F-28、`03_画面設計.md` §17、`05_技術設計.md` R-129節
+- [ ] 1. `logic/latestStart.ts` `getLatestStart`（テスト先行: 対象・除外・係数・期限超過は出さない）
+- [ ] 2. `CapacityConfig.safetyFactor` ＋ 個人設定の数値入力（既定1.5）
+- [ ] 3. 全体一覧 `OverviewItem`／ガント一覧タイトル列／`FlowItemNode` にトークン表示（行高さ不変、目安なしは `目安？`）
+- [ ] 4. 飽和ガード（赤字10件）＋ 全体一覧フィルタ「着手遅れ」
+- [ ] 5. 全テスト・tsc、06 Impact追記、完了報告
 
-## ステップ
-- [x] 1. `logic/reviewQueue.ts` `buildReviewQueue` ＋ `countDeclinedThisWeek`（テスト先行）
-- [x] 2. 判断の言葉: `users.preferences.judgment_phrases` の読み書き（既存の設定保存経路＝`ApiClient.getUserProfile`/`updateUserProfile`）＋ `PersonalSettingsScreen` テキストエリア。`useAuth().user.preferences`経由でReviewSweepからも新規APIなしで参照
-- [x] 3. `components/Review/ReviewSweep.tsx`（右下オーバーレイ、1/2/3/Esc、後日+7日、断った=cancelled+meta.declined、3件で完了ビュー、詳細を開く→既存モーダル）
-- [x] 4. `components/Review/ReviewPrompt.tsx`（1日1回、`localStorage['youkan_review_prompt_dismissed']`）
-- [x] 5. `YoukanHeader` 全体一覧ナビに件数バッジ（0で非表示）／全体一覧フィルタ「要判断」チップ
-- [x] 6. 全テスト・tsc、`06_変更履歴.md` Impact 追記、task.md 更新、完了報告
-
-## 完了（2026-08-18）
-- 全テストGreen（1096 passed / 14 skipped、既知の許容2 unhandled errors）、`npx tsc --noEmit` エラーなし
-- マージ・デプロイは未実施（指揮AIレビュー待ち）
+## 共通ルール
+- 指揮AIはコードを編集しない。TDD。ステップ単位で1コミット。評価語禁止。マージ・デプロイは指揮AI経由
