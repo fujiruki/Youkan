@@ -30,3 +30,11 @@
 - [ ] R-133 `FlowItemNode` タイトル編集中の2回目クリックでキャレット位置（R-079回帰テスト維持）
 - [ ] R-134 `ReviewPrompt` に「後で（1時間後）」＋snooze再表示＋Notification 1回、バッジtitle
 - [ ] 全テスト・tsc、06 Impact追記、完了報告
+
+## R-130 日次キャパ決定規則の一本化（R-128/129デプロイ後に着手）
+**ブランチ**: `fix/R-130-daily-capacity-unify` ／ **担当**: Sonnet Agent（worktree）
+- [ ] 1. `logic/capacity.ts` `getDailyCapacity`/`isHoliday` を F-11 の規則どおりに（曜日パターン反映）。テスト先行
+- [ ] 2. `QuantityEngine.calculateTotalCapacityForDate` の独自規則を削除し `getDailyCapacity` を呼ぶ（会社キャパ側の `profile.standardWeeklyPattern` 参照は現状維持）。既存テストGreen
+- [ ] 3. PHP `QuantityService::getDailyCapacity`（および `calcWeekLoadForUser`）を同規則に。TS/PHP同一フィクスチャ一致テスト
+- [ ] 4. `PersonalSettingsScreen` の Advanced JSON 欄を削除、説明文追加
+- [ ] 5. 全テスト・tsc、06 Impact追記、完了報告
