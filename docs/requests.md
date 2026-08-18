@@ -1,12 +1,7 @@
 # Requests
 
-- **【高】R-135候補** R-129「着手 M/d」トークンが本番で一切表示されない（currentUserId未解決のバグ）
-  - 2026-08-18 R-129マージ・デプロイ・本番検証Agentの報告: マージ（`8d6b2bf`）・ビルド・デプロイは成功、全テストGreen（180ファイル/177 passed/0 failed）・tscエラーなしだったが、本番実機検証で全体一覧・ガント・フローの3画面すべてで`着手 M/d`トークンが1件も表示されないことを確認した。API直叩きで対象条件（`status`∈{todo,focus,inbox}、有効締切が未来、目安時間あり）を満たす実データ（例: `塗装　板`due 8/20 todo 4h、`板幅決め`due 8/18 todo 4h）を特定した上で、全体一覧・フロー（該当プロジェクトの`石鎚山`フローチャート）双方のDOM `innerText`で「着手」の出現をヘッダーの固定ラベル「着手遅れ」1件のみ（トークン0件）と確認。localStorageを完全クリアし再ログインした新規セッションでも再現し、現行の本番認証（Cookieベースセッション、`/auth/me`が200で認証は正常）下で再現性がある恒常的な不具合と判断
-  - 根本原因: `getLatestStart`呼び出しの前提となる`QuantityContext`が3画面とも`currentUserId`のnullガードで常に`null`になりビルドされない。(1) 全体一覧（`useOverviewItems.ts`）・ガント（`RyokanGanttView.tsx`）が使う`currentUserId`は`useYoukanViewModel.ts`の`(getRepository() as any).getCurrentUser?.()`から取得するが、`CloudYoukanRepository`/`YoukanRepository`のどちらにも`getCurrentUser`メソッドが実装されておらず常に`undefined`→`currentUserId`は永久に`null`（`grep`で確認: 実装は0件、テストのモックのみ`getCurrentUser: vi.fn().mockResolvedValue(null)`で存在） (2) フロー（`FlowScreen.tsx`）は`localStorage.getItem(YOUKAN_KEYS.USER)`（`youkan_user`キー）を独自に読むが、現行の本番認証はCookieセッションでこのキーは一度も書き込まれない（`AuthProvider.tsx`の`useAuth()`が`/auth/me`から取得する`user.id`が本来の信頼できる取得元だが、いずれの画面もこれを使っていない）
-  - 影響: R-129受け入れ条件(1)〜(4)がすべて未達（トークン非表示・飽和ガード検証不可・行高さ変化なしは無意味な合格・個人設定「安全係数」UI自体は存在し既定1.5で表示されるが効果が確認できない）。全体一覧の「着手遅れ」フィルタチップも同じ根本原因でクリックしても表示件数が一切変化しないことを確認済み（テキスト長比較: クリック前後とも8039文字で完全一致）
-  - テストがこの不具合を検知できなかった理由: 各画面のテストは`currentUserId`をモックで直接注入しており、`useYoukanViewModel`経由の実際の解決チェーン（`getRepository().getCurrentUser?.()`／`localStorage`）を一切経由していないため、CIでは再現しない構造になっている
-  - 対応案: 3画面とも`useAuth()`（`AuthProvider.tsx`、`/auth/me`ベース）の`user.id`を`currentUserId`の唯一の信頼できる取得元として統一する。`useYoukanViewModel.ts`の`getRepository().getCurrentUser?.()`呼び出しと`FlowScreen.tsx`の`localStorage.getItem(YOUKAN_KEYS.USER)`はいずれも廃止し置き換える。あわせて、モックではなく実際の解決チェーンを通す統合テストを1件追加し再発を防ぐ
-  - 状態: 未対応（R-129はマージ・デプロイ済みだが、コア機能である`着手 M/d`トークン表示は機能停止中。修正実装Agentの起動待ち）
+- **【高】R-135** R-129「着手 M/d」トークンが本番で一切表示されない（currentUserId未解決のバグ）
+  - **→ R-135 として requests_log.md に移記済み（2026-08-18）**。原文・調査結果は台帳参照
 
 - **【中】R-131** 詳細画面「保留にする」ボタンのショートカット
   - 2026-08-17 16:56 改善要望フォーム原文: 「詳細画面の保留ボタンにもショートカットが欲しいな、結構よく使うんだけど何を割り当てるのが良いかな」

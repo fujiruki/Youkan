@@ -64,4 +64,6 @@ export const YOUKAN_EVENTS = {
 	// R-127: 要判断キュー「捌く」
 	REVIEW_QUEUE_UPDATE: 'youkan-review-queue-update',
 	OPEN_REVIEW_SWEEP: 'youkan-open-review-sweep',
+	// R-128: 今週の残量（F-27）。新規登録・期限/目安変更の直後、不足時のみ1回発火する
+	WEEK_LOAD_SHORTFALL: 'youkan-week-load-shortfall',
 } as const;

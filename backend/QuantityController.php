@@ -16,9 +16,32 @@ class QuantityController extends BaseController {
                 $this->sendError(405, 'Method Not Allowed');
             }
         }
+        // GET /quantity/week (R-128)
+        else if (preg_match('#^/week$#', $path)) {
+            if ($method === 'GET') {
+                $this->getWeekLoad();
+            } else {
+                $this->sendError(405, 'Method Not Allowed');
+            }
+        }
         else {
             $this->sendError(404, 'Endpoint Not Found');
         }
+    }
+
+    /**
+     * R-128: 今週の残量（F-27）。ヘッダー1行・登録時の一言（番頭）が同じ値を参照する。
+     */
+    private function getWeekLoad() {
+        if (!$this->currentUserId) {
+            $this->sendError(400, 'User context required');
+        }
+
+        $today = $_GET['today'] ?? date('Y-m-d');
+        $service = new QuantityService($this->pdo);
+        $weekLoad = $service->calcWeekLoadForUser($this->currentUserId, $this->joinedTenants, $today);
+
+        $this->sendJSON(['week_load' => $weekLoad]);
     }
 
     /**

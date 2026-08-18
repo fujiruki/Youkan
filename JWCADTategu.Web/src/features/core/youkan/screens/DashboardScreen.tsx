@@ -31,6 +31,7 @@ import { isReviewDue } from '../logic/statusUtils';
 import { Decision } from '../logic/decisionResolution';
 import { safeFormat } from '../logic/dateUtils';
 import { buildReviewQueue, countDeclinedThisWeek } from '../logic/reviewQueue';
+import { calcWeekLoad } from '../logic/weekLoad';
 import { ReviewSweep } from '../components/Review/ReviewSweep';
 import { ReviewPrompt } from '../components/Review/ReviewPrompt';
 import { useAuth } from '../../../core/auth/providers/AuthProvider';
@@ -199,6 +200,20 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 	const today = useMemo(() => safeFormat(new Date(), 'yyyy-MM-dd'), []);
 	const reviewQueue = useMemo(() => buildReviewQueue(unifiedAllItems, today), [unifiedAllItems, today]);
 	const declinedThisWeek = useMemo(() => countDeclinedThisWeek(unifiedAllItems, today), [unifiedAllItems, today]);
+
+	// R-128: 今週の残量（F-27）。ヘッダー1行はこの1関数の結果だけを使う（計算の再実装禁止）
+	const weekLoad = useMemo(
+		() => calcWeekLoad(unifiedAllItems, capacityConfig, today),
+		[unifiedAllItems, capacityConfig, today]
+	);
+
+	// ヘッダー（別コンポーネントツリー）へ通知する。CAPACITY_UPDATEと同じカスタムイベント経由の疎結合パターン
+	useEffect(() => {
+		window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.CAPACITY_UPDATE, {
+			detail: { weekLoad }
+		}));
+	}, [weekLoad]);
+
 	const { user: authUser } = useAuth();
 	const judgmentPhrases: string[] = Array.isArray(authUser?.preferences?.judgment_phrases)
 		? authUser!.preferences.judgment_phrases

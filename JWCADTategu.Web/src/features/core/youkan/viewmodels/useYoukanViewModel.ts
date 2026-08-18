@@ -15,6 +15,7 @@ import { collectDescendantIds } from '../logic/hierarchy';
 import { decisionToStatus, Decision } from '../logic/decisionResolution';
 import { useFilter } from '../contexts/FilterContext';
 import { useAuth } from '../../auth/providers/AuthProvider';
+import { calcWeekLoad, formatWeekLoadToastMessage } from '../logic/weekLoad';
 
 type TenantSnapshot = { id: string; tenantId: string | null | undefined }[];
 
@@ -27,6 +28,19 @@ const getUseCloud = () => {
 // Simple Repository Proxy/Factory
 const getRepository = () => {
 	return getUseCloud() ? CloudYoukanRepository : YoukanRepository;
+};
+
+// R-128: 登録・期限/目安変更の直後、不足時のみToastを1回発火する（今週の残量、F-27）。
+// ViewModelはReact ContextのuseToastへ直接依存せず、既存の疎結合パターン
+// （CAPACITY_UPDATE等と同じCustomEvent）でApp側に通知する
+const notifyWeekLoadShortfallIfNeeded = (items: Item[], capacityConfig: CapacityConfig, excludeItemId?: string) => {
+	const today = format(new Date(), 'yyyy-MM-dd');
+	const weekLoad = calcWeekLoad(items, capacityConfig, today, excludeItemId);
+	if (weekLoad.shortfallMinutes <= 0) return;
+
+	window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.WEEK_LOAD_SHORTFALL, {
+		detail: { message: formatWeekLoadToastMessage(weekLoad) }
+	}));
 };
 
 
@@ -980,6 +994,13 @@ export const useYoukanViewModel = (projectId?: string) => {
 			setGdbActiveRaw(prev => [newItem, ...prev]);
 		}
 
+		// R-128: 登録直後、今週の残量が不足していれば1回だけToast通知（F-27）
+		notifyWeekLoadShortfallIfNeeded(
+			[...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, newItem],
+			capacityConfig,
+			id
+		);
+
 		// refreshGdb(); // Prevent flicker
 		return id;
 	};
@@ -1184,6 +1205,16 @@ export const useYoukanViewModel = (projectId?: string) => {
 			// Update Execution Item if active
 			if (executionItem && executionItem.id === id) {
 				setExecutionItemRaw(prev => prev ? { ...prev, ...updates } : null);
+			}
+
+			// R-128: 期限/目安の変更直後、今週の残量が不足していれば1回だけToast通知（F-27）
+			const touchesWeekLoad = ('due_date' in updates) || ('prep_date' in updates) || ('estimatedMinutes' in updates);
+			if (touchesWeekLoad) {
+				notifyWeekLoadShortfallIfNeeded(
+					allLocal.map(item => item.id === id ? updatedItem : item),
+					capacityConfig,
+					id
+				);
 			}
 		}
 

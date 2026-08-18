@@ -21,6 +21,7 @@ import { ForAiModal } from '../../features/core/youkan/components/ForAi/ForAiMod
 import { MobileFilterButton } from '../../features/core/youkan/components/Filter/MobileFilterButton';
 import { ImprovementRequestButton } from '../../features/core/youkan/components/ImprovementRequest/ImprovementRequestButton';
 import { ImprovementRequestModal } from '../../features/core/youkan/components/ImprovementRequest/ImprovementRequestModal';
+import { WeekLoad, formatWeekLoadHours } from '../../features/core/youkan/logic/weekLoad';
 
 
 // R-083: 羊羹ロゴマーク（三分割スリット+Y字）。favicon（public/favicon.svg）と同一デザイン
@@ -112,6 +113,8 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 	// R-127: 要判断キュー件数（DashboardScreen側の別ツリーからカスタムイベントで受け取る。
 	// Reality Load(CAPACITY_UPDATE)と同じ疎結合パターン）
 	const [reviewQueueCount, setReviewQueueCount] = useState(0);
+	// R-128: 今週の残量（F-27）。DashboardScreen側からCAPACITY_UPDATEイベントで受け取る
+	const [weekLoad, setWeekLoad] = useState<WeekLoad | null>(null);
 
 	// [REFACTORED] テナント切替時のフィルタモード自動設定（Context経由）
 	// 初回マウント時は FilterContext の初期値 ('all') を尊重するためスキップ
@@ -137,6 +140,10 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 					used: e.detail.used ?? capacity.used,
 					limit: e.detail.limit ?? capacity.limit
 				});
+				// R-128: 同じイベントに乗せて送られてくる今週の残量（F-27）
+				if (e.detail.weekLoad) {
+					setWeekLoad(e.detail.weekLoad);
+				}
 			}
 		};
 		window.addEventListener(YOUKAN_EVENTS.CAPACITY_UPDATE, handleCapacityUpdate as EventListener);
@@ -304,23 +311,29 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 						<MotivatorWhisper />
 					</div>
 
-					{/* Reality Load (TOTAL LOAD) */}
+					{/* R-128: 今週の残量1行（F-27）。旧「Reality (Total Load)」を日本語1行に置き換え */}
+					{weekLoad && (
 					<div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50 shrink-0">
 						<div className="flex flex-col">
-							<span className="text-[7px] font-black text-indigo-400 uppercase tracking-tighter leading-none">Reality (Total Load)</span>
-							<div className="flex items-baseline gap-1">
-								<span className="text-xs font-black text-slate-100 font-mono leading-none">{capacity.used}</span>
-								<span className="text-[8px] text-slate-500 font-bold leading-none">/ {capacity.limit} min</span>
-								<span className="text-[8px] text-indigo-500 font-bold leading-none">({Math.round((capacity.used / capacity.limit) * 100)}%)</span>
-							</div>
+							<span className="text-xs font-bold text-slate-100 leading-tight whitespace-nowrap">
+								今週 必要 {formatWeekLoadHours(weekLoad.needMinutes)}／枠 {formatWeekLoadHours(weekLoad.capacityMinutes)}
+								{weekLoad.shortfallMinutes > 0 && (
+									<span className="text-red-400"> {formatWeekLoadHours(weekLoad.shortfallMinutes)}足りない</span>
+								)}
+							</span>
 						</div>
 						<div className="w-16 lg:w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
 							<div
-								className={`h-full transition-all duration-500 ${capacity.used > capacity.limit ? 'bg-red-500' : 'bg-indigo-500'}`}
-								style={{ width: `${Math.min(100, (capacity.used / capacity.limit) * 100)}%` }}
+								className={`h-full transition-all duration-500 ${weekLoad.shortfallMinutes > 0 ? 'bg-red-500' : 'bg-slate-500'}`}
+								style={{
+									width: `${weekLoad.capacityMinutes > 0
+										? Math.min(100, (weekLoad.needMinutes / weekLoad.capacityMinutes) * 100)
+										: (weekLoad.needMinutes > 0 ? 100 : 0)}%`
+								}}
 							/>
 						</div>
 					</div>
+					)}
 				</div>
 
 
