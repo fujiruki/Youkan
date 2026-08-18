@@ -9,8 +9,8 @@ const buildGroup = (overrides: Partial<OverdueGroup> = {}): OverdueGroup => ({
     projectId: 'p1',
     groupTitle: '田中様／玄関建具',
     items: [
-        { id: 'a', title: 'タスクA', estimatedMinutes: 120, dueDate: '2026-08-10', deadline: new Date('2026-08-10').getTime(), overdueDays: 8, meta: null },
-        { id: 'b', title: 'タスクB', estimatedMinutes: 60, dueDate: '2026-08-16', deadline: new Date('2026-08-16').getTime(), overdueDays: 2, meta: { flow_x: 1 } },
+        { id: 'a', title: 'タスクA', estimatedMinutes: 120, deadlineField: 'due_date', deadline: new Date('2026-08-10').getTime(), overdueDays: 8, meta: null },
+        { id: 'b', title: 'タスクB', estimatedMinutes: 60, deadlineField: 'due_date', deadline: new Date('2026-08-16').getTime(), overdueDays: 2, meta: { flow_x: 1 } },
     ],
     totalMinutes: 180,
     oldestOverdueDays: 8,
@@ -24,7 +24,7 @@ const buildItems = (count: number): OverdueItem[] =>
         id: `item-${i}`,
         title: `タスク${i}`,
         estimatedMinutes: 60,
-        dueDate: '2026-08-10',
+        deadlineField: 'due_date',
         deadline: new Date('2026-08-10').getTime(),
         overdueDays: 8,
         meta: null,
@@ -73,6 +73,24 @@ describe('OverduePanel (R-136 / F-55)', () => {
         fireEvent.change(inputs[0], { target: { value: '2026/08/25' } });
         fireEvent.keyDown(inputs[0], { key: 'Enter' });
         expect(onUpdateItem).toHaveBeenCalledWith('a', { due_date: '2026-08-25' });
+        expect(screen.getAllByText('納期').length).toBe(2);
+    });
+
+    it('R-147: 有効締切が prep_date の行は「マイ期限」ラベルで prep_date（Unix秒）を更新する', () => {
+        const onUpdateItem = vi.fn();
+        const group = buildGroup({
+            items: [
+                { id: 'a', title: 'タスクA', estimatedMinutes: 120, deadlineField: 'prep_date', deadline: new Date('2026-08-10').getTime(), overdueDays: 8, meta: null },
+            ],
+        });
+        render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);
+        expect(screen.getByText('マイ期限')).toBeInTheDocument();
+        expect(screen.queryByText('納期')).not.toBeInTheDocument();
+        const input = screen.getByPlaceholderText("YYYY/MM/DD or 'tomorrow'");
+        input.focus();
+        fireEvent.change(input, { target: { value: '2026/08/25' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+        expect(onUpdateItem).toHaveBeenCalledWith('a', { prep_date: Math.floor(new Date(2026, 7, 25).getTime() / 1000) });
     });
 
     it('「連絡した」を押すとブロック内全アイテムのmeta.contacted_atが今日で保存される（既存metaは保持）', async () => {
@@ -89,7 +107,7 @@ describe('OverduePanel (R-136 / F-55)', () => {
             contacted: true,
             contactedAt: '2026-08-17',
             items: [
-                { id: 'a', title: 'タスクA', estimatedMinutes: 120, dueDate: '2026-08-10', deadline: new Date('2026-08-10').getTime(), overdueDays: 8, meta: { contacted_at: '2026-08-17' } },
+                { id: 'a', title: 'タスクA', estimatedMinutes: 120, deadlineField: 'due_date', deadline: new Date('2026-08-10').getTime(), overdueDays: 8, meta: { contacted_at: '2026-08-17' } },
             ],
         });
         render(<OverduePanel groups={[group]} today={TODAY} onUpdateItem={onUpdateItem} onClose={vi.fn()} />);

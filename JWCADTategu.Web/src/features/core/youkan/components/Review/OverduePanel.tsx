@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { parseISO, format as formatDate } from 'date-fns';
 import { Item } from '../../types';
-import { OverdueGroup } from '../../logic/overdueGroups';
+import { OverdueGroup, OverdueItem } from '../../logic/overdueGroups';
 import { formatWeekLoadHours } from '../../logic/weekLoad';
 import { runSequentialUpdates } from '../../logic/sequentialUpdates';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
@@ -82,9 +82,12 @@ export const OverduePanel: React.FC<OverduePanelProps> = ({ groups, today, onUpd
         }));
     };
 
-    const handleDueDateChange = (itemId: string, date: Date | null) => {
+    // R-147: 行の締切表示（有効締切）と編集対象を一致させる。prep_date は Unix秒（DecisionDetailModal・ガントと同じ）
+    const handleDeadlineChange = (item: OverdueItem, date: Date | null) => {
         if (!date) return;
-        onUpdateItem(itemId, { due_date: formatDate(date, 'yyyy-MM-dd') });
+        onUpdateItem(item.id, item.deadlineField === 'prep_date'
+            ? { prep_date: Math.floor(date.getTime() / 1000) }
+            : { due_date: formatDate(date, 'yyyy-MM-dd') });
     };
 
     return (
@@ -148,10 +151,11 @@ export const OverduePanel: React.FC<OverduePanelProps> = ({ groups, today, onUpd
                                         <span className="text-[11px] text-slate-500 dark:text-slate-400 shrink-0 whitespace-nowrap">
                                             {formatDate(new Date(item.deadline), 'M/d')}（<span className="text-red-600 dark:text-red-400">{item.overdueDays}日超過</span>）
                                         </span>
+                                        <span className="text-[10px] text-slate-400 shrink-0">{item.deadlineField === 'prep_date' ? 'マイ期限' : '納期'}</span>
                                         <div className="w-28 shrink-0">
                                             <SmartDateInput
-                                                value={item.dueDate ? parseISO(item.dueDate) : null}
-                                                onChange={(date) => handleDueDateChange(item.id, date)}
+                                                value={new Date(item.deadline)}
+                                                onChange={(date) => handleDeadlineChange(item, date)}
                                                 inputClassName="!h-8 !py-1 !text-xs !pl-7"
                                             />
                                         </div>

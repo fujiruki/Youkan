@@ -17,8 +17,8 @@ export interface OverdueItem {
     id: string;
     title: string;
     estimatedMinutes: number;
-    dueDate: string | null; // 元の due_date（納期入力欄の初期値用）
     deadline: number; // 有効締切（ms）
+    deadlineField: 'due_date' | 'prep_date'; // R-147: 有効締切がどちらの日付か（編集欄はこちらを更新する）
     overdueDays: number;
     meta: Record<string, any> | null | undefined;
 }
@@ -67,12 +67,14 @@ export function buildOverdueGroups(items: Item[], today: string): OverdueGroup[]
         const overdueItems: OverdueItem[] = rawItems
             .map(item => {
                 const deadline = getEffectiveDeadline(item) as number;
+                // due_date と prep_date の両方があれば早い方。同日なら due_date（従来どおり納期を編集）
+                const dueOnly = getEffectiveDeadline({ ...item, prep_date: undefined });
                 return {
                     id: item.id,
                     title: item.title,
                     estimatedMinutes: item.estimatedMinutes ?? 0,
-                    dueDate: item.due_date ?? null,
                     deadline,
+                    deadlineField: (dueOnly === deadline ? 'due_date' : 'prep_date') as OverdueItem['deadlineField'],
                     overdueDays: differenceInCalendarDays(todayDate, new Date(deadline)),
                     meta: item.meta,
                 };
