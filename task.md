@@ -1,8 +1,14 @@
 # Youkan — 現在のタスク
 
-2026-08-18 セッション（R-125〜R-138）はすべて本番反映済み。詳細は `docs/handover/2026-08-18-R125-R135-new-youkan-session.md`（末尾に後半の追記あり）。
-R-139（`POST /api/items/{id}/destroy` の500エラー修正）も 2026-08-18 に master へマージ・本番反映済み。
+2026-08-18 セッション（R-125〜R-139）はすべて本番反映済み。詳細は `docs/handover/2026-08-18-R125-R135-new-youkan-session.md`（末尾に後半の追記あり）。
+
+## 進行中
+- [ ] **R-140** 番頭連携API: `GET /integrations/digest` ＋ 個人設定「外部連携トークン」（仕様: `docs/SPEC/02_機能仕様.md` F-56 ほか。台帳: `docs/requests_log.md`）
+  - [ ] 実装（Agent、worktree `feature/R-140-integrations-digest`）
+  - [ ] レビュー・マージ・本番デプロイ・実機検証
+  - [ ] 番頭側へ「依頼事項 §1・§2・§6 は digest に置き換え」を連絡（引継書更新）
 
 ## 次の候補（未着手）
-- R-126（親）の残論点: todo→focus自動推薦、review_date通知、番頭連携API統合
-- `.claude/worktrees/R-101` の残骸（別セッションのCodexがvite起動中のため保留）
+- R-126（親）の残論点: todo→focus自動推薦、review_date通知
+- 活動履歴API（R-140 で見送り。マネージャーAI連携の要望が具体化したら）
+- `.claude/worktrees/` の残骸（R-101, agent-a31a20361bb197614, feature-R109-flow-date-grouping。ロック中で削除不可、手動削除）
