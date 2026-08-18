@@ -24,23 +24,21 @@ class IntegrationController extends BaseController {
         $this->authenticate();
         $userId = $this->currentUserId;
 
-        $input = json_decode(file_get_contents('php://input'), true);
-        if (!$input || !isset($input['title'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Title is required']);
-            return;
+        $input = $this->getInput();
+        if (!isset($input['title'])) {
+            $this->sendError(400, 'Title is required');
         }
 
-        // Get Tenant (Default)
-        // For shortcuts, we assume the user's primary tenant or default to the first one found.
-        $stmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ? LIMIT 1");
-        $stmt->execute([$userId]);
-        $tenantId = $stmt->fetchColumn();
-
+        // R-141: tenant_id は authenticate() が解決した currentTenantId。明示時は所属テナントのみ採用
+        $tenantId = $this->currentTenantId;
+        if (!empty($input['tenant_id'])) {
+            if (!in_array($input['tenant_id'], $this->joinedTenants, true)) {
+                $this->sendError(400, 'Not a member of the specified tenant');
+            }
+            $tenantId = $input['tenant_id'];
+        }
         if (!$tenantId) {
-            http_response_code(500);
-            echo json_encode(['error' => 'User has no tenant']);
-            return;
+            $this->sendError(500, 'User has no tenant');
         }
 
         // Create Item
@@ -64,23 +62,20 @@ class IntegrationController extends BaseController {
         // `ItemController`: $now = time() * 1000;
 
         $stmt = $this->pdo->prepare("
-            INSERT INTO items (id, title, status, memo, created_at, updated_at)
-            VALUES (?, ?, 'inbox', ?, ?, ?)
+            INSERT INTO items (id, title, status, memo, created_at, updated_at, created_by, tenant_id)
+            VALUES (?, ?, 'inbox', ?, ?, ?, ?, ?)
         ");
 
         $title = $input['title'];
         $memo = $input['memo'] ?? '';
 
-        $stmt->execute([$id, $title, $memo, $now, $now]);
+        $stmt->execute([$id, $title, $memo, $now, $now, $userId, $tenantId]);
 
         // R-128: 今週の残量（F-27）。番頭が不足時に一言返せるようレスポンスに同梱する
-        $tenantStmt = $this->pdo->prepare("SELECT tenant_id FROM memberships WHERE user_id = ?");
-        $tenantStmt->execute([$userId]);
-        $tenantIds = $tenantStmt->fetchAll(PDO::FETCH_COLUMN);
         $weekLoad = (new QuantityService($this->pdo))
-            ->calcWeekLoadForUser($userId, $tenantIds, date('Y-m-d'), $id);
+            ->calcWeekLoadForUser($userId, $this->joinedTenants, date('Y-m-d'), $id);
 
-        echo json_encode(['id' => $id, 'message' => 'Added to Inbox via Shortcut', 'week_load' => $weekLoad]);
+        $this->sendJSON(['id' => $id, 'message' => 'Added to Inbox via Shortcut', 'week_load' => $weekLoad]);
     }
 
     /**
