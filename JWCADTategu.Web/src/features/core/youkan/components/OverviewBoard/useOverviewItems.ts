@@ -6,12 +6,12 @@ import { buildHierarchicalList } from '../../logic/hierarchy';
 import { buildReviewQueue } from '../../logic/reviewQueue';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { QuantityContext } from '../../logic/QuantityEngine';
-import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, LatestStartResult } from '../../logic/latestStart';
+import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
 
 export type YoukanViewModel = ReturnType<typeof useYoukanViewModel>;
 
 export type OverviewItemWrapper =
-	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null; latestStart?: LatestStartResult; latestStartHighlighted?: boolean }
+	| { id: string; type: 'item'; item: Item; project: Item | null; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null; latestStart?: LatestStartResult; latestStartHighlighted?: boolean; latestStartTooltip?: string }
 	| { id: string; type: 'header'; projectId: string; projectTitle: string; project: Item; depth: number; displayDate?: string | null; displayDateType?: 'due' | 'prep' | null };
 
 // R-048: 起動時の /dependencies 多重取得を避けるため OverviewBoard では従来 dependencies: [] 固定だった。
@@ -142,11 +142,13 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 		return hierarchicalWrappers.map(wrapper => {
 			if (wrapper.type === 'item') {
 				const dateInfo = getEnhancedDate(wrapper.item);
+				const latestStart = latestStartById.get(wrapper.item.id);
 				return {
 					...wrapper,
 					...dateInfo,
-					latestStart: latestStartById.get(wrapper.item.id),
+					latestStart,
 					latestStartHighlighted: highlightIds.has(wrapper.item.id),
+					latestStartTooltip: latestStart ? formatLatestStartTooltip(latestStart, safetyFactor) : undefined,
 				} as OverviewItemWrapper;
 			}
 			return wrapper as OverviewItemWrapper;

@@ -75,3 +75,9 @@ export function formatLatestStartToken(result: LatestStartResult): string | null
     if (result.reason === 'no-estimate') return '目安？';
     return `着手 ${format(parseISO(result.date!), 'M/d')}`;
 }
+
+/** ツールチップ文字列（事実のみ）。「最遅着手日 8/20（目安×1.5、日次キャパから逆算）」 */
+export function formatLatestStartTooltip(result: LatestStartResult, safetyFactor: number): string | undefined {
+    if (result.reason !== 'ok' || !result.date) return undefined;
+    return `最遅着手日 ${format(parseISO(result.date), 'M/d')}（目安×${safetyFactor}、日次キャパから逆算）`;
+}

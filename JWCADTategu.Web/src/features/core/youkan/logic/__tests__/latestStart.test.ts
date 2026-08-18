@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Item, JudgmentStatus } from '../../types';
 import { QuantityContext } from '../QuantityEngine';
-import { getLatestStart, selectLateStartHighlightIds, formatLatestStartToken, resolveSafetyFactor, DEFAULT_SAFETY_FACTOR } from '../latestStart';
+import { getLatestStart, selectLateStartHighlightIds, formatLatestStartToken, formatLatestStartTooltip, resolveSafetyFactor, DEFAULT_SAFETY_FACTOR } from '../latestStart';
 
 const TODAY = '2026-08-18'; // 火曜日
 
@@ -136,5 +136,17 @@ describe('formatLatestStartToken', () => {
 
     it('ok は「着手 M/d」', () => {
         expect(formatLatestStartToken({ date: '2026-08-25', isLate: false, reason: 'ok' })).toBe('着手 8/25');
+    });
+});
+
+describe('formatLatestStartTooltip', () => {
+    it('ok以外はツールチップを出さない', () => {
+        expect(formatLatestStartTooltip({ date: null, isLate: false, reason: 'not-applicable' }, 1.5)).toBeUndefined();
+        expect(formatLatestStartTooltip({ date: null, isLate: false, reason: 'no-estimate' }, 1.5)).toBeUndefined();
+    });
+
+    it('事実のみのツールチップ文字列を返す', () => {
+        expect(formatLatestStartTooltip({ date: '2026-08-20', isLate: false, reason: 'ok' }, 1.5))
+            .toBe('最遅着手日 8/20（目安×1.5、日次キャパから逆算）');
     });
 });

@@ -5,6 +5,7 @@ import { OverviewItemWrapper } from './useOverviewItems';
 import { Folder, FolderOpen, GitBranch } from 'lucide-react';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { formatLatestStartToken } from '../../logic/latestStart';
 
 interface OverviewItemProps {
 	wrapper: OverviewItemWrapper;
@@ -169,8 +170,9 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 		);
 	}
 
-	const { item, depth, displayDate, displayDateType } = wrapper;
+	const { item, depth, displayDate, displayDateType, latestStart, latestStartHighlighted, latestStartTooltip } = wrapper;
 	const isDone = isItemDone(item);
+	const latestStartText = latestStart ? formatLatestStartToken(latestStart) : null;
 
 	const handleTimeEditStart = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -285,6 +287,17 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						displayDateType === 'due' ? "text-slate-600 dark:text-slate-400" : "text-slate-600 dark:text-slate-300 font-medium"
 					)}>
 						{displayDate}
+					</span>
+				)}
+				{latestStartText && !isDone && (
+					<span
+						className={cn(
+							"text-[0.75em] whitespace-nowrap shrink-0",
+							latestStart?.isLate && latestStartHighlighted ? "text-red-500 dark:text-red-400 font-bold" : "text-slate-400 dark:text-slate-500"
+						)}
+						title={latestStartTooltip}
+					>
+						{latestStartText}
 					</span>
 				)}
 			</div>
