@@ -366,6 +366,12 @@ if (preg_match('#^(/api)?/quantity/matrix$#', $path)) {
     $controller->handleRequest($method, '/matrix');
     exit;
 }
+// R-128: GET /quantity/week（今週の残量）
+if (preg_match('#^(/api)?/quantity/week$#', $path)) {
+    $controller = new QuantityController();
+    $controller->handleRequest($method, '/week');
+    exit;
+}
 
 // Side Memo Routes
 if (preg_match('#^(/api)?/memos$#', $path)) {
