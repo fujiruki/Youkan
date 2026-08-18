@@ -397,6 +397,16 @@ const AppContent: React.FC<{
 			return () => window.removeEventListener(YOUKAN_EVENTS.OPEN_PROJECT_MODAL, handleOpenModal);
 		}, []);
 
+		// R-128: 今週の残量（F-27）。登録・期限/目安変更の直後、不足時のみ既存Toastで1回表示する
+		useEffect(() => {
+			const handleWeekLoadShortfall = (e: any) => {
+				if (!e.detail?.message) return;
+				showToast({ type: 'info', title: '今週の残量', message: e.detail.message });
+			};
+			window.addEventListener(YOUKAN_EVENTS.WEEK_LOAD_SHORTFALL, handleWeekLoadShortfall);
+			return () => window.removeEventListener(YOUKAN_EVENTS.WEEK_LOAD_SHORTFALL, handleWeekLoadShortfall);
+		}, [showToast]);
+
 		useEffect(() => {
 			ApiClient.setErrorHandler((error, method, path) => {
 				if (error.message.includes('401') || error.message.includes('Unauthorized')) {
