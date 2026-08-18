@@ -30,6 +30,8 @@ class QuantityServiceCapacityTest {
         $this->testRule2WeeklyPatternOverridesDefault();
         $this->testRule2ZeroMeansHoliday();
         $this->testRule2PriorityOverRule3();
+        $this->testRule4WeekendZeroWithWeekdayOnlyPattern();
+        $this->testRule2PriorityOverRule4();
         $this->testRule1ExceptionPriorityOverPattern();
         $this->testRule1ExceptionZeroIsHoliday();
         echo "All tests passed!\n";
@@ -57,10 +59,38 @@ class QuantityServiceCapacityTest {
         echo "  [Test] 規則3: holidays(weekly)に該当すれば0...";
         $config = ['default_daily_minutes' => 480, 'holidays' => [['type' => 'weekly', 'value' => '6']], 'exceptions' => []];
         $sat = $this->service->getDailyCapacityFromConfig(new DateTime($this->saturday), $config);
-        // 日曜はholidaysに含まれず、holidaysが設定済み（空配列でない）なので規則4は適用されない＝平日扱い
+        // 日曜はholidaysに含まれないが、規則4（その曜日が土日なら0）でどのみち0
         $sun = $this->service->getDailyCapacityFromConfig(new DateTime($this->sunday), $config);
         assert($sat === 0, "Sat: Expected 0, got $sat");
-        assert($sun === 480, "Sun: Expected 480, got $sun");
+        assert($sun === 0, "Sun: Expected 0, got $sun");
+        echo " OK\n";
+    }
+
+    private function testRule4WeekendZeroWithWeekdayOnlyPattern() {
+        echo "  [Test] 規則4: 曜日パターンに平日しか保存されていなくても土日は0（既存データの平日のみパターン）...";
+        $config = [
+            'default_daily_minutes' => 480,
+            'holidays' => [],
+            'exceptions' => [],
+            'standard_weekly_pattern' => [1 => 480, 2 => 480, 3 => 480, 4 => 480, 5 => 480], // 土日キーを省略
+        ];
+        $sat = $this->service->getDailyCapacityFromConfig(new DateTime($this->saturday), $config);
+        $sun = $this->service->getDailyCapacityFromConfig(new DateTime($this->sunday), $config);
+        assert($sat === 0, "Sat: Expected 0, got $sat");
+        assert($sun === 0, "Sun: Expected 0, got $sun");
+        echo " OK\n";
+    }
+
+    private function testRule2PriorityOverRule4() {
+        echo "  [Test] 規則2は規則4より優先される（土曜に明示値があればそれを使う）...";
+        $config = [
+            'default_daily_minutes' => 480,
+            'holidays' => [],
+            'exceptions' => [],
+            'standard_weekly_pattern' => [6 => 480], // 土曜だけ稼働と明示
+        ];
+        $sat = $this->service->getDailyCapacityFromConfig(new DateTime($this->saturday), $config);
+        assert($sat === 480, "Sat: Expected 480, got $sat");
         echo " OK\n";
     }
 

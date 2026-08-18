@@ -52,7 +52,8 @@ class QuantityService {
      * 1. 日別例外 exceptions[YYYY-MM-DD]（0＝休み）
      * 2. 曜日パターン standard_weekly_pattern[曜日]（0＝定休日）
      * 3. holidays（weekly指定）に該当すれば0
-     * 4. 1〜3のいずれもなく、holidaysも曜日パターンも未設定なら土日は0（既定の週休2日）
+     * 4. 1〜3で値が決まらず、その曜日が土日なら0（既定の週休2日。曜日パターンに平日しか
+     *    保存されていない既存データでも土日は休みのまま）
      * 5. それ以外は default_daily_minutes
      * $capacityConfig = ['default_daily_minutes' => int, 'holidays' => HolidayRule[], 'exceptions' => [date => minutes], 'standard_weekly_pattern' => [曜日 => 分]|null]
      */
@@ -86,9 +87,8 @@ class QuantityService {
             return 0;
         }
 
-        // 4. holidaysも曜日パターンも未設定なら土日は既定の週休2日
-        $hasNoHolidayConfig = (count($holidays) === 0 && $weeklyPattern === null);
-        if ($hasNoHolidayConfig && ($dayIndex === 0 || $dayIndex === 6)) {
+        // 4. 1〜3で値が決まらず、その曜日が土日なら既定の週休2日
+        if ($dayIndex === 0 || $dayIndex === 6) {
             return 0;
         }
 

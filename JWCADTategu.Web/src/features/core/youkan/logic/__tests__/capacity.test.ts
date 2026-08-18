@@ -3,7 +3,7 @@ import { getDailyCapacity, isHoliday } from '../capacity';
 import { CapacityConfig } from '../../types';
 
 // R-130 / F-11: 日次キャパの決定規則を一本化する getDailyCapacity/isHoliday のテスト。
-// 優先順: 1.日別例外 > 2.曜日パターン(0=定休日) > 3.holidays(weekly) > 4.未設定なら土日0 > 5.defaultDailyMinutes
+// 優先順: 1.日別例外 > 2.曜日パターン(0=定休日) > 3.holidays(weekly) > 4.1〜3で決まらず土日なら0 > 5.defaultDailyMinutes
 
 describe('getDailyCapacity / isHoliday (R-130 / F-11)', () => {
     // 2026-02-09は月曜、2026-02-14は土曜、2026-02-15は日曜
@@ -28,12 +28,36 @@ describe('getDailyCapacity / isHoliday (R-130 / F-11)', () => {
     it('規則3: holidays(weekly)に該当すれば0', () => {
         const config: CapacityConfig = {
             defaultDailyMinutes: 480,
-            holidays: [{ type: 'weekly', value: '6' }], // 土曜のみ定休日
+            holidays: [{ type: 'weekly', value: '6' }], // 土曜のみ定休日指定
             exceptions: {},
         };
         expect(getDailyCapacity(saturday, config)).toBe(0);
-        // 日曜はholidaysに含まれず、holidaysが設定済み（空配列でない）なので規則4は適用されない＝平日扱い
-        expect(getDailyCapacity(sunday, config)).toBe(480);
+        // 日曜はholidaysに含まれないが、規則4（その曜日が土日なら0）でどのみち0
+        expect(getDailyCapacity(sunday, config)).toBe(0);
+    });
+
+    it('規則4: 曜日パターンに平日しか保存されていなくても土日は0（既存データの平日のみパターン）', () => {
+        const config: CapacityConfig = {
+            defaultDailyMinutes: 480,
+            holidays: [],
+            exceptions: {},
+            standardWeeklyPattern: { 1: 480, 2: 480, 3: 480, 4: 480, 5: 480 }, // 土日キーを省略
+        };
+        expect(getDailyCapacity(saturday, config)).toBe(0);
+        expect(getDailyCapacity(sunday, config)).toBe(0);
+        expect(isHoliday(saturday, config)).toBe(true);
+        expect(isHoliday(sunday, config)).toBe(true);
+    });
+
+    it('規則2は規則4より優先される（土曜に明示値があればそれを使う）', () => {
+        const config: CapacityConfig = {
+            defaultDailyMinutes: 480,
+            holidays: [],
+            exceptions: {},
+            standardWeeklyPattern: { 6: 480 }, // 土曜だけ稼働と明示
+        };
+        expect(getDailyCapacity(saturday, config)).toBe(480);
+        expect(isHoliday(saturday, config)).toBe(false);
     });
 
     it('規則2: 曜日パターンがあればそれを使う（平日を240分に変更できる）', () => {

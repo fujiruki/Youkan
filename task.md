@@ -39,5 +39,5 @@
 - [x] 3. PHP `QuantityService::getDailyCapacityFromConfig`（および `calcWeekLoadForUser`）を同規則に。TS/PHP同一フィクスチャ一致テスト
 - [x] 4. `PersonalSettingsScreen` の Advanced JSON 欄を削除、説明文追加
 - [x] 5. 全テスト・tsc、06 Impact追記、完了報告
+- [x] 6. 規則4見直し（指揮AI指示）: 「holidaysも曜日パターンも未設定なら土日は0」→「1〜3で決まらずその曜日が土日なら0」に変更。曜日パターンに平日しかない既存データでも土日は休みのまま（既知のリスクを解消）。TS/PHP両方修正・テスト追加、Red→Green
 - マージ・デプロイは未実施（指揮AI経由待ち）
-- **既知のリスク**: 曜日パターンで平日のみ保存済みの既存ユーザーは、本改修後に土日が稼働日扱い（`defaultDailyMinutes`）になる。デプロイ前に発注者本人の個人設定を確認要（詳細は `06_変更履歴.md` R-130節）
