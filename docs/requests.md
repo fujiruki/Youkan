@@ -31,6 +31,10 @@
 - **【高】R-130** キャパ設定UIの不備: 曜日パターン・定休日設定が「今週の残量」（R-128）に反映されない
   - **→ R-130 として requests_log.md に移記済み（2026-08-18）**
 
+- **【低】** 技術的負債: `localStorage['youkan_user']` を直接読む残存箇所（R-135と同型。Cookieセッション認証では常にnull）
+  - R-135修正Agentの報告（2026-08-18）: `useYoukanViewModel.ts:1276`（`accountId`）・`:1503`（`currentMember` OR条件）、`RyokanCalendar.tsx:504`（`effectiveUserId`）、`DetailQuantityCalendar.tsx:162`、`DecisionDetailModal.tsx:137`、`YoukanRepository.ts:288`、`YoukanHeader.tsx:186`、`db.ts:144`、`CompanySettingsScreen.tsx:37`。いずれも `useAuth().user` に置き換える候補。あわせて `/quantity/matrix` の旧 `QuantityService::getDailyCapacity($user,$date,$overrides)` は曜日パターンを見ない（フロント未使用）、`QuantityServiceTest.php::testContextLogic` は既存の失敗
+  - 優先度低: 現時点で表面化している不具合はない（R-135で主経路は修正済み）
+
 - **【中】R-126** 「新しいYoukan」構想（タスク・スケジュール・作業量を感じられる管理ソフトへ、発注者特性に基づく再設計）
   - 2026-08-18 会話内発言原文: 「実装デプロイと並行してあたらしいyoukanをいっしょにかんがえよう。より晴樹をサポートす。タスク・スケジュール・作業量を感じれる管理ソフトにしたい。ちなみに現状、量感自体はあまり使えてなくて、ガントチャート・フローチャート・全体一覧を主に使っているよ。」
   - 発注者特性分析（個人情報を含むためリポジトリ外）: `c:\claude-workspace\agents\共有情報\晴樹個人\2026-08-18_晴樹さんの特性とYoukan補助点.md`
