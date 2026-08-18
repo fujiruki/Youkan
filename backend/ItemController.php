@@ -1022,6 +1022,11 @@ class ItemController extends BaseController {
         return $stmt->fetchColumn();
     }
     
+    // R-139: POST /items/{id}/destroy から index.php が呼ぶ公開エントリ（DELETE /items/{id} と同一処理）
+    public function destroy_permanent($id) {
+        $this->delete($id);
+    }
+
     // Physical Delete (Destroy)
     private function delete($id) {
         $this->authenticate(); // Ensure Auth
