@@ -100,3 +100,43 @@ describe('R-087: ガント日付ヘッダーの合計時間数表示', () => {
 		expect(cell?.querySelector('[data-testid^="gantt-daily-total-"]')).toBeNull();
 	});
 });
+
+/**
+ * R-146: プロジェクト別表示（showGroups=true）でも合計時間・CapacityBar を表示する。
+ * 集計対象はガントに渡された items（プロジェクト絞り込みは上流の API 取得時点で済んでいる）。
+ */
+describe('R-146: プロジェクト別表示でも日付ヘッダーの合計時間を表示', () => {
+	const projects = [{ id: 'p1', title: 'プロジェクトA' }, { id: 'p2', title: 'プロジェクトB' }] as any;
+
+	it('showGroups=true で合計時間テキストと CapacityBar が表示される', () => {
+		const items = [
+			makeItem('task-90', '90分タスク', {
+				projectId: 'p1',
+				prep_date: Math.floor(wednesday.getTime() / 1000),
+				estimatedMinutes: 90,
+			}),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} showGroups={true} projects={projects} items={items} />
+		);
+
+		const cell = container.querySelector(`[data-gantt-date="${wednesdayKey}"]`);
+		expect(cell?.querySelector(`[data-testid="gantt-daily-total-${wednesdayKey}"]`)?.textContent).toBe('1.5h');
+		expect(cell?.querySelector('[data-testid="capacity-bar"]')).not.toBeNull();
+	});
+
+	it('絞り込み済みの items（1プロジェクト分）だけが合計に含まれる', () => {
+		const items = [
+			makeItem('a1', 'A-1', { projectId: 'p1', prep_date: Math.floor(wednesday.getTime() / 1000), estimatedMinutes: 60 }),
+			makeItem('a2', 'A-2', { projectId: 'p1', prep_date: Math.floor(wednesday.getTime() / 1000), estimatedMinutes: 60 }),
+		];
+
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} showGroups={true} projects={projects} focusedProjectId="p1" items={items} />
+		);
+
+		const cell = container.querySelector(`[data-gantt-date="${wednesdayKey}"]`);
+		expect(cell?.querySelector(`[data-testid="gantt-daily-total-${wednesdayKey}"]`)?.textContent).toBe('2h');
+	});
+});
