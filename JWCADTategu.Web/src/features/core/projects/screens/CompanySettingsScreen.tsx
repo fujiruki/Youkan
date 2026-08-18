@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Users, Building, Shield, Zap } from 'lucide-react';
 import { ApiClient } from '../../../../api/client';
-import { YOUKAN_KEYS } from '../../session/youkanKeys';
+import { useAuth } from '../../auth/providers/AuthProvider';
 
 interface Member {
 	id: string;
@@ -31,16 +31,10 @@ export const CompanySettingsScreen: React.FC<CompanySettingsScreenProps> = ({
 	const [inviteRole, setInviteRole] = useState('user');
 	const [inviting, setInviting] = useState(false);
 
-	// Current User Info (for permissions)
-	const [currentUser] = useState<any>(() => {
-		try {
-			const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
-			const t = JSON.parse(localStorage.getItem(YOUKAN_KEYS.TENANT) || '{}');
-			return { ...u, role: t.role, tenantId: t.id };
-		} catch {
-			return null;
-		}
-	});
+	// [R-137] Current User Info（権限判定用）はuseAuth（/auth/me）由来。
+	// Cookieセッション認証では常に空のlocalStorage['youkan_user']/['youkan_tenant']は参照しない
+	const { user: authUser, tenant: authTenant } = useAuth();
+	const currentUser = authUser ? { ...authUser, role: authTenant?.role, tenantId: authTenant?.id } : null;
 
 	useEffect(() => {
 		loadMembers();
