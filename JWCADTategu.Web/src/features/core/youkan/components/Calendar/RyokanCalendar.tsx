@@ -14,7 +14,6 @@ import { cn } from '../../../../../lib/utils';
 import { ChevronRight } from 'lucide-react';
 import { SimpleModal } from '../Modal/SimpleModal';
 import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
-import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { ExternalEvent } from '../../types/externalEvent';
 import { EventDetailModal } from './EventDetailModal';
@@ -501,7 +500,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		return hMap;
 	}, [metrics]);
 
-	const effectiveUserId = useMemo(() => currentUserId || (JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}').id || null), [currentUserId]);
+	// [R-137] currentUserId propが唯一の正。localStorage['youkan_user']（Cookieセッション認証では常に空）は参照しない
+	const effectiveUserId = currentUserId || null;
 
 	const renderItemTitle = useCallback((item: Item) => {
 		const isProjectContext = focusedProjectId && item.projectId === focusedProjectId;
