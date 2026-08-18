@@ -16,8 +16,8 @@ export interface ItemContextMenuCallbacks {
 	onInsertBefore?: (id: string) => void;
 	onInsertAfter?: (id: string) => void;
 	onMarkDone?: (id: string) => void;
-	/** R-125: 後日着手（decisionToStatus('later')→todo）。省略時はメニュー項目自体を表示しない */
-	onResolveLater?: (id: string) => void;
+	/** R-125/R-143: 後日着手（decisionToStatus('later')→todo）。「今日やる」直下に常時表示、shortcut h */
+	onResolveLater: (id: string) => void;
 	onResolveNo: (id: string) => void;
 	onDelete: (id: string) => void;
 }
@@ -54,12 +54,13 @@ export function buildItemContextMenuActions(
 			icon: <CheckCircle2 size={14} className="text-green-500" />,
 			onClick: () => callbacks.onResolveYes(itemId),
 		},
-		// R-125: 後日着手（やると決めたが今日はやらない）
-		...(callbacks.onResolveLater ? [{
-			label: '後日着手',
+		// R-125/R-143: 後日着手（やると決めたが今日はやらない）
+		{
+			label: '後日着手 (h)',
 			icon: <Clock size={14} className="text-teal-500" />,
-			onClick: () => callbacks.onResolveLater!(itemId),
-		}] : []),
+			onClick: () => callbacks.onResolveLater(itemId),
+			shortcut: 'h',
+		},
 		...(callbacks.onMarkDone ? [{
 			label: '完了にする (d)',
 			icon: <CheckCircle2 size={14} className="text-slate-600" />,

@@ -284,4 +284,29 @@ describe('R-092: OverviewBoard 右クリックメニュー（ガント同等）'
 		expect(mockCreateDependency).toHaveBeenCalledWith('B', 'D');
 		expect(mockDeleteDependency).not.toHaveBeenCalledWith('dep-ab');
 	});
+
+	it('R-143: 「今日やる (Focus)」の直下に「後日着手 (h)」が表示される', () => {
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+		const labels = screen.getAllByRole('button').map(b => b.textContent?.trim());
+		const yesIdx = labels.findIndex(l => l?.startsWith('今日やる (Focus)'));
+		expect(yesIdx).toBeGreaterThan(-1);
+		expect(labels[yesIdx + 1]).toContain('後日着手 (h)');
+	});
+
+	it('R-143: 「後日着手 (h)」クリックで status: todo に更新される', () => {
+		const updateItem = vi.fn();
+		render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+		fireEvent.click(screen.getByText('後日着手 (h)'));
+		expect(updateItem).toHaveBeenCalledWith('item-1', { status: 'todo' });
+	});
+
+	it('R-143: メニュー表示中に h キーで status: todo に更新される', () => {
+		const updateItem = vi.fn();
+		render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+		rightClickItem('item-1');
+		fireEvent.keyDown(document, { key: 'h' });
+		expect(updateItem).toHaveBeenCalledWith('item-1', { status: 'todo' });
+	});
 });

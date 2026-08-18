@@ -6,13 +6,14 @@ describe('buildItemContextMenuActions', () => {
 		onOpenDetail: vi.fn(),
 		onMakeProject: vi.fn(),
 		onResolveYes: vi.fn(),
+		onResolveLater: vi.fn(),
 		onResolveNo: vi.fn(),
 		onDelete: vi.fn(),
 	};
 
-	it('5つのメニュー項目を返す', () => {
+	it('6つのメニュー項目を返す', () => {
 		const actions = buildItemContextMenuActions('item-1', defaultCallbacks);
-		expect(actions).toHaveLength(5);
+		expect(actions).toHaveLength(6);
 	});
 
 	it('正しいラベル順で返す', () => {
@@ -21,6 +22,7 @@ describe('buildItemContextMenuActions', () => {
 			'詳細 / 名前変更',
 			'プロジェクト化',
 			'今日やる (Done Today)',
+			'後日着手 (h)',
 			'キャンセル・断った',
 			'ゴミ箱 (Del)',
 		]);
@@ -38,6 +40,7 @@ describe('buildItemContextMenuActions', () => {
 			onOpenDetail: vi.fn(),
 			onMakeProject: vi.fn(),
 			onResolveYes: vi.fn(),
+			onResolveLater: vi.fn(),
 			onResolveNo: vi.fn(),
 			onDelete: vi.fn(),
 		};
@@ -52,10 +55,13 @@ describe('buildItemContextMenuActions', () => {
 		actions[2].onClick(); // 今日やる
 		expect(callbacks.onResolveYes).toHaveBeenCalledWith('item-42');
 
-		actions[3].onClick(); // 断る
+		actions[3].onClick(); // 後日着手
+		expect(callbacks.onResolveLater).toHaveBeenCalledWith('item-42');
+
+		actions[4].onClick(); // 断る
 		expect(callbacks.onResolveNo).toHaveBeenCalledWith('item-42');
 
-		actions[4].onClick(); // ゴミ箱
+		actions[5].onClick(); // ゴミ箱
 		expect(callbacks.onDelete).toHaveBeenCalledWith('item-42');
 	});
 
@@ -96,5 +102,14 @@ describe('buildItemContextMenuActions', () => {
 
 		actions.find(a => a.label.includes('後に挿入'))!.onClick();
 		expect(callbacks.onInsertAfter).toHaveBeenCalledWith('item-42');
+	});
+
+	it('R-143: 「後日着手 (h)」が「今日やる」の直下に常時表示され、shortcut h を持つ', () => {
+		const actions = buildItemContextMenuActions('item-1', defaultCallbacks);
+		const yesIdx = actions.findIndex(a => a.label.startsWith('今日やる'));
+		const later = actions[yesIdx + 1];
+		expect(later.label).toBe('後日着手 (h)');
+		expect(later.shortcut).toBe('h');
+		expect(actions.filter(a => a.shortcut === 'h')).toHaveLength(1);
 	});
 });
