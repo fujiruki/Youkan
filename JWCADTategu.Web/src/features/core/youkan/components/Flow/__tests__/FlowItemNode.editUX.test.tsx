@@ -65,6 +65,15 @@ describe('FlowItemNode: R-079 タイトル編集中のドラッグ誤爆防止',
     });
 });
 
+describe('FlowItemNode: R-133 タイトル編集中の2回目クリックでキャレット位置', () => {
+    it('タイトル編集inputにreact-flowのnodragクラスが付与され、node全体のドラッグ・選択に巻き込まれない', () => {
+        renderNode({ isNewNode: false, isEditing: true });
+        const titleInput = screen.getByDisplayValue('既存タイトル');
+
+        expect(titleInput.className.split(' ')).toContain('nodrag');
+    });
+});
+
 describe('FlowItemNode: R-080 新規ノードのタイトルはxyflow可視化後にフォーカス・全選択される', () => {
     it('xyflow計測中(visibility:hidden)はfocus/selectを呼ばず、style変化(可視化)後に呼ぶ', () => {
         let visible = false;

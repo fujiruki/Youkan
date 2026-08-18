@@ -177,7 +177,7 @@ const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
             onKeyDown={handleKeyDown}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            className={`text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
+            className={`nodrag text-xs font-bold ${colors.text} bg-transparent border-b border-current outline-none w-full`}
           />
         ) : (
           <span
