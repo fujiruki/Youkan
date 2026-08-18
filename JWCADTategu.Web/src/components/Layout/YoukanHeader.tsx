@@ -181,13 +181,6 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 		filterMode as any
 	);
 
-	const getLegacyUserName = () => {
-		try {
-			const u = JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
-			return u.name || 'User';
-		} catch { return 'User'; }
-	};
-
 	const handleDashboardViewChange = (mode: string) => {
 		setDashboardViewMode(mode as any);
 	};
@@ -228,7 +221,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 					await AuthService.getInstance().logout();
 					window.location.href = './';
 				}}
-				userName={user?.name || getLegacyUserName()}
+				userName={user?.name || 'User'}
 				user={user}
 				tenant={tenant}
 				joinedTenants={joinedTenants}
@@ -366,7 +359,7 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 							{tenant ? <Building2 size={12} fill="currentColor" /> : <User size={12} fill="currentColor" />}
 						</div>
 						<span className="text-[11px] text-slate-200 font-bold whitespace-nowrap truncate max-w-[120px]">
-							{tenant ? tenant.name : (user?.name || getLegacyUserName())}
+							{tenant ? tenant.name : (user?.name || 'User')}
 						</span>
 					</button>
 				</div>
