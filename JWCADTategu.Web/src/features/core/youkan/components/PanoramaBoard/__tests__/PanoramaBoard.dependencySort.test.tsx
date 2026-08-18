@@ -36,6 +36,7 @@ vi.mock('../BucketColumn', () => ({
 vi.mock('../../../viewmodels/useYoukanViewModel', () => ({
     useYoukanViewModel: () => ({
         gdbActive: [],
+        gdbTodo: [],
         gdbPreparation: [],
         gdbIntent: [],
         gdbSomeday: [],

@@ -1262,6 +1262,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 					onOpenDetail: (id) => { onItemClick?.(items.find(i => i.id === id)!); closeItemContextMenu(); },
 					onMakeProject: async (id) => { await onUpdateItem?.(id, { isProject: true } as any); closeItemContextMenu(); },
 					onResolveYes: async (id) => { await onUpdateItem?.(id, { status: decisionToStatus('yes') } as any); closeItemContextMenu(); },
+					// R-125: 後日着手（やると決めたが今日はやらない）
+					onResolveLater: async (id) => { await onUpdateItem?.(id, { status: decisionToStatus('later') } as any); closeItemContextMenu(); },
 					onInsertBefore: (id) => startInlineInsert(id, 'before'),
 					onInsertAfter: (id) => startInlineInsert(id, 'after'),
 					onMarkDone: async (id) => { await onUpdateItem?.(id, { status: 'done' } as any); closeItemContextMenu(); },

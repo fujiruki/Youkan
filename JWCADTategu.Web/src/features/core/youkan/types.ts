@@ -1,7 +1,7 @@
 import { EstimationSettings } from '../../plugins/tategu/domain/EstimationSettings';
 import { DxfLayerConfig } from '../../plugins/tategu/domain/DxfConfig';
 
-export type JudgmentStatus = 'inbox' | 'waiting' | 'focus' | 'pending' | 'someday' | 'done' | 'cancelled';
+export type JudgmentStatus = 'inbox' | 'todo' | 'waiting' | 'focus' | 'pending' | 'someday' | 'done' | 'cancelled';
 
 export type DeadlineHook = 'today' | 'tomorrow' | 'this_week' | 'next_week' | 'someday';
 export type FilterMode = 'all' | 'company' | 'personal' | (string & {}); // string = tenantId
@@ -115,7 +115,7 @@ export interface Item {
     title: string;           // 表示名
 
     // --- Youkan Core Properties ---
-    status: JudgmentStatus;  // Strict 7 Statuses: inbox|waiting|focus|pending|someday|done|cancelled
+    status: JudgmentStatus;  // 8 Statuses: inbox|todo|waiting|focus|pending|someday|done|cancelled
     flags?: ItemFlags;       // [NEW] Attributes (is_today_commit, is_executing, etc)
 
     // [Youkan] Judgment Fields
@@ -146,6 +146,10 @@ export interface Item {
     clientName?: string;      // [NEW] Client Name / Contractor for Business Items
     waitingReason?: string;  // status='waiting' の場合必須
     memo?: string;           // 横メモ（One-line reasoning）
+
+    // --- Pending 付帯情報 [R-125] ---
+    pendingCondition?: string | null; // 何が起きたら動かすか
+    reviewDate?: string | null;       // 再確認日 "YYYY-MM-DD"
 
     // --- Business Context [NEW] ---
     domain?: 'business' | 'general' | 'private'; // 業務区分
@@ -209,6 +213,7 @@ export interface Decision {
 // Side Memo Schema
 export interface GdbShelf {
     active: Item[];
+    todo?: Item[]; // R-125: 後日着手バケット
     preparation: Item[];
     intent: Item[]; // [NEW]
     someday?: Item[]; // R-029: Someday バケット

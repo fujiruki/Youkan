@@ -27,6 +27,9 @@ import { useFilter } from '../contexts/FilterContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import { ApiClient } from '../../../../api/client';
 import { applyGanttCompletedFilter } from '../logic/filterUtils';
+import { isReviewDue } from '../logic/statusUtils';
+import { Decision } from '../logic/decisionResolution';
+import { safeFormat } from '../logic/dateUtils';
 
 const SectionHeader = ({ title, count, icon, expanded, onToggle }: { title: string, count: number, icon?: React.ReactNode, expanded?: boolean, onToggle?: () => void }) => (
 	<div
@@ -63,6 +66,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 
 	const {
 		gdbActive: rawInboxItems,
+		gdbTodo: rawTodoItems = [], // R-125: テストモック等でundefinedの場合に備えデフォルト空配列
 		gdbIntent: rawPendingItems,
 		gdbPreparation: rawWaitingItems,
 		todayCandidates,
@@ -90,7 +94,20 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 
 	// R-029: stream モードではプロジェクト（isProject=true）を非表示
 	const inboxItems = useMemo(() => rawInboxItems.filter(i => i.isProject !== true && i.status !== 'focus'), [rawInboxItems]);
-	const pendingItems = useMemo(() => rawPendingItems.filter(i => i.isProject !== true), [rawPendingItems]);
+	// R-125: 後日着手（Inboxの直下に表示）
+	const todoItems = useMemo(() => rawTodoItems.filter(i => i.isProject !== true), [rawTodoItems]);
+	// R-125: review_date到来分（再確認対象）を先頭に、その中はreview_date昇順で並べる
+	const pendingItems = useMemo(() => {
+		const today = safeFormat(new Date(), 'yyyy-MM-dd');
+		const items = rawPendingItems.filter(i => i.isProject !== true);
+		return [...items].sort((a, b) => {
+			const aDue = isReviewDue(a, today);
+			const bDue = isReviewDue(b, today);
+			if (aDue !== bDue) return aDue ? -1 : 1;
+			if (aDue && bDue) return (a.reviewDate || '').localeCompare(b.reviewDate || '');
+			return 0;
+		});
+	}, [rawPendingItems]);
 	const waitingItems = useMemo(() => rawWaitingItems.filter(i => i.isProject !== true), [rawWaitingItems]);
 
 	// [REFINED] All filtering (including filterMode) is now handled declaratively in ViewModel.
@@ -160,12 +177,13 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 			...todayCommits.filter(i => i.id !== activeExecutionItem?.id),
 			...todayCandidates.filter(i => i.id !== activeExecutionItem?.id),
 			...inboxItems,
+			...todoItems,
 			...pendingItems,
 			...waitingItems,
 			...(gdbLog || [])
 		].filter(item => item != null && item.status !== 'someday');
 		return Array.from(new Map(merged.map(item => [String(item.id), item])).values());
-	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, pendingItems, waitingItems, gdbLog]);
+	}, [activeExecutionItem, todayCommits, todayCandidates, inboxItems, todoItems, pendingItems, waitingItems, gdbLog]);
 
 	// R-065: 右上「完了非表示」ボタン（FilterContext.hideCompleted）でガント完了表示を制御
 	const ganttItems = useMemo(
@@ -356,7 +374,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									onRequestFallbackOpen={() => {
 										const targetId = lastTargetId || activeFocusItem?.id;
 										if (targetId) {
-											const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
+											const all = [...inboxItems, ...todoItems, ...pendingItems, ...waitingItems, ...queueItems];
 											const item = all.find(i => i.id === targetId);
 											if (item) setSelectedItem(item);
 										}
@@ -379,6 +397,27 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 									)}
 								</div>
 							</div>
+
+							{/* R-125: 後日着手（Inbox直下） */}
+							{todoItems.length > 0 && (
+								<div className="space-y-2">
+									<SectionHeader
+										title="後日着手"
+										count={todoItems.length}
+									/>
+									<div className="space-y-1">
+										{todoItems.map(item => (
+											<SmartItemRow
+												key={item.id}
+												item={item}
+												onClick={() => setSelectedItem(item)}
+												onFocus={handleSetEngaged}
+												onContextMenu={handleContextMenu}
+											/>
+										))}
+									</div>
+								</div>
+							)}
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
@@ -439,7 +478,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 					onClose={closeMenu}
 					actions={buildItemContextMenuActions(contextMenu.targetId!, {
 						onOpenDetail: (id) => {
-							const all = [...inboxItems, ...pendingItems, ...waitingItems, ...queueItems];
+							const all = [...inboxItems, ...todoItems, ...pendingItems, ...waitingItems, ...queueItems];
 							const item = all.find(i => i.id === id);
 							if (item) setSelectedItem(item);
 						},
@@ -448,6 +487,9 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 						},
 						onResolveYes: async (id) => {
 							await vm.resolveDecision(id, 'yes');
+						},
+						onResolveLater: async (id) => {
+							await vm.resolveDecision(id, 'later');
 						},
 						onMarkDone: async (id) => {
 							await vm.updateItem(id, { status: 'done' });
@@ -474,7 +516,7 @@ export const DashboardScreen = ({ activeProject, onNavigateToFlow }: { activePro
 						setSelectedItem(null);
 						handleRefresh();
 					}}
-					onDecision={async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+					onDecision={async (id: string, decision: Decision, note?: string, updates?: Partial<Item>) => {
 						await vm.resolveDecision(id, decision, note, updates);
 						setSelectedItem(null);
 						handleRefresh();

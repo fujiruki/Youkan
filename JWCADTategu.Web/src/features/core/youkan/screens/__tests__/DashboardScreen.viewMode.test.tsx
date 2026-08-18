@@ -9,6 +9,7 @@ import { ViewModeProvider, useViewMode } from '../../contexts/ViewModeContext';
 vi.mock('../../viewmodels/useYoukanViewModel', () => ({
     useYoukanViewModel: () => ({
         gdbActive: [],
+        gdbTodo: [],
         gdbPreparation: [],
         gdbIntent: [],
         gdbLog: [],

@@ -3,6 +3,8 @@ import { startOfDay, isBefore, isSameDay } from 'date-fns';
 
 export const STATUS_META = {
     inbox: { label: 'Inbox', icon: 'Inbox', color: 'slate' },
+    // R-125: 「やる」と決めたが今日はやらない、自分の順番待ち。既存の状態色と被らないteal系
+    todo: { label: '後日着手', icon: 'Clock', color: 'teal' },
     focus: { label: '集中', icon: 'Target', color: 'indigo' },
     waiting: { label: '待ち（外的要因）', icon: 'Hourglass', color: 'amber' },
     pending: { label: '保留（外的要因待ち）', icon: 'Pause', color: 'amber' },
@@ -79,4 +81,16 @@ export function isOverdue(item: Item, nowString?: string): boolean {
  */
 export function needsDecision(item: Item): boolean {
     return !!item.flags?.needs_decision;
+}
+
+/**
+ * R-125: pending アイテムの「再確認」判定。
+ * status が pending かつ reviewDate（"YYYY-MM-DD"）が今日以前（今日を含む）なら true。
+ * 登録と集中のPendingセクション・状況把握のPendingバケットの両方がこの1関数を使う
+ * （先頭ソート・「再確認」バッジ表示の判定を1箇所に集約する）。
+ */
+export function isReviewDue(item: Pick<Item, 'status' | 'reviewDate'>, today: string): boolean {
+    if (item.status !== 'pending') return false;
+    if (!item.reviewDate) return false;
+    return item.reviewDate <= today;
 }

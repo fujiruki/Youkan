@@ -280,6 +280,10 @@ class BaseController {
         $item['prep_date'] = isset($item['prep_date']) ? (int)$item['prep_date'] : null;
         $item['work_days'] = (int)($item['work_days'] ?? 1);
 
+        // R-125: pending の付帯情報（何待ちか・再確認日）
+        $item['pendingCondition'] = $item['pending_condition'] ?? null;
+        $item['reviewDate'] = $item['review_date'] ?? null;
+
         // Timestamps: Unix秒→ミリ秒変換（楽観的更新の Date.now() と単位統一）
         $item['createdAt'] = isset($item['created_at']) ? (int)$item['created_at'] * 1000 : null;
         $item['updatedAt'] = isset($item['updated_at']) ? (int)$item['updated_at'] * 1000 : null;

@@ -77,7 +77,7 @@ class GdbController extends BaseController {
             WHERE
                 $whereClause
                 $whereSuffix
-                AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'cancelled', 'archive')
+                AND items.status NOT IN ('confirmed', 'today_commit', 'execution_in_progress', 'execution_paused', 'done', 'decision_rejected', 'cancelled', 'archive', 'todo')
                 AND (
                     items.status = 'inbox' 
                     OR (items.rdd_date IS NOT NULL AND items.rdd_date <= ?)
@@ -114,7 +114,7 @@ class GdbController extends BaseController {
         $stmtPrep->execute($paramsPrep);
         $prepItems = array_map([$this, 'mapItemRow'], $stmtPrep->fetchAll(PDO::FETCH_ASSOC));
 
-        // Intent
+        // Intent（R-125: レガシーstatus='decision_hold'もpending概念に吸収し同一視する）
         $sqlIntent = "
             SELECT items.*, parent.title as parent_title, proj.title as real_project_title
             FROM items
@@ -123,7 +123,7 @@ class GdbController extends BaseController {
             WHERE
                 $whereClause
                 $whereSuffix
-                AND items.status = 'intent' 
+                AND items.status IN ('intent', 'decision_hold')
                 AND items.deleted_at IS NULL
             ORDER BY items.updated_at DESC
         ";

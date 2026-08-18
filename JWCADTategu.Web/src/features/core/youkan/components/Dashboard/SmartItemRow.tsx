@@ -3,7 +3,7 @@ import { Item } from '../../types';
 import { safeFormat } from '../../logic/dateUtils';
 import { cn } from '../../../../../lib/utils';
 import { Folder } from 'lucide-react';
-import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS, isReviewDue } from '../../logic/statusUtils';
 
 interface SmartItemRowProps {
     item: Item;
@@ -17,6 +17,7 @@ interface SmartItemRowProps {
 const StatusBadge = ({ status, isEngaged }: { status: string, isEngaged?: boolean }) => {
     const base = "text-[9px] px-1 py-0 rounded-sm font-bold whitespace-nowrap uppercase tracking-tighter";
     if (status === 'inbox') return null; // [FIX] Hide '受信' badge per user request
+    if (status === 'todo') return <span className={cn(base, "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400")}>後日着手</span>;
     if (status === 'pending') return <span className={cn(base, "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")}>保留</span>;
     if (status === 'waiting') return <span className={cn(base, "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400")}>待機</span>;
     if (status === 'focus') {
@@ -70,6 +71,13 @@ export const SmartItemRow: React.FC<SmartItemRowProps> = ({
 
             {/* Status */}
             <StatusBadge status={item.status} isEngaged={item.isEngaged} />
+
+            {/* R-125: pending の再確認（review_date到来）バッジ */}
+            {isReviewDue(item, safeFormat(new Date(), 'yyyy-MM-dd')) && (
+                <span className="text-[9px] px-1 py-0 rounded-sm font-bold whitespace-nowrap uppercase tracking-tighter bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                    再確認
+                </span>
+            )}
 
             {/* Title & Project context */}
             <div className="flex-1 flex items-center min-w-0 gap-1.5 overflow-hidden">

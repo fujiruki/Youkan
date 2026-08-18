@@ -4,6 +4,7 @@ import { Deliverable } from '../../../../features/plugins/manufacturing/types';
 import { ApiClient } from '../../../../api/client';
 import { YOUKAN_KEYS } from '../../session/youkanKeys';
 import { v4 as uuidv4 } from 'uuid';
+import { Decision, decisionToStatus } from '../logic/decisionResolution';
 
 // src/features/youkan/repositories/YoukanRepository.ts
 
@@ -365,20 +366,24 @@ export const YoukanRepository = {
 		// Strategy: Categorize local items into Shelf buckets
 		const mergedShelf = {
 			// Inbox: 'inbox' + 'focus' (Stock/Generic Focus without date)
+			// R-125バグ修正: レガシー値'confirmed'（旧DecisionController.phpの'yes'誤書き込み）もfocus相当として拾う
 			active: [
 				...(apiShelf.active || []),
-				...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || !i.status)
+				...localItems.filter(i => i.status === 'inbox' || i.status === 'focus' || (i.status as any) === 'confirmed' || !i.status)
 			],
-			// Waiting: 'waiting' + Legacy 'decision_hold' + Legacy 'scheduled'
+			// R-125: 後日着手バケット（やると決めた順番待ち）
+			todo: [
+				...localItems.filter(i => (i.status as any) === 'todo')
+			],
+			// Waiting: 'waiting' + Legacy 'scheduled'
 			preparation: [
 				...(apiShelf.preparation || []),
-				// Legacy checks require casting if JudgmentStatus is strict
-				...localItems.filter(i => (i.status as any) === 'waiting' || (i.status as any) === 'decision_hold')
+				...localItems.filter(i => (i.status as any) === 'waiting')
 			],
-			// Pending: 'pending' + Legacy 'intent'
+			// Pending: 'pending' + Legacy 'intent' + Legacy 'decision_hold'（R-125でpendingに吸収）
 			intent: [
 				...(apiShelf.intent || []),
-				...localItems.filter(i => (i.status as any) === 'pending' || (i.status as any) === 'intent')
+				...localItems.filter(i => (i.status as any) === 'pending' || (i.status as any) === 'intent' || (i.status as any) === 'decision_hold')
 			],
 			// R-029: Someday バケット
 			someday: [
@@ -394,6 +399,7 @@ export const YoukanRepository = {
 
 		const sortFn = (a: JudgableItem, b: JudgableItem) => (b.updatedAt || 0) - (a.updatedAt || 0);
 		mergedShelf.active.sort(sortFn);
+		mergedShelf.todo.sort(sortFn);
 		mergedShelf.preparation.sort(sortFn);
 		mergedShelf.intent.sort(sortFn);
 		mergedShelf.someday.sort(sortFn);
@@ -477,20 +483,13 @@ export const YoukanRepository = {
 	},
 
 	// Decision Logic
-	async resolveDecision(id: string, decision: 'yes' | 'hold' | 'no', note?: string) {
+	async resolveDecision(id: string, decision: Decision, note?: string) {
 		// [Hybrid] Handle Local Updates (Projects/Doors)
 		if (id.startsWith('project-')) {
 			const projectId = parseInt(id.replace('project-', ''), 10);
 			if (!isNaN(projectId)) {
-				let status: JudgmentStatus = 'inbox';
-				if (decision === 'hold') status = 'pending'; // Map hold to pending? Or waiting? 'hold' means "Pending" usually.
-				// Wait, Haruki says Pending = Shelf. Waiting = Enveloped.
-				// Decision 'hold' matches 'pending' (shelf) more than 'waiting'?
-				// But actually 'hold' is usually "I can't decide yet" -> Information Waiting?
-				// Let's map 'hold' -> 'pending' for safety as Shelf is safe.
-				if (decision === 'yes') status = 'focus'; // Yes = Focus (Scheduled)
-
-				if (decision === 'no' && note === 'someday') status = 'pending'; // Someday -> Pending
+				// R-124/R-125: yes/hold/later/断る の状態決定はdecisionToStatusに一本化
+				let status: JudgmentStatus = decisionToStatus(decision, note);
 				if (decision === 'no' && note === 'archive') status = 'done'; // Archive -> Done
 				await db.projects.update(projectId, {
 					judgmentStatus: status as any,

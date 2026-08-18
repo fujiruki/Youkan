@@ -454,6 +454,27 @@ describe('QuantityEngine Someday除外 (R-028)', () => {
         expect(metric!.volumeMinutes).toBe(180); // 3 items × 60分
     });
 
+    // R-125: todo（後日着手）はsomedayと異なり、due_date/prep_dateがあれば
+    // 日付別集計（ガント・カレンダー）には含む。除外は「今日のキャパ」側
+    // （useYoukanViewModel.getQuantityContextがgdbTodoをitemsに含めないこと）で行う
+    it('todo アイテムは due_date/prep_date があれば日付別集計（ボリューム）に含まれる', () => {
+        const todoItem = makeItem('t1', 'todo', '2026-02-09');
+        const focusItem = makeItem('f1', 'focus', '2026-02-09');
+
+        const ctx: QuantityContext = {
+            ...baseContext,
+            items: [todoItem, focusItem]
+        };
+
+        const metrics = QuantityEngine.calculateMetrics([monday], ctx);
+        const metric = metrics.get(mondayKey);
+
+        expect(metric).toBeDefined();
+        // todoItem(60分) + focusItem(60分)。someday除外と異なりtodoは除外されない
+        expect(metric!.volumeMinutes).toBe(120);
+        expect(metric!.contributingItems.map(i => i.id)).toContain('t1');
+    });
+
     it('someday アイテムは contributing items に含まれない', () => {
         const somedayItem = makeItem('s1', 'someday', '2026-02-09');
         const focusItem = makeItem('f1', 'focus', '2026-02-09');

@@ -89,5 +89,43 @@ describe('CloudYoukanRepository', () => {
 
 			expect(shelf.log.map(i => i.id)).toContain('11');
 		});
+
+		// R-125: 状態todo（後日着手）の追加
+		it('status:todoのアイテムはtodoバケットに分類される', async () => {
+			const items = [
+				{ id: '20', title: 'Later Task', status: 'todo' },
+			];
+			vi.mocked(ApiClient.getAllItems).mockResolvedValue(items as any);
+
+			const shelf = await CloudYoukanRepository.getGdbShelf();
+
+			expect(shelf.todo?.map(i => i.id)).toContain('20');
+		});
+
+		// R-125: decision_hold（旧「判断保留」）はpending(intent)と同一に扱う
+		it('レガシーstatus:decision_holdのアイテムはintent（pending）バケットに分類される', async () => {
+			const items = [
+				{ id: '21', title: 'Legacy Hold Task', status: 'decision_hold' },
+			];
+			vi.mocked(ApiClient.getAllItems).mockResolvedValue(items as any);
+
+			const shelf = await CloudYoukanRepository.getGdbShelf();
+
+			expect(shelf.intent.map(i => i.id)).toContain('21');
+		});
+
+		// R-125バグ修正: DecisionController.phpが「今日やる」でJudgmentStatus型外の
+		// レガシー値'confirmed'を書き込んでいたバグにより生成された既存データが、
+		// activeバケットに分類されずシェルフ（ひいては全体一覧）から消えないようにする
+		it('レガシーstatus:confirmedのアイテムはactive（focus相当）バケットに分類される', async () => {
+			const items = [
+				{ id: '22', title: 'Legacy Confirmed Task', status: 'confirmed' },
+			];
+			vi.mocked(ApiClient.getAllItems).mockResolvedValue(items as any);
+
+			const shelf = await CloudYoukanRepository.getGdbShelf();
+
+			expect(shelf.active.map(i => i.id)).toContain('22');
+		});
 	});
 });

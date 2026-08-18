@@ -41,6 +41,15 @@ const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: 
 		);
 	}
 
+	// R-125: 後日着手。既存の状態色と被らないteal系
+	if (status === 'todo') {
+		return (
+			<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
+				<div className="w-[0.55em] h-[0.55em] rounded-full bg-teal-500 opacity-90" />
+			</div>
+		);
+	}
+
 	if (status === 'waiting') {
 		return (
 			<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">

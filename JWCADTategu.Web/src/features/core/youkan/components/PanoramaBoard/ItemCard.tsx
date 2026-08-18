@@ -5,7 +5,8 @@ import { Item } from '../../types';
 import { Calendar, Folder } from 'lucide-react';
 import { cn } from '../../../../../lib/utils';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
-import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS, isReviewDue } from '../../logic/statusUtils';
+import { safeFormat } from '../../logic/dateUtils';
 
 interface ItemCardProps {
     item: Item;
@@ -170,11 +171,18 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick, onRename, onC
                             )}
 
                             {/* [FIX] Standardized Status Badges (Matching OverviewItem) */}
+                            {item.status === 'todo' && (
+                                <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400 whitespace-nowrap">後日着手</span>
+                            )}
                             {item.status === 'pending' && (
                                 <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 whitespace-nowrap">保留</span>
                             )}
                             {item.status === 'waiting' && (
                                 <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 whitespace-nowrap">待機</span>
+                            )}
+                            {/* R-125: pending の再確認（review_date到来）バッジ */}
+                            {isReviewDue(item, safeFormat(new Date(), 'yyyy-MM-dd')) && (
+                                <span className="px-1 py-0.5 rounded-[0.2em] font-bold text-[0.75em] bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 whitespace-nowrap">再確認</span>
                             )}
 
                             {/* Deadline Display */}

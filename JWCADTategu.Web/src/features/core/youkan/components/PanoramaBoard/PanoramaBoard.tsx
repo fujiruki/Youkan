@@ -33,6 +33,8 @@ import { useFilter } from '../../contexts/FilterContext';
 import { isCompanyContext as checkCompanyContext, getSelectedTenantId } from '../../logic/filterUtils';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { Dependency } from '../../types';
+import { isReviewDue } from '../../logic/statusUtils';
+import { safeFormat } from '../../logic/dateUtils';
 
 
 interface PanoramaBoardProps {
@@ -57,6 +59,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 	const vm = useYoukanViewModel(projectId);
 	const {
 		gdbActive,
+		gdbTodo = [], // R-125: 後日着手（テストモック等でundefinedの場合に備えデフォルト空配列）
 		gdbPreparation,
 		gdbIntent,
 		gdbSomeday,
@@ -65,6 +68,18 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 		ghostTodayCount,
 		allProjects // [NEW] Needed for logic
 	} = vm;
+
+	// R-125: Pendingバケットは review_date 到来分（再確認対象）を先頭・review_date昇順で並べる
+	const sortedPendingItems = useMemo(() => {
+		const today = safeFormat(new Date(), 'yyyy-MM-dd');
+		return [...gdbIntent].sort((a, b) => {
+			const aDue = isReviewDue(a, today);
+			const bDue = isReviewDue(b, today);
+			if (aDue !== bDue) return aDue ? -1 : 1;
+			if (aDue && bDue) return (a.reviewDate || '').localeCompare(b.reviewDate || '');
+			return 0;
+		});
+	}, [gdbIntent]);
 
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const { joinedTenants } = useAuth(); // [RESTORED]
@@ -161,8 +176,9 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 
 	// --- Find Container Helper ---
 	const findContainer = (id: string) => {
-		if (['active', 'waiting', 'pending', 'someday', 'log', 'life', 'history'].includes(id)) return id;
+		if (['active', 'todo', 'waiting', 'pending', 'someday', 'log', 'life', 'history'].includes(id)) return id;
 		if (gdbActive.find(i => i.id === id)) return 'active';
+		if (gdbTodo.find(i => i.id === id)) return 'todo';
 		if (gdbPreparation.find(i => i.id === id)) return 'waiting';
 		if (gdbIntent.find(i => i.id === id)) return 'pending';
 		if (gdbSomeday.find(i => i.id === id)) return 'someday';
@@ -200,7 +216,10 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 		if (overContainerId === activeContainerId) return;
 
 		// Board Drop Logic
-		if (overContainerId === 'waiting') {
+		if (overContainerId === 'todo') {
+			await vm.updateItem(activeItemId, { status: 'todo' });
+			vm.refreshAll();
+		} else if (overContainerId === 'waiting') {
 			await vm.updateItem(activeItemId, { status: 'waiting', waitingReason: 'Moved from board' });
 			vm.refreshAll();
 		} else if (overContainerId === 'pending') {
@@ -224,7 +243,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 
 	// --- Find Active Item Helper ---
 	const findItem = (id: string) => {
-		return [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...gdbLog].find(i => i.id === id);
+		return [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...gdbLog].find(i => i.id === id);
 	};
 	const activeItem = activeId ? findItem(activeId) : null;
 
@@ -352,6 +371,9 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 						onResolveYes: async (id) => {
 							await vm.resolveDecision(id, 'yes');
 						},
+						onResolveLater: async (id) => {
+							await vm.resolveDecision(id, 'later');
+						},
 						onResolveNo: async (id) => {
 							await vm.resolveDecision(id, 'no', 'history');
 						},
@@ -397,7 +419,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 				onGetSubTasks={vm.getSubTasks}
 				members={vm.members}
 				joinedTenants={joinedTenants}
-				quantityItems={[...vm.gdbActive, ...vm.gdbPreparation, ...vm.gdbLog, ...vm.gdbIntent]}
+				quantityItems={[...vm.gdbActive, ...gdbTodo, ...vm.gdbPreparation, ...vm.gdbLog, ...vm.gdbIntent]}
 				filterMode={vm.filterMode}
 				capacityConfig={vm.capacityConfig}
 			/>
@@ -554,6 +576,31 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 							</div>
 						</section>
 
+						{/* R-125: 後日着手バケット（Inboxの次） */}
+						<section className={layoutMode === 'panorama'
+							? "mb-4 break-inside-avoid bg-teal-50/50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800"
+							: "opacity-90"
+						}>
+							<div>
+								<BucketColumn
+									id="todo"
+									title="【後日着手】"
+									items={gdbTodo}
+									description="やると決めた、自分の順番待ち。"
+									className={layoutMode === 'panorama' ? "p-2" : "w-full bg-teal-50/50 dark:bg-teal-900/10 rounded-xl border border-teal-200 dark:border-teal-800 p-0"}
+									emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">後日着手なし</div>}
+									onClickItem={(item) => { setDetailItem(item); setLastTargetId(item.id); }}
+									onContextMenu={handleContextMenu}
+									isCompact={layoutMode === 'panorama'}
+									rowHeight={rowHeight}
+									onCreateSubTask={vm.createSubTask}
+									showGroups={showGroups}
+									allProjects={allProjects as any}
+									dependencies={dependencies}
+								/>
+							</div>
+						</section>
+
 						{/* 2. Waiting Shelf (External/Blocked) */}
 						<section className={layoutMode === 'panorama'
 							? "mb-4 break-inside-avoid bg-slate-100/80 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
@@ -588,7 +635,7 @@ export const PanoramaBoard: React.FC<PanoramaBoardProps> = ({
 								<BucketColumn
 									id="pending"
 									title="【保留 (Pending)】"
-									items={gdbIntent}
+									items={sortedPendingItems}
 									description="今はやらないと決めたもの（棚）。"
 									className={layoutMode === 'panorama' ? "p-2" : "w-full bg-amber-50/50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-0"}
 									emptyMessage={<div className="p-8 text-center text-slate-300 text-sm">保留なし</div>}

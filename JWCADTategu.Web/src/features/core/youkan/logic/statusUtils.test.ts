@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Item, JudgmentStatus } from '../types';
-import { isTodayCandidate, isOverdue, STATUS_META, COMPLETED_ITEM_CLASS, isItemDone } from './statusUtils';
+import { isTodayCandidate, isOverdue, STATUS_META, COMPLETED_ITEM_CLASS, isItemDone, isReviewDue } from './statusUtils';
 
 // Mock helper
 const createItem = (status: JudgmentStatus, overrides: Partial<Item> = {}): Item => ({
@@ -96,10 +96,59 @@ describe('STATUS_META (R-028)', () => {
     });
 
     it('全ステータスが網羅されている', () => {
-        const statuses: JudgmentStatus[] = ['inbox', 'focus', 'waiting', 'pending', 'someday', 'done'];
+        const statuses: JudgmentStatus[] = ['inbox', 'todo', 'focus', 'waiting', 'pending', 'someday', 'done', 'cancelled'];
         statuses.forEach(s => {
             expect(STATUS_META[s]).toBeDefined();
         });
+    });
+});
+
+// R-125: 状態todo（後日着手）
+describe('STATUS_META.todo (R-125)', () => {
+    it('todo メタデータが定義されており、ラベルは「後日着手」', () => {
+        expect(STATUS_META.todo).toBeDefined();
+        expect(STATUS_META.todo.label).toBe('後日着手');
+    });
+
+    it('todo は既存の状態色（inbox/focus/waiting/pending/someday/done/cancelled）と被らない色を持つ', () => {
+        const otherColors = [
+            STATUS_META.inbox.color,
+            STATUS_META.focus.color,
+            STATUS_META.waiting.color,
+            STATUS_META.pending.color,
+            STATUS_META.someday.color,
+            STATUS_META.done.color,
+            STATUS_META.cancelled.color,
+        ];
+        expect(otherColors).not.toContain(STATUS_META.todo.color);
+    });
+});
+
+// R-125: pending の再確認（review_date到来）判定
+describe('isReviewDue (R-125)', () => {
+    it('status=pending かつ reviewDate が今日以前なら true', () => {
+        const item = createItem('pending', { reviewDate: '2026-08-10' } as any);
+        expect(isReviewDue(item, '2026-08-18')).toBe(true);
+    });
+
+    it('status=pending かつ reviewDate が今日ちょうどなら true', () => {
+        const item = createItem('pending', { reviewDate: '2026-08-18' } as any);
+        expect(isReviewDue(item, '2026-08-18')).toBe(true);
+    });
+
+    it('status=pending かつ reviewDate が未来なら false', () => {
+        const item = createItem('pending', { reviewDate: '2026-09-01' } as any);
+        expect(isReviewDue(item, '2026-08-18')).toBe(false);
+    });
+
+    it('reviewDate が未設定なら false', () => {
+        const item = createItem('pending', {} as any);
+        expect(isReviewDue(item, '2026-08-18')).toBe(false);
+    });
+
+    it('status が pending 以外なら reviewDate が過去でも false', () => {
+        const item = createItem('todo', { reviewDate: '2026-08-01' } as any);
+        expect(isReviewDue(item, '2026-08-18')).toBe(false);
     });
 });
 

@@ -18,6 +18,7 @@ const mockItem: Item = {
 vi.mock('../../viewmodels/useYoukanViewModel', () => ({
     useYoukanViewModel: () => ({
         gdbActive: [mockItem],
+        gdbTodo: [],
         gdbPreparation: [],
         gdbIntent: [],
         gdbLog: [],

@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { compareFocusItems } from '../logic/sorting';
 import { sanitizeItems } from '../logic/sanitizeItems';
 import { collectDescendantIds } from '../logic/hierarchy';
-import { decisionToStatus } from '../logic/decisionResolution';
+import { decisionToStatus, Decision } from '../logic/decisionResolution';
 import { useFilter } from '../contexts/FilterContext';
 import { useAuth } from '../../auth/providers/AuthProvider';
 
@@ -40,6 +40,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// GDB Shelf
 	// --- Raw State (Server-direct data) ---
 	const [gdbActiveRaw, setGdbActiveRaw] = useState<Item[]>([]);
+	const [gdbTodoRaw, setGdbTodoRaw] = useState<Item[]>([]); // R-125: 後日着手
 	const [gdbPreparationRaw, setGdbPreparationRaw] = useState<Item[]>([]);
 	const [gdbIntentRaw, setGdbIntentRaw] = useState<Item[]>([]);
 	const [gdbSomedayRaw, setGdbSomedayRaw] = useState<Item[]>([]);
@@ -109,6 +110,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// [REMOVED] FILTER_CHANGEイベントリスナーはFilterContextに統合済み
 
 	const gdbActive = useMemo(() => filterItems(gdbActiveRaw), [filterItems, gdbActiveRaw]);
+	const gdbTodo = useMemo(() => filterItems(gdbTodoRaw), [filterItems, gdbTodoRaw]);
 	const gdbPreparation = useMemo(() => filterItems(gdbPreparationRaw), [filterItems, gdbPreparationRaw]);
 	const gdbIntent = useMemo(() => filterItems(gdbIntentRaw), [filterItems, gdbIntentRaw]);
 	const gdbSomeday = useMemo(() => filterItems(gdbSomedayRaw), [filterItems, gdbSomedayRaw]);
@@ -123,9 +125,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 	}, [filterItems, executionItemRaw]);
 
 	const ghostGdbCount = useMemo(() =>
-		(gdbActiveRaw.length + gdbPreparationRaw.length + gdbIntentRaw.length + gdbSomedayRaw.length) -
-		(gdbActive.length + gdbPreparation.length + gdbIntent.length + gdbSomeday.length),
-		[gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbActive, gdbPreparation, gdbIntent, gdbSomeday]
+		(gdbActiveRaw.length + gdbTodoRaw.length + gdbPreparationRaw.length + gdbIntentRaw.length + gdbSomedayRaw.length) -
+		(gdbActive.length + gdbTodo.length + gdbPreparation.length + gdbIntent.length + gdbSomeday.length),
+		[gdbActiveRaw, gdbTodoRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbActive, gdbTodo, gdbPreparation, gdbIntent, gdbSomeday]
 	);
 
 	const ghostTodayCount = useMemo(() =>
@@ -154,6 +156,9 @@ export const useYoukanViewModel = (projectId?: string) => {
 					.filter(i => i.status !== 'someday')
 					.sort(compareFocusItems)
 			);
+			// R-125: shelf.todo から直接セット（後日着手バケット）
+			const todoRaw = (Array.isArray(shelf.todo) ? shelf.todo : []).filter(Boolean);
+			setGdbTodoRaw(todoRaw.sort(compareFocusItems));
 			const intentRaw = (Array.isArray(shelf.intent) ? shelf.intent : []).filter(Boolean);
 			setGdbIntentRaw(intentRaw.filter(i => i.status !== 'someday').sort(compareFocusItems));
 			// R-029: shelf.someday から直接セット
@@ -164,6 +169,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		} catch (e) {
 			console.error('Failed to fetch GDB:', e);
 			setGdbActiveRaw([]);
+			setGdbTodoRaw([]);
 			setGdbPreparationRaw([]);
 			setGdbIntentRaw([]);
 			setGdbLogRaw([]);
@@ -343,6 +349,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			const updateState = (prev: Item[]) =>
 				prev.map(it => fresh.find((f: Item) => f.id === it.id) ?? it);
 			setGdbActiveRaw(updateState);
+			setGdbTodoRaw(updateState);
 			setGdbPreparationRaw(updateState);
 			setGdbIntentRaw(updateState);
 			setGdbSomedayRaw(updateState);
@@ -360,7 +367,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	 */
 	const optimisticCascadeTenant = useCallback((rootId: string, newTenantId: string | null | undefined): TenantSnapshot => {
 		const all = [
-			...gdbActiveRaw, ...gdbPreparationRaw, ...gdbIntentRaw, ...gdbSomedayRaw, ...gdbLogRaw, ...allProjectsRaw
+			...gdbActiveRaw, ...gdbTodoRaw, ...gdbPreparationRaw, ...gdbIntentRaw, ...gdbSomedayRaw, ...gdbLogRaw, ...allProjectsRaw
 		];
 		const descendantIds = collectDescendantIds(all, rootId);
 		const snapshot: TenantSnapshot = all
@@ -375,6 +382,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		const updateState = (prev: Item[]) =>
 			prev.map(it => descendantIds.includes(it.id) ? { ...it, tenantId: newTenantId ?? undefined } : it);
 		setGdbActiveRaw(updateState);
+		setGdbTodoRaw(updateState);
 		setGdbPreparationRaw(updateState);
 		setGdbIntentRaw(updateState);
 		setGdbSomedayRaw(updateState);
@@ -382,7 +390,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		setAllProjectsRaw(updateState);
 
 		return snapshot;
-	}, [gdbActiveRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbLogRaw, allProjectsRaw]);
+	}, [gdbActiveRaw, gdbTodoRaw, gdbPreparationRaw, gdbIntentRaw, gdbSomedayRaw, gdbLogRaw, allProjectsRaw]);
 
 	const restoreSnapshot = useCallback((snapshot: TenantSnapshot) => {
 		const restoreState = (prev: Item[]) =>
@@ -391,6 +399,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 				return snap ? { ...it, tenantId: snap.tenantId ?? undefined } : it;
 			});
 		setGdbActiveRaw(restoreState);
+		setGdbTodoRaw(restoreState);
 		setGdbPreparationRaw(restoreState);
 		setGdbIntentRaw(restoreState);
 		setGdbSomedayRaw(restoreState);
@@ -406,6 +415,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		const update = (prev: Item[]) =>
 			prev.map(it => ids.includes(it.id) ? { ...it, isArchived: true } : it);
 		setGdbActiveRaw(update);
+		setGdbTodoRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
 		setGdbSomedayRaw(update);
@@ -422,6 +432,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		const update = (prev: Item[]) =>
 			prev.map(it => ids.includes(it.id) ? { ...it, deletedAt: now } : it);
 		setGdbActiveRaw(update);
+		setGdbTodoRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
 		setGdbSomedayRaw(update);
@@ -436,6 +447,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		if (!ids.length) return;
 		const update = (prev: Item[]) => prev.filter(it => !ids.includes(it.id));
 		setGdbActiveRaw(update);
+		setGdbTodoRaw(update);
 		setGdbPreparationRaw(update);
 		setGdbIntentRaw(update);
 		setGdbSomedayRaw(update);
@@ -461,8 +473,8 @@ export const useYoukanViewModel = (projectId?: string) => {
 	// --- Undo Context ---
 	const { addUndoAction } = useUndo();
 
-	// 1. Decision (Yes/No/Hold)
-	const resolveDecision = async (id: string, decision: 'yes' | 'hold' | 'no', note?: string, updates?: Partial<Item>) => {
+	// 1. Decision (Yes/No/Hold/Later)
+	const resolveDecision = async (id: string, decision: Decision, note?: string, updates?: Partial<Item>) => {
 		const targetId = id;
 		// Optimistic Update: Remove from Active immediate
 		setGdbActiveRaw(prev => prev.filter(i => i.id !== id && i.id !== targetId));
@@ -473,7 +485,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		}
 
 		// [Undo] Register Action
-		let statusLabel = decision === 'yes' ? 'Yes' : decision === 'hold' ? 'Pending' : 'キャンセル・断った';
+		let statusLabel = decision === 'yes' ? 'Yes' : decision === 'later' ? '後日着手' : decision === 'hold' ? 'Pending' : 'キャンセル・断った';
 		if (decision === 'no' && (note === 'someday' || note === 'intent')) statusLabel = 'Someday (保留)';
 
 		addUndoAction({
@@ -615,6 +627,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		// Optimistic: Remove from all active lists
 		const filter = (list: Item[]) => list.filter(i => i.id !== id && i.id !== targetId);
 		setGdbActiveRaw(prev => filter(prev));
+		setGdbTodoRaw(prev => filter(prev));
 		setGdbPreparationRaw(prev => filter(prev));
 		setGdbIntentRaw(prev => filter(prev));
 		setGdbSomedayRaw(prev => filter(prev));
@@ -646,7 +659,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	const deleteItem = async (id: string) => { // UI calls this "Delete", effectively "Move to Trash"
 		const targetId = id;
 		// Find item to save for undo
-		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
+		const allItems = [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
 		const itemToDelete = allItems.find(i => String(i.id) === String(id) || String(i.id) === String(targetId));
 
 		if (itemToDelete) {
@@ -662,6 +675,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		// Optimistic UI
 		const filter = (list: Item[]) => list.filter(i => String(i.id) !== String(id) && String(i.id) !== String(targetId));
 		setGdbActiveRaw(prev => filter(prev));
+		setGdbTodoRaw(prev => filter(prev));
 		setGdbPreparationRaw(prev => filter(prev));
 		setGdbIntentRaw(prev => filter(prev));
 		setGdbSomedayRaw(prev => filter(prev));
@@ -1012,13 +1026,14 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 	// [NEW] Move to Someday (いつかやる)
 	const moveToSomeday = async (id: string) => {
-		const allItems = [...gdbActive, ...gdbPreparation, ...gdbIntent];
+		const allItems = [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent];
 		const item = allItems.find(i => i.id === id);
 
 		if (item) {
 			const updatedItem = { ...item, status: 'someday' as const };
 
 			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+			setGdbTodoRaw(prev => prev.filter(i => i.id !== id));
 			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
 			setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
 			setGdbSomedayRaw(prev => [updatedItem, ...prev]);
@@ -1048,7 +1063,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		} as Partial<Item>;
 
 		// [FIX] List Movement Logic
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
+		const allLocal = [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
 		const target = allLocal.find(i => i.id === id);
 
 		if (target) {
@@ -1056,6 +1071,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 			// 1. Remove from ALL lists first
 			setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+			setGdbTodoRaw(prev => prev.filter(i => i.id !== id));
 			setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
 			setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
 			setGdbSomedayRaw(prev => prev.filter(i => i.id !== id));
@@ -1125,7 +1141,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		}
 
 		// [FIX] Lists Selection & Movement Logic
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
+		const allLocal = [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits];
 		const target = allLocal.find(i => i.id === id);
 
 		if (target) {
@@ -1138,6 +1154,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 			if (newStatus !== target.status) {
 				// Remove from OLD
 				setGdbActiveRaw(prev => prev.filter(i => i.id !== id));
+				setGdbTodoRaw(prev => prev.filter(i => i.id !== id));
 				setGdbPreparationRaw(prev => prev.filter(i => i.id !== id));
 				setGdbIntentRaw(prev => prev.filter(i => i.id !== id));
 				setGdbSomedayRaw(prev => prev.filter(i => i.id !== id));
@@ -1146,6 +1163,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 
 				// Add to NEW
 				if (newStatus === 'inbox') setGdbActiveRaw(prev => [updatedItem, ...prev]);
+				else if (newStatus === 'todo') setGdbTodoRaw(prev => [updatedItem, ...prev]); // R-125: 後日着手
 				else if (newStatus === 'pending') setGdbIntentRaw(prev => [updatedItem, ...prev]);
 				else if (newStatus === 'someday') setGdbSomedayRaw(prev => [updatedItem, ...prev]);
 				else if (newStatus === 'focus') {
@@ -1157,6 +1175,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 				setTodayCandidatesRaw(prev => updateList(prev));
 				setTodayCommitsRaw(prev => updateList(prev));
 				setGdbActiveRaw(prev => updateList(prev));
+				setGdbTodoRaw(prev => updateList(prev));
 				setGdbPreparationRaw(prev => updateList(prev));
 				setGdbIntentRaw(prev => updateList(prev));
 				setGdbSomedayRaw(prev => updateList(prev));
@@ -1244,6 +1263,8 @@ export const useYoukanViewModel = (projectId?: string) => {
 		return {
 			items: [...gdbActive, ...gdbPreparation, ...gdbIntent, ...todayCandidates, ...todayCommits],
 			// someday アイテムは意図的に除外（キャパシティ計算対象外）
+			// R-125: todo（後日着手）も意図的に含めない（今日のキャパ集計から除外。
+			// 日付別集計側はガント・カレンダーの items merge に gdbTodo を含めて対応する）
 			members,
 			capacityConfig,
 			// filterMode removed: QuantityEngine no longer needs it
@@ -1309,7 +1330,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 		if (!title.trim()) return;
 
 		// [NEW] Locate parent to inherit projectId correctly
-		const allLocal = [...gdbActive, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
+		const allLocal = [...gdbActive, ...gdbTodo, ...gdbPreparation, ...gdbIntent, ...gdbSomeday, ...todayCandidates, ...todayCommits, ...allProjects];
 		const parentItem = allLocal.find(i => i.id === parentId);
 
 		// Uses the same create logic but with parentId
@@ -1484,6 +1505,7 @@ export const useYoukanViewModel = (projectId?: string) => {
 	return {
 		// State
 		gdbActive,
+		gdbTodo, // R-125: 後日着手
 		gdbPreparation,
 		gdbIntent,
 		gdbSomeday,
