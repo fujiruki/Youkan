@@ -5,8 +5,8 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { MobileBottomSheet } from '../Common/MobileBottomSheet';
 import { Item, Member, FilterMode, CapacityConfig } from '../../../youkan/types';
 import { cn } from '../../../../../lib/utils';
-import { YOUKAN_KEYS } from '../../../session/youkanKeys';
 import { ApiClient } from '../../../../../api/client';
+import { useAuth } from '../../../auth/providers/AuthProvider';
 import { format } from 'date-fns';
 import { safeFormat } from '../../logic/dateUtils';
 import { SmartDateInput } from '../Inputs/SmartDateInput';
@@ -132,13 +132,10 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 		}
 	}, [item?.id, isProject, _onGetSubTasks, item?.dueStatus]);
 
-	const currentUserFromStorage = React.useMemo(() => {
-		try {
-			return JSON.parse(localStorage.getItem(YOUKAN_KEYS.USER) || '{}');
-		} catch {
-			return {};
-		}
-	}, []);
+	// [R-137] currentUserId propが渡されない呼び出し元も多いため、useAuth（/auth/me）を実効値のフォールバックにする。
+	// localStorage['youkan_user']はCookieセッション認証では常に空のため参照しない
+	const auth = useAuth();
+	const effectiveUserId = currentUserId ?? (auth as any)?.user?.id ?? null;
 
 	// [NEW] Use separate memo for Details to display the breakdown, and derive Period from it
 	const allocationDetails = React.useMemo(() => {
@@ -172,15 +169,15 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 			focusedProjectId: item.projectId,
 			tenantProfiles,
 			currentUser: {
-				id: (currentUserFromStorage.id || ''),
-				isCompanyAccount: (currentUserFromStorage.id || '').length > 20,
+				id: (effectiveUserId || ''),
+				isCompanyAccount: (effectiveUserId || '').length > 20,
 				joinedTenants: joinedTenants
 			}
 		};
 
 		const details = QuantityEngine.calculateAllocationDetails(anchor, minutes, context, (localTenantId !== undefined ? localTenantId : item.tenantId));
 		return details;
-	}, [item?.id, prepDate, dueDate, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode, currentUserFromStorage]);
+	}, [item?.id, prepDate, dueDate, estimatedMinutes, workDays, isWorkDaysDirty, localTenantId, capacityConfig, joinedTenants, quantityItems, members, filterMode, effectiveUserId]);
 
 	const commitPeriodDates = React.useMemo(() => {
 		return allocationDetails.map(step => step.date);
@@ -617,7 +614,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 							/>
 							{/* [NEW] Perspective Label Badge in Detail View (Computed Dynamically) */}
 							{(() => {
-								const isCompanyAccount = (currentUserId?.length || 0) > 20;
+								const isCompanyAccount = (effectiveUserId?.length || 0) > 20;
 								let label = '';
 								if (isCompanyAccount) {
 									label = localTenantId ? '事業の管理' : '社内背景での管理';
@@ -763,7 +760,7 @@ export const DecisionDetailModal: React.FC<DecisionDetailModalProps> = ({
 								capacityConfig={capacityConfig}
 								projects={allProjects}
 								joinedTenants={joinedTenants}
-								currentUserId={currentUserId}
+								currentUserId={effectiveUserId}
 								commitPeriod={commitPeriodDates}
 								externalEventsByDate={externalEventsByDate}
 								googleCalendars={googleCalendars}
