@@ -195,7 +195,8 @@ describe('R-105: timelineMode のブロック描画', () => {
 		const block = container.querySelector<HTMLElement>(
 			`[data-testid="gantt-time-block-task-1-${wednesdayYmd}"]`
 		);
-		expect(pct(block!.style.left)).toBeCloseTo((1320 / 1440) * 100, 3);
+		// R-145: 仕様 F-40「幅は保ったまま右端を24:00に揃える」に合わせる（旧: 開始1320据え置きで幅を切り詰めていた）
+		expect(pct(block!.style.width)).toBeCloseTo((480 / 1440) * 100, 3);
 		expect(pct(block!.style.left) + pct(block!.style.width)).toBeCloseTo(100, 3);
 		expect(block!.textContent).toContain('❗️');
 	});
