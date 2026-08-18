@@ -1,10 +1,5 @@
 # Requests
 
-- **【中】R-141** バグ: `POST /integrations/inbox` で登録したアイテムに `created_by`／`tenant_id` が入らず、本人の一覧・digest に出ない
-  - 2026-08-19 R-140実装Agentの報告: `IntegrationController::createInboxItem()` の INSERT が `created_by`・`tenant_id` を設定しないため、番頭がこの口で登録したアイテムは `scope=aggregated`（全体一覧・`GET /integrations/digest`）の抽出条件（`created_by = 本人 OR assigned_to = 本人`）に該当せず表示されない。R-140 の範囲外として未修正
-  - 発注者回答（2026-08-19）: 「R-141 として続けて修正」
-  - **→ R-141 として requests_log.md に移記済み（2026-08-19）**
-
 - **【中】R-140** 番頭連携API: ダイジェスト1本＋連携トークン発行UI
   - 2026-08-18 会話原文: 「番頭連携apiはどんなものが必要そうか？」→ 指揮AI調査（既存の `api_tokens` Bearer・`GET /items?scope=aggregated`・`POST /integrations/inbox`・`POST /decision/{id}/resolve`・`GET /quantity/week` で大半足りる。不足は ①要判断キューのサーバー側計算 ②APIトークン発行導線 ③活動履歴API）→ 提案「R-140 として①+②のみ。③は要望が具体化してから」→ 発注者回答原文: 「推奨通りで」
   - **→ R-140 として requests_log.md に移記済み（2026-08-18）**
