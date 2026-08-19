@@ -1,12 +1,12 @@
 # Youkan — 現在のタスク
 
-2026-08-18 セッション（R-125〜R-139）はすべて本番反映済み。詳細は `docs/handover/2026-08-18-R125-R135-new-youkan-session.md`（末尾に後半の追記あり）。
+2026-08-18〜19 セッション（R-125〜R-150、R-144除く）はすべて本番反映済み。詳細は `docs/handover/2026-08-19-R139-R150-session.md`。
 
 ## 進行中
-- [ ] **R-140** 番頭連携API: `GET /integrations/digest` ＋ 個人設定「外部連携トークン」（仕様: `docs/SPEC/02_機能仕様.md` F-56 ほか。台帳: `docs/requests_log.md`）
+- [x] **R-140** 番頭連携API: `GET /integrations/digest` ＋ 個人設定「外部連携トークン」（仕様: `docs/SPEC/02_機能仕様.md` F-56 ほか。台帳: `docs/requests_log.md`）
   - [x] 実装（`feature/R-140-integrations-digest` `b059779`）
   - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`cb60d79`、2026-08-19デプロイ・本番検証完了）
-  - [ ] 番頭側へ「依頼事項 §1・§2・§6 は digest に置き換え」を連絡（引継書更新）
+  - [x] 番頭側へ「依頼事項 §1・§2・§6 は digest に置き換え」（`docs/handover/2026-08-18-番頭への依頼事項.md` 末尾に追記。番頭プロジェクト側の対応は frontPC で）
 
 - [x] **R-141** inbox 登録の `created_by`／`tenant_id` 未設定バグ（R-140 実装中に発見。台帳参照）
 
