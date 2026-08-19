@@ -1063,7 +1063,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									   R-097: contain-intrinsic-size は既定28px前提のヒントのまま残し、実サイズは style.height で可変にする
 									   （行高さ変更時に多少のレイアウトずれが出うるが、auto指定のため描画後は実サイズに追従する）。 */
 									style={{ height: rowHeight }}
-									className="gantt-row-cv flex border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group"
+									/* R-150: ホバー行は背景一段濃く＋下線を box-shadow(inset) で太く見せる（border 幅は変えず行高不変） */
+									className="gantt-row-cv flex border-b border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:shadow-[inset_0_-2px_0_0_rgb(203_213_225)] dark:hover:shadow-[inset_0_-2px_0_0_rgb(71_85_105)] group"
 									onMouseEnter={() => setHoveredItemId(item.id)}
 									onMouseLeave={() => setHoveredItemId(null)}
 								>
@@ -1072,7 +1073,11 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 										data-testid={`gantt-title-cell-${item.id}`}
 										className={cn(
 											"sticky left-0 z-10 w-64 shrink-0 border-r border-slate-200 dark:border-slate-800 flex items-center px-4 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] gap-1",
-											isUnscheduled ? "bg-amber-50 dark:bg-amber-900/20" : "bg-white dark:bg-slate-900"
+											/* R-150: sticky の独自背景が行ホバー色を隠すため、見出し列にも同じ背景・下線を group-hover で付ける（右側の影は維持） */
+											"group-hover:shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1),inset_0_-2px_0_0_rgb(203_213_225)] dark:group-hover:shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1),inset_0_-2px_0_0_rgb(71_85_105)]",
+											isUnscheduled
+												? "bg-amber-50 dark:bg-amber-900/20 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30"
+												: "bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800"
 										)}
 										title={isUnscheduled ? "カレンダーに未配置（日付未設定）" : undefined}
 										onContextMenu={(e) => handleItemContextMenu(e, item.id)}
