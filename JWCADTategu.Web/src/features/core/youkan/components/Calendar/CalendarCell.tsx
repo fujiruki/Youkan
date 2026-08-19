@@ -49,13 +49,15 @@ interface CalendarCellProps {
     googleCalendars?: GoogleCalendar[];
     /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
     hideExternalEventTime?: boolean;
+    /** R-148: CapacityBar の母集団ラベル（title） */
+    capacityBarLabel?: string;
 }
 
 const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
     date, metric, isToday, isFirst, intensity, isMini, isSelected, isPrep, isCommitPeriod, flashingIds, onAction, onItemClick, projects = [], renderItemTitle,
     volumeOnly = false, scrollOptimized = false, isTarget = false, targetItem, rowHeight, completedCount = 0, monthBoundaryTop = false, monthBoundaryBottom = false, monthBoundaryLeft = false,
     externalEvents = [], onExternalEventClick, onExternalEventsMoreClick, externalEventsMaxVisible = 3,
-    googleCalendars = [], hideExternalEventTime = false
+    googleCalendars = [], hideExternalEventTime = false, capacityBarLabel
 }, ref) => {
     const items = metric?.contributingItems || [];
     const isHoliday = metric?.isHoliday || false;
@@ -274,6 +276,7 @@ const CalendarCellInner = forwardRef<HTMLDivElement, CalendarCellProps>(({
                     totalMinutes={metric.volumeMinutes}
                     completedMinutes={metric.completedVolumeMinutes}
                     capacityMinutes={metric.capacityMinutes}
+                    label={capacityBarLabel}
                 />
             )}
         </div>

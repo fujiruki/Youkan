@@ -20,6 +20,7 @@ import { EventDetailModal } from './EventDetailModal';
 import { MobileBottomSheet } from '../Common/MobileBottomSheet';
 import { ExternalEventChip } from './ExternalEventChip';
 import { getCalendarColor } from '../../logic/calendarColor';
+import { capacityBarLabel, scopeCapacityWord } from '../../logic/populationLabel';
 
 export interface RyokanCalendarHandle {
 	scrollToMonth: (year: number, month: number) => void;
@@ -65,6 +66,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	loadedRange: _loadedRange,
 	googleCalendars = [],
 	hideExternalEventTime = false,
+	includesCompleted = true,
 	initialRangeMonths,
 	disableRangeExtension = false,
 	scrollOptimized = false,
@@ -492,6 +494,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		[allDays, qCtx, externalEventsByDate]
 	);
 
+	// R-148: グリッド／タイムラインの CapacityBar は Google 予定を分子に含む（予定込）
+	const gridCapacityBarLabel = capacityBarLabel('予定込', includesCompleted, scopeCapacityWord(filterMode));
+
 	const heatMap = useMemo(() => {
 		const hMap = new Map<string, number>();
 		metrics.forEach((m, key) => {
@@ -773,6 +778,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						loadDirection={loadDirection}
 						googleCalendars={googleCalendars}
 						hideExternalEventTime={hideExternalEventTime}
+						capacityBarLabel={gridCapacityBarLabel}
 					/>
 				)}
 				{displayMode === 'gantt' && (
@@ -811,6 +817,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 						loadDirection={loadDirection}
 						loadedRange={_loadedRange}
 						googleCalendars={googleCalendars}
+						includesCompleted={includesCompleted}
 					/>
 				)}
 			</div>

@@ -184,6 +184,8 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 
 	const isCompanyAccount = user?.accountType === 'tenant';
 	const isCompanyContext = checkCompanyContext(filterMode);
+	// R-148: 週負荷の母集団（F-53）。分子＝表示中（スコープ・案件絞り込み後）、分母＝個人のキャパ設定
+	const weekLoadPopulation = activeProject ? '案件' : isCompanyContext ? '会社' : filterMode === 'personal' ? '個人' : '全体';
 	const { perspective, perspectiveLabel } = calculatePerspective(
 		isCompanyContext,
 		filterMode as any
@@ -321,7 +323,10 @@ export const YoukanHeader: React.FC<YoukanHeaderProps> = ({
 						className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded border border-slate-700/50 shrink-0 cursor-pointer hover:bg-slate-700/50 transition-colors"
 					>
 						<div className="flex flex-col">
-							<span className="text-xs font-bold text-slate-100 leading-tight whitespace-nowrap">
+							<span
+								className="text-xs font-bold text-slate-100 leading-tight whitespace-nowrap"
+								title={`必要: ${weekLoadPopulation}／枠: 個人設定`}
+							>
 								今週 必要 {formatWeekLoadHours(weekLoad.needMinutes)}／枠 {formatWeekLoadHours(weekLoad.capacityMinutes)}
 								{weekLoad.shortfallMinutes > 0 && (
 									<span className="text-red-400"> {formatWeekLoadHours(weekLoad.shortfallMinutes)}足りない</span>
@@ -574,7 +579,7 @@ const SubNavTab: React.FC<{
 			<span
 				role="button"
 				aria-label={`要判断 ${badge}件`}
-				title="クリックで捌く"
+				title={`要判断 ${badge}件（期限超過＋再確認到来）`}
 				onClick={(e) => { e.stopPropagation(); onBadgeClick?.(); }}
 				className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-rose-500 text-white text-[9px] font-black leading-none shadow-sm"
 			>

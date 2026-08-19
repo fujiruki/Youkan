@@ -140,3 +140,51 @@ describe('R-146: プロジェクト別表示でも日付ヘッダーの合計時
 		expect(cell?.querySelector(`[data-testid="gantt-daily-total-${wednesdayKey}"]`)?.textContent).toBe('2h');
 	});
 });
+
+/**
+ * R-148: 日付ヘッダーの合計時間・CapacityBar に母集団ラベル（title）を付ける。
+ * 列: 「全体の割当合計」／案件絞り込み中「案件の割当合計」。バー: 「タスクのみ／完了込|未完了のみ／全体枠|会社枠」
+ */
+describe('R-148: ガント日付ヘッダーの母集団ラベル（title）', () => {
+	const items = [
+		makeItem('task-90', '90分タスク', {
+			prep_date: Math.floor(wednesday.getTime() / 1000),
+			estimatedMinutes: 90,
+		}),
+	];
+
+	it('案件絞り込みなしは列 title が「全体の割当合計」', () => {
+		const { container } = renderWithProviders(<RyokanGanttView {...defaultProps} items={items} />);
+		const cell = container.querySelector(`[data-gantt-date="${wednesdayKey}"]`) as HTMLElement;
+		expect(cell.getAttribute('title')).toBe('全体の割当合計');
+	});
+
+	it('案件絞り込み中は列 title が「案件の割当合計」', () => {
+		const { container } = renderWithProviders(<RyokanGanttView {...defaultProps} items={items} focusedProjectId="p1" />);
+		const cell = container.querySelector(`[data-gantt-date="${wednesdayKey}"]`) as HTMLElement;
+		expect(cell.getAttribute('title')).toBe('案件の割当合計');
+	});
+
+	it('CapacityBar の title は「タスクのみ／完了込／全体枠」（既定）', () => {
+		const { container } = renderWithProviders(<RyokanGanttView {...defaultProps} items={items} />);
+		const bar = container.querySelector(`[data-gantt-date="${wednesdayKey}"] [data-testid="capacity-bar"]`) as HTMLElement;
+		expect(bar.getAttribute('title')).toBe('タスクのみ／完了込／全体枠');
+	});
+
+	it('includesCompleted=false・focusedTenantId ありは「タスクのみ／未完了のみ／会社枠」', () => {
+		const { container } = renderWithProviders(
+			<RyokanGanttView {...defaultProps} items={items} includesCompleted={false} focusedTenantId="t1" />
+		);
+		const bar = container.querySelector(`[data-gantt-date="${wednesdayKey}"] [data-testid="capacity-bar"]`) as HTMLElement;
+		expect(bar.getAttribute('title')).toBe('タスクのみ／未完了のみ／会社枠');
+	});
+
+	it('列の Tailwind クラス（幅・高さ・折返し）は変わらない', () => {
+		const { container } = renderWithProviders(<RyokanGanttView {...defaultProps} items={items} />);
+		const cell = container.querySelector(`[data-gantt-date="${wednesdayKey}"]`) as HTMLElement;
+		expect(cell.className).toContain('flex-none flex flex-col items-center justify-end pb-2');
+		const total = cell.querySelector(`[data-testid="gantt-daily-total-${wednesdayKey}"]`) as HTMLElement;
+		expect(total.className).toContain('text-[8px] leading-none mt-0.5');
+		expect(total.textContent).toBe('1.5h');
+	});
+});

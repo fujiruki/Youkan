@@ -103,12 +103,12 @@ describe('YoukanHeader R-127 要判断キュー件数バッジ', () => {
         expect(screen.getByLabelText('要判断 7件')).toBeInTheDocument();
     });
 
-    it('R-134: バッジのtitleが「クリックで捌く」になる', () => {
+    it('R-134/R-148: バッジのtitleが「要判断 N件（期限超過＋再確認到来）」になる', () => {
         renderHeader();
         act(() => {
             window.dispatchEvent(new CustomEvent(YOUKAN_EVENTS.REVIEW_QUEUE_UPDATE, { detail: { count: 3 } }));
         });
-        expect(screen.getByLabelText('要判断 3件')).toHaveAttribute('title', 'クリックで捌く');
+        expect(screen.getByLabelText('要判断 3件')).toHaveAttribute('title', '要判断 3件（期限超過＋再確認到来）');
     });
 
     it('バッジクリックでOPEN_REVIEW_SWEEPイベントとsessionStorageのpendingフラグが発生する', () => {
@@ -151,6 +151,13 @@ describe('YoukanHeader R-136 超過分パネル導線', () => {
     it('週負荷1行に「超過分を見る」のtitleが付き、クリック可能になる', () => {
         renderHeader();
         dispatchWeekLoad(480);
+        expect(screen.getByTitle('超過分を見る')).toBeInTheDocument();
+    });
+
+    it('R-148: 週負荷の文字列に母集団の title「必要: 全体／枠: 個人設定」が付く（既定スコープ）', () => {
+        renderHeader();
+        dispatchWeekLoad(480);
+        expect(screen.getByText(/今週 必要/)).toHaveAttribute('title', '必要: 全体／枠: 個人設定');
         expect(screen.getByTitle('超過分を見る')).toBeInTheDocument();
     });
 

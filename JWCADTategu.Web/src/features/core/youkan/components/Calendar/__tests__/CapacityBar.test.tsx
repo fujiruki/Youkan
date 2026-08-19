@@ -88,3 +88,16 @@ describe('CapacityBar (R-034 Phase 1)', () => {
         expect(root.textContent).toBe('');
     });
 });
+
+describe('CapacityBar (R-148: 母集団ラベル)', () => {
+    it('label を渡すとルート要素の title になり、ホバーできるよう pointer-events-none が外れる', () => {
+        const { container } = render(
+            <CapacityBar totalMinutes={240} completedMinutes={0} capacityMinutes={480} label="タスクのみ／完了込／全体枠" />
+        );
+        const root = container.querySelector('[data-testid="capacity-bar"]') as HTMLElement;
+        expect(root.getAttribute('title')).toBe('タスクのみ／完了込／全体枠');
+        expect(root.className).not.toContain('pointer-events-none');
+        expect(root.className).toContain('h-1');
+        expect(root.textContent).toBe('');
+    });
+});

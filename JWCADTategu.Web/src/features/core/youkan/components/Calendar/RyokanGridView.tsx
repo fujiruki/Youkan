@@ -71,6 +71,8 @@ interface GridViewProps {
     googleCalendars?: GoogleCalendar[];
     /** R-063: true のとき外部イベントチップで時刻を非表示にする（詳細カレンダー専用） */
     hideExternalEventTime?: boolean;
+    /** R-148: CapacityBar の母集団ラベル（title） */
+    capacityBarLabel?: string;
 }
 
 export const RyokanGridView: React.FC<GridViewProps> = ({
@@ -94,6 +96,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
     loadDirection = null,
     googleCalendars = [],
     hideExternalEventTime = false,
+    capacityBarLabel,
 }) => {
     const handleCellAction = React.useCallback(
         (d: Date, _items: Item[], type: 'click' | 'doubleClick' | 'dateClick', rect?: DOMRect) => onAction(d, type, rect),
@@ -222,6 +225,7 @@ export const RyokanGridView: React.FC<GridViewProps> = ({
                                 externalEventsMaxVisible={externalEventsMaxVisible}
                                 googleCalendars={googleCalendars}
                                 hideExternalEventTime={hideExternalEventTime}
+                                capacityBarLabel={capacityBarLabel}
                             />
                         );
                     })}

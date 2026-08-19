@@ -10,6 +10,8 @@ interface CapacityBarProps {
     capacityMinutes: number;
     /** 追加クラス（任意） */
     className?: string;
+    /** R-148: 母集団ラベル（例「タスクのみ／完了込／全体枠」）。指定時は title に出し、ホバーできるようにする */
+    label?: string;
 }
 
 /**
@@ -17,7 +19,7 @@ interface CapacityBarProps {
  *
  * - 100% 以下: 完了部分 `emerald-200`（淡）+ 未完了部分 `emerald-500`（濃）の 2 層
  * - 100% 超: 全体 `red-500` 一色
- * - 数値・ツールチップなし（即時性優先）
+ * - 数値なし（即時性優先）。ツールチップは R-148 の母集団ラベル `label` 指定時のみ
  * - `absolute bottom-0 h-1` でセル下端 4px に被さる
  *
  * 既存背景ヒートマップとは独立に重ねて描画する。
@@ -26,13 +28,16 @@ const CapacityBarComponent: React.FC<CapacityBarProps> = ({
     totalMinutes,
     completedMinutes,
     capacityMinutes,
-    className
+    className,
+    label
 }) => {
     const root = (children: React.ReactNode) => (
         <div
             data-testid="capacity-bar"
+            title={label}
             className={cn(
-                'absolute bottom-0 left-0 right-0 h-1 flex overflow-hidden pointer-events-none z-10',
+                'absolute bottom-0 left-0 right-0 h-1 flex overflow-hidden z-10',
+                label ? 'pointer-events-auto' : 'pointer-events-none',
                 className
             )}
         >

@@ -17,6 +17,7 @@ import { useToast } from '../../../../../contexts/ToastContext';
 import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
 import { decisionToStatus } from '../../logic/decisionResolution';
 import { CapacityBar } from './CapacityBar';
+import { capacityBarLabel } from '../../logic/populationLabel';
 import { ExternalEvent } from '../../types/externalEvent';
 import { GoogleCalendar } from '../../../../../api/googleCalendar';
 import { getCalendarColor, toTint } from '../../logic/calendarColor';
@@ -113,6 +114,8 @@ interface GanttViewProps {
 	googleCalendars?: GoogleCalendar[];
 	/** R-105: 時間軸タイムライン表示（ウィークリー/デイリー）。未指定時は従来の日次チップ表示 */
 	timelineMode?: boolean;
+	/** R-148: items に完了（done）アイテムが含まれているか（母集団ラベル「完了込／未完了のみ」用）。既定 true */
+	includesCompleted?: boolean;
 }
 
 /** R-039 Phase 3 UX: ガント日付列ヘッダー内に表示する Google 予定の最大件数 */
@@ -131,6 +134,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	onLoadMore, isLoadingMore = false, loadDirection = null, loadedRange,
 	googleCalendars = [],
 	timelineMode = false,
+	includesCompleted = true,
 }) => {
 	// R-050: ロード済み月数と上限到達判定
 	const loadedMonths = countMonths(loadedRange?.from, loadedRange?.to);
@@ -693,6 +697,10 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		return map;
 	}, [items, allocationMap]);
 
+	// R-148: 日付ヘッダーの母集団ラベル（title）。列＝割当合計の対象、バー＝分子・完了・分母スコープ
+	const headerColumnTitle = focusedProjectId ? '案件の割当合計' : '全体の割当合計';
+	const headerBarLabel = capacityBarLabel('タスクのみ', includesCompleted, focusedTenantId ? '会社枠' : '全体枠');
+
 	// Helper to calculate bar style with drag offset
 	const getBarStyle = (item: Item, type: 'prep', baseStyle: React.CSSProperties) => {
 		if (dragState && dragState.itemId === item.id && type === 'prep') {
@@ -783,6 +791,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 								<div
 									key={i}
 									data-gantt-date={normalizeDateKey(day)}
+									title={headerColumnTitle}
 									style={{ width: colWidth }}
 									className={cn(
 										`relative flex-none flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
@@ -807,6 +816,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 											totalMinutes={stats.total}
 											completedMinutes={stats.completed}
 											capacityMinutes={stats.capacity}
+											label={headerBarLabel}
 										/>
 									)}
 									{/* R-087: CapacityBar直下にその日の合計割当時間を表示 */}

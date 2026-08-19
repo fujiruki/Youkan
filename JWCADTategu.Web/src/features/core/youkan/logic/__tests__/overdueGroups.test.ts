@@ -58,6 +58,19 @@ describe('buildOverdueGroups (R-136 / F-55)', () => {
         expect(groups[0].items[0].id).toBe('a');
     });
 
+    it('R-147: 有効締切がどちらの日付か（deadlineField）を行に持つ。両方あれば早い方、同日なら due_date', () => {
+        const prep = (d: string) => Math.floor(new Date(d).getTime() / 1000);
+        const items = [
+            createItem('due', 'todo', { due_date: '2026-08-10' }),
+            createItem('prep', 'todo', { prep_date: prep('2026-08-10') }),
+            createItem('prepEarlier', 'todo', { due_date: '2026-08-12', prep_date: prep('2026-08-10') }),
+            createItem('dueEarlier', 'todo', { due_date: '2026-08-10', prep_date: prep('2026-08-12') }),
+            createItem('same', 'todo', { due_date: '2026-08-10', prep_date: prep('2026-08-10') }),
+        ];
+        const fields = Object.fromEntries(buildOverdueGroups(items, TODAY).flatMap(g => g.items.map(i => [i.id, i.deadlineField])));
+        expect(fields).toEqual({ due: 'due_date', prep: 'prep_date', prepEarlier: 'prep_date', dueEarlier: 'due_date', same: 'due_date' });
+    });
+
     it('案件（projectId）ごとにグループ化し、得意先名があれば「得意先／案件名」にする', () => {
         const items = [
             createItem('a', 'todo', { due_date: '2026-08-10', estimatedMinutes: 60, projectId: 'p1', projectTitle: '玄関建具', clientName: '田中様' }),
