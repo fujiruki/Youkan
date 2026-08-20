@@ -1,5 +1,10 @@
 # Requests
 
+- **【高】** 本番でプロジェクトフォーカス中にグリッド表示カレンダーを開くと通信エラーが多発するバグの修正
+  - 2026-08-20 会話内発言原文: 「projectfocused　の状態でグリッド表示のカレンダーを見ようとしたら通信エラーが沢山でました」
+  - 本番コンソールログ: `/google/calendars` が 409（「Google 側で連携が解除されました。再連携してください」）を繰り返し返す／`/google/calendar/events`・`/calendar/completed`・`/user/profile`・`/calendar/items` が 507 や 401 を返す／`[ApiClient] Updating item ...` が多数連続実行されている
+  - 状態: 調査Agentで原因調査中
+
 - **【低】R-149候補** 時間表示の丸め不統一（行は `45m`、集計は `0.8h`）の統一
   - 2026-08-19 Codex レビュー #9（`timeParser.ts:29-36`, `weekLoad.ts:83-90`, `flowDateGrouping.ts:130-133`）。`formatMinutes` を集計側にも使うか、集計は h 固定で行だけ分表示を許容するかの方針決めが必要
   - 未着手（R-148 の後に検討）
