@@ -34,6 +34,26 @@ const getStartOfToday = () => {
 	return d;
 };
 
+// [R-151] スクロールによる範囲拡張は28日刻み、初期rangeのアンカーから前後±24ヶ月を上限とする
+export const EXTENSION_STEP_DAYS = 28;
+export const EXTENSION_LIMIT_MONTHS = 24;
+
+// [R-151] 上方向拡張の次の start を返す。上限 minStart で頭打ち、到達済みなら null（拡張しない）
+export const extendRangeStart = (start: Date, minStart: Date): Date | null => {
+	if (start.getTime() <= minStart.getTime()) return null;
+	const next = new Date(start);
+	next.setDate(next.getDate() - EXTENSION_STEP_DAYS);
+	return next.getTime() < minStart.getTime() ? new Date(minStart) : next;
+};
+
+// [R-151] 下方向拡張の次の end を返す。上限 maxEnd で頭打ち、到達済みなら null（拡張しない）
+export const extendRangeEnd = (end: Date, maxEnd: Date): Date | null => {
+	if (end.getTime() >= maxEnd.getTime()) return null;
+	const next = new Date(end);
+	next.setDate(next.getDate() + EXTENSION_STEP_DAYS);
+	return next.getTime() > maxEnd.getTime() ? new Date(maxEnd) : next;
+};
+
 
 export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
 	items, completedItems = [], onItemClick, capacityConfig, members,
@@ -117,6 +137,13 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 
 	const [allDays, setAllDays] = useState<Date[]>([]);
 	const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+
+	// [R-151] 拡張ラッチ: prepend 発火中は次の拡張を止め、useLayoutEffect の補正完了で解除する
+	const pendingPrependRef = useRef<{ prevScrollHeight: number; prevScrollTop: number } | null>(null);
+	// [R-151] 補正失敗（高さ差分≦0）で上方向拡張を停止し、無限 prepend を構造的に断つ
+	const extensionStoppedRef = useRef(false);
+	// [R-151] 拡張上限: 初期 range のアンカーから前後±24ヶ月
+	const rangeLimitRef = useRef<{ min: Date; max: Date } | null>(null);
 
 	// [R-038] グリッドビュー縦スクロール時、ビューポート中央のセル日付から表示月を算出。
 	// data-date 属性は normalizeDateKey() (= Date.toDateString()) で書かれているため、
@@ -331,6 +358,14 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		end.setDate(end.getDate() + (6 - endDayOfWeek));
 		end.setHours(23, 59, 59, 999);
 
+		// [R-151] range 再生成時に拡張上限を張り直し、拡張停止フラグを解除する
+		rangeLimitRef.current = {
+			min: new Date(anchor.getFullYear(), anchor.getMonth() - EXTENSION_LIMIT_MONTHS, 1),
+			max: new Date(anchor.getFullYear(), anchor.getMonth() + EXTENSION_LIMIT_MONTHS + 1, 0, 23, 59, 59, 999)
+		};
+		extensionStoppedRef.current = false;
+		pendingPrependRef.current = null;
+
 		setRange({ start, end });
 		// Reset scroll flag if we are doing a major jump to a distant date
 		if (range && (anchor < range.start || anchor > range.end)) {
@@ -371,6 +406,34 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			setHasInitialScrolled(true);
 		}
 	}, [allDays.length, hasInitialScrolled, scrollToDateElement, focusDate, today]);
+
+	// [R-151] 表示モード切替時は初期スクロールをやり直す。
+	// scrollTop=0（上方向拡張ゾーン）から表示が始まると拡張が点火して自走するため、
+	// focusDate（今日）を中央に置き直してから通常運転に入る
+	const prevDisplayModeRef = useRef(displayMode);
+	React.useEffect(() => {
+		if (prevDisplayModeRef.current === displayMode) return;
+		prevDisplayModeRef.current = displayMode;
+		extensionStoppedRef.current = false;
+		pendingPrependRef.current = null;
+		setHasInitialScrolled(false);
+	}, [displayMode]);
+
+	// [R-151] prepend 補正: allDays 反映後の DOM で高さ差分を測り scrollTop を補正する。
+	// rAF は React 再レンダーに間に合わず空振りして拡張が連鎖したため useLayoutEffect に変更。
+	// 補正成功でラッチ解除、失敗（差分≦0）なら上方向拡張を停止する
+	React.useLayoutEffect(() => {
+		const pending = pendingPrependRef.current;
+		const container = scrollContainerRef.current;
+		if (!pending || !container) return;
+		const addedHeight = container.scrollHeight - pending.prevScrollHeight;
+		if (addedHeight > 0) {
+			container.scrollTop = pending.prevScrollTop + addedHeight;
+		} else {
+			extensionStoppedRef.current = true;
+		}
+		pendingPrependRef.current = null;
+	}, [allDays]);
 
 	// [FIX] Process pending scroll targets AFTER range & allDays updates (Reactive Sync)
 	React.useEffect(() => {
@@ -425,35 +488,23 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (isMini || disableRangeExtension) return;
 
 		// Upward extension
+		// [R-151] ラッチ: 直前の prepend の scrollTop 補正が完了するまで次を発火しない。
+		// 補正失敗で停止した後も発火しない。上限は初期 range から前後±24ヶ月
 		if (scrollTop < 200 && range) {
-			// Record current scrollHeight to maintain position after prepend
-			const prevScrollHeight = scrollHeight;
-			const prevScrollTop = scrollTop;
+			if (pendingPrependRef.current || extensionStoppedRef.current || !rangeLimitRef.current) return;
+			const newStart = extendRangeStart(range.start, rangeLimitRef.current.min);
+			if (!newStart) return;
 
-			setRange(prev => {
-				if (!prev) return prev;
-				const newStart = new Date(prev.start);
-				newStart.setDate(newStart.getDate() - 28); // Add 4 weeks
-				return { ...prev, start: newStart };
-			});
-
-			// Adjust scrollTop in next frame to compensate for added height
-			requestAnimationFrame(() => {
-				const newScrollHeight = container.scrollHeight;
-				const addedHeight = newScrollHeight - prevScrollHeight;
-				if (addedHeight > 0) {
-					container.scrollTop = prevScrollTop + addedHeight;
-				}
-			});
+			pendingPrependRef.current = { prevScrollHeight: scrollHeight, prevScrollTop: scrollTop };
+			setRange(prev => (prev ? { ...prev, start: newStart } : prev));
+			// scrollTop 補正は allDays 反映後の useLayoutEffect で行う（rAF は再レンダーに間に合わず空振りする）
 		}
 		// Downward extension
 		else if (scrollTop + clientHeight > scrollHeight - 400 && range) {
-			setRange(prev => {
-				if (!prev) return prev;
-				const newEnd = new Date(prev.end);
-				newEnd.setDate(newEnd.getDate() + 28); // Add 4 weeks
-				return { ...prev, end: newEnd };
-			});
+			if (!rangeLimitRef.current) return;
+			const newEnd = extendRangeEnd(range.end, rangeLimitRef.current.max);
+			if (!newEnd) return;
+			setRange(prev => (prev ? { ...prev, end: newEnd } : prev));
 		}
 	}, [detectVisibleMonth, disableRangeExtension, isMini, onVisibleMonthChange, range]);
 
