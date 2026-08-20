@@ -21,12 +21,12 @@
 - [x] **R-148** 集計値の母集団1語ルール一括適用（2026-08-19 マージ `85e0a5e`・本番デプロイ済み）
 - [x] **R-150** ガント ホバー行の強調（2026-08-19 マージ `b3de7f9`・本番デプロイ済み）
 
-- [ ] **R-151** 本番グリッド切替時のスクロール暴走（507/401多発）の根絶（仕様: `docs/SPEC/03_画面設計.md` §5.1。台帳参照）
-  - [ ] 実装（`fix/R-151-calendar-scroll-runaway`）: 拡張ラッチ＋useLayoutEffect補正＋±24ヶ月上限／displayMode切替時の初期スクロール再実行／表示月250msデバウンス＋fetch世代abort
-  - [ ] レビュー・マージ・本番デプロイ・実機検証
-- [ ] **R-152** Google連携失効時の409連発の抑止（仕様: `docs/SPEC/02_機能仕様.md` F-06。台帳参照）
-  - [ ] 実装（`fix/R-152-google-409-guard`）: listCalendarsに`invalidated_at`ガード／useGoogleCalendarsにTTL5分キャッシュ
-  - [ ] レビュー・マージ・本番デプロイ・実機検証
+- [x] **R-151** 本番グリッド切替時のスクロール暴走（507/401多発）の根絶（仕様: `docs/SPEC/03_画面設計.md` §5.1。台帳参照）
+  - [x] 実装（`fix/R-151-calendar-scroll-runaway`）: 拡張ラッチ＋useLayoutEffect補正＋±24ヶ月上限／displayMode切替時の初期スクロール再実行／表示月250msデバウンス＋fetch世代abort
+  - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`ea227f0`、2026-08-20デプロイ・本番検証完了）
+- [x] **R-152** Google連携失効時の409連発の抑止（仕様: `docs/SPEC/02_機能仕様.md` F-06。台帳参照）
+  - [x] 実装（`fix/R-152-google-409-guard`）: listCalendarsに`invalidated_at`ガード／useGoogleCalendarsにTTL5分キャッシュ
+  - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`8d06751`、2026-08-20デプロイ・本番検証完了）
   - [ ] 運用: 発注者がGoogle再連携（設定画面から。コードでは復活しない）
 
 ## 次の候補（未着手）
