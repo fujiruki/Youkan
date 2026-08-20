@@ -142,6 +142,9 @@ class GoogleCalendarControllerTest {
         $this->testStatusInvalidatedFalseWhenNotInvalidated();
         $this->testGetEventsSkipsAutoSyncWhenInvalidated();
         $this->testRefreshReturnsFriendlyErrorOnInvalidGrant();
+        // [R-152] Google 連携失効時の 409 抑止
+        $this->testListCalendarsSkipsGoogleWhenInvalidated();
+        $this->testListCalendarsReturns200CachedOnInvalidGrant();
         echo "All tests passed!\n";
     }
 
@@ -543,6 +546,63 @@ class GoogleCalendarControllerTest {
         // invalidated_at が記録されているか
         $row = $this->pdo->query("SELECT invalidated_at FROM user_google_oauth WHERE user_id='user-1'")->fetch(PDO::FETCH_ASSOC);
         assert((int)$row['invalidated_at'] > 0, 'invalidated_at should be recorded via refresh() failure path');
+        echo " OK\n";
+    }
+
+    // ===== [R-152] Google 連携失効時の 409 抑止 =====
+
+    /**
+     * invalidated_at が非NULLのとき、listCalendars は Google API を一切呼ばず
+     * DB にキャッシュ済みのカレンダー一覧を 200 で返すこと（shouldAutoSync と同じ思想）。
+     */
+    private function testListCalendarsSkipsGoogleWhenInvalidated(): void {
+        echo "  [Test] GET /google/calendars skips Google API when invalidated (R-152)...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at, invalidated_at, last_error) VALUES (?, ?, 'primary', ?, ?, ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('rt'), $now - 86400, $now - 86400, $now - 100, 'invalid_grant']);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, color_hex, is_enabled, sort_order, created_at, updated_at) VALUES (?, 'primary', 'Primary', '#4285F4', 1, 0, ?, ?)")
+            ->execute(['user-1', $now, $now]);
+
+        $callsBefore = count($this->http->calls);
+        $res = $this->captureResponse(fn() => $this->controller->listCalendars());
+        $callsAfter = count($this->http->calls);
+
+        assert($callsAfter === $callsBefore, '失効中は Google API を叩かないはず。呼び出し数: ' . ($callsAfter - $callsBefore));
+        assert($res['status'] === null, '409 ではなく 200 で返すべき: ' . var_export($res['status'], true));
+        $list = $res['body']['calendars'] ?? null;
+        assert(is_array($list) && count($list) === 1, 'キャッシュ済み一覧が返るはず: ' . json_encode($res['body']));
+        assert($list[0]['calendar_id'] === 'primary', 'キャッシュ行の calendar_id が返るはず');
+        echo " OK\n";
+    }
+
+    /**
+     * リクエスト中に初めて invalid_grant を検知した場合も、409 ではなく
+     * キャッシュ済み一覧を 200 で返すこと（失効の事実は /google/oauth/status で伝える）。
+     */
+    private function testListCalendarsReturns200CachedOnInvalidGrant(): void {
+        echo "  [Test] GET /google/calendars returns 200 + cache on fresh invalid_grant (R-152)...";
+        $this->pdo->prepare("DELETE FROM user_google_oauth")->execute();
+        $this->pdo->prepare("DELETE FROM user_google_calendars")->execute();
+        $now = time();
+        // invalidated_at は NULL（まだ失効未検知）だがリフレッシュで invalid_grant が返る
+        $this->pdo->prepare("INSERT INTO user_google_oauth (user_id, encrypted_refresh_token, primary_calendar_id, last_sync_at, created_at) VALUES (?, ?, 'primary', ?, ?)")
+            ->execute(['user-1', $this->crypto->encrypt('1//dead'), $now - 86400, $now - 86400]);
+        $this->pdo->prepare("INSERT INTO user_google_calendars (user_id, calendar_id, summary, is_enabled, sort_order, created_at, updated_at) VALUES (?, 'primary', 'Primary', 1, 0, ?, ?)")
+            ->execute(['user-1', $now, $now]);
+
+        $this->http->enqueue(400, ['error' => 'invalid_grant', 'error_description' => 'expired']);
+
+        $res = $this->captureResponse(fn() => $this->controller->listCalendars());
+
+        assert($res['status'] === null, '409 を出さず 200 で返すべき: ' . var_export($res['status'], true));
+        $list = $res['body']['calendars'] ?? null;
+        assert(is_array($list) && count($list) === 1, 'キャッシュ済み一覧が返るはず: ' . json_encode($res['body']));
+
+        // invalidated_at は refreshAccessToken 内で記録済みであること
+        $row = $this->pdo->query("SELECT invalidated_at FROM user_google_oauth WHERE user_id='user-1'")->fetch(PDO::FETCH_ASSOC);
+        assert((int)$row['invalidated_at'] > 0, 'invalidated_at が記録されるはず');
         echo " OK\n";
     }
 }
