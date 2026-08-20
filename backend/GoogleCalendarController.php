@@ -221,13 +221,20 @@ class GoogleCalendarController extends BaseController {
      */
     public function listCalendars(): void {
         $this->authenticate();
+        // R-152: 失効中は Google API を呼ばず、DB キャッシュ済みの一覧を 200 で返す
+        // （shouldAutoSync と同じ思想。失効の事実は GET /google/oauth/status の invalidated フラグで伝える）
+        if ($this->service->isInvalidated($this->currentUserId)) {
+            $this->sendJSON(['calendars' => $this->service->fetchCalendarRows($this->currentUserId)]);
+            return;
+        }
         try {
             // Google から最新を取り込み（upsert + 論理削除）
             $list = $this->service->getCalendarList($this->currentUserId);
         } catch (GoogleOAuthInvalidGrantException $e) {
             // R-072: invalidated_at は GoogleCalendarService::refreshAccessToken() が既に記録済み。
+            // R-152: 初回検知時も 409 は出さず、キャッシュ済み一覧を 200 で返す
             error_log('listCalendars failed (invalid_grant): ' . $e->getMessage());
-            $this->sendError(409, 'Google 側で連携が解除されました。再連携してください');
+            $this->sendJSON(['calendars' => $this->service->fetchCalendarRows($this->currentUserId)]);
             return;
         } catch (\Throwable $e) {
             error_log('listCalendars failed: ' . $e->getMessage());

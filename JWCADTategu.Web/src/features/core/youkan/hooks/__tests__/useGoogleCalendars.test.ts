@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useGoogleCalendars } from '../useGoogleCalendars';
+import { useGoogleCalendars, __resetGoogleCalendarsCache } from '../useGoogleCalendars';
 import { GoogleCalendarApi, type GoogleCalendar } from '../../../../../api/googleCalendar';
 
 const mockCalendars: GoogleCalendar[] = [
@@ -12,6 +12,7 @@ const mockCalendars: GoogleCalendar[] = [
 describe('useGoogleCalendars', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        __resetGoogleCalendarsCache();
     });
 
     it('マウント時に getGoogleCalendars を呼び一覧を保持する', async () => {
@@ -82,6 +83,43 @@ describe('useGoogleCalendars', () => {
 
         expect(spy).toHaveBeenCalledTimes(2);
         expect(result.current.calendars).toHaveLength(4);
+    });
+
+    it('複数マウントで fetch が1回に集約される（R-152）', async () => {
+        const spy = vi
+            .spyOn(GoogleCalendarApi, 'getGoogleCalendars')
+            .mockResolvedValue({ calendars: mockCalendars });
+
+        const a = renderHook(() => useGoogleCalendars());
+        const b = renderHook(() => useGoogleCalendars());
+        const c = renderHook(() => useGoogleCalendars());
+
+        await waitFor(() => {
+            expect(a.result.current.loading).toBe(false);
+            expect(b.result.current.loading).toBe(false);
+            expect(c.result.current.loading).toBe(false);
+        });
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(a.result.current.calendars).toHaveLength(3);
+        expect(b.result.current.calendars).toHaveLength(3);
+        expect(c.result.current.calendars).toHaveLength(3);
+    });
+
+    it('TTL 内の再マウントは fetch しない（R-152）', async () => {
+        const spy = vi
+            .spyOn(GoogleCalendarApi, 'getGoogleCalendars')
+            .mockResolvedValue({ calendars: mockCalendars });
+
+        const first = renderHook(() => useGoogleCalendars());
+        await waitFor(() => expect(first.result.current.loading).toBe(false));
+        first.unmount();
+
+        const second = renderHook(() => useGoogleCalendars());
+        await waitFor(() => expect(second.result.current.loading).toBe(false));
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(second.result.current.calendars).toHaveLength(3);
     });
 
     it('fetch 失敗時には error を保持し calendars は空配列', async () => {
