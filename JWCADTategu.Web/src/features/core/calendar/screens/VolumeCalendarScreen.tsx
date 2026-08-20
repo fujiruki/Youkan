@@ -120,6 +120,25 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 		viewMode
 	});
 
+	// [R-151] スクロール中の表示月変化を 250ms デバウンスし、
+	// setCurrentDate → データ再取得（4本並列）が月をまたぐたびに連鎖するのを抑える
+	const visibleMonthTimerRef = React.useRef<number | null>(null);
+	React.useEffect(() => () => {
+		if (visibleMonthTimerRef.current !== null) window.clearTimeout(visibleMonthTimerRef.current);
+	}, []);
+	const handleVisibleMonthChange = React.useCallback((date: Date) => {
+		if (!isValid(date)) return;
+		if (visibleMonthTimerRef.current !== null) window.clearTimeout(visibleMonthTimerRef.current);
+		visibleMonthTimerRef.current = window.setTimeout(() => {
+			visibleMonthTimerRef.current = null;
+			setCurrentDate(prev =>
+				prev.getMonth() === date.getMonth() && prev.getFullYear() === date.getFullYear()
+					? prev
+					: new Date(date.getFullYear(), date.getMonth(), 1)
+			);
+		}, 250);
+	}, [setCurrentDate]);
+
 	const filterByMode = React.useCallback((item: Item) => {
 		return matchesCalendarFilterMode(item, filterMode);
 	}, [filterMode]);
@@ -309,11 +328,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					onUpdateCapacityException={handleUpdateCapacityException}
 					joinedTenants={auth.joinedTenants}
 					onDateClick={setSelectedDateForCapacity}
-					onVisibleMonthChange={(date) => {
-						if (isValid(date) && (date.getMonth() !== currentDate.getMonth() || date.getFullYear() !== currentDate.getFullYear())) {
-							setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
-						}
-					}}
+					onVisibleMonthChange={handleVisibleMonthChange}
 					hideHeader={true}
 					showGroups={showGanttGroups}
 					ganttColWidth={ganttColWidth}

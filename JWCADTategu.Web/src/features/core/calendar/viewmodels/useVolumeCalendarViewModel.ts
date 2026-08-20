@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { startOfMonth, endOfMonth, format, addMonths, subMonths } from 'date-fns';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../../youkan/types';
@@ -50,7 +50,14 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 	// [NEW] Use shared capacity hook
 	const { capacityConfig, refreshCapacityConfig, toggleHoliday, updateCapacityConfig } = useCapacityConfig();
 
+	// [R-151] 世代キャンセル: currentDate 連続変化時は前世代の取得を abort し、最後の1世代だけを state に反映する
+	const abortRef = useRef<AbortController | null>(null);
+
 	const loadData = useCallback(async () => {
+		abortRef.current?.abort();
+		const controller = new AbortController();
+		abortRef.current = controller;
+
 		setLoading(true);
 		try {
 			// RyokanCalendar initially renders current month +/- 2 months.
@@ -66,11 +73,14 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 			}
 
 			const [fetchedItems, fetchedCompleted, rawMembers, fetchedProjects] = await Promise.all([
-				ApiClient.request<Item[]>('GET', itemQuery),
-				ApiClient.request<Item[]>('GET', completedQuery).catch(() => [] as Item[]),
-				ApiClient.request<any[]>('GET', '/members'),
-				ApiClient.request<any[]>('GET', '/projects?scope=aggregated')
+				ApiClient.request<Item[]>('GET', itemQuery, undefined, false, controller.signal),
+				ApiClient.request<Item[]>('GET', completedQuery, undefined, false, controller.signal).catch(() => [] as Item[]),
+				ApiClient.request<any[]>('GET', '/members', undefined, false, controller.signal),
+				ApiClient.request<any[]>('GET', '/projects?scope=aggregated', undefined, false, controller.signal)
 			]);
+
+			// [R-151] abort 済み世代の応答は捨てる
+			if (controller.signal.aborted) return;
 
 			setItems(fetchedItems);
 			setCompletedItems(fetchedCompleted);
@@ -82,16 +92,22 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 
 			setError(null);
 		} catch (e: any) {
+			if (controller.signal.aborted) return; // abort は正常系
 			console.error(e);
 			setError('データ読み込みに失敗しました');
 		} finally {
-			setLoading(false);
+			if (!controller.signal.aborted) {
+				setLoading(false);
+			}
 		}
 	}, [currentDate, projectId, tenantId, viewMode, refreshCapacityConfig]);
 
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	// アンマウント時に飛行中の取得を中断する
+	useEffect(() => () => abortRef.current?.abort(), []);
 
 	const handleUpdateCapacityException = async (date: Date, totalMinutes: number, allocation: any) => {
 		if (!capacityConfig) return;

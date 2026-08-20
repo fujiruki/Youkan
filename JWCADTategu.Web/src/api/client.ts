@@ -51,10 +51,11 @@ export class ApiClient {
 		console.groupEnd();
 	}
 
-	public static async request<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
+	public static async request<T>(method: string, path: string, body?: any, silent = false, signal?: AbortSignal): Promise<T> {
 		// [R-044] in-flight dedup: GET の並行リクエストは 1 本に集約する
 		// 副作用のない GET のみ対象。同一 URL（クエリ込み）で in-flight があれば乗り合わせる。
-		if (method === 'GET') {
+		// [R-151] signal 付き GET は dedup に参加させない（相乗り相手が abort に巻き込まれるのを防ぐ）
+		if (method === 'GET' && !signal) {
 			const dedupKey = path;
 			const existing = this.inFlightGets.get(dedupKey);
 			if (existing) {
@@ -70,10 +71,10 @@ export class ApiClient {
 			});
 			return fresh;
 		}
-		return this.performRequest<T>(method, path, body, silent);
+		return this.performRequest<T>(method, path, body, silent, signal);
 	}
 
-	private static async performRequest<T>(method: string, path: string, body?: any, silent = false): Promise<T> {
+	private static async performRequest<T>(method: string, path: string, body?: any, silent = false, signal?: AbortSignal): Promise<T> {
 		const headers: HeadersInit = {
 			'Content-Type': 'application/json',
 		};
@@ -95,6 +96,7 @@ export class ApiClient {
 			method: actualMethod,
 			headers,
 			body: body ? JSON.stringify(body) : undefined,
+			signal,
 		};
 
 		const startTime = performance.now();
@@ -158,7 +160,8 @@ export class ApiClient {
 			}, true);
 
 			// Call global error handler if registered
-			if (this.errorHandler && error instanceof Error && !silent) {
+			// [R-151] abort（世代キャンセル）は正常系のためトースト等のエラー通知は出さない
+			if (this.errorHandler && error instanceof Error && !silent && error.name !== 'AbortError') {
 				this.errorHandler(error, method, path);
 			}
 
