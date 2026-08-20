@@ -1,9 +1,19 @@
 # Requests
 
-- **【高】** 本番でプロジェクトフォーカス中にグリッド表示カレンダーを開くと通信エラーが多発するバグの修正
-  - 2026-08-20 会話内発言原文: 「projectfocused　の状態でグリッド表示のカレンダーを見ようとしたら通信エラーが沢山でました」
-  - 本番コンソールログ: `/google/calendars` が 409（「Google 側で連携が解除されました。再連携してください」）を繰り返し返す／`/google/calendar/events`・`/calendar/completed`・`/user/profile`・`/calendar/items` が 507 や 401 を返す／`[ApiClient] Updating item ...` が多数連続実行されている
-  - 状態: 調査Agentで原因調査中
+- **【中】** 認証の自己HTTPコール廃止（`auth_client.php` driver=local化）
+  - 2026-08-20 R-151調査で判明: `df_session` 付きAPIリクエスト1本ごとに同一ホスト宛の `auth/verify` HTTPS を Cloudflare 経由で1往復（`auth_client.php:129-138`）。PHPワーカーを2倍消費し、507枯渇の増幅装置になった
+  - 対応案: `auth_verify_local`（同:148-165、実装済み）への切替＋auth-hub SQLite の WAL 化（`database is locked` が既に発生）。正本は auth-hub リポジトリ（各アプリへコピー配布）のため、修正は auth-hub 側で行い全アプリに波及させる
+  - 未着手（auth-hub 側プロジェクトの作業）
+
+- **【低】** カレンダーのアイテム更新後フル再取得（6本）を差分更新に
+  - 2026-08-20 R-151調査で判明: `VolumeCalendarScreen.tsx` の handleUpdate/handleDecision が更新のたび `refresh()`（6リクエスト）を呼び、1タップ最大26リクエスト。handleDecision は refresh 二重呼びあり
+  - 対応案: `updateItem` が返す `affectedDescendantIds` を使った差分更新。最低限、二重 refresh の統合
+  - 未着手
+
+- **【低】** 認証基盤障害と未ログインの区別（401→503+Retry-After）
+  - 2026-08-20 R-151調査で判明: auth/verify が5xxを返すと `auth_client.php:141-144` が null を返し、正規ログイン中ユーザーが「No token provided」401になる（過負荷だけでログアウト扱い）
+  - 対応案: トークン無効と基盤到達不能を区別し、後者は 503+Retry-After を返す（`BaseController.php:105-118`）
+  - 未着手
 
 - **【低】R-149候補** 時間表示の丸め不統一（行は `45m`、集計は `0.8h`）の統一
   - 2026-08-19 Codex レビュー #9（`timeParser.ts:29-36`, `weekLoad.ts:83-90`, `flowDateGrouping.ts:130-133`）。`formatMinutes` を集計側にも使うか、集計は h 固定で行だけ分表示を許容するかの方針決めが必要
