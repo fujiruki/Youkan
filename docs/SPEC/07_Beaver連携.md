@@ -164,6 +164,12 @@ unplaced        = max(0, remaining - placed)
 - 結果は保存しない（毎回計算）
 - Google外部予定（`external_events_cache`）はY1では配置済み負荷に含めない（既知の制限。現在連携失効中。将来拡張として本仕様に追記して対応する）
 
+### 7.2.1 実装補足（Y1実装時の確定事項）
+
+- 後ろ向き配分はフロント同様120日で打ち切る（超過分は切捨て）。配分量もフロント式 `estimated_minutes || work_days×480 || 60` に一致させる
+- 会社日次キャパの休日短絡は、フロントが閲覧者の `capacityConfig` を使うのに対し、バックエンドには閲覧者がいないため既定コンフィグ（平日480・土日0）で行う。フロント/バックの数値一致は共有フィクスチャ `backend/tests/fixtures/company_capacity_cases.json` で担保する
+- `unplaced=0` かつ納期ありは `feasible=true`（配置済みタスクの日付が納期を超えているかはY1では判定しない）
+
 ### 7.3 出力（案件ごと）
 
 ```json

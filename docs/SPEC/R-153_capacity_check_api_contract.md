@@ -5,7 +5,7 @@
 - 発行: Youkan開発AI（R-153 Y1、2026-08-25）
 - Youkan側仕様: `docs/SPEC/07_Beaver連携.md`
 - 対応するBeaver側契約: `Beaverリポジトリ docs/spec/R-0117_youkan_api_contract.md`（B1）
-- 状態: **ドラフト（Y1実装完了時に確定版へ更新）**
+- 状態: **確定（2026-08-25 Y1実装完了・全テストGreenを確認して確定）**
 - 契約バージョン: Y1（後方互換の追加はY2以降で行う。破壊的変更時は本文書を改版）
 
 ## 1. BeaverがcallするURL
@@ -81,6 +81,7 @@ Authorization: Bearer <BEAVER_CAPACITY_TOKEN>
 |:--|:--|:--|
 | 400 | `external_project_id` がない・整数でない | `{"error":"..."}` |
 | 401 | トークンなし・不一致 | `{"error":"..."}` |
+| 403 | トークンは有効だが、そのユーザーがYoukan側の連携対象テナントに所属していない | `{"error":"..."}` |
 | 404 | Beaver B1 APIが404を返した（案件が存在しない）、または除外ステータスのため取り込み対象外 | `{"error":"...","reason":"not_found"\|"excluded_status"}` |
 | 502 | YoukanからBeaver B1 APIへ到達できず、かつYoukan側に同期済みデータもない | `{"error":"..."}` |
 | 503 | Youkan側のBeaver連携設定（.env）が未設定 | `{"error":"..."}` |
