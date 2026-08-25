@@ -27,13 +27,13 @@ describe('BeaverApi', () => {
 				links: [{
 					external_project_id: 123,
 					youkan_project_id: 'p1',
-					name: '玄関引戸',
+					source_name: '玄関引戸',
 					source_status: '製造中',
 					sync_state: 'ok',
-					delivery_date: '2026-09-10',
+					source_delivery_date: '2026-09-10',
 					baseline_minutes: 1200,
 					baseline_source: 'estimate',
-					feasibility: {
+					check: {
 						feasible: false,
 						shortage_minutes: 180,
 						earliest_completion_date: '2026-09-12',
@@ -53,8 +53,10 @@ describe('BeaverApi', () => {
 			expect(res.links[0]).toMatchObject({
 				externalProjectId: 123,
 				youkanProjectId: 'p1',
+				name: '玄関引戸',
 				sourceStatus: '製造中',
 				syncState: 'ok',
+				deliveryDate: '2026-09-10',
 				baselineMinutes: 1200,
 			});
 			expect(res.links[0].feasibility).toMatchObject({
@@ -70,13 +72,13 @@ describe('BeaverApi', () => {
 				links: [{
 					external_project_id: 1,
 					youkan_project_id: 'p1',
-					name: 'A',
+					source_name: 'A',
 					source_status: 'キャンセル',
 					sync_state: 'ok',
-					delivery_date: null,
+					source_delivery_date: null,
 					baseline_minutes: null,
 					baseline_source: 'none',
-					feasibility: null
+					check: null
 				}],
 				last_synced_at: null,
 				last_error: null

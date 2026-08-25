@@ -49,33 +49,34 @@ interface BeaverFeasibilityRow {
 	message: string;
 }
 
+// backend/services/BeaverCapacityService.php buildOverview() の実応答形（source_*/check）
 interface BeaverLinkRow {
 	external_project_id: number;
 	youkan_project_id: string;
-	name: string;
+	source_name: string;
 	source_status: string | null;
 	sync_state: BeaverLink['syncState'];
-	delivery_date: string | null;
+	source_delivery_date: string | null;
 	baseline_minutes: number | null;
 	baseline_source: string | null;
-	feasibility: BeaverFeasibilityRow | null;
+	check: BeaverFeasibilityRow | null;
 }
 
 const toLink = (row: BeaverLinkRow): BeaverLink => ({
 	externalProjectId: row.external_project_id,
 	youkanProjectId: row.youkan_project_id,
-	name: row.name,
+	name: row.source_name,
 	sourceStatus: row.source_status,
 	syncState: row.sync_state,
-	deliveryDate: row.delivery_date,
+	deliveryDate: row.source_delivery_date,
 	baselineMinutes: row.baseline_minutes,
 	baselineSource: row.baseline_source,
-	feasibility: row.feasibility ? {
-		feasible: row.feasibility.feasible,
-		shortageMinutes: row.feasibility.shortage_minutes,
-		earliestCompletionDate: row.feasibility.earliest_completion_date,
-		deadline: row.feasibility.deadline,
-		message: row.feasibility.message,
+	feasibility: row.check ? {
+		feasible: row.check.feasible,
+		shortageMinutes: row.check.shortage_minutes,
+		earliestCompletionDate: row.check.earliest_completion_date,
+		deadline: row.check.deadline,
+		message: row.check.message,
 	} : null,
 });
 
