@@ -1,5 +1,12 @@
 # Requests
 
+- **【低】** バックエンド既存テストの既往失敗4件の棚卸し（R-153マージ検証で確認。masterでも同一再現、R-153とは無関係）
+  - (1) `backend/tests/QuantityServiceTest.php` Context Logic が `Expected 150 (60+90), got 180`（62行目）でFatal error。テストと実装のどちらが正か要調査
+  - (2) `backend/tests/feature_dashboard_scope.php` 実DB直書きのレガシースクリプトで、過去実行の残存データによりINSERT一意制約違反（書き込みは失敗しており実DBは汚していない）
+  - (3) `backend/tests/test_real_project_title_join.php` 1件fail（GdbControllerのSQL検証「修正前」ラベルのアサーション）
+  - (4) `backend/tests/test_improvement_request_controller.php`・`test_stocks_unauthenticated_access.php` はPHP内蔵サーバー起動型でサンドボックス実行時にハング
+  - 未着手（デプロイブロッカーにはしない。発注者判断 2026-08-26）
+
 - **【中】** 認証の自己HTTPコール廃止（`auth_client.php` driver=local化）
   - 2026-08-20 R-151調査で判明: `df_session` 付きAPIリクエスト1本ごとに同一ホスト宛の `auth/verify` HTTPS を Cloudflare 経由で1往復（`auth_client.php:129-138`）。PHPワーカーを2倍消費し、507枯渇の増幅装置になった
   - 対応案: `auth_verify_local`（同:148-165、実装済み）への切替＋auth-hub SQLite の WAL 化（`database is locked` が既に発生）。正本は auth-hub リポジトリ（各アプリへコピー配布）のため、修正は auth-hub 側で行い全アプリに波及させる
@@ -59,6 +66,7 @@
   - 2026-06-11 ユーザー発言: 「のちのちBeaverという自作の案件管理システムの案件からタスク登録とか引用できたらいいなとは思っているけど、いまはいい」
   - Beaver は `C:\Fujiruki\Projects\Beaver`（フロント 5178 / バック 8003）
   - 着手時は連携方向（Beaver→Youkan のタスク取り込み or 双方向）・認証方式から仕様詰めが必要
+  - 2026-08-26 発注者判断: R-153（Y1）へは統合しない。Beaver B3（見積内訳公開）→ Youkan Y2（段階分解）と重なるため、B3→Y2着手時に再評価する
 
 
 - **【中】** マネージャーAI連携用API（晴樹さん行動分析）
@@ -106,6 +114,7 @@
   - 2026-08-12 04:40 原文: 「youkanトbeaverの連携を考えてほしい。たとえばbeaverで作った案件がプロジェクトとしてyoukanに登録されて、beaverの案件画面から『youkanで開く』ボタンを押したらｙｏｕｋａｎでプロジェクトフォーカスの状態で全体一覧画面が開いているとか。つまりyoukanでその案件のプロジェクトのタスク一覽を開ける。」
   - 発注者指定: 8/30以降に着手（それまでは仕様検討も含め着手しない）
   - 既存の低優先度項目（本ファイル内「Beaver連携: 案件からのタスク登録・引用」）と統合検討
+  - 2026-08-26 発注者判断: R-153（Y1）へは統合しない。「Youkanで開く」ボタンはBeaver案件→対応Youkanプロジェクトへの導線であり、Beaver B2のBeaver側UIと一緒に設計するのが自然なため、B2着手時に再評価する
 
 
 - **【高】** ガント「前に挿入」「後に挿入」で依存関係も自動的に繋ぎ直す
