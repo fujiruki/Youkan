@@ -13,6 +13,8 @@ import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../types';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
+import { useBeaverIntegration, beaverConclusion, formatBeaverSyncedAt } from '../viewmodels/useBeaverIntegration';
+import { BeaverLink } from '../../../../api/beaver';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void }> = ({ onSelect }) => {
 	const {
@@ -35,6 +37,9 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 	const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
 	const { joinedTenants } = useAuth();
+
+	// [R-153] Beaver連携（overview取得失敗時はnullとなり、Beaver UIは一切出さない）
+	const { overview: beaverOverview, linkByProjectId, syncNow, syncing, syncFailed } = useBeaverIntegration();
 
 	// Derived state for filtering
 	const rawFilteredProjects = activeScope === 'company'
@@ -186,6 +191,22 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 					</h1>
 				</div>
 				<div className="flex items-center gap-2">
+					{beaverOverview && (
+						<div className="flex items-center gap-2">
+							<span className="text-[10px] text-slate-400">
+								{(syncFailed || beaverOverview.lastError)
+									? `同期できませんでした（前回同期: ${formatBeaverSyncedAt(beaverOverview.lastSyncedAt)}）`
+									: `前回同期: ${formatBeaverSyncedAt(beaverOverview.lastSyncedAt)}`}
+							</span>
+							<button
+								onClick={syncNow}
+								disabled={syncing}
+								className="px-2 py-1 rounded-md text-[10px] font-bold text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+							>
+								今すぐ同期
+							</button>
+						</div>
+					)}
 					<button
 						onClick={() => handleCreate()}
 						className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-[11px] font-black flex items-center gap-1.5 shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase tracking-tighter"
@@ -296,6 +317,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 														key={project.id}
 														project={project}
 														members={members}
+														beaverLink={linkByProjectId.get(String(project.id))}
 														onSelect={() => { onSelect(project); setLastTargetId(String(project.id)); }}
 														onEdit={() => handleEdit(project)}
 														onContextMenu={(e) => handleContextMenu(e, String(project.id))}
@@ -314,6 +336,7 @@ export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => v
 										key={project.id}
 										project={project}
 										members={members}
+										beaverLink={linkByProjectId.get(String(project.id))}
 										onSelect={() => { onSelect(project); setLastTargetId(String(project.id)); }}
 										onEdit={() => handleEdit(project)}
 										onContextMenu={(e) => handleContextMenu(e, String(project.id))}
@@ -463,7 +486,8 @@ const ProjectCard: React.FC<{
 	onContextMenu: (e: React.MouseEvent) => void;
 	members?: any[];
 	onAssign?: (id: string | null) => void;
-}> = ({ project, onSelect, onEdit, onContextMenu, members = [], onAssign }) => {
+	beaverLink?: BeaverLink;
+}> = ({ project, onSelect, onEdit, onContextMenu, members = [], onAssign, beaverLink }) => {
 	const getStatusBgColor = (status: string) => {
 		switch (status) {
 			case 'focus': return 'bg-blue-50/40 dark:bg-blue-900/10';
@@ -498,6 +522,23 @@ const ProjectCard: React.FC<{
 				<h3 className="text-sm font-bold text-slate-800 dark:text-white mt-[3px] mb-1 break-words leading-tight">
 					{project.title || project.name}
 				</h3>
+
+				{/* [R-153] Beaverバッジ＋結論1行 */}
+				{beaverLink && (() => {
+					const conclusion = beaverConclusion(beaverLink);
+					return (
+						<div className="flex items-center gap-1.5 mb-1">
+							<span data-testid="beaver-badge" className="text-[9px] font-bold px-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0">
+								Beaver
+							</span>
+							{conclusion && (
+								<span className={`text-[10px] leading-tight ${conclusion.shortage ? 'text-red-600' : 'text-slate-500 dark:text-slate-400'}`}>
+									{conclusion.text}
+								</span>
+							)}
+						</div>
+					);
+				})()}
 
 				<div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mb-1">
 					<div className="flex items-center gap-1">
