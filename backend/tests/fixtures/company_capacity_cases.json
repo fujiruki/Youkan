@@ -1,0 +1,43 @@
+{
+  "description": "R-153: 会社日次キャパ（memberships.is_core=1 の合計）のフロント/バック同一性フィクスチャ。TS側 companyCapacity.fixture.test.ts / PHP側 test_r153_company_capacity_fixture.php が共有する。定義を変えるときはこのファイルを先に変える。",
+  "tenant_id": "t_fix",
+  "capacity_config": {
+    "defaultDailyMinutes": 480,
+    "holidays": [],
+    "exceptions": {}
+  },
+  "members": [
+    {
+      "userId": "u_1",
+      "isCore": true,
+      "dailyCapacityMinutes": 480,
+      "capacityProfile": null
+    },
+    {
+      "userId": "u_2",
+      "isCore": true,
+      "dailyCapacityMinutes": 300,
+      "capacityProfile": {
+        "standardWeeklyPattern": { "1": 240, "3": 0 },
+        "exceptions": { "2026-09-02": 60 },
+        "defaultCompanyWeeklyPattern": { "5": { "t_fix": 120 } },
+        "dailyCompanyExceptions": { "2026-09-04": { "t_fix": 0 } }
+      }
+    },
+    {
+      "userId": "u_3",
+      "isCore": false,
+      "dailyCapacityMinutes": 480,
+      "capacityProfile": null
+    }
+  ],
+  "cases": [
+    { "name": "月曜: 曜日パターン(240)＋既定(480)", "date": "2026-08-31", "expected_minutes": 720 },
+    { "name": "火曜: パターン未定義はdailyCapacityMinutes(300)", "date": "2026-09-01", "expected_minutes": 780 },
+    { "name": "水曜: 日別例外(60)が曜日パターン(0)より優先", "date": "2026-09-02", "expected_minutes": 540 },
+    { "name": "金曜: 会社別日別例外(0)が会社別曜日パターン(120)より優先", "date": "2026-09-04", "expected_minutes": 480 },
+    { "name": "土曜: 既定の週休2日で会社キャパ0", "date": "2026-09-05", "expected_minutes": 0 },
+    { "name": "水曜: 曜日パターン0は定休日", "date": "2026-09-09", "expected_minutes": 480 },
+    { "name": "金曜: 会社別曜日パターン(120)", "date": "2026-09-11", "expected_minutes": 600 }
+  ]
+}

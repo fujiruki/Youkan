@@ -4,6 +4,8 @@ require_once 'BaseController.php';
 require_once 'QuantityService.php';
 require_once 'ReviewQueueService.php';
 require_once 'TodayController.php';
+require_once __DIR__ . '/services/BeaverSyncService.php';
+require_once __DIR__ . '/services/BeaverCapacityService.php';
 
 class IntegrationController extends BaseController {
 
@@ -13,10 +15,104 @@ class IntegrationController extends BaseController {
             $this->createInboxItem();
         } elseif (preg_match('#^/digest$#', $path) && $method === 'GET') {
             $this->digest();
+        } elseif (preg_match('#^/beaver/sync$#', $path) && $method === 'POST') {
+            $this->beaverSync();
+        } elseif (preg_match('#^/beaver/overview$#', $path) && $method === 'GET') {
+            $this->beaverOverview();
+        } elseif (preg_match('#^/beaver/capacity-check$#', $path) && $method === 'POST') {
+            $this->beaverCapacityCheck();
         } else {
             http_response_code(404);
             echo json_encode(['error' => 'Integration endpoint not found']);
         }
+    }
+
+    // ---- R-153 Beaver連携（docs/SPEC/07_Beaver連携.md §5・§7・§8） ----
+
+    /** テスト差し替え用ファクトリ。`.env` 未設定ならnull（呼び出し側で503） */
+    protected function makeBeaverSyncService(): ?BeaverSyncService {
+        return BeaverSyncService::fromEnv($this->pdo);
+    }
+
+    protected function makeBeaverCapacityService(BeaverSyncService $svc): BeaverCapacityService {
+        return new BeaverCapacityService($this->pdo, $svc->getTenantId(), $svc->getExcludedStatuses());
+    }
+
+    /** reason等の追加フィールド付きエラー応答（capacity-check契約§6） */
+    protected function sendErrorJson(int $code, array $payload) {
+        header('Content-Type: application/json', true, $code);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /** 共通ガード: `.env` 設定→503、認証、対象テナント所属→403 */
+    private function requireBeaverService(): BeaverSyncService {
+        $svc = $this->makeBeaverSyncService();
+        if ($svc === null) {
+            $this->sendError(503, '.env に BEAVER_API_BASE / BEAVER_API_TOKEN / BEAVER_TENANT_ID を設定してください');
+        }
+        $this->authenticate();
+        if (!in_array($svc->getTenantId(), $this->joinedTenants, true)) {
+            $this->sendError(403, 'Access Denied: not a member of the sync target tenant');
+        }
+        return $svc;
+    }
+
+    /** POST /integrations/beaver/sync（§5.1: diff/full同期・クールダウン120秒） */
+    private function beaverSync() {
+        $svc = $this->requireBeaverService();
+        $input = $this->getInput();
+        $mode = ($input['mode'] ?? 'diff') === 'full' ? 'full' : 'diff';
+        $force = (bool)($input['force'] ?? false);
+        $this->sendJSON($svc->sync($mode, $force, $this->currentUserId));
+    }
+
+    /** GET /integrations/beaver/overview（§8: 全リンク＋負荷値＋判定結果＋同期状態） */
+    private function beaverOverview() {
+        $svc = $this->requireBeaverService();
+        $this->sendJSON($this->makeBeaverCapacityService($svc)->buildOverview());
+    }
+
+    /**
+     * POST /integrations/beaver/capacity-check（契約の正本: docs/SPEC/R-153_capacity_check_api_contract.md）
+     * 判定前にBeaver単体GETで対象案件を再取得。失敗時はリンクがあれば前回同期値で200＋message注記。
+     */
+    private function beaverCapacityCheck() {
+        $svc = $this->requireBeaverService();
+        $input = $this->getInput();
+        $extId = $input['external_project_id'] ?? null;
+        if (!is_int($extId)) {
+            $this->sendError(400, 'external_project_id は整数で指定してください');
+        }
+
+        $fetch = $svc->fetchProject($extId);
+        $degradedNote = null;
+        if ($fetch['ok']) {
+            $result = $svc->upsertProject($fetch['project'], $this->currentUserId);
+            if ($result === 'skipped_excluded') {
+                $this->sendErrorJson(404, ['error' => '除外ステータスのため取り込み対象外です', 'reason' => 'excluded_status']);
+            }
+        } elseif ($fetch['status'] === 404) {
+            // Beaver側に存在しない。既存リンクは missing_upstream として残す（自動削除しない）
+            $this->pdo->prepare("UPDATE external_project_links SET sync_state = 'missing_upstream' WHERE tenant_id = ? AND source_system = 'beaver' AND external_project_id = ?")
+                ->execute([$svc->getTenantId(), (string)$extId]);
+            $this->sendErrorJson(404, ['error' => 'Beaverに案件が存在しません', 'reason' => 'not_found']);
+        } else {
+            $degradedNote = '（Beaver再取得失敗・前回同期値で判定）';
+        }
+
+        $check = $this->makeBeaverCapacityService($svc)->checkProject($extId);
+        if ($check === null) {
+            if ($degradedNote !== null) {
+                $this->sendError(502, 'Beaverへ到達できず、同期済みデータもありません');
+            }
+            $this->sendErrorJson(404, ['error' => 'Beaverに案件が存在しません', 'reason' => 'not_found']);
+        }
+        if ($degradedNote !== null) {
+            $check['message'] .= $degradedNote;
+        }
+        $check['evaluated_at'] = (new DateTime('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m-d\TH:i:sP');
+        $this->sendJSON($check);
     }
 
     private function createInboxItem() {
