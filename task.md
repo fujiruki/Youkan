@@ -1,36 +1,19 @@
 # Youkan — 現在のタスク
 
-2026-08-18〜19 セッション（R-125〜R-150、R-144除く）はすべて本番反映済み。詳細は `docs/handover/2026-08-19-R139-R150-session.md`。
+前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。
 
-## 進行中
-- [x] **R-140** 番頭連携API: `GET /integrations/digest` ＋ 個人設定「外部連携トークン」（仕様: `docs/SPEC/02_機能仕様.md` F-56 ほか。台帳: `docs/requests_log.md`）
-  - [x] 実装（`feature/R-140-integrations-digest` `b059779`）
-  - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`cb60d79`、2026-08-19デプロイ・本番検証完了）
-  - [x] 番頭側へ「依頼事項 §1・§2・§6 は digest に置き換え」（`docs/handover/2026-08-18-番頭への依頼事項.md` 末尾に追記。番頭プロジェクト側の対応は frontPC で）
+## R-153 Beaver連携Y1（仕様: `docs/SPEC/07_Beaver連携.md` 正本）
 
-- [x] **R-141** inbox 登録の `created_by`／`tenant_id` 未設定バグ（R-140 実装中に発見。台帳参照）
+- [x] Phase 1-3: 要望記録・仕様確定（07_Beaver連携.md、R-153_capacity_check_api_contract.md ドラフト、F-58、04/06更新、台帳記録）
+- [ ] Phase 4a: バックエンド実装（Agent委譲、ブランチ `feature/R-153-beaver-sync-backend`）
+  - [ ] テストファースト: 同期冪等性・max(基準,分解済み)・未配置負荷・除外ステータス・縮退・キャパのフロント一致フィクスチャ
+  - [ ] `external_project_links`/`external_sync_state` テーブル（db.php ensureTables）
+  - [ ] Beaver同期サービス（HttpClient利用、diff/full、クールダウン120秒、upsert規則§5.2）
+  - [ ] 負荷モデル§6＋EDFシミュレーション§7（QuantityService拡張）
+  - [ ] `POST /integrations/beaver/sync`・`GET /integrations/beaver/overview`・`POST /integrations/beaver/capacity-check`
+- [ ] Phase 4b: フロントエンド実装（Agent委譲、ブランチ `feature/R-153-beaver-ui`）
+  - [ ] ProjectRegistryScreen最小統合（バッジ＋結論1行＋今すぐ同期ボタン、§9）
+- [ ] Phase 5: レビュー・マージ・全テストGreen・tsc
+- [ ] Y1終了: capacity-check API契約書を確定版に更新し、発注者へ報告して停止（Y2に進まない）
 
-- [x] **R-142** フロー・状況把握から開いた詳細モーダルのテナント/プロジェクト誤表示（props 渡し漏れ）。台帳参照
-- [x] **R-143** 右クリックメニュー「後日着手 (h)」統一追加
-- [ ] **R-144** 予実管理 v1（押し出し見込トークン＋連鎖3択）: 仕様確定・**実装は発注者指示で後日**（F-57）
-- [x] **R-145** ガント時間軸の 24h はみ出しブロック極小表示バグ（2026-08-19 マージ `8908ca7`・本番デプロイ済み）
-
-- [x] **R-146** ガント プロジェクト別表示でも日付ヘッダー合計時間・CapacityBar（2026-08-19 マージ `7fad73f`・本番デプロイ済み）
-
-- [x] **R-147** 週負荷分母の明文化＋超過分パネル編集対象を有効締切に（2026-08-19 マージ `85e0a5e`・本番デプロイ済み）
-- [x] **R-148** 集計値の母集団1語ルール一括適用（2026-08-19 マージ `85e0a5e`・本番デプロイ済み）
-- [x] **R-150** ガント ホバー行の強調（2026-08-19 マージ `b3de7f9`・本番デプロイ済み）
-
-- [x] **R-151** 本番グリッド切替時のスクロール暴走（507/401多発）の根絶（仕様: `docs/SPEC/03_画面設計.md` §5.1。台帳参照）
-  - [x] 実装（`fix/R-151-calendar-scroll-runaway`）: 拡張ラッチ＋useLayoutEffect補正＋±24ヶ月上限／displayMode切替時の初期スクロール再実行／表示月250msデバウンス＋fetch世代abort
-  - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`ea227f0`、2026-08-20デプロイ・本番検証完了）
-- [x] **R-152** Google連携失効時の409連発の抑止（仕様: `docs/SPEC/02_機能仕様.md` F-06。台帳参照）
-  - [x] 実装（`fix/R-152-google-409-guard`）: listCalendarsに`invalidated_at`ガード／useGoogleCalendarsにTTL5分キャッシュ
-  - [x] レビュー・マージ・本番デプロイ・実機検証（マージ`8d06751`、2026-08-20デプロイ・本番検証完了）
-  - [ ] 運用: 発注者がGoogle再連携（設定画面から。コードでは復活しない）— **2026-08-25 に実施予定**（発注者指定）。それまでGoogle予定が非表示なのは正常
-
-## 次の候補（未着手）
-- R-149候補: 時間丸めの統一
-- R-126（親）の残論点: todo→focus自動推薦、review_date通知
-- 活動履歴API（R-140 で見送り。マネージャーAI連携の要望が具体化したら）
-- `.claude/worktrees/` の残骸（R-101, agent-a31a20361bb197614, feature-R109-flow-date-grouping。ロック中で削除不可、手動削除）
+デプロイは発注者確認後（Y1指示には含まれない）。

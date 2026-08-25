@@ -17,6 +17,8 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 | 04 | [データ設計](spec/04_データ設計.md) | DB設計・状態定義・API設計 | 2026-03-24 |
 | 05 | [技術設計](spec/05_技術設計.md) | 技術スタック・アーキテクチャ | 2026-03-24 |
 | 06 | [変更履歴](spec/06_変更履歴.md) | 仕様変更の経緯と理由 | 2026-06-15 |
+| 07 | [Beaver連携](spec/07_Beaver連携.md) | Beaver案件の受け口・未配置負荷・容量シミュレーション（Y1、R-153） | 2026-08-25 |
+| - | [capacity-check API契約](spec/R-153_capacity_check_api_contract.md) | Beaver B2向けに公開する容量判定API契約（Y1成果物） | 2026-08-25 |
 
 ---
 
