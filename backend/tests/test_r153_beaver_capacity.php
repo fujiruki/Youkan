@@ -237,6 +237,9 @@ assert_true('不正トークンは401', $code === 401, "code=$code");
 $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer sk_out2';
 [$code] = callBeaver('POST', '/beaver/capacity-check', ['external_project_id' => 101]);
 assert_true('対象テナント非所属トークンは403', $code === 403, "code=$code");
+$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer sk_cap';
+[$code] = callBeaver('GET', '/beaver/capacity-check', ['external_project_id' => 101]);
+assert_true('POST以外（GET）は405（契約§1: POSTのみ）', $code === 405, "code=$code");
 
 echo "\n=== テスト9: overview エンドポイント ===\n";
 $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . JWTService::encrypt(['sub' => 'u_cap', 'tenant_id' => 't_cap', 'role' => 'owner', 'exp' => time() + 3600]);

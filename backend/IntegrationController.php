@@ -19,7 +19,10 @@ class IntegrationController extends BaseController {
             $this->beaverSync();
         } elseif (preg_match('#^/beaver/overview$#', $path) && $method === 'GET') {
             $this->beaverOverview();
-        } elseif (preg_match('#^/beaver/capacity-check$#', $path) && $method === 'POST') {
+        } elseif (preg_match('#^/beaver/capacity-check$#', $path)) {
+            if ($method !== 'POST') {
+                $this->sendError(405, 'Method Not Allowed');
+            }
             $this->beaverCapacityCheck();
         } else {
             http_response_code(404);
