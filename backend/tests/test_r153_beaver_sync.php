@@ -80,7 +80,7 @@ $http->enqueue(200, ['data' => [
 $res = $svc->sync('full', true, 'u_a');
 assert_true('created=1（除外案件は作られない）', ($res['created'] ?? null) === 1, json_encode($res, JSON_UNESCAPED_UNICODE));
 assert_true('synced=2', ($res['synced'] ?? null) === 2);
-assert_true('error=null', ($res['error'] ?? 'x') === null);
+assert_true('error=null', array_key_exists('error', $res) && $res['error'] === null);
 assert_true('skipped=false', ($res['skipped'] ?? null) === false);
 assert_true('(b) itemsはプロジェクト1行のみ（baselineはitems行にならない）', $countItems() === 1 && $countProjects() === 1, 'items=' . $countItems());
 assert_true('リンクは1件のみ（除外案件のリンクなし）', $countLinks() === 1);
@@ -92,7 +92,7 @@ assert_true('プロジェクトitemの内容（title/due_date/client_name/create
 assert_true('除外案件902のリンク・itemは作られない', $getLink(902) === null);
 $state = $svc->getSyncState();
 assert_true('last_updated_after=最大updated_at', ($state['last_updated_after'] ?? null) === '2026-08-25T09:00:00+09:00', json_encode($state));
-assert_true('last_synced_at が入る・last_error=null', !empty($state['last_synced_at']) && ($state['last_error'] ?? 'x') === null);
+assert_true('last_synced_at が入る・last_error=null', !empty($state['last_synced_at']) && $state['last_error'] === null);
 
 echo "\n=== テスト2: (a) 同じ案件の再同期で増殖しない ===\n";
 $http->enqueue(200, ['data' => [bvrProject(901)], 'next_cursor' => null]);
@@ -173,7 +173,7 @@ $res = $svc->sync('full', true, 'u_a');
 assert_true('HTTP 500でも縮退（データ維持・error返却）', !empty($res['error']) && $countLinks() === $linksBefore);
 $http->enqueue(200, ['data' => [], 'next_cursor' => null]);
 $svc->sync('diff', true, 'u_a');
-assert_true('成功で last_error がクリアされる', ($svc->getSyncState()['last_error'] ?? 'x') === null);
+assert_true('成功で last_error がクリアされる', $svc->getSyncState()['last_error'] === null);
 
 echo "\n=== テスト9: 除外ステータスへの変化でも削除しない ===\n";
 $http->enqueue(200, ['data' => [bvrProject(903, ['status' => 'キャンセル', 'updated_at' => '2026-08-28T09:00:00+09:00'])], 'next_cursor' => null]);

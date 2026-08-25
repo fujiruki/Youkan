@@ -110,7 +110,7 @@ assert_true('201: message=「入ります」', ($check201['message'] ?? null) ==
 $load202 = $byExt[202]['load'] ?? [];
 assert_true('(c)超過: baseline=300 / decomposed=360 / effective_total=360（基準は上書きしない）', ($load202['baseline'] ?? null) === 300 && ($load202['decomposed'] ?? null) === 360 && ($load202['effective_total'] ?? null) === 360, json_encode($load202));
 $check202 = $byExt[202]['check'] ?? [];
-assert_true('202: 納期なしは feasible=false / shortage=0', ($check202['feasible'] ?? null) === false && ($check202['shortage_minutes'] ?? null) === 0 && ($check202['deadline'] ?? 'x') === null, json_encode($check202));
+assert_true('202: 納期なしは feasible=false / shortage=0', ($check202['feasible'] ?? null) === false && ($check202['shortage_minutes'] ?? null) === 0 && array_key_exists('deadline', $check202) && $check202['deadline'] === null, json_encode($check202));
 assert_true('202: EDFで201の後に充当され earliest=2026-08-26', ($check202['earliest_completion_date'] ?? null) === '2026-08-26', json_encode($check202));
 assert_true('202: message=「納期未設定・残り6h」', ($check202['message'] ?? null) === '納期未設定・残り6h', json_encode($check202['message'] ?? null, JSON_UNESCAPED_UNICODE));
 assert_true('overviewに last_synced_at / last_error', array_key_exists('last_synced_at', $ov) && array_key_exists('last_error', $ov));

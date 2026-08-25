@@ -460,7 +460,37 @@ function ensureTables($pdo) {
             UNIQUE(user_id, calendar_id),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )",
-        "CREATE INDEX IF NOT EXISTS idx_user_google_calendars_user ON user_google_calendars(user_id, is_enabled)"
+        "CREATE INDEX IF NOT EXISTS idx_user_google_calendars_user ON user_google_calendars(user_id, is_enabled)",
+        // [R-153] Beaver連携: Beaver由来値はitems.metaに置かずリンクテーブルへ（docs/SPEC/07_Beaver連携.md §4）
+        "CREATE TABLE IF NOT EXISTS external_project_links (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            source_system TEXT NOT NULL DEFAULT 'beaver',
+            external_project_id TEXT NOT NULL,
+            youkan_project_id TEXT NOT NULL,
+            source_name TEXT,
+            source_code TEXT,
+            source_customer_name TEXT,
+            source_status TEXT,
+            source_delivery_date TEXT,
+            baseline_minutes INTEGER,
+            baseline_source TEXT,
+            baseline_updated_at TEXT,
+            source_updated_at TEXT,
+            sync_state TEXT NOT NULL DEFAULT 'ok',
+            last_synced_at INTEGER,
+            created_at INTEGER NOT NULL,
+            UNIQUE(tenant_id, source_system, external_project_id)
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_epl_youkan_project ON external_project_links(youkan_project_id)",
+        "CREATE TABLE IF NOT EXISTS external_sync_state (
+            tenant_id TEXT NOT NULL,
+            source_system TEXT NOT NULL,
+            last_updated_after TEXT,
+            last_synced_at INTEGER,
+            last_error TEXT,
+            PRIMARY KEY(tenant_id, source_system)
+        )"
     ];
 
     foreach ($commands as $sql) {
