@@ -13,7 +13,7 @@ import { DecisionDetailModal } from '../components/Modal/DecisionDetailModal';
 import { ApiClient } from '../../../../api/client';
 import { Item } from '../types';
 import { useItemContextMenu } from '../hooks/useItemContextMenu';
-import { useBeaverIntegration, beaverConclusion, formatBeaverSyncedAt } from '../viewmodels/useBeaverIntegration';
+import { useBeaverIntegration, beaverConclusion, formatBeaverSyncedAt, workPackageDecomposeLine, workPackageRowLine } from '../viewmodels/useBeaverIntegration';
 import { BeaverLink } from '../../../../api/beaver';
 
 export const ProjectRegistryScreen: React.FC<{ onSelect: (project: Project) => void }> = ({ onSelect }) => {
@@ -539,6 +539,32 @@ const ProjectCard: React.FC<{
 						</div>
 					);
 				})()}
+
+				{/* [R-154] work_package段階分解: 分解済み/未分解・超過1行 */}
+				{beaverLink && beaverLink.workPackages.length > 0 && (
+					<div data-testid="beaver-decompose-line" className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">
+						{workPackageDecomposeLine(beaverLink)}
+					</div>
+				)}
+
+				{/* [R-154] work_package行（depth+1インデント） */}
+				{beaverLink && beaverLink.workPackages.length > 0 && (
+					<div className="flex flex-col gap-0.5 mb-1 pl-2 border-l border-slate-200 dark:border-slate-700">
+						{beaverLink.workPackages.map(wp => (
+							<div key={wp.externalWorkPackageId} data-testid="beaver-work-package-row" className="text-[9px] text-slate-500 dark:text-slate-400">
+								<div className="flex items-center gap-1">
+									<span className="truncate">{wp.label}</span>
+									{wp.syncState === 'missing_upstream' && (
+										<span className="text-[8px] font-bold px-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 shrink-0">
+											Beaver側から消えています・要確認
+										</span>
+									)}
+								</div>
+								<div className="text-slate-400 dark:text-slate-500">{workPackageRowLine(wp)}</div>
+							</div>
+						))}
+					</div>
+				)}
 
 				<div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 mb-1">
 					<div className="flex items-center gap-1">

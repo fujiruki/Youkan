@@ -65,6 +65,7 @@ const makeOverview = (linkOverrides: Partial<BeaverOverview['links'][number]> = 
 			deadline: '2026-09-10',
 			message: '入ります',
 		},
+		workPackages: [],
 		...linkOverrides,
 	}],
 	lastSyncedAt: 1756100000,
@@ -172,5 +173,135 @@ describe('R-153: ProjectRegistryScreen Beaver最小統合', () => {
 		fireEvent.click(button);
 
 		expect(await screen.findByText(/同期できませんでした（前回同期: /)).toBeInTheDocument();
+	});
+});
+
+describe('R-154: ProjectRegistryScreen work_package段階分解表示', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		viewModelMock.projects = baseProjects;
+		vi.mocked(useAuth).mockReturnValue({
+			isAuthenticated: true,
+			user: { id: 'test-user', name: 'Test User' },
+			tenant: { id: 'test-tenant', name: 'テスト社' },
+			joinedTenants: [{ id: 'test-tenant', name: 'テスト社' }],
+			login: vi.fn(),
+			logout: vi.fn(),
+		} as any);
+		vi.mocked(BeaverApi.sync).mockResolvedValue({ synced: 1, skipped: false, lastSyncedAt: 1756100000, error: null });
+	});
+
+	const makeWorkPackage = (overrides: Partial<BeaverOverview['links'][number]['workPackages'][number]> = {}) => ({
+		externalWorkPackageId: 'beaver:voucher:60:line:201:factory',
+		youkanItemId: 'wp1',
+		label: '建具A 製作',
+		category: 'factory' as const,
+		baselineMinutes: 480,
+		decomposedMinutes: 420,
+		effectiveTotalMinutes: 480,
+		virtualResidualMinutes: 60,
+		overageMinutes: 0,
+		syncState: 'ok' as const,
+		...overrides,
+	});
+
+	it('work_packagesが非空の案件に分解済み/未分解の1行とwork_package行を表示する', async () => {
+		vi.mocked(BeaverApi.getOverview).mockResolvedValue({
+			links: [{
+				externalProjectId: 123,
+				youkanProjectId: 'p1',
+				name: '玄関引戸',
+				sourceStatus: '製造中',
+				syncState: 'ok',
+				deliveryDate: '2026-09-10',
+				baselineMinutes: 1200,
+				baselineSource: 'estimate',
+				feasibility: null,
+				workPackages: [makeWorkPackage()],
+			}],
+			lastSyncedAt: 1756100000,
+			lastError: null,
+		});
+
+		render(<ProjectRegistryScreen onSelect={vi.fn()} />);
+
+		expect(await screen.findByText('分解済み8h／未分解12h')).toBeInTheDocument();
+		expect(await screen.findByText('建具A 製作')).toBeInTheDocument();
+		expect(await screen.findByText('分解済み7h／未分解1h')).toBeInTheDocument();
+	});
+
+	it('超過時は「基準◯h→現在計画◯h（+◯h）」を表示する', async () => {
+		vi.mocked(BeaverApi.getOverview).mockResolvedValue({
+			links: [{
+				externalProjectId: 123,
+				youkanProjectId: 'p1',
+				name: '玄関引戸',
+				sourceStatus: '製造中',
+				syncState: 'ok',
+				deliveryDate: '2026-09-10',
+				baselineMinutes: 1200,
+				baselineSource: 'estimate',
+				feasibility: null,
+				workPackages: [makeWorkPackage({ baselineMinutes: 480, decomposedMinutes: 540, effectiveTotalMinutes: 540, virtualResidualMinutes: 0, overageMinutes: 60 })],
+			}],
+			lastSyncedAt: 1756100000,
+			lastError: null,
+		});
+
+		render(<ProjectRegistryScreen onSelect={vi.fn()} />);
+
+		expect(await screen.findByText('基準8h→現在計画9h（+1h）')).toBeInTheDocument();
+	});
+
+	it('missing_upstreamのwork_packageに要確認バッジを表示する', async () => {
+		vi.mocked(BeaverApi.getOverview).mockResolvedValue({
+			links: [{
+				externalProjectId: 123,
+				youkanProjectId: 'p1',
+				name: '玄関引戸',
+				sourceStatus: '製造中',
+				syncState: 'ok',
+				deliveryDate: '2026-09-10',
+				baselineMinutes: 1200,
+				baselineSource: 'estimate',
+				feasibility: null,
+				workPackages: [makeWorkPackage({ syncState: 'missing_upstream' })],
+			}],
+			lastSyncedAt: 1756100000,
+			lastError: null,
+		});
+
+		render(<ProjectRegistryScreen onSelect={vi.fn()} />);
+
+		expect(await screen.findByText('建具A 製作')).toBeInTheDocument();
+		expect(await screen.findByText('Beaver側から消えています・要確認')).toBeInTheDocument();
+	});
+
+	it('work_packagesが空の案件ではY1表示（バッジ＋結論1行のみ）が変わらない（回帰）', async () => {
+		vi.mocked(BeaverApi.getOverview).mockResolvedValue({
+			links: [{
+				externalProjectId: 123,
+				youkanProjectId: 'p1',
+				name: '玄関引戸',
+				sourceStatus: '製造中',
+				syncState: 'ok',
+				deliveryDate: '2026-09-10',
+				baselineMinutes: 1200,
+				baselineSource: 'estimate',
+				feasibility: { feasible: true, shortageMinutes: 0, earliestCompletionDate: '2026-09-01', deadline: '2026-09-10', message: '入ります' },
+				workPackages: [],
+			}],
+			lastSyncedAt: 1756100000,
+			lastError: null,
+		});
+
+		render(<ProjectRegistryScreen onSelect={vi.fn()} />);
+
+		await waitFor(() => {
+			expect(screen.getByTestId('beaver-badge')).toBeInTheDocument();
+		});
+		expect(screen.getByText('入ります')).toBeInTheDocument();
+		expect(screen.queryByTestId('beaver-decompose-line')).toBeNull();
+		expect(screen.queryByTestId('beaver-work-package-row')).toBeNull();
 	});
 });

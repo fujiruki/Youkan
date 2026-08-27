@@ -14,6 +14,19 @@ export interface BeaverFeasibility {
 	message: string;
 }
 
+export interface BeaverWorkPackage {
+	externalWorkPackageId: string;
+	youkanItemId: string;
+	label: string;
+	category: string | null;
+	baselineMinutes: number;
+	decomposedMinutes: number;
+	effectiveTotalMinutes: number;
+	virtualResidualMinutes: number;
+	overageMinutes: number;
+	syncState: 'ok' | 'missing_upstream';
+}
+
 export interface BeaverLink {
 	externalProjectId: number;
 	youkanProjectId: string;
@@ -24,6 +37,7 @@ export interface BeaverLink {
 	baselineMinutes: number | null;
 	baselineSource: string | null;
 	feasibility: BeaverFeasibility | null;
+	workPackages: BeaverWorkPackage[];
 }
 
 export interface BeaverOverview {
@@ -49,6 +63,20 @@ interface BeaverFeasibilityRow {
 	message: string;
 }
 
+// R-154: docs/SPEC/08_Beaver連携Y2.md §10 の work_packages 応答形
+interface BeaverWorkPackageRow {
+	external_work_package_id: string;
+	youkan_item_id: string;
+	label: string;
+	category: string | null;
+	baseline_minutes: number;
+	decomposed_minutes: number;
+	effective_total_minutes: number;
+	virtual_residual_minutes: number;
+	overage_minutes: number;
+	sync_state: BeaverWorkPackage['syncState'];
+}
+
 // backend/services/BeaverCapacityService.php buildOverview() の実応答形（source_*/check）
 interface BeaverLinkRow {
 	external_project_id: number;
@@ -60,7 +88,21 @@ interface BeaverLinkRow {
 	baseline_minutes: number | null;
 	baseline_source: string | null;
 	check: BeaverFeasibilityRow | null;
+	work_packages?: BeaverWorkPackageRow[];
 }
+
+const toWorkPackage = (row: BeaverWorkPackageRow): BeaverWorkPackage => ({
+	externalWorkPackageId: row.external_work_package_id,
+	youkanItemId: row.youkan_item_id,
+	label: row.label,
+	category: row.category,
+	baselineMinutes: row.baseline_minutes,
+	decomposedMinutes: row.decomposed_minutes,
+	effectiveTotalMinutes: row.effective_total_minutes,
+	virtualResidualMinutes: row.virtual_residual_minutes,
+	overageMinutes: row.overage_minutes,
+	syncState: row.sync_state,
+});
 
 const toLink = (row: BeaverLinkRow): BeaverLink => ({
 	externalProjectId: row.external_project_id,
@@ -78,6 +120,7 @@ const toLink = (row: BeaverLinkRow): BeaverLink => ({
 		deadline: row.check.deadline,
 		message: row.check.message,
 	} : null,
+	workPackages: (row.work_packages ?? []).map(toWorkPackage),
 });
 
 export const BeaverApi = {
