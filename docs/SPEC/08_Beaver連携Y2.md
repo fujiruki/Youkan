@@ -128,6 +128,8 @@ Y1の§6（`baseline`/`decomposed`/`effective_total`/`completed`/`remaining`/`pl
 
 末端ノードの除外条件はY1と同じ: `deleted_at`あり・`is_archived`・`is_project=1`・`status IN ('cancelled','someday')`のいずれかに該当するものは集計対象外（0扱い）。
 
+**`children(N)`の定義（本番実機検証で確定・重要）**: あるitemの`children`は、`parent_id`が存在し既知のidを指す場合はそちらを優先し、`parent_id`が空または未知の場合のみ`project_id`にフォールバックして決定する（フロントエンド`hierarchy.ts`の親子解決規則と統一）。**`parent_id`と`project_id`の両方を無条件に子リストへ登録してはならない**。work_package（`is_project=1`のitem）配下に既存の「サブアイテムを追加」機能（`OverviewItem.tsx`）で子タスクを作ると、その子タスクは`parent_id === project_id === work_package.id`になる（is_project=1の親直下に作る際、既存のYoukan設計が常に「親自身のidをprojectIdとして」子に渡すため。これは他のプロジェクトネスト機能との一貫性を保つ既存の正しい挙動であり、フロントエンドは変更しない）。この状態で`children(N)`を「`parent_id`一致の子」と「`project_id`一致の子」の単純な和集合として実装すると、同一の子が2回カウントされ`decomposed_minutes`が2倍になる（R-154本番実機検証で発見・`fix/R-154-double-count`で修正済み）。
+
 ### 6.2 再帰計算式
 
 各ノード`N`について:
@@ -264,14 +266,26 @@ Y2では表示用ラベルとしてのみ保持する。担当割当・集計区
 - [ ] `missing_upstream`バッジ表示
 - [ ] work_packagesが空の案件でY1表示（Beaverバッジ＋結論1行のみ）が変わらないこと
 
-## 13. 本番検証（デプロイ後）
+## 13. 本番検証（デプロイ後・実施済み 2026-08-28）
 
-1. Beaver実案件（またはテスト案件）でwork_packagesがYoukanへ同期されることを確認
-2. Youkanでwork_package配下へ子タスクを1〜2個作成
-3. 分解前後で案件総負荷（`effective_total`）が二重計上されないことを確認
-4. 子タスク工数を増やしてwork_package baseline超過時に`effective_total`が増えることを確認
-5. Beaver側の見積工数を変更
-6. 再同期してwork_package baselineのみ更新され、Youkan子タスクが保持されることを確認
+対象: Beaverテスト案件「テスト案件」（`external_project_id=52`、work_package「どあ」factory、`youkan_item_id=wp-6a908c3499e595.11955738`、`baseline_minutes=60`）。指揮AIがclaude-in-chromeで実施。検証用に作成・変更したデータは全て削除・復元し原状回復済み。
+
+1. **work_packagesがYoukanへ同期されることを確認** ✓ 本番`GET /integrations/beaver/overview`で「どあ」×2（factory/site）・「わく」×2（factory/site）のwork_packageが同期済みであることを確認
+2. **Youkanでwork_package配下へ子タスクを作成** ✓ 全体一覧の「サブアイテムを追加」ボタンから作成を試行。**この過程で二重計上バグを発見**（下記参照）。修正・再デプイ後、`POST /items`で`parentId=wp-...`・`projectId=prj-...`（案件トップ）を指定して子タスク作成→正しく反映されることを確認
+3. **分解前後で案件総負荷が二重計上されないことを確認** ✓ 修正後、子タスク30分→`decomposed_minutes=30`（修正前は60だった）
+4. **子タスク工数を増やしてwork_package baseline超過時に`effective_total`が増えることを確認** ✓ 子タスクを100分に増量→`baseline_minutes=60`・`decomposed_minutes=100`・`effective_total_minutes=100`（`max(60,100)`）・`overage_minutes=40`。案件全体`effective_total`も510→550に正しく伝播
+5. **Beaver側の見積工数を変更** ✓ Beaver伝票`E02044`明細「どあ」の工場時間を1h→2hへ変更・保存（`voucher_line_costs.FACTORY_TIME`）
+6. **再同期してwork_package baselineのみ更新され、Youkan子タスクが保持されることを確認** ✓ `POST /integrations/beaver/sync`（full, force）後、`baseline_minutes`が60→120に更新される一方、既存の子タスク（`estimatedMinutes=40`）は削除・上書きされず`decomposed_minutes=40`のまま保持。案件全体`effective_total`は510→570
+
+### 本番実機検証で発見・修正したバグ（重大）
+
+**症状**: 手順2の子タスク作成中、`decomposed_minutes`が入力工数の2倍になる二重計上を検出（0.5h入力→60分計上）。
+
+**原因**: `BeaverCapacityService.php`の`computeLinkLoads()`/`descendantIds()`が、`childrenOf`（親id→子idリスト）構築時に各itemを`parent_id`と`project_id`の両方をキーとして無条件登録していた。work_package（`is_project=1`）配下に既存の「サブアイテムを追加」機能で子タスクを作ると、Youkan既存設計により`parent_id === project_id === work_package.id`になる（§6.1の注記参照）。この状態で`computeNode()`が`childrenOf[id]`をそのまま再帰処理するため、同じ子が2回加算されていた。
+
+**修正**: `buildChildrenOf()`ヘルパーを新設し、`parent_id`優先・`project_id`はフォールバックという、フロントエンド`hierarchy.ts`と同じ親子解決規則に統一（§6.1に反映済み）。`fix/R-154-double-count`（コミット`acd3588`）でTDD修正、`test_r154_beaver_workpackages_capacity.php`に再現テストS7/S8を追加（23件Green）。`fbd1611`としてmasterへマージ・本番再デプロイ済み（稼働バンドル`index-DMPdWxEP.js`）。
+
+修正後、上記6項目を全て再検証し、正しい結果を確認した。
 
 ## 14. Y3へ渡す事項
 
@@ -280,3 +294,4 @@ Y2では表示用ラベルとしてのみ保持する。担当割当・集計区
 - テンプレート提案（計画書§16）
 - work_packageの`category`（factory/site）を担当割当・集計区分として活用する拡張
 - `missing_upstream`が長期間放置された場合のリマインド等（Y2では通知を一切出さない方針を継続。必要になれば要検討）
+- **設計上の教訓**: `parent_id`/`project_id`の両方が同一idを指しうる状態（is_project=1のitemを親として子タスクを作る場合）は、Youkanの既存設計上ありうる正常な状態である。今後、items配下のツリーを独自に再実装するAgentは、既存の`hierarchy.ts`（フロントエンド）の親子解決規則（`parent_id`優先・`project_id`はフォールバック）に必ず合わせること。バックエンドで木構造を新規実装する際は、`parent_id`と`project_id`を単純に和集合で子リストに登録しないこと（本番障害の直接原因になった）
