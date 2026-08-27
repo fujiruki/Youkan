@@ -8,9 +8,10 @@
 
 - [x] Phase 1-3: 要望文書読み込み・現行実装調査（`hierarchy.ts`・`OverviewBoard.tsx`・`ItemController::update()`・`BeaverCapacityService`・`@dnd-kit`導入状況）・仕様確定
 - [ ] Phase 4: 実装（TDD）
-  - [ ] バックエンド: `ItemController::update()` に `parentId` 変更時の循環参照チェック追加（自分自身・子孫への移動を400拒否）
+  - [x] バックエンド: `ItemController::update()` に `parentId` 変更時の循環参照チェック追加（自分自身・子孫への移動を400拒否）— `feature/R-155-drag-move-backend` `2bbe8d6`。新規ヘルパー`resolveDescendantIdsByHierarchyRule()`追加（既存`getAllDescendantIds()`はOR和集合でR-154同種の危険パターンのため流用せず）。新規テスト27アサーションGreen、Y1/Y2回帰Green
   - [ ] フロントエンド: `OverviewBoard.tsx`/`OverviewItem.tsx` へ `@dnd-kit` 導入、`hierarchy.ts` に `rootProjectIdOf()` ヘルパー追加、ハイライト・Undo実装
   - [ ] 09番仕様書§12の全テスト項目（階層5・データ保持6・安全性5・Beaver/Y2 7・UI3）
+  - [ ] 質問事項: バックエンドのエラーメッセージ文言（"Cannot move item into itself"等）がフロントのトースト表示と整合するか、フロントエンド完了後に確認する
 - [ ] Phase 5: マージ・全テストGreen確認
 - [ ] 本番デプロイ・実機検証（09番仕様書§13、7項目）
 - [ ] Y3へは進まず停止・報告
