@@ -10,7 +10,7 @@ import { SmartDateInput } from '../Inputs/SmartDateInput';
 interface OverduePanelProps {
     groups: OverdueGroup[];
     today: string; // "YYYY-MM-DD"
-    onUpdateItem: (id: string, updates: Partial<Item>) => void | Promise<void>;
+    onUpdateItem: (id: string, updates: Partial<Item>) => void | Promise<void | { success: boolean; error?: unknown }>;
     onClose: () => void;
 }
 

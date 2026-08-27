@@ -1,4 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+	DndContext,
+	DragOverlay,
+	useSensors,
+	useSensor,
+	PointerSensor,
+	KeyboardSensor,
+	pointerWithin,
+	DragStartEvent,
+	DragEndEvent,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Printer } from 'lucide-react';
 import { useOverviewItems } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
@@ -15,6 +27,9 @@ import { getSelectedTenantId } from '../../logic/filterUtils';
 import { getInlineAddInsertIndex } from './inlineAddPosition';
 import { Item } from '../../types';
 import { decisionToStatus } from '../../logic/decisionResolution';
+import { computeDragMoveOutcome } from '../../logic/dragMove';
+import { useToast } from '../../../../../contexts/ToastContext';
+import { useBeaverIntegration, useWorkPackageSummary } from '../../viewmodels/useBeaverIntegration';
 
 interface OverviewBoardProps {
 	viewModel: any;
@@ -33,6 +48,12 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	// R-129: 全体一覧フィルタ「着手遅れ」（最遅着手日を過ぎた項目のみ表示）
 	const [lateStartOnly, setLateStartOnly] = useState(false);
 	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly, lateStartOnly);
+
+	// R-156: 全体一覧Beaver連携バッジ（表示のみ。同期・負荷計算ロジックには触れない）
+	const { overview: beaverOverview, linkByProjectId } = useBeaverIntegration();
+	const workPackageSummary = useWorkPackageSummary(beaverOverview);
+	const isBeaverLinkedProject = (projectId: string): boolean =>
+		linkByProjectId.has(String(projectId)) || workPackageSummary.has(String(projectId));
 
 	const [inlineAddProjectId, setInlineAddProjectId] = useState<string | null>(null);
 
@@ -68,6 +89,99 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	useEffect(() => {
 		localStorage.setItem(YOUKAN_KEYS.OVERVIEW_TITLE_LIMIT, titleLimit.toString());
 	}, [titleLimit]);
+
+	// R-155: ToastProviderの外でレンダーされる既存テスト等でも例外にならないよう、
+	// 新規のトースト機構は作らず既存useToastをフォールバック付きで利用する
+	let showToast: (toast: any) => void = () => { };
+	try {
+		({ showToast } = useToast());
+	} catch {
+		// ToastProvider未配下（既存テスト等）ではトースト表示をno-opにする
+	}
+
+	// --- R-155: 全体一覧ドラッグでプロジェクト移動 ---
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+	);
+	const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+	// hierarchy.ts の親子解決規則と同一のallItems（タスク＋プロジェクト）を、
+	// 現在表示中のitemsから組み立てる（collectDescendantIds・resolveRootProjectIdで共有）
+	const { allItemsFlat, allHeaderProjects } = useMemo(() => {
+		const tasks: Item[] = [];
+		const projects: Item[] = [];
+		items.forEach(w => {
+			if (w.type === 'item') tasks.push(w.item);
+			else if (w.type === 'header') projects.push(w.project);
+		});
+		return { allItemsFlat: [...tasks, ...projects], allHeaderProjects: projects };
+	}, [items]);
+
+	const activeDraggedItem: Item | null = useMemo(() => {
+		if (!activeDragId) return null;
+		const w = items.find(w => w.type === 'item' && w.item.id === activeDragId);
+		return w && w.type === 'item' ? w.item : null;
+	}, [activeDragId, items]);
+
+	const computeDropDisabled = (headerProject: Item): boolean => {
+		if (!activeDraggedItem) return false;
+		const outcome = computeDragMoveOutcome(activeDraggedItem, headerProject, allItemsFlat, allHeaderProjects);
+		return !outcome.allowed;
+	};
+
+	const handleDragStart = (event: DragStartEvent) => {
+		setActiveDragId(String(event.active.id));
+	};
+
+	const handleDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+		setActiveDragId(null);
+		if (!over) return;
+
+		const taskId = String(active.id);
+		const overId = String(over.id);
+		if (!overId.startsWith('header-')) return;
+
+		const draggedWrapper = items.find(w => w.type === 'item' && w.item.id === taskId);
+		if (!draggedWrapper || draggedWrapper.type !== 'item') return;
+		const draggedItem = draggedWrapper.item;
+
+		const headerWrapper = items.find(w => w.type === 'header' && w.id === overId);
+		if (!headerWrapper || headerWrapper.type !== 'header') return;
+		const targetProject = headerWrapper.project;
+
+		// フロント側の最終防御（UI上はdisabledで到達しないはずだが念のため）
+		const outcome = computeDragMoveOutcome(draggedItem, targetProject, allItemsFlat, allHeaderProjects);
+		if (!outcome.allowed) return;
+
+		const previousUpdates = {
+			projectId: draggedItem.projectId ?? null,
+			parentId: draggedItem.parentId ?? null,
+		};
+
+		const result: any = await viewModel.updateItem(taskId, outcome.updates);
+
+		if (result && result.success === false) {
+			// R-155: 独自のロールバック機構は作らず、既存updateItemを逆方向に呼ぶだけで元へ戻す
+			await viewModel.updateItem(taskId, previousUpdates);
+			showToast({
+				type: 'error',
+				title: '移動に失敗しました',
+				message: result.error?.message,
+			});
+			return;
+		}
+
+		showToast({
+			type: 'success',
+			title: `「${draggedItem.title}」を「${targetProject.title}」へ移動しました`,
+			action: {
+				label: '元に戻す',
+				onClick: () => { viewModel.updateItem(taskId, previousUpdates); },
+			},
+		});
+	};
 
 	const { menuState: contextMenu, handleContextMenu, closeMenu } = useItemContextMenu({
 		onDelete: (id) => viewModel.deleteItem(id)
@@ -205,7 +319,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const rows = buildRows();
 
 	return (
-		<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+		<DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+			<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
 			<div className="no-print flex-none relative z-20 flex items-center gap-2">
 				<ViewControls
@@ -325,6 +440,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 								autoStartTimeEdit={(wrapper as any).type === 'item' && (wrapper as any).item.id === chainAutoEditItemId}
 								onAutoTimeEditDone={() => setChainAutoEditItemId(null)}
 								onNavigateToFlow={onNavigateToFlow}
+								dropDisabled={(wrapper as any).type === 'header' ? computeDropDisabled((wrapper as any).project) : undefined}
+							isBeaverLinked={(wrapper as any).type === 'header' ? isBeaverLinkedProject((wrapper as any).projectId) : undefined}
 							/>
 						);
 					})}
@@ -398,5 +515,13 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 				/>
 			)}
 		</div>
+		<DragOverlay>
+			{activeDraggedItem ? (
+				<div className="px-2 py-1 rounded shadow-lg bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 text-[11px] font-bold text-slate-700 dark:text-slate-200">
+					{activeDraggedItem.title}
+				</div>
+			) : null}
+		</DragOverlay>
+	</DndContext>
 	);
 };

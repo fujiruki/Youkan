@@ -1235,9 +1235,13 @@ export const useYoukanViewModel = (projectId?: string) => {
 			if ('isProject' in updates || willCascade) {
 				await refreshContextMetadata();
 			}
+			return { success: true };
 		} catch (e) {
 			console.error('Failed to update item:', e);
 			if (cascadeSnapshot) restoreSnapshot(cascadeSnapshot);
+			// R-155: 呼び出し元（全体一覧ドラッグ移動等）が失敗を検知してエラートースト表示・
+			// 元の所属への戻しを行えるよう、成否を返す（既存呼び出し箇所は戻り値を使わないため後方互換）
+			return { success: false, error: e };
 		}
 	};
 
