@@ -1,5 +1,12 @@
 # Requests
 
+- **【中】R-156候補** 全体一覧にBeaver連携プロジェクトのバッジ表示
+  - 2026-08-28 会話内発言原文（ローマ字入力）: 「soreto、zentaiitiran ni [ beavertorenkeisareteirupurojekutoda]toiukotogawakaruyouna bajjihyoujigahosii sikakuihaikeini B to kakareta tiisanaaikonn de ii medataseruhituyouhanai. renkeidetukuraretaseisikinahoudatoiunogawakaruyounisitai」
+  - 意訳: 全体一覧（OverviewBoard）で「Beaverと連携されているプロジェクトだ」とわかるバッジ表示が欲しい。四角い背景に「B」と書かれた小さいアイコンでよい。目立たせる必要はない。連携で作られた正式な方だとわかるようにしたい
+  - 背景: `ProjectRegistryScreen.tsx`には既に`data-testid="beaver-badge"`のBeaverバッジ表示があるが（`docs/SPEC/08_Beaver連携Y2.md` §11）、全体一覧（`OverviewBoard.tsx`/`OverviewItem.tsx`）のプロジェクトヘッダー行には同種の表示がない
+  - 2026-08-28 発注者判断: R-155「全体一覧ドラッグでプロジェクト移動」とは別R-IDとして独立に扱う（スコープ拡大回避のため）
+  - 未着手（R-155完了後に仕様化予定）
+
 - **【低】** プロジェクト一覧カードの日付表示が全件「Invalid Date」
   - 2026-08-26 R-153本番再検証で発見（R-153とは無関係の既存バグ）。本番プロジェクト一覧（会社スコープ62件、Beaver由来33件・既存29件問わず全件）でカードの日付欄が「Invalid Date」表示
   - 未着手（原因調査から）

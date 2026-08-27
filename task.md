@@ -2,6 +2,21 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。
 
+## R-155 全体一覧ドラッグでプロジェクト移動 — 実装中
+
+仕様: `docs/SPEC/09_全体一覧ドラッグでプロジェクト移動.md`（正本）。原文: `docs/reference/vision/2026-08-28_全体一覧ドラッグでプロジェクト移動.md`。前提のY2仕様（`docs/SPEC/08_Beaver連携Y2.md`）は無変更・階層解釈を再利用。
+
+- [x] Phase 1-3: 要望文書読み込み・現行実装調査（`hierarchy.ts`・`OverviewBoard.tsx`・`ItemController::update()`・`BeaverCapacityService`・`@dnd-kit`導入状況）・仕様確定
+- [ ] Phase 4: 実装（TDD）
+  - [ ] バックエンド: `ItemController::update()` に `parentId` 変更時の循環参照チェック追加（自分自身・子孫への移動を400拒否）
+  - [ ] フロントエンド: `OverviewBoard.tsx`/`OverviewItem.tsx` へ `@dnd-kit` 導入、`hierarchy.ts` に `rootProjectIdOf()` ヘルパー追加、ハイライト・Undo実装
+  - [ ] 09番仕様書§12の全テスト項目（階層5・データ保持6・安全性5・Beaver/Y2 7・UI3）
+- [ ] Phase 5: マージ・全テストGreen確認
+- [ ] 本番デプロイ・実機検証（09番仕様書§13、7項目）
+- [ ] Y3へは進まず停止・報告
+
+関連: 全体一覧Beaverバッジ表示要望はR-156候補として`docs/requests.md`に切り出し済み（本R-155のスコープ外）
+
 ## R-154 Beaver連携Y2（work_packages段階分解） — 完了（2026-08-28）
 
 仕様: `docs/SPEC/08_Beaver連携Y2.md`（正本）。前提のY1仕様（`docs/SPEC/07_Beaver連携.md`）は無変更。
