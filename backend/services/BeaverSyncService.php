@@ -133,10 +133,19 @@ class BeaverSyncService {
                 if (!isset($p['external_project_id'])) {
                     continue;
                 }
-                $seenIds[] = (string)$p['external_project_id'];
+                $extProjectId = (string)$p['external_project_id'];
+                $seenIds[] = $extProjectId;
                 $result = $this->upsertProject($p, $userId);
                 if ($result === 'created') $created++;
                 if ($result === 'updated') $updated++;
+                if ($result !== 'skipped_excluded') {
+                    // R-154 (Y2): work_packagesは案件同期の一部として同じトランザクション内で処理する
+                    // （target_missingの案件は触らない。§5.2: 欠落検知はfullのみ）
+                    $link = $this->fetchProjectLink($extProjectId);
+                    if ($link !== null && $link['sync_state'] === 'ok') {
+                        $this->syncWorkPackages($p['work_packages'] ?? [], $extProjectId, $link['youkan_project_id'], $userId, $mode === 'full');
+                    }
+                }
                 $u = $p['updated_at'] ?? null;
                 if (is_string($u) && ($maxUpdatedAt === null || strcmp($u, $maxUpdatedAt) > 0)) {
                     $maxUpdatedAt = $u;
@@ -297,5 +306,88 @@ class BeaverSyncService {
                 ]);
         }
         return 'updated';
+    }
+
+    private function fetchProjectLink(string $externalProjectId): ?array {
+        $stmt = $this->pdo->prepare("SELECT * FROM external_project_links WHERE tenant_id = ? AND source_system = 'beaver' AND external_project_id = ?");
+        $stmt->execute([$this->getTenantId(), $externalProjectId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * R-154 (Y2) §5.1: 案件1件のwork_packages配列を同期する。案件同期と同じトランザクション内で呼ぶ。
+     * @param bool $detectMissing 欠落検知（missing_upstream化）を行うか。§5.2によりfull同期のみtrue
+     */
+    private function syncWorkPackages(array $workPackages, string $externalProjectId, string $youkanProjectId, string $userId, bool $detectMissing): void {
+        $now = time();
+        $seenIds = [];
+        foreach ($workPackages as $wp) {
+            if (!isset($wp['external_work_package_id'])) continue;
+            $wpExtId = (string)$wp['external_work_package_id'];
+            $seenIds[] = $wpExtId;
+            $this->upsertWorkPackage($wp, $externalProjectId, $youkanProjectId, $userId, $now);
+        }
+
+        if ($detectMissing) {
+            $placeholders = empty($seenIds) ? "''" : implode(',', array_fill(0, count($seenIds), '?'));
+            $sql = "UPDATE external_work_package_links SET sync_state = 'missing_upstream'
+                    WHERE tenant_id = ? AND source_system = 'beaver' AND external_project_id = ? AND sync_state = 'ok'
+                    AND external_work_package_id NOT IN ($placeholders)";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(array_merge([$this->getTenantId(), $externalProjectId], $seenIds));
+        }
+    }
+
+    /**
+     * R-154 (Y2) §5.1: work_package 1件のupsert。冪等。
+     * リンクが存在する場合、labelが変わった時のみitem.titleを更新し、それ以外のフィールド・子タスクには一切触れない。
+     */
+    private function upsertWorkPackage(array $wp, string $externalProjectId, string $youkanProjectId, string $userId, int $now): void {
+        $tenantId = $this->getTenantId();
+        $extId = (string)$wp['external_work_package_id'];
+        $label = (string)($wp['label'] ?? '');
+        $category = $wp['category'] ?? null;
+        $baselineMinutes = (int)round((float)($wp['estimated_hours'] ?? 0) * 60);
+        $sourceVoucherId = $wp['source_voucher_id'] ?? null;
+        $sourceLineId = $wp['source_line_id'] ?? null;
+        $sourceUpdatedAt = $wp['source_updated_at'] ?? null;
+
+        $stmt = $this->pdo->prepare("SELECT * FROM external_work_package_links WHERE tenant_id = ? AND source_system = 'beaver' AND external_work_package_id = ?");
+        $stmt->execute([$tenantId, $extId]);
+        $link = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$link) {
+            // work_packageはitemsの1行として is_project=1 で表現する（§3。estimated_minutesは常にNULL）
+            $itemId = uniqid('wp-', true);
+            $this->pdo->prepare("
+                INSERT INTO items (id, tenant_id, title, status, created_by, is_project, project_id, parent_id, estimated_minutes, created_at, updated_at)
+                VALUES (?, ?, ?, 'inbox', ?, 1, ?, NULL, NULL, ?, ?)
+            ")->execute([$itemId, $tenantId, $label, $userId, $youkanProjectId, $now, $now]);
+
+            $this->pdo->prepare("
+                INSERT INTO external_work_package_links (
+                    id, tenant_id, source_system, external_work_package_id, external_project_id,
+                    youkan_project_id, youkan_item_id, label, category, baseline_minutes,
+                    source_voucher_id, source_line_id, source_updated_at, sync_state, last_synced_at, created_at
+                ) VALUES (?, ?, 'beaver', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ok', ?, ?)
+            ")->execute([
+                uniqid('ewpl-', true), $tenantId, $extId, $externalProjectId,
+                $youkanProjectId, $itemId, $label, $category, $baselineMinutes,
+                $sourceVoucherId, $sourceLineId, $sourceUpdatedAt, $now, $now,
+            ]);
+            return;
+        }
+
+        $this->pdo->prepare("
+            UPDATE external_work_package_links SET
+                label = ?, category = ?, baseline_minutes = ?, source_voucher_id = ?, source_line_id = ?,
+                source_updated_at = ?, sync_state = 'ok', last_synced_at = ?
+            WHERE id = ?
+        ")->execute([$label, $category, $baselineMinutes, $sourceVoucherId, $sourceLineId, $sourceUpdatedAt, $now, $link['id']]);
+
+        if ($label !== (string)($link['label'] ?? '')) {
+            $this->pdo->prepare("UPDATE items SET title = ?, updated_at = ? WHERE id = ?")
+                ->execute([$label, $now, $link['youkan_item_id']]);
+        }
     }
 }

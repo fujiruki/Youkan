@@ -490,7 +490,29 @@ function ensureTables($pdo) {
             last_synced_at INTEGER,
             last_error TEXT,
             PRIMARY KEY(tenant_id, source_system)
-        )"
+        )",
+        // [R-154] Beaver連携Y2: work_packagesの段階分解（docs/SPEC/08_Beaver連携Y2.md §4.1）
+        "CREATE TABLE IF NOT EXISTS external_work_package_links (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            source_system TEXT NOT NULL DEFAULT 'beaver',
+            external_work_package_id TEXT NOT NULL,
+            external_project_id TEXT NOT NULL,
+            youkan_project_id TEXT NOT NULL,
+            youkan_item_id TEXT NOT NULL,
+            label TEXT,
+            category TEXT,
+            baseline_minutes INTEGER NOT NULL,
+            source_voucher_id INTEGER,
+            source_line_id INTEGER,
+            source_updated_at TEXT,
+            sync_state TEXT NOT NULL DEFAULT 'ok',
+            last_synced_at INTEGER,
+            created_at INTEGER NOT NULL,
+            UNIQUE(tenant_id, source_system, external_work_package_id)
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_ewpl_youkan_item ON external_work_package_links(youkan_item_id)",
+        "CREATE INDEX IF NOT EXISTS idx_ewpl_project ON external_work_package_links(tenant_id, external_project_id)"
     ];
 
     foreach ($commands as $sql) {

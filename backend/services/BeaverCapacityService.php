@@ -109,6 +109,7 @@ class BeaverCapacityService {
                 'baseline_source' => $link['baseline_source'],
                 'sync_state' => $link['sync_state'],
                 'load' => $loads[$ext]['load'],
+                'work_packages' => $loads[$ext]['work_packages'] ?? [],
                 'check' => $checks[$ext],
             ];
         }
@@ -152,6 +153,13 @@ class BeaverCapacityService {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /** R-154 (Y2) §4.1: このテナントのwork_packageリンク一覧 */
+    private function fetchWorkPackageLinks(): array {
+        $stmt = $this->pdo->prepare("SELECT * FROM external_work_package_links WHERE tenant_id = ?");
+        $stmt->execute([$this->tenantId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /** プロジェクト配下（project_id / parent_id 連鎖）の全子孫ID集合 */
     private function descendantIds(string $projectId, array $items): array {
         $childrenOf = [];
@@ -174,18 +182,77 @@ class BeaverCapacityService {
         return $result;
     }
 
+    /** 末端ノードの除外条件（§6.1）: 削除・アーカイブ・is_project=1・cancelled/someday */
+    private function isExcludedLeafItem(array $it): bool {
+        if (!empty($it['deleted_at']) || !empty($it['is_archived']) || !empty($it['is_project'])) return true;
+        if (in_array($it['status'], ['cancelled', 'someday'], true)) return true;
+        return false;
+    }
+
+    /**
+     * R-154 (Y2) §6.2: 案件→work_package→子タスクの任意深さツリーへの再帰計算。
+     * work_packagesが存在しない案件では、この再帰計算はY1の2階層ロジックと数学的に同一の結果を返す
+     * （baselineなし中間ノードはchildren_sumをそのまま通すため、Y1のフラット合計に一致する）。
+     * @param string|null $id 対象ノードのitem id
+     * @param bool $isRoot 案件ノード（root）かどうか
+     * @param int|null $rootBaseline root時のみ使用するbaseline（除外ステータス調整済み）
+     * @param bool $excludedProject 案件が除外ステータスなら true。Beaver由来のbaseline（root・work_package双方）を
+     *   0扱いにする（Y1の「消えるのはBeaver由来の基準負荷だけ」をwork_package層へ継承。実際に分解済みの
+     *   子タスクの負荷はexcluded=trueでも通常どおり残る）
+     * @return array{effective_total:int, completed:int, placed:int, children_sum:int}
+     */
+    private function computeNode(?string $id, bool $isRoot, ?int $rootBaseline, array $byId, array $childrenOf, array $wpLinkByItemId, bool $excludedProject = false): array {
+        $isWp = !$isRoot && $id !== null && isset($wpLinkByItemId[$id]);
+        $isBaselineNode = $isRoot || $isWp;
+        $baseline = $isRoot ? $rootBaseline : ($isWp ? ($excludedProject ? 0 : (int)$wpLinkByItemId[$id]['baseline_minutes']) : null);
+        $children = $id !== null ? ($childrenOf[$id] ?? []) : [];
+
+        if (!$isBaselineNode && empty($children)) {
+            // 末端ノード（leaf）
+            $it = $id !== null ? ($byId[$id] ?? null) : null;
+            if (!$it || $this->isExcludedLeafItem($it)) {
+                return ['effective_total' => 0, 'completed' => 0, 'placed' => 0, 'children_sum' => 0];
+            }
+            $est = (int)($it['estimated_minutes'] ?? 0);
+            $completed = $it['status'] === 'done' ? $est : 0;
+            $placed = ($it['status'] !== 'done' && (!empty($it['prep_date']) || !empty($it['due_date']))) ? $est : 0;
+            return ['effective_total' => $est, 'completed' => $completed, 'placed' => $placed, 'children_sum' => 0];
+        }
+
+        $childSum = 0;
+        $completed = 0;
+        $placed = 0;
+        foreach ($children as $cid) {
+            $c = $this->computeNode($cid, false, null, $byId, $childrenOf, $wpLinkByItemId, $excludedProject);
+            $childSum += $c['effective_total'];
+            $completed += $c['completed'];
+            $placed += $c['placed'];
+        }
+        $effective = $isBaselineNode ? max($baseline, $childSum) : $childSum;
+        return ['effective_total' => $effective, 'completed' => $completed, 'placed' => $placed, 'children_sum' => $childSum];
+    }
+
     /**
      * §6 負荷モデル。リンクごとに baseline / decomposed / effective_total / completed /
-     * remaining / placed / unplaced と締切を求める。
-     * @return array ext_id(int) => ['load' => [...], 'deadline' => ?string, 'descendants' => array]
+     * remaining / placed / unplaced と締切を求める（R-154よりwork_package層を含む再帰計算）。
+     * §10: overview応答用に各案件のwork_packages配列（decomposed/effective_total/virtual_residual/overage）も返す。
+     * @return array ext_id(int) => ['load' => [...], 'work_packages' => [...], 'deadline' => ?string, 'descendants' => array]
      */
     private function computeLinkLoads(array $links, array $items): array {
         $byId = [];
-        $hasChild = [];
+        $childrenOf = [];
         foreach ($items as $it) {
             $byId[$it['id']] = $it;
-            if (!empty($it['parent_id'])) $hasChild[$it['parent_id']] = true;
-            if (!empty($it['project_id'])) $hasChild[$it['project_id']] = true;
+            if (!empty($it['parent_id'])) $childrenOf[$it['parent_id']][] = $it['id'];
+            if (!empty($it['project_id'])) $childrenOf[$it['project_id']][] = $it['id'];
+        }
+
+        $wpLinks = $this->fetchWorkPackageLinks();
+        $wpLinkByItemId = [];
+        $wpLinksByExtProject = [];
+        foreach ($wpLinks as $wl) {
+            $wpLinkByItemId[$wl['youkan_item_id']] = $wl;
+            $wpLinksByExtProject[$wl['external_project_id']][] = $wl;
         }
 
         $result = [];
@@ -193,34 +260,41 @@ class BeaverCapacityService {
             $ext = (int)$link['external_project_id'];
             $descendants = $this->descendantIds($link['youkan_project_id'], $items);
 
-            $decomposed = 0;
-            $completed = 0;
-            $placed = 0;
-            foreach ($descendants as $id => $_) {
-                $it = $byId[$id] ?? null;
-                if (!$it) continue;
-                // 末端タスク: 子を持たず、削除・アーカイブ・cancelled/somedayでない
-                if (isset($hasChild[$id])) continue;
-                if (!empty($it['deleted_at']) || !empty($it['is_archived']) || !empty($it['is_project'])) continue;
-                if (in_array($it['status'], ['cancelled', 'someday'], true)) continue;
-                $est = (int)($it['estimated_minutes'] ?? 0);
-                $decomposed += $est;
-                if ($it['status'] === 'done') {
-                    $completed += $est;
-                } elseif (!empty($it['prep_date']) || !empty($it['due_date'])) {
-                    $placed += $est;
-                }
-            }
-
-            $baseline = $this->isExcludedStatus($link['source_status']) ? 0 : (int)($link['baseline_minutes'] ?? 0);
-            $effective = max($baseline, $decomposed);
+            $excludedProject = $this->isExcludedStatus($link['source_status']);
+            $baseline = $excludedProject ? 0 : (int)($link['baseline_minutes'] ?? 0);
+            $root = $this->computeNode($link['youkan_project_id'], true, $baseline, $byId, $childrenOf, $wpLinkByItemId, $excludedProject);
+            $decomposed = $root['children_sum'];
+            $effective = $root['effective_total'];
+            $completed = $root['completed'];
             $remaining = max(0, $effective - $completed);
+            $placed = $root['placed'];
             $unplaced = max(0, $remaining - $placed);
 
             $deadline = $link['source_delivery_date'] ?: null;
             if ($deadline === null) {
                 $proj = $byId[$link['youkan_project_id']] ?? null;
                 $deadline = ($proj && !empty($proj['due_date'])) ? $proj['due_date'] : null;
+            }
+
+            $workPackages = [];
+            foreach ($wpLinksByExtProject[$link['external_project_id']] ?? [] as $wl) {
+                $wpRes = $this->computeNode($wl['youkan_item_id'], false, null, $byId, $childrenOf, $wpLinkByItemId, $excludedProject);
+                $wpBaseline = (int)$wl['baseline_minutes']; // 表示用（root同様、生値。除外調整はeffective系のみに適用）
+                $wpBaselineForCalc = $excludedProject ? 0 : $wpBaseline;
+                $wpDecomposed = $wpRes['children_sum'];
+                $wpEffective = $wpRes['effective_total'];
+                $workPackages[] = [
+                    'external_work_package_id' => $wl['external_work_package_id'],
+                    'youkan_item_id' => $wl['youkan_item_id'],
+                    'label' => $wl['label'],
+                    'category' => $wl['category'],
+                    'baseline_minutes' => $wpBaseline,
+                    'decomposed_minutes' => $wpDecomposed,
+                    'effective_total_minutes' => $wpEffective,
+                    'virtual_residual_minutes' => max(0, $wpBaselineForCalc - $wpDecomposed),
+                    'overage_minutes' => max(0, $wpDecomposed - $wpBaselineForCalc),
+                    'sync_state' => $wl['sync_state'],
+                ];
             }
 
             $result[$ext] = [
@@ -233,6 +307,7 @@ class BeaverCapacityService {
                     'placed' => $placed,
                     'unplaced' => $unplaced,
                 ],
+                'work_packages' => $workPackages,
                 'deadline' => $deadline,
                 'descendants' => $descendants,
             ];
