@@ -818,7 +818,7 @@ class ItemController extends BaseController {
 
         $placeholders = implode(',', array_fill(0, count($tenantIds), '?'));
         
-        $query = "SELECT project_id, created_by, tenant_id, is_project FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR created_by = ?)";
+        $query = "SELECT project_id, parent_id, created_by, tenant_id, is_project FROM items WHERE id = ? AND (tenant_id IN ($placeholders) OR tenant_id IS NULL OR created_by = ?)";
         $check = $this->pdo->prepare($query);
         $check->execute(array_merge([$id], $tenantIds, [$this->currentUserId]));
         $existing = $check->fetch(PDO::FETCH_ASSOC);
@@ -848,6 +848,23 @@ class ItemController extends BaseController {
             $newTitle = $data['title'];
             if ($newTitle === null || (is_string($newTitle) && trim($newTitle) === '')) {
                 unset($data['title']);
+            }
+        }
+
+        // 0. [R-155] parentId 変更時の循環参照防止バリデーション
+        // 仕様: docs/SPEC/09_全体一覧ドラッグでプロジェクト移動.md §7
+        if (array_key_exists('parentId', $data) && $data['parentId'] !== $existing['parent_id']) {
+            $newParentId = $data['parentId'];
+            if ($newParentId) {
+                if ($newParentId === $id) {
+                    $this->sendError(400, 'Cannot move item into itself');
+                    return;
+                }
+                $descendantIds = $this->resolveDescendantIdsByHierarchyRule($id);
+                if (isset($descendantIds[$newParentId])) {
+                    $this->sendError(400, 'Cannot move item into its own descendant');
+                    return;
+                }
             }
         }
 
@@ -1068,6 +1085,46 @@ class ItemController extends BaseController {
         }
     }
     
+    /**
+     * [R-155] parentId 循環参照チェック専用の子孫ID解決。
+     * Y2（docs/SPEC/08_Beaver連携Y2.md §6.1）で確定した「parent_id優先、
+     * なければproject_idへフォールバック」という単一の親解決規則に従う
+     * （BeaverCapacityService::buildChildrenOf() と同じロジック）。
+     * 既存の getAllDescendantIds() は `parent_id = ? OR project_id = ?` という
+     * OR条件で子孫を探索しており、この優先順位規則には従っていない
+     * （カスケード系の既存呼び出し元の挙動を変えないためそちらは変更しない）。
+     * @return array<string,true> 子孫IDをキーに持つ集合
+     */
+    private function resolveDescendantIdsByHierarchyRule(string $rootId): array {
+        $items = $this->pdo->query('SELECT id, parent_id, project_id FROM items')->fetchAll(PDO::FETCH_ASSOC);
+        $byId = [];
+        foreach ($items as $it) $byId[$it['id']] = true;
+
+        $childrenOf = [];
+        foreach ($items as $it) {
+            $pid = $it['parent_id'] ?? null;
+            if (!empty($pid) && isset($byId[$pid])) {
+                $childrenOf[$pid][] = $it['id'];
+            } elseif (!empty($it['project_id'])) {
+                $childrenOf[$it['project_id']][] = $it['id'];
+            }
+        }
+
+        $result = [];
+        $queue = [$rootId];
+        $visited = [$rootId => true];
+        while ($queue) {
+            $cur = array_shift($queue);
+            foreach ($childrenOf[$cur] ?? [] as $childId) {
+                if (isset($visited[$childId])) continue;
+                $visited[$childId] = true;
+                $result[$childId] = true;
+                $queue[] = $childId;
+            }
+        }
+        return $result;
+    }
+
     // [JBWOS] Helper for Recursive Cascade
     private function getAllDescendantIds($rootId) {
         $descendantIds = [];
