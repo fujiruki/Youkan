@@ -89,6 +89,73 @@ describe('BeaverApi', () => {
 			expect(res.lastSyncedAt).toBeNull();
 		});
 
+		it('R-154: work_packages を snake_case から camelCase に変換して返す', async () => {
+			vi.spyOn(ApiClient, 'request').mockResolvedValueOnce({
+				links: [{
+					external_project_id: 123,
+					youkan_project_id: 'p1',
+					source_name: '玄関引戸',
+					source_status: '製造中',
+					sync_state: 'ok',
+					source_delivery_date: '2026-09-10',
+					baseline_minutes: 1200,
+					baseline_source: 'estimate',
+					check: null,
+					work_packages: [{
+						external_work_package_id: 'beaver:voucher:60:line:201:factory',
+						youkan_item_id: 'wp1',
+						label: '建具A 製作',
+						category: 'factory',
+						baseline_minutes: 480,
+						decomposed_minutes: 420,
+						effective_total_minutes: 480,
+						virtual_residual_minutes: 60,
+						overage_minutes: 0,
+						sync_state: 'ok',
+					}],
+				}],
+				last_synced_at: 1756100000,
+				last_error: null
+			});
+
+			const res = await BeaverApi.getOverview();
+
+			expect(res.links[0].workPackages).toHaveLength(1);
+			expect(res.links[0].workPackages[0]).toMatchObject({
+				externalWorkPackageId: 'beaver:voucher:60:line:201:factory',
+				youkanItemId: 'wp1',
+				label: '建具A 製作',
+				category: 'factory',
+				baselineMinutes: 480,
+				decomposedMinutes: 420,
+				effectiveTotalMinutes: 480,
+				virtualResidualMinutes: 60,
+				overageMinutes: 0,
+				syncState: 'ok',
+			});
+		});
+
+		it('R-154: work_packages が応答に含まれない場合は空配列になる（Y1既存案件の後方互換）', async () => {
+			vi.spyOn(ApiClient, 'request').mockResolvedValueOnce({
+				links: [{
+					external_project_id: 1,
+					youkan_project_id: 'p1',
+					source_name: 'A',
+					source_status: '製造中',
+					sync_state: 'ok',
+					source_delivery_date: null,
+					baseline_minutes: null,
+					baseline_source: 'none',
+					check: null,
+				}],
+				last_synced_at: null,
+				last_error: null
+			});
+
+			const res = await BeaverApi.getOverview();
+			expect(res.links[0].workPackages).toEqual([]);
+		});
+
 		it('バックエンド実応答（source_name/source_delivery_date/check）を正しくマッピングする', async () => {
 			// BeaverCapacityService::buildOverview() の実応答形（backend/services/BeaverCapacityService.php 100〜113行目）
 			vi.spyOn(ApiClient, 'request').mockResolvedValueOnce({
