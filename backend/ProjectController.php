@@ -50,6 +50,7 @@ class ProjectController extends BaseController {
                 )
                 AND items.id IS NOT NULL
                 AND items.is_archived = 0 AND items.deleted_at IS NULL
+                AND NOT EXISTS (SELECT 1 FROM external_work_package_links WHERE youkan_item_id = items.id)
                 ORDER BY items.updated_at DESC
             ";
              $params = [$this->currentUserId, $this->currentUserId, $this->currentUserId];
@@ -70,6 +71,7 @@ class ProjectController extends BaseController {
                     AND items.tenant_id IN ($placeholders)
                     AND items.id IS NOT NULL
                     AND items.is_archived = 0 AND items.deleted_at IS NULL
+                    AND NOT EXISTS (SELECT 1 FROM external_work_package_links WHERE youkan_item_id = items.id)
                 ORDER BY t.name ASC, items.updated_at DESC
             ";
             $params = $this->joinedTenants;
@@ -91,6 +93,7 @@ class ProjectController extends BaseController {
                 )
                 AND items.id IS NOT NULL
                 AND items.is_archived = 0 AND items.deleted_at IS NULL
+                AND NOT EXISTS (SELECT 1 FROM external_work_package_links WHERE youkan_item_id = items.id)
                 ORDER BY items.updated_at DESC
             ";
             $params = array_merge([$this->currentUserId, $this->currentUserId], $tenantIds);
@@ -106,6 +109,7 @@ class ProjectController extends BaseController {
                     AND (items.created_by = ? OR items.assigned_to = ?)
                     AND items.id IS NOT NULL
                     AND items.is_archived = 0 AND items.deleted_at IS NULL
+                    AND NOT EXISTS (SELECT 1 FROM external_work_package_links WHERE youkan_item_id = items.id)
                 ORDER BY items.updated_at DESC
             ";
             $params = [$this->currentUserId, $this->currentUserId];
