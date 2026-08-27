@@ -12,9 +12,12 @@
   - [x] フロントエンド: `OverviewBoard.tsx`/`OverviewItem.tsx` へ `@dnd-kit` 導入、`hierarchy.ts` に `resolveRootProjectId()` ヘルパー・新規`logic/dragMove.ts`（`computeDragMoveOutcome`）追加、ハイライト・Undo実装 — `feature/R-155-drag-move-frontend` `37b51e2`。新規テスト34件Green、全体1318 passed/1 failed（既知の無関係flake `useAssigneeView.test.ts`）、tsc 0
   - [x] 09番仕様書§12の全テスト項目（階層5・データ保持6・安全性5・Beaver/Y2 7・UI3）— フロント側`OverviewBoard.dragMove.test.tsx`でカバー、バックエンド側循環/テナントチェックは既存テストでカバー
   - [x] 質問事項: バックエンドのエラーメッセージ文言はフロントが汎用エラートースト表示のため個別文言依存なし、整合確認不要と判断
-- [ ] Phase 4.5: フロントエンドAgentからの逸脱報告のレビュー（下記参照）
-- [ ] Phase 4.6: R-156（Beaver連携バッジ）をR-155フロントエンドAgentへ継続依頼（同一ファイルのため）
-- [ ] Phase 5: マージ・全テストGreen確認
+- [x] Phase 4.5: フロントエンドAgentからの逸脱報告のレビュー（下記参照、すべて承認）
+- [x] Phase 4.6: R-156（Beaver連携バッジ）をR-155フロントエンドAgentへ継続依頼（同一ファイルのため）— `feature/R-155-drag-move-frontend` `b291dca`として完了
+- [x] バックエンドマージ: `feature/R-155-drag-move-backend` を `master` へマージ（マージAgent、コミット`6b6baf3`）。全Beaver関連テストGreen
+- [x] 指揮AIのdocsコミット（4件）とバックエンドマージ結果をローカルで統合しpush（`bdf527b`、コンフリクトなし、発注者承認済み）
+- [ ] フロントエンドマージ: `feature/R-155-drag-move-frontend`（R-155+R-156、最終`b291dca`）を`master`へマージ
+- [ ] Phase 5: 全テストGreen確認（マージ後）
 
 ### フロントエンドAgentからの逸脱・懸念事項（指揮AIレビュー待ち）
 
@@ -34,8 +37,9 @@
 仕様: `docs/SPEC/10_全体一覧Beaver連携バッジ.md`（正本）。新規API・DBスキーマ変更なし、既存`useBeaverIntegration`/`useWorkPackageSummary`を使う表示のみの追加。
 
 - [x] Phase 1-3: 要望記録・現行実装調査（`ProjectRegistryScreen.tsx`のbeaver-badge・`useBeaverIntegration.ts`）・仕様確定
-- [ ] Phase 4: 実装（TDD）— `OverviewBoard.tsx`/`OverviewItem.tsx`がR-155フロントエンドAgentと同一ファイルのため、そのAgent完了後に継続依頼する
-- [ ] Phase 5: マージ・全テストGreen確認
+- [x] Phase 4: 実装（TDD）— `feature/R-155-drag-move-frontend` `b291dca`（R-155ブランチ上に継続実装）。新規テスト5件Green、全体1323 passed/1 failed（既知の無関係flake）、tsc 0
+  - 既存の一部OverviewBoardテストで"Unhandled Rejection: Network unavailable in tests"ログノイズが35件増加（テスト結果自体はGreen。既存コードベースに元々あった同種ノイズと同性質。指示なしのため対応せず据え置き）
+- [ ] Phase 5: マージ（R-155と合わせて）・全テストGreen確認
 - [ ] 本番デプロイ・実機検証（10番仕様書§7、4項目）
 
 ## R-154 Beaver連携Y2（work_packages段階分解） — 完了（2026-08-28）
