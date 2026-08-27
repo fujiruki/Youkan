@@ -103,6 +103,27 @@ $link('l_406', 't_wpc', 406, 'prj_406', '案件406', '受注済', '2026-09-01', 
 $item('c406_1', 't_wpc', '子406-1', 'todo', 0, 'prj_406', null, 200, '2026-08-24');
 $item('c406_2', 't_wpc', '子406-2', 'done', 0, 'prj_406', null, 100, null);
 
+// --- S7: 二重計上バグ回帰（本番実機検証で発見）: parent_id === project_id === work_packageのid ---
+// OverviewItem.tsxの「サブアイテムを追加」ボタンは、is_project=1の見出し行から子タスクを作る際、
+// 常にクリックした見出し自身のidをprojectIdとして渡す（既存Y1以前からの仕様）。
+// work_package（is_project=1のitem）の直下に子タスクを作ると、その子のparent_idとproject_idが
+// 両方ともwork_package自身のidになり、childrenOf構築時に同一子IDが同じ親キーに2回登録されていた。
+$item('prj_407', 't_wpc', '案件407', 'inbox', 1, null, null, 0, null);
+$link('l_407', 't_wpc', 407, 'prj_407', '案件407', '受注済', '2026-09-01', 600);
+$item('wp407a_item', 't_wpc', '建具H', 'inbox', 1, 'prj_407', null, null, null);
+$wp('wp407a', 't_wpc', 'wp-407-a', 407, 'prj_407', 'wp407a_item', '建具H', 'factory', 60);
+$item('c407a_1', 't_wpc', '子407a-1', 'todo', 0, 'wp407a_item', 'wp407a_item', 30, null);
+
+// --- S8: 通常の3階層ネスト（parent_idとproject_idが異なる値）で回帰がないこと ---
+// 案件直下のタスクにさらに子タスク（孫）を作ると、孫のparent_idは中間タスク、project_idは
+// ルート案件になる（アプリの通常仕様。frontend hierarchy.tsもparentId優先・project_idはparentIdが
+// 無い場合のフォールバックとして扱う）。childrenOfが両方の値で無条件に子登録すると、孫がroot直下と
+// 中間タスク配下の2箇所に登録され、二重計上になる。
+$item('prj_408', 't_wpc', '案件408', 'inbox', 1, null, null, 0, null);
+$link('l_408', 't_wpc', 408, 'prj_408', '案件408', '受注済', '2026-09-01', 600);
+$item('c408_task', 't_wpc', '中間タスク408', 'inbox', 0, 'prj_408', null, null, null);
+$item('c408_grandchild', 't_wpc', '孫タスク408', 'todo', 0, 'prj_408', 'c408_task', 50, null);
+
 $svc = new BeaverCapacityService($pdo, 't_wpc', $excluded, $TODAY);
 $ov = $svc->buildOverview();
 $byExt = [];
@@ -175,6 +196,20 @@ assert_true('work_packages配列は空', $l406['work_packages'] === []);
 assert_true('Y1と同一の計算結果', $l406['load']['baseline'] === 600 && $l406['load']['decomposed'] === 300 && $l406['load']['effective_total'] === 600
     && $l406['load']['completed'] === 100 && $l406['load']['remaining'] === 500 && $l406['load']['placed'] === 200 && $l406['load']['unplaced'] === 300,
     json_encode($l406['load']));
+
+echo "\n=== S7: 二重計上バグ回帰（parent_id === project_id === work_package.id） ===\n";
+$l407 = $byExt[407];
+$wp407ByExt = [];
+foreach ($l407['work_packages'] as $w) { $wp407ByExt[$w['external_work_package_id']] = $w; }
+$wp407a = $wp407ByExt['wp-407-a'];
+assert_true('子タスク30分が1回だけ反映される（decomposed_minutes=30、60ではない）',
+    $wp407a['decomposed_minutes'] === 30 && $wp407a['effective_total_minutes'] === 60, json_encode($wp407a, JSON_UNESCAPED_UNICODE));
+assert_true('案件407 decomposed=30（work_packageのeffective_total=60がそのまま通る）', $l407['load']['decomposed'] === 60, json_encode($l407['load']));
+
+echo "\n=== S8: 通常の3階層ネスト（parent_idとproject_idが異なる値）で二重計上がないこと ===\n";
+$l408 = $byExt[408];
+assert_true('孫タスク50分が1回だけ反映される（decomposed=50、100ではない） / effective_total=600(baselineが勝つ)',
+    $l408['load']['decomposed'] === 50 && $l408['load']['effective_total'] === 600, json_encode($l408['load']));
 
 echo "\n=== EDF: work_package層を挟んでも unplaced が正しく1回だけ充当される ===\n";
 $check404 = $l404['check'];

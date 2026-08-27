@@ -160,13 +160,33 @@ class BeaverCapacityService {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** プロジェクト配下（project_id / parent_id 連鎖）の全子孫ID集合 */
-    private function descendantIds(string $projectId, array $items): array {
+    /**
+     * items配列から「id => 直接の子idリスト」を構築する。
+     * 子の登録は parent_id を優先し、parent_id が空（または未知のid）のときのみ project_id にフォールバックする
+     * （frontend hierarchy.ts の areIdsMatching(parentId,...) || (!parentId && areIdsMatching(projectId,...)) と同じ規則）。
+     * 両方を無条件に登録すると、3階層以上のネストで project_id がルート案件を指す通常アイテムが
+     * 「ルート直下の子」と「真の親の子」の2箇所に登録され、再帰合計（computeNode）で二重計上になる
+     * （R-153/R-154実機検証で発覚。descendantIds側は visited による Set化で実害が出ないが、
+     * computeNode は素通しの再帰合計のため露呈する。ここを直せば両者とも安全になる）。
+     */
+    private function buildChildrenOf(array $items): array {
+        $byId = [];
+        foreach ($items as $it) $byId[$it['id']] = true;
         $childrenOf = [];
         foreach ($items as $it) {
-            if (!empty($it['parent_id'])) $childrenOf[$it['parent_id']][] = $it['id'];
-            if (!empty($it['project_id'])) $childrenOf[$it['project_id']][] = $it['id'];
+            $pid = $it['parent_id'] ?? null;
+            if (!empty($pid) && isset($byId[$pid])) {
+                $childrenOf[$pid][] = $it['id'];
+            } elseif (!empty($it['project_id'])) {
+                $childrenOf[$it['project_id']][] = $it['id'];
+            }
         }
+        return $childrenOf;
+    }
+
+    /** プロジェクト配下（project_id / parent_id 連鎖）の全子孫ID集合 */
+    private function descendantIds(string $projectId, array $items): array {
+        $childrenOf = $this->buildChildrenOf($items);
         $result = [];
         $queue = [$projectId];
         $visited = [$projectId => true];
@@ -240,12 +260,8 @@ class BeaverCapacityService {
      */
     private function computeLinkLoads(array $links, array $items): array {
         $byId = [];
-        $childrenOf = [];
-        foreach ($items as $it) {
-            $byId[$it['id']] = $it;
-            if (!empty($it['parent_id'])) $childrenOf[$it['parent_id']][] = $it['id'];
-            if (!empty($it['project_id'])) $childrenOf[$it['project_id']][] = $it['id'];
-        }
+        foreach ($items as $it) $byId[$it['id']] = $it;
+        $childrenOf = $this->buildChildrenOf($items);
 
         $wpLinks = $this->fetchWorkPackageLinks();
         $wpLinkByItemId = [];
