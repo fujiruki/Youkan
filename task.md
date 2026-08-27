@@ -9,10 +9,21 @@
 - [x] Phase 1-3: 要望文書読み込み・現行実装調査（`hierarchy.ts`・`OverviewBoard.tsx`・`ItemController::update()`・`BeaverCapacityService`・`@dnd-kit`導入状況）・仕様確定
 - [ ] Phase 4: 実装（TDD）
   - [x] バックエンド: `ItemController::update()` に `parentId` 変更時の循環参照チェック追加（自分自身・子孫への移動を400拒否）— `feature/R-155-drag-move-backend` `2bbe8d6`。新規ヘルパー`resolveDescendantIdsByHierarchyRule()`追加（既存`getAllDescendantIds()`はOR和集合でR-154同種の危険パターンのため流用せず）。新規テスト27アサーションGreen、Y1/Y2回帰Green
-  - [ ] フロントエンド: `OverviewBoard.tsx`/`OverviewItem.tsx` へ `@dnd-kit` 導入、`hierarchy.ts` に `rootProjectIdOf()` ヘルパー追加、ハイライト・Undo実装
-  - [ ] 09番仕様書§12の全テスト項目（階層5・データ保持6・安全性5・Beaver/Y2 7・UI3）
-  - [ ] 質問事項: バックエンドのエラーメッセージ文言（"Cannot move item into itself"等）がフロントのトースト表示と整合するか、フロントエンド完了後に確認する
+  - [x] フロントエンド: `OverviewBoard.tsx`/`OverviewItem.tsx` へ `@dnd-kit` 導入、`hierarchy.ts` に `resolveRootProjectId()` ヘルパー・新規`logic/dragMove.ts`（`computeDragMoveOutcome`）追加、ハイライト・Undo実装 — `feature/R-155-drag-move-frontend` `37b51e2`。新規テスト34件Green、全体1318 passed/1 failed（既知の無関係flake `useAssigneeView.test.ts`）、tsc 0
+  - [x] 09番仕様書§12の全テスト項目（階層5・データ保持6・安全性5・Beaver/Y2 7・UI3）— フロント側`OverviewBoard.dragMove.test.tsx`でカバー、バックエンド側循環/テナントチェックは既存テストでカバー
+  - [x] 質問事項: バックエンドのエラーメッセージ文言はフロントが汎用エラートースト表示のため個別文言依存なし、整合確認不要と判断
+- [ ] Phase 4.5: フロントエンドAgentからの逸脱報告のレビュー（下記参照）
+- [ ] Phase 4.6: R-156（Beaver連携バッジ）をR-155フロントエンドAgentへ継続依頼（同一ファイルのため）
 - [ ] Phase 5: マージ・全テストGreen確認
+
+### フロントエンドAgentからの逸脱・懸念事項（指揮AIレビュー待ち）
+
+1. `useYoukanViewModel.updateItem()` の戻り値を`void`→`{success, error}`に変更（既存呼び出し元は戻り値未使用のため後方互換、全体回帰Green確認済み）。エラートースト表示に必須のため実施
+2. 失敗時ロールバックは新規ロールバック機構を作らず、同じ`updateItem`で逆方向に呼び直す方式
+3. 無効ドロップ先への禁止カーソル（SPEC§5「可能なら」の努力目標）は未実装。ハイライト抑制自体は実装・テスト済み
+4. ハイライト色・Undoトースト文言はAgentの裁量選択（デザイン調整が必要なら指示可能）
+5. アクセシビリティ代替（SPEC§10）: `DecisionDetailModal`に既存のプロジェクト選択UIがあるが、ルート案件選択のみでサブプロジェクト/work_package（parentId）選択はできない。仕様「なければ追加検討」に対し、Agentは「部分的に存在する」と判断し新規UIを追加せず報告に留めた（スコープ拡大回避を優先した妥当な判断）
+
 - [ ] 本番デプロイ・実機検証（09番仕様書§13、7項目）
 - [ ] Y3へは進まず停止・報告
 
