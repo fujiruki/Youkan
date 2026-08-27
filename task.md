@@ -15,7 +15,16 @@
 - [ ] 本番デプロイ・実機検証（09番仕様書§13、7項目）
 - [ ] Y3へは進まず停止・報告
 
-関連: 全体一覧Beaverバッジ表示要望はR-156候補として`docs/requests.md`に切り出し済み（本R-155のスコープ外）
+関連: 全体一覧Beaverバッジ表示要望はR-156として仕様化済み（本R-155のスコープ外。下記参照）
+
+## R-156 全体一覧Beaver連携バッジ — 仕様化済み（R-155フロントエンド完了待ち）
+
+仕様: `docs/SPEC/10_全体一覧Beaver連携バッジ.md`（正本）。新規API・DBスキーマ変更なし、既存`useBeaverIntegration`/`useWorkPackageSummary`を使う表示のみの追加。
+
+- [x] Phase 1-3: 要望記録・現行実装調査（`ProjectRegistryScreen.tsx`のbeaver-badge・`useBeaverIntegration.ts`）・仕様確定
+- [ ] Phase 4: 実装（TDD）— `OverviewBoard.tsx`/`OverviewItem.tsx`がR-155フロントエンドAgentと同一ファイルのため、そのAgent完了後に継続依頼する
+- [ ] Phase 5: マージ・全テストGreen確認
+- [ ] 本番デプロイ・実機検証（10番仕様書§7、4項目）
 
 ## R-154 Beaver連携Y2（work_packages段階分解） — 完了（2026-08-28）
 
