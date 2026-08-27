@@ -37,7 +37,9 @@ Beaverの見積内訳（`work_packages`）を、Youkan上で「案件 → work_p
 - `tenant_id` = 案件と同じ
 - `created_by` = 同期実行ユーザー
 
-**実装時の必須確認事項（Agentへの申し送り）:** `GET /projects`一覧クエリが`is_project=1`を無条件に返している場合、work_packageが案件一覧に別プロジェクトとして混入してしまう。`ProjectController`の一覧クエリが`project_id IS NULL`（トップレベルのみ）を条件にしているか実装前に確認し、なっていなければ一覧からwork_package itemを除外する条件を追加すること（`external_work_package_links.youkan_item_id`に存在するidを除外、または`project_id IS NULL`条件を明示的に付ける）。
+**実装時の必須対応（指揮AI事前調査済み）:** `ProjectController.php`の一覧クエリ（45・69・86・104行目）は`is_project = 1`のみで絞っており、`project_id IS NULL`条件を持たない。これはis_project=1のitem同士が親子ネスト（`getHierarchicalProjects`によるプロジェクト同士の親子ツリー表示。`ProjectRegistryScreen.tsx`で実際に使用中）を既に許容する設計であるため、**`project_id IS NULL`条件を追加してはならない**（既存の子プロジェクト構造が一覧から消えるデグレになる）。
+
+代わりに、上記4箇所のSELECTに`AND NOT EXISTS (SELECT 1 FROM external_work_package_links WHERE youkan_item_id = items.id)`を追加し、work_package itemのみを一覧から除外すること。work_package自体はProjectRegistryScreenの案件カード展開（§11）でのみ表示され、独立した「プロジェクト」として一覧に並ばない。
 
 ## 4. データ設計
 

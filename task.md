@@ -12,7 +12,7 @@
   - `BeaverSyncService`: work_packages upsert（新規/更新/missing_upstream）を案件同期に統合
   - `BeaverCapacityService`: `computeLinkLoads()` を再帰的effective_total計算（08番仕様書§6）へ拡張。既存Y1テスト・レスポンス形式は無変更で通ること
   - `IntegrationController`: `/integrations/beaver/overview` に `work_packages` 配列を後方互換追加
-  - **実装前に必須確認**: `ProjectController` の一覧クエリが `is_project=1` のwork_package itemを案件一覧に混入させないか（08番仕様書§3の注記）
+  - **確認済み**: `ProjectController.php`の一覧クエリ4箇所（45/69/86/104行目）に`AND NOT EXISTS (...external_work_package_links...)`を追加してwork_package itemの一覧混入を防ぐ（`project_id IS NULL`条件は既存の子プロジェクト構造を壊すため追加禁止。08番仕様書§3）
 - [ ] Phase 4b: フロントエンド実装（worktree、TDD）
   - `useWorkPackageSummary`（または`useBeaverIntegration`拡張）・`ProjectCard`へのwork_package行追加・`missing_upstream`バッジ
   - work_package配下への子タスク作成は既存`useSubtasks`パターンを流用（新規UI追加なし）
