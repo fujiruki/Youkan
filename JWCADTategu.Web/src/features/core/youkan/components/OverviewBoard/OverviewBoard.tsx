@@ -29,6 +29,7 @@ import { Item } from '../../types';
 import { decisionToStatus } from '../../logic/decisionResolution';
 import { computeDragMoveOutcome } from '../../logic/dragMove';
 import { useToast } from '../../../../../contexts/ToastContext';
+import { useBeaverIntegration, useWorkPackageSummary } from '../../viewmodels/useBeaverIntegration';
 
 interface OverviewBoardProps {
 	viewModel: any;
@@ -47,6 +48,12 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	// R-129: 全体一覧フィルタ「着手遅れ」（最遅着手日を過ぎた項目のみ表示）
 	const [lateStartOnly, setLateStartOnly] = useState(false);
 	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly, lateStartOnly);
+
+	// R-156: 全体一覧Beaver連携バッジ（表示のみ。同期・負荷計算ロジックには触れない）
+	const { overview: beaverOverview, linkByProjectId } = useBeaverIntegration();
+	const workPackageSummary = useWorkPackageSummary(beaverOverview);
+	const isBeaverLinkedProject = (projectId: string): boolean =>
+		linkByProjectId.has(String(projectId)) || workPackageSummary.has(String(projectId));
 
 	const [inlineAddProjectId, setInlineAddProjectId] = useState<string | null>(null);
 
@@ -434,6 +441,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 								onAutoTimeEditDone={() => setChainAutoEditItemId(null)}
 								onNavigateToFlow={onNavigateToFlow}
 								dropDisabled={(wrapper as any).type === 'header' ? computeDropDisabled((wrapper as any).project) : undefined}
+							isBeaverLinked={(wrapper as any).type === 'header' ? isBeaverLinkedProject((wrapper as any).projectId) : undefined}
 							/>
 						);
 					})}

@@ -22,6 +22,8 @@ interface OverviewItemProps {
 	onAutoTimeEditDone?: () => void;
 	/** R-155: このheaderへのドロップを禁止する場合true（自分自身・子孫・テナント違い・アーカイブ済み） */
 	dropDisabled?: boolean;
+	/** R-156: Beaver連携由来のheader（ルート案件 or work_package）である場合true */
+	isBeaverLinked?: boolean;
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -94,7 +96,8 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	titleLimit,
 	autoStartTimeEdit,
 	onAutoTimeEditDone,
-	dropDisabled
+	dropDisabled,
+	isBeaverLinked
 }) => {
 	const isHeader = wrapper.type === 'header';
 
@@ -162,6 +165,15 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
+					{isBeaverLinked && (
+						<span
+							data-testid="overview-beaver-badge"
+							title="Beaver連携"
+							className="text-[9px] font-bold px-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0"
+						>
+							B
+						</span>
+					)}
 					{isOver && (
 						<span className="text-[0.75em] font-black text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">
 							{projectTitle}へ移動
