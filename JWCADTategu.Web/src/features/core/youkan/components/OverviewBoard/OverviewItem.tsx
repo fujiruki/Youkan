@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Item } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { OverviewItemWrapper } from './useOverviewItems';
@@ -19,6 +20,8 @@ interface OverviewItemProps {
 	autoStartTimeEdit?: boolean;
 	/** R-094-B: 自動編集状態が確定/取消で終了したことを親へ通知（次のインライン行へフォーカスを渡すため） */
 	onAutoTimeEditDone?: () => void;
+	/** R-155: このheaderへのドロップを禁止する場合true（自分自身・子孫・テナント違い・アーカイブ済み） */
+	dropDisabled?: boolean;
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -90,9 +93,22 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	onNavigateToFlow,
 	titleLimit,
 	autoStartTimeEdit,
-	onAutoTimeEditDone
+	onAutoTimeEditDone,
+	dropDisabled
 }) => {
 	const isHeader = wrapper.type === 'header';
+
+	// R-155: header行はドロップ対象、item行はドラッグ元。id空間が別（header-prefix）のため
+	// 双方のフックは常に呼びつつ、非対応側はdisabledにして無害化する（Rules of Hooksを維持）
+	const { setNodeRef: setDropRef, isOver } = useDroppable({
+		id: isHeader ? wrapper.id : `__not-a-drop-target__${wrapper.id}`,
+		disabled: !isHeader || !!dropDisabled,
+	});
+	const { attributes: dragAttributes, listeners: dragListeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+		id: !isHeader ? wrapper.item.id : `__not-draggable__${wrapper.id}`,
+		disabled: isHeader,
+	});
+
 	const [isTimeEditing, setIsTimeEditing] = useState(false);
 	const [timeInputValue, setTimeInputValue] = useState('');
 	const timeInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +135,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 		const { depth, project, projectId, projectTitle } = wrapper;
 		return (
 			<div
+				ref={setDropRef}
 				className="mb-[2px] break-inside-avoid group/header relative"
 				style={{ breakAfter: 'avoid', marginTop: depth === 0 ? '0.6em' : '0' }}
 			>
@@ -128,7 +145,9 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 				)}
 				<div className={cn(
 					"flex items-center gap-[0.3em] text-slate-700 dark:text-slate-200 font-bold rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 leading-none",
-					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]"
+					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]",
+					// R-155: ドロップ実ターゲットのみを明確に強調（親子同時ハイライトはIDが別のため発生しない）
+					isOver && "bg-amber-100 dark:bg-amber-900/40 ring-2 ring-amber-400 dark:ring-amber-500 !text-amber-800 dark:!text-amber-200"
 				)}
 					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem`, paddingRight: '4px', paddingTop: '0', paddingBottom: '0', margin: '0' }}
 					onClick={() => onClick(project as Item)}
@@ -143,6 +162,11 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
+					{isOver && (
+						<span className="text-[0.75em] font-black text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">
+							{projectTitle}へ移動
+						</span>
+					)}
 					{depth === 0 && onNavigateToFlow && projectId && (
 						<button
 							className="opacity-0 group-hover/header:opacity-60 hover:!opacity-100 p-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded transition-all text-indigo-500 dark:text-indigo-400 shrink-0"
@@ -205,6 +229,9 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 
 	return (
 		<div
+			ref={setDragRef}
+			{...dragAttributes}
+			{...dragListeners}
 			onMouseUp={(e) => {
 				if (e.button === 0) {
 					onClick(item);
@@ -220,7 +247,9 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					"hover:bg-indigo-50 dark:hover:bg-indigo-900/10 hover:shadow-sm",
 					"break-inside-avoid",
 					"mb-[2px]",
-					isDone && "opacity-40 grayscale-[0.5]"
+					isDone && "opacity-40 grayscale-[0.5]",
+					// R-155: ドラッグ中は掴んでいるアイテムを視覚的に浮かせる
+					isDragging && "opacity-40"
 				)}
 			style={{
 				paddingLeft: `${depth * 1.5 + 0.5}rem`
