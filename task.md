@@ -2,6 +2,24 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。
 
+## R-154 Beaver連携Y2（work_packages段階分解） — 仕様確定・実装中
+
+仕様: `docs/SPEC/08_Beaver連携Y2.md`（正本）。前提のY1仕様（`docs/SPEC/07_Beaver連携.md`）は無変更。
+
+- [x] Phase 1-3: 要望記録・調査（既存capacity計算・ProjectRegistryScreen実装調査）・仕様確定
+- [ ] Phase 4a: バックエンド実装（worktree、TDD）
+  - `external_work_package_links` テーブル新設（`backend/db.php ensureTables()`）
+  - `BeaverSyncService`: work_packages upsert（新規/更新/missing_upstream）を案件同期に統合
+  - `BeaverCapacityService`: `computeLinkLoads()` を再帰的effective_total計算（08番仕様書§6）へ拡張。既存Y1テスト・レスポンス形式は無変更で通ること
+  - `IntegrationController`: `/integrations/beaver/overview` に `work_packages` 配列を後方互換追加
+  - **実装前に必須確認**: `ProjectController` の一覧クエリが `is_project=1` のwork_package itemを案件一覧に混入させないか（08番仕様書§3の注記）
+- [ ] Phase 4b: フロントエンド実装（worktree、TDD）
+  - `useWorkPackageSummary`（または`useBeaverIntegration`拡張）・`ProjectCard`へのwork_package行追加・`missing_upstream`バッジ
+  - work_package配下への子タスク作成は既存`useSubtasks`パターンを流用（新規UI追加なし）
+- [ ] Phase 5: マージ・全テストGreen（08番仕様書§12）
+- [ ] 本番デプロイ・実機検証（08番仕様書§13、6項目）
+- [ ] Y3への申し送り文書化（08番仕様書§14に既定事項あり、実装知見を追記）
+
 ## R-153 Beaver連携Y1 — 完了（2026-08-26）
 
 仕様: `docs/SPEC/07_Beaver連携.md`（正本）、契約: `docs/SPEC/R-153_capacity_check_api_contract.md`（確定版）
@@ -22,4 +40,4 @@
 - CORSヘッダー重複（`docs/requests.md`、2026-08-26発見）
 - 旧Beaver連携要望2件は統合せず据え置き（B2/B3-Y2着手時に再評価、発注者判断2026-08-26）
 
-## 次はY2以降だが、発注者指示によりここで停止（Y2には進まない）
+## Y2完了後はY3へ進まず停止（発注者指示、2026-08-27）
