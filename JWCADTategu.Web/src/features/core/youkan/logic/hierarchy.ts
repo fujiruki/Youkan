@@ -205,6 +205,49 @@ export const collectDescendantIds = (allItems: Item[], rootId: string): string[]
 	return result;
 };
 
+/**
+ * R-155: ドロップ先ノード（nodeId）から見た「ルート案件ID」を返す。
+ * buildHierarchicalList のsubProjects判定（parent_id優先・存在しなければproject_idへフォールバック、
+ * 自己参照は無視）と完全に同じ優先順位で allProjects を遡り、
+ * どちらも辿れなくなったノード（＝ルート）のIDを返す。
+ * Beaver work_package（parentId=null, projectId=ルート案件ID）はフォールバック1段でルートに到達する。
+ */
+export const resolveRootProjectId = (nodeId: string, allProjects: Item[]): string => {
+	const projectMap = new Map<string, Item>();
+	allProjects.forEach(p => {
+		if (!p || !p.id) return;
+		const nid = normalizeId(String(p.id));
+		if (!nid) return;
+		projectMap.set(nid, p);
+	});
+
+	const visited = new Set<string>();
+	let currentId = String(nodeId);
+
+	while (true) {
+		const nCurrent = normalizeId(currentId);
+		if (!nCurrent || visited.has(nCurrent)) return currentId;
+		visited.add(nCurrent);
+
+		const node = projectMap.get(nCurrent);
+		if (!node) return currentId;
+
+		const iparentId = normalizeId(node.parentId ? String(node.parentId) : null);
+		if (iparentId && projectMap.has(iparentId)) {
+			currentId = String(node.parentId);
+			continue;
+		}
+
+		const ipid = normalizeId(node.projectId ? String(node.projectId) : null);
+		if (ipid && ipid !== nCurrent && projectMap.has(ipid)) {
+			currentId = String(node.projectId);
+			continue;
+		}
+
+		return currentId;
+	}
+};
+
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
 	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false, dependencies = [], noDeadlineCreatedAsc = false } = options;
 	const itemCompareFn = noDeadlineCreatedAsc ? compareOverviewItems : compareGeneralList2Items;
