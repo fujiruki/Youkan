@@ -42,11 +42,16 @@ const renderNode = (status: Item['status']) => {
 };
 
 describe('FlowItemNode: R-132 todoノードの配色', () => {
-    it('todoノードはinboxノードと同じ配色クラスになる', () => {
+    it('R-159: inbox は緑、todo は既存の通常色を維持する', () => {
         const inboxNode = renderNode('inbox');
         const todoNode = renderNode('todo');
 
-        expect(todoNode.className).toBe(inboxNode.className);
+        expect(inboxNode.className).toContain('bg-emerald-50');
+        expect(todoNode.className).toContain('bg-slate-100');
+    });
+
+    it('R-159: someday はグレーになる', () => {
+        expect(renderNode('someday').className).toContain('bg-slate-100');
     });
 
     it('todoノードにteal系の専用色クラスが含まれない', () => {

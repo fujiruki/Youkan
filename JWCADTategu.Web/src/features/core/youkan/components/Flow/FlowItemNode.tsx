@@ -3,7 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { format } from 'date-fns';
 import type { Item } from '../../types';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
-import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS, getItemStatusColors } from '../../logic/statusUtils';
 import { formatLatestStartToken, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
 
 export interface FlowItemNodeData {
@@ -23,21 +23,10 @@ export interface FlowItemNodeData {
   onChainCreate?: (itemId: string) => void;
 }
 
-const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-  inbox: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
-  // R-132: 後日着手（todo）もinboxと同じ通常色にする（バッジ文言「後日着手」は維持）
-  todo: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
-  focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
-  pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
-  waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
-  done: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-400' },
-  cancelled: { bg: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-400' },
-};
-
 const FlowItemNodeComponent = ({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as FlowItemNodeData;
   const item = nodeData.item;
-  const colors = statusColors[item.status] || statusColors.inbox;
+  const colors = getItemStatusColors(item);
   const [editValue, setEditValue] = useState(item.title);
   const inputRef = useRef<HTMLInputElement>(null);
 

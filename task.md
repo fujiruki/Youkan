@@ -10,13 +10,15 @@
 - [x] Phase 4: Codexへ調査委譲 → R-075と同一事象と判明、追加修正不要
 - [x] Phase 5: 指揮AIが現行masterのコードで解消済みであることを確認、記録更新
 
-## R-159 ステータス色の再調整 — 仕様化済み（2026-08-29）
+## R-159 ステータス色の再調整 — 検証中（2026-08-29）
 
-原文・仕様: `docs/requests_log.md` R-159行。実装はCodexへ委譲。
+原文: `docs/requests_log.md` R-159行。仕様: `docs/SPEC/12_ステータス色の再調整.md`（正本）。実装はCodexへ委譲。
 
 - [x] Phase 1-3: 本番改善要望フォームからの発見・仕様確定
-- [ ] Phase 4: Codexへ実装を委譲
-- [ ] Phase 5: レビュー・マージ・デプロイ
+- [x] Phase 4: Codexへ実装を委譲（TDD、共通色ロジックを`statusUtils.ts`へ集約。Flow・Overview・Calendarへ適用。対象3ファイル31件Green、tsc・build成功）
+- [ ] Phase 5: 全テスト完走・視覚確認・レビュー・マージ・デプロイ
+  - 全テストは120秒で完走せず、既知の日付依存`useYoukanViewModel.capacity.test.tsx`が途中1件失敗
+  - 変更前後スクリーンショットによる視覚確認は未実施
 
 ## R-157 全体一覧ドラッグ範囲拡大 — マージ済み・デプロイ待ち（2026-08-29）
 
