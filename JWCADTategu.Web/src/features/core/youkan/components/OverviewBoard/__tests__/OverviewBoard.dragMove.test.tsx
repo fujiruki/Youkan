@@ -14,12 +14,14 @@ import type { OverviewItemWrapper } from '../useOverviewItems';
 
 let capturedOnDragStart: ((e: any) => void) | null = null;
 let capturedOnDragEnd: ((e: any) => Promise<void> | void) | null = null;
+let capturedOnDragOver: ((e: any) => void) | null = null;
 const droppableDisabledById: Record<string, boolean> = {};
 
 vi.mock('@dnd-kit/core', () => ({
-	DndContext: ({ children, onDragStart, onDragEnd }: any) => {
+	DndContext: ({ children, onDragStart, onDragEnd, onDragOver }: any) => {
 		capturedOnDragStart = onDragStart;
 		capturedOnDragEnd = onDragEnd;
+		capturedOnDragOver = onDragOver;
 		return children;
 	},
 	DragOverlay: ({ children }: any) => children ?? null,
@@ -161,6 +163,12 @@ const dragEnd = async (activeId: string, overId: string | null) => {
 	});
 };
 
+const dragOver = async (activeId: string, overId: string | null) => {
+	await act(async () => {
+		capturedOnDragOver?.({ active: { id: activeId }, over: overId ? { id: overId } : null });
+	});
+};
+
 describe('R-155: OverviewBoard ドラッグでプロジェクト移動', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -168,6 +176,7 @@ describe('R-155: OverviewBoard ドラッグでプロジェクト移動', () => {
 		Object.keys(droppableDisabledById).forEach(k => delete droppableDisabledById[k]);
 		capturedOnDragStart = null;
 		capturedOnDragEnd = null;
+		capturedOnDragOver = null;
 	});
 
 	it('タスクを別ルートプロジェクトへ移動する: updateItemにprojectId/parentId:nullのみ渡る', async () => {
@@ -384,5 +393,94 @@ describe('R-155: OverviewBoard ドラッグでプロジェクト移動', () => {
 		expect(mockShowToast).toHaveBeenCalledTimes(1);
 		expect(mockShowToast.mock.calls[0][0].type).toBe('error');
 		expect(mockShowToast.mock.calls[0][0].action).toBeUndefined();
+	});
+});
+
+describe('R-157: 全体一覧ドラッグ範囲拡大（item行へのドロップ・ハイライト範囲拡大）', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockShowToast.mockClear();
+		Object.keys(droppableDisabledById).forEach(k => delete droppableDisabledById[k]);
+		capturedOnDragStart = null;
+		capturedOnDragEnd = null;
+		capturedOnDragOver = null;
+	});
+
+	it('サブプロジェクトA配下のitem行へドロップすると、Aへ移動する（Aの親やAの兄弟にならない）', async () => {
+		const root = makeProject('root-1');
+		const subA = makeProject('sub-a', { parentId: 'root-1' });
+		const subB = makeProject('sub-b', { parentId: 'root-1' });
+		mockItems = [
+			makeHeaderWrapper(root),
+			makeItemWrapper('task-1', 'root-1'),
+			makeHeaderWrapper(subA, 1),
+			makeItemWrapper('target-in-suba', 'sub-a', {}, 2),
+			makeHeaderWrapper(subB, 1),
+		];
+		const updateItem = vi.fn().mockResolvedValue({ success: true });
+		render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+
+		await dragEnd('task-1', 'item-drop-target-in-suba');
+
+		expect(updateItem).toHaveBeenCalledWith('task-1', { parentId: 'sub-a', projectId: 'root-1' });
+	});
+
+	it('item行ドロップとheader行ドロップで同じ移動先になる', async () => {
+		const root = makeProject('root-1');
+		const subA = makeProject('sub-a', { parentId: 'root-1' });
+		mockItems = [
+			makeHeaderWrapper(root),
+			makeItemWrapper('task-1', 'root-1'),
+			makeHeaderWrapper(subA, 1),
+			makeItemWrapper('target-in-suba', 'sub-a', {}, 2),
+		];
+		const updateItem = vi.fn().mockResolvedValue({ success: true });
+		render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+
+		await dragEnd('task-1', 'item-drop-target-in-suba');
+		expect(updateItem).toHaveBeenLastCalledWith('task-1', { parentId: 'sub-a', projectId: 'root-1' });
+
+		updateItem.mockClear();
+		await dragEnd('task-1', 'header-sub-a');
+		expect(updateItem).toHaveBeenLastCalledWith('task-1', { parentId: 'sub-a', projectId: 'root-1' });
+	});
+
+	it('ドラッグ中、対象groupのheader行・item行すべてにdata-drop-highlighted="true"が付き、他groupには付かない', async () => {
+		const root = makeProject('root-1');
+		const subA = makeProject('sub-a', { parentId: 'root-1' });
+		mockItems = [
+			makeHeaderWrapper(root),
+			makeItemWrapper('task-1', 'root-1'),
+			makeHeaderWrapper(subA, 1),
+			makeItemWrapper('target-in-suba', 'sub-a', {}, 2),
+		];
+		const updateItem = vi.fn().mockResolvedValue({ success: true });
+		const { container } = render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+
+		await dragStart('task-1');
+		await dragOver('task-1', 'header-sub-a');
+
+		const highlighted = container.querySelectorAll('[data-drop-highlighted="true"]');
+		// sub-aのheader行と、その配下item行(target-in-suba)の2行だけがハイライトされる
+		expect(highlighted.length).toBe(2);
+	});
+
+	it('item行をoverしてもそのitem行が属するgroup全体がハイライトされる（headerだけでなくitem行経由でも解決される）', async () => {
+		const root = makeProject('root-1');
+		const subA = makeProject('sub-a', { parentId: 'root-1' });
+		mockItems = [
+			makeHeaderWrapper(root),
+			makeItemWrapper('task-1', 'root-1'),
+			makeHeaderWrapper(subA, 1),
+			makeItemWrapper('target-in-suba', 'sub-a', {}, 2),
+		];
+		const updateItem = vi.fn().mockResolvedValue({ success: true });
+		const { container } = render(<OverviewBoard viewModel={createMockViewModel({ updateItem })} onOpenItem={vi.fn()} />);
+
+		await dragStart('task-1');
+		await dragOver('task-1', 'item-drop-target-in-suba');
+
+		const highlighted = container.querySelectorAll('[data-drop-highlighted="true"]');
+		expect(highlighted.length).toBe(2);
 	});
 });

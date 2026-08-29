@@ -248,6 +248,19 @@ export const resolveRootProjectId = (nodeId: string, allProjects: Item[]): strin
 	}
 };
 
+/**
+ * R-157: wrapperが属するheader行のid（`header-${id}`形式）を返す。
+ * header行は自分自身、item行は直近の親header（wrapper.project。サブプロジェクトへ再帰する時のみ
+ * 更新されるため祖先ではなく直近の親を正しく指す）から導出する。新しい親子解決ロジックは実装しない。
+ * `HierarchicalWrapper`・`OverviewItemWrapper`いずれの header/item 判別子形状にも構造的に一致する。
+ */
+export const resolveGroupId = (
+	wrapper: { type: 'header'; projectId: string } | { type: 'item'; project: Item | null }
+): string | null => {
+	if (wrapper.type === 'header') return `header-${wrapper.projectId}`;
+	return wrapper.project ? `header-${wrapper.project.id}` : null;
+};
+
 export const buildHierarchicalList = (options: HierarchyOptions): HierarchicalWrapper[] => {
 	const { allItems, allProjects, showGroups = true, activeProjectId, hideCompleted = false, dependencies = [], noDeadlineCreatedAsc = false } = options;
 	const itemCompareFn = noDeadlineCreatedAsc ? compareOverviewItems : compareGeneralList2Items;
