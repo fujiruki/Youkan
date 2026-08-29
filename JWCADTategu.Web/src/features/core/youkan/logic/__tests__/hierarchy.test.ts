@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortItemsHierarchically, getHierarchicalProjects, buildHierarchicalList } from '../hierarchy';
+import { sortItemsHierarchically, getHierarchicalProjects, buildHierarchicalList, resolveGroupId } from '../hierarchy';
 import { Item, Dependency } from '../../types';
 
 const makeItem = (id: string, parentId?: string | null, projectId?: string | null): Item => ({
@@ -642,5 +642,90 @@ describe('buildHierarchicalList: noDeadlineCreatedAsc オプション', () => {
     const items = result.filter(w => w.type === 'item');
     // showGroups=false は最後に compareGanttListItems で再ソートするので降順のまま
     expect(items.map(w => w.item.id)).toEqual(['new', 'old']);
+  });
+});
+
+describe('resolveGroupId（R-157: 全体一覧ドラッグ範囲拡大のサブプロジェクト境界）', () => {
+  const makeProjectItem = (id: string, title: string, parentId: string | null = null): Item => ({
+    id,
+    title,
+    status: 'inbox',
+    focusOrder: 0,
+    isEngaged: false,
+    statusUpdatedAt: 0,
+    interrupt: false,
+    weight: 2,
+    parentId,
+    projectId: null,
+    createdAt: 0,
+    updatedAt: 0,
+    memo: '',
+    due_date: '',
+    flags: {},
+    isProject: true,
+    type: 'project',
+  });
+
+  it('root直下タスクのresolveGroupId結果がrootのheader idと一致する', () => {
+    const root = makeProjectItem('root-1', 'ルート');
+    const task = makeItem('task-1', null, 'root-1');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [root] as any,
+      showGroups: true,
+    });
+    const itemWrapper = result.find(w => w.type === 'item' && w.item.id === 'task-1')!;
+    expect(resolveGroupId(itemWrapper as any)).toBe('header-root-1');
+  });
+
+  it('サブプロジェクトA配下タスクのresolveGroupId結果はAのheader idと一致し、親やAの兄弟のheader idにならない', () => {
+    const root = makeProjectItem('root-1', 'ルート');
+    const subA = makeProjectItem('sub-a', 'サブA', 'root-1');
+    const subB = makeProjectItem('sub-b', 'サブB（兄弟）', 'root-1');
+    const task = makeItem('task-1', null, 'sub-a');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [root, subA, subB] as any,
+      showGroups: true,
+    });
+    const itemWrapper = result.find(w => w.type === 'item' && w.item.id === 'task-1')!;
+    const groupId = resolveGroupId(itemWrapper as any);
+    expect(groupId).toBe('header-sub-a');
+    expect(groupId).not.toBe('header-root-1');
+    expect(groupId).not.toBe('header-sub-b');
+  });
+
+  it('3階層ネスト（root→mid→leaf）でleaf配下タスクのresolveGroupId結果はleafのheader idと一致し、root/midにならない', () => {
+    const root = makeProjectItem('root-1', 'ルート');
+    const mid = makeProjectItem('mid-1', 'ミドル', 'root-1');
+    const leaf = makeProjectItem('leaf-1', 'リーフ', 'mid-1');
+    const task = makeItem('task-1', null, 'leaf-1');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [root, mid, leaf] as any,
+      showGroups: true,
+    });
+    const itemWrapper = result.find(w => w.type === 'item' && w.item.id === 'task-1')!;
+    const groupId = resolveGroupId(itemWrapper as any);
+    expect(groupId).toBe('header-leaf-1');
+    expect(groupId).not.toBe('header-root-1');
+    expect(groupId).not.toBe('header-mid-1');
+  });
+
+  it('header行のresolveGroupId結果は自分自身のheader idになる', () => {
+    const root = makeProjectItem('root-1', 'ルート');
+    const task = makeItem('task-1', null, 'root-1');
+    const result = buildHierarchicalList({
+      allItems: [task],
+      allProjects: [root] as any,
+      showGroups: true,
+    });
+    const headerWrapper = result.find(w => w.type === 'header')!;
+    expect(resolveGroupId(headerWrapper as any)).toBe('header-root-1');
+  });
+
+  it('プロジェクトに属さないタスク（project=null）のresolveGroupId結果はnull', () => {
+    const itemWrapper = { type: 'item' as const, project: null };
+    expect(resolveGroupId(itemWrapper as any)).toBeNull();
   });
 });

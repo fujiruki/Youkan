@@ -4,6 +4,7 @@ import { addDays, format } from 'date-fns';
 import { useOverviewItems, OverviewItemWrapper } from '../useOverviewItems';
 import { Item, Project, Dependency } from '../../../types';
 import { DependencyRepository } from '../../../repositories/DependencyRepository';
+import { resolveGroupId } from '../../../logic/hierarchy';
 
 // Mock Data (Projects as Items)
 const mockProjects: any[] = [
@@ -73,6 +74,22 @@ describe('useOverviewItems', () => {
         expect(headers.length).toBe(2);
         expect(headers[0].project?.title).toBe('Company Project A');
         expect(headers[1].project?.title).toBe('Personal Project B');
+    });
+
+    // R-157: OverviewItemWrapperはHierarchicalWrapperと同じ形（header: projectId, item: project）を持つため、
+    // resolveGroupIdをそのまま流用してドロップ先groupIdを解決できることを確認する
+    it('R-157: resolveGroupIdでitem行/header行のgroupIdを一貫して解決できる', () => {
+        const { result } = renderHook(() => useOverviewItems(mockViewModel as any));
+        const items: OverviewItemWrapper[] = result.current;
+
+        const projAItem = items.find(w => w.type === 'item' && w.item.id === '2')!;
+        expect(resolveGroupId(projAItem as any)).toBe('header-p1');
+
+        const projAHeader = items.find(w => w.type === 'header' && w.project?.id === 'p1')!;
+        expect(resolveGroupId(projAHeader as any)).toBe('header-p1');
+
+        const noProjectItem = items.find(w => w.type === 'item' && w.item.id === '1')!;
+        expect(resolveGroupId(noProjectItem as any)).toBeNull();
     });
 
     it('focus items in gdbActive are included once even if they also appear in Today lists', () => {
