@@ -19,7 +19,7 @@
 - [x] 仕様訂正: Codex初回実装は「あとでやる」＝`someday`と誤って判断しグレーへ変更。指揮AIが添付スクリーンショット（拡大確認）とコードの食い違いに気づき発注者へ確認 → 「あとでやる」は`todo`（後日着手）を指すと判明。`todo`=グレー、`someday`（いつかやる）=黄色に確定し仕様書訂正
 - [x] Phase 4b: Codexへ再修正を委譲（`todo`/`someday`の色定義修正＋旧仕様テストアサーション訂正）
 - [x] Phase 5a: 指揮AIがCodexの未コミット変更をレビューしコミット（`f3e891f`, `9e50a49`）。対象3ファイル31件・全体1340 passed/1 failed（既知の無関係flake）/14 skipped、`npx tsc --noEmit` 0エラーを確認
-- [ ] Phase 5b: レビュー・マージ・デプロイ・本番実機検証（視覚確認はローカル環境の通信エラーのため本番検証時に実施）
+- [x] Phase 5b: マージ（`576cdba`、master push済み）・本番デプロイ（`upload.ps1`、稼働バンドル`index-Du7tH6gN.js`）・実機検証（claude-in-chromeでDOM走査、inbox=emerald・todo=slate・focus=blue・期限超過=roseを本番データで確認、コンソールエラーなし。someday=amberは該当データなしのため単体テストで代替確認）
 
 ## R-157 全体一覧ドラッグ範囲拡大 — マージ済み・デプロイ待ち（2026-08-29）
 
