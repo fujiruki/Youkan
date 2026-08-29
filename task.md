@@ -16,7 +16,10 @@
 - [x] Phase 5: 全テストGreen確認・指揮AIによるコードレビュー（diff確認・テスト再実行で妥当性確認）・マージ
   - フロント1333 passed/1 failed（既知の無関係flake`useYoukanViewModel.capacity.test.tsx`の`shelf.active...`、R-157が触れたファイルを一切importせずmaster単体でも失敗する既存問題）/14 skipped、`npx tsc --noEmit` 0エラー
   - マージ: `feature/R-157-overview-drag-range`を`master`へマージ（`2e0afd8`、コンフリクトなし）・`git push origin master`成功（`9de4d4b..2e0afd8`）
-- [ ] 本番デプロイ・実機検証（11番仕様書§8、5項目）
+- [x] 本番デプロイ・実機検証（11番仕様書§8、5項目）— `upload.ps1`実行、稼働バンドル`index-C5U2XOVs.js`。指揮AIがclaude-in-chromeで実施
+  - 検証用データ（ルートプロジェクトA→サブプロジェクトB/B2→コアアイテムX/Y/Z、独立ルートC、ドラッグ元タスク）をAPI経由で作成し、実UIのdnd-kit経路（PointerEventをsrc要素・documentへ直接dispatch、`OverviewBoard.tsx`の実コードパスを通過）でドラッグを実行
+  - (1) サブB配下のitem行「アイテムX」上にドロップ→サブBのheader行とitem行Xの両方に`data-drop-highlighted="true"`が同時に付与されることを確認（ハイライト範囲拡大） (2) ドロップ後、対象タスクの`parentId`=サブB・`projectId`=ルートA（API応答で確認）となり、親A・兄弟サブB2には一切ハイライト・移動が発生しないことを確認（サブプロジェクト境界の正しさ） (3) 工数(45m)・statusが移動前後で保持されることを確認 (4) 列数6の多列段組みで、ドラッグ元とドロップ先が数千pxの別列間に離れた状態でも正しく判定されることを確認（段組み環境での動作） (5) コンソールエラーなし
+  - 検証データは`trash`→`destroy`で全8件完全削除し原状回復済み（削除後`remainCount:0`を確認）
 
 詳細: `docs/requests_log.md` R-157行、`docs/SPEC/11_全体一覧ドラッグ範囲拡大.md`
 
