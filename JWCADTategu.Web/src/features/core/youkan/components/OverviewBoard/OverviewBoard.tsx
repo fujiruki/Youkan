@@ -9,10 +9,11 @@ import {
 	pointerWithin,
 	DragStartEvent,
 	DragEndEvent,
+	DragOverEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Printer } from 'lucide-react';
-import { useOverviewItems } from './useOverviewItems';
+import { useOverviewItems, OverviewItemWrapper } from './useOverviewItems';
 import { OverviewItem } from './OverviewItem';
 import { InlineAddRow } from './InlineAddRow';
 import { ViewControls } from './ViewControls';
@@ -28,6 +29,7 @@ import { getInlineAddInsertIndex } from './inlineAddPosition';
 import { Item } from '../../types';
 import { decisionToStatus } from '../../logic/decisionResolution';
 import { computeDragMoveOutcome } from '../../logic/dragMove';
+import { resolveGroupId } from '../../logic/hierarchy';
 import { useToast } from '../../../../../contexts/ToastContext';
 import { useBeaverIntegration, useWorkPackageSummary } from '../../viewmodels/useBeaverIntegration';
 
@@ -105,6 +107,8 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
 	);
 	const [activeDragId, setActiveDragId] = useState<string | null>(null);
+	// R-157: 現在ドラッグでoverされている行が属するgroupId（header〜配下item行のまとまり）
+	const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
 
 	// hierarchy.ts の親子解決規則と同一のallItems（タスク＋プロジェクト）を、
 	// 現在表示中のitemsから組み立てる（collectDescendantIds・resolveRootProjectIdで共有）
@@ -130,25 +134,61 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 		return !outcome.allowed;
 	};
 
+	// R-157: header行・item行の両方が同じ禁止状態を参照できるよう、groupId単位で事前計算する
+	const dropDisabledByGroupId = useMemo(() => {
+		const map = new Map<string, boolean>();
+		allHeaderProjects.forEach(project => {
+			map.set(`header-${project.id}`, computeDropDisabled(project));
+		});
+		return map;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [allHeaderProjects, activeDraggedItem, allItemsFlat]);
+
+	// R-157: over.id（header-* または item-drop-*）から所属groupIdのheader行wrapperを解決する。
+	// item-drop-*の場合はまず対象item行のresolveGroupIdでheader groupIdへ変換し、
+	// 以降はheader行ドロップと完全に同じ経路に合流させる（別解釈を作らない）
+	const resolveHeaderWrapperFromOverId = (overId: string) => {
+		let groupId: string | null = null;
+		if (overId.startsWith('header-')) {
+			groupId = overId;
+		} else if (overId.startsWith('item-drop-')) {
+			const wrapperId = overId.slice('item-drop-'.length);
+			const overWrapper = items.find(w => w.type === 'item' && w.id === wrapperId);
+			groupId = overWrapper && overWrapper.type === 'item' ? resolveGroupId(overWrapper) : null;
+		}
+		if (!groupId) return null;
+		const headerWrapper = items.find(w => w.type === 'header' && w.id === groupId);
+		return headerWrapper && headerWrapper.type === 'header' ? headerWrapper : null;
+	};
+
 	const handleDragStart = (event: DragStartEvent) => {
 		setActiveDragId(String(event.active.id));
+	};
+
+	const handleDragOver = (event: DragOverEvent) => {
+		const { over } = event;
+		if (!over) {
+			setHoveredGroupId(null);
+			return;
+		}
+		const headerWrapper = resolveHeaderWrapperFromOverId(String(over.id));
+		setHoveredGroupId(headerWrapper ? headerWrapper.id : null);
 	};
 
 	const handleDragEnd = async (event: DragEndEvent) => {
 		const { active, over } = event;
 		setActiveDragId(null);
+		setHoveredGroupId(null);
 		if (!over) return;
 
 		const taskId = String(active.id);
-		const overId = String(over.id);
-		if (!overId.startsWith('header-')) return;
 
 		const draggedWrapper = items.find(w => w.type === 'item' && w.item.id === taskId);
 		if (!draggedWrapper || draggedWrapper.type !== 'item') return;
 		const draggedItem = draggedWrapper.item;
 
-		const headerWrapper = items.find(w => w.type === 'header' && w.id === overId);
-		if (!headerWrapper || headerWrapper.type !== 'header') return;
+		const headerWrapper = resolveHeaderWrapperFromOverId(String(over.id));
+		if (!headerWrapper) return;
 		const targetProject = headerWrapper.project;
 
 		// フロント側の最終防御（UI上はdisabledで到達しないはずだが念のため）
@@ -319,7 +359,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const rows = buildRows();
 
 	return (
-		<DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+		<DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
 			<div data-testid="overview-layout" className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
 			<div className="no-print flex-none relative z-20 flex items-center gap-2">
@@ -422,10 +462,16 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 							);
 						}
 
+						// R-157: header行・item行いずれも所属groupId単位で disabled/highlighted を一貫判定する
+						const w = wrapper as OverviewItemWrapper;
+						const groupId = resolveGroupId(w as any);
+						const dropDisabled = groupId ? (dropDisabledByGroupId.get(groupId) ?? true) : true;
+						const dropHighlighted = !!groupId && groupId === hoveredGroupId && !dropDisabled;
+
 						return (
 							<OverviewItem
-								key={wrapper.id}
-								wrapper={wrapper as any}
+								key={w.id}
+								wrapper={w}
 								titleLimit={titleLimit}
 								onClick={(item) => {
 									onOpenItem(item);
@@ -437,11 +483,12 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 								onUpdateEstimatedMinutes={(itemId, minutes) => {
 									viewModel.updateItem(itemId, { estimatedMinutes: minutes });
 								}}
-								autoStartTimeEdit={(wrapper as any).type === 'item' && (wrapper as any).item.id === chainAutoEditItemId}
+								autoStartTimeEdit={w.type === 'item' && w.item.id === chainAutoEditItemId}
 								onAutoTimeEditDone={() => setChainAutoEditItemId(null)}
 								onNavigateToFlow={onNavigateToFlow}
-								dropDisabled={(wrapper as any).type === 'header' ? computeDropDisabled((wrapper as any).project) : undefined}
-							isBeaverLinked={(wrapper as any).type === 'header' ? isBeaverLinkedProject((wrapper as any).projectId) : undefined}
+								dropDisabled={dropDisabled}
+								dropHighlighted={dropHighlighted}
+								isBeaverLinked={w.type === 'header' ? isBeaverLinkedProject(w.projectId) : undefined}
 							/>
 						);
 					})}

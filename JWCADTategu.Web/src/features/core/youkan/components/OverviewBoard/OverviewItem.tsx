@@ -20,10 +20,12 @@ interface OverviewItemProps {
 	autoStartTimeEdit?: boolean;
 	/** R-094-B: 自動編集状態が確定/取消で終了したことを親へ通知（次のインライン行へフォーカスを渡すため） */
 	onAutoTimeEditDone?: () => void;
-	/** R-155: このheaderへのドロップを禁止する場合true（自分自身・子孫・テナント違い・アーカイブ済み） */
+	/** R-155/R-157: この行が属するgroup（header〜配下item行）へのドロップを禁止する場合true（自分自身・子孫・テナント違い・アーカイブ済み） */
 	dropDisabled?: boolean;
 	/** R-156: Beaver連携由来のheader（ルート案件 or work_package）である場合true */
 	isBeaverLinked?: boolean;
+	/** R-157: この行が現在ドラッグでoverされているgroup（header〜配下item行）に属する場合true。ハイライトのみに使い、「◯◯へ移動」ラベルはheader行のみに表示する */
+	dropHighlighted?: boolean;
 }
 
 const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
@@ -97,20 +99,32 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	autoStartTimeEdit,
 	onAutoTimeEditDone,
 	dropDisabled,
-	isBeaverLinked
+	isBeaverLinked,
+	dropHighlighted
 }) => {
 	const isHeader = wrapper.type === 'header';
 
-	// R-155: header行はドロップ対象、item行はドラッグ元。id空間が別（header-prefix）のため
-	// 双方のフックは常に呼びつつ、非対応側はdisabledにして無害化する（Rules of Hooksを維持）
-	const { setNodeRef: setDropRef, isOver } = useDroppable({
+	// R-155/R-157: header行・item行ともドロップ対象。id空間が別プレフィックス
+	// （`header-`/`item-drop-`）のため、双方のフックは常に呼びつつ、非対応側はdisabledにして
+	// 無害化する（Rules of Hooksを維持）
+	const { setNodeRef: setDropRef } = useDroppable({
 		id: isHeader ? wrapper.id : `__not-a-drop-target__${wrapper.id}`,
 		disabled: !isHeader || !!dropDisabled,
+	});
+	const { setNodeRef: setItemDropRef } = useDroppable({
+		id: !isHeader ? `item-drop-${wrapper.id}` : `__not-an-item-drop-target__${wrapper.id}`,
+		disabled: isHeader || !!dropDisabled,
 	});
 	const { attributes: dragAttributes, listeners: dragListeners, setNodeRef: setDragRef, isDragging } = useDraggable({
 		id: !isHeader ? wrapper.item.id : `__not-draggable__${wrapper.id}`,
 		disabled: isHeader,
 	});
+	// R-157: item行はドラッグ元とドロップ先を兼ねるため、同一DOMノードへ両方のrefを適用する
+	// （dnd-kitのuseSortable内部実装と同じ「同一ノードに複数のsetNodeRefを適用する」パターン）
+	const setItemNodeRef = (node: HTMLElement | null) => {
+		setDragRef(node);
+		setItemDropRef(node);
+	};
 
 	const [isTimeEditing, setIsTimeEditing] = useState(false);
 	const [timeInputValue, setTimeInputValue] = useState('');
@@ -149,10 +163,11 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 				<div className={cn(
 					"flex items-center gap-[0.3em] text-slate-700 dark:text-slate-200 font-bold rounded transition-colors cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 leading-none",
 					depth > 0 && "text-[0.9em] text-slate-500 dark:text-slate-400 font-bold mt-[0.3em]",
-					// R-155: ドロップ実ターゲットのみを明確に強調（親子同時ハイライトはIDが別のため発生しない）
-					isOver && "bg-amber-100 dark:bg-amber-900/40 ring-2 ring-amber-400 dark:ring-amber-500 !text-amber-800 dark:!text-amber-200"
+					// R-157: header行〜配下item行までのgroup全体が対象の時に強調（親子同時ハイライトはgroupIdが別のため発生しない）
+					dropHighlighted && "bg-amber-100 dark:bg-amber-900/40 ring-2 ring-amber-400 dark:ring-amber-500 !text-amber-800 dark:!text-amber-200"
 				)}
 					style={{ paddingLeft: `${depth * 1.5 + 0.5}rem`, paddingRight: '4px', paddingTop: '0', paddingBottom: '0', margin: '0' }}
+					data-drop-highlighted={dropHighlighted ? "true" : undefined}
 					onClick={() => onClick(project as Item)}
 					onContextMenu={(e) => {
 						e.preventDefault();
@@ -174,7 +189,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 							B
 						</span>
 					)}
-					{isOver && (
+					{dropHighlighted && (
 						<span className="text-[0.75em] font-black text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">
 							{projectTitle}へ移動
 						</span>
@@ -241,7 +256,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 
 	return (
 		<div
-			ref={setDragRef}
+			ref={setItemNodeRef}
 			{...dragAttributes}
 			{...dragListeners}
 			onMouseUp={(e) => {
@@ -261,11 +276,15 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					"mb-[2px]",
 					isDone && "opacity-40 grayscale-[0.5]",
 					// R-155: ドラッグ中は掴んでいるアイテムを視覚的に浮かせる
-					isDragging && "opacity-40"
+					isDragging && "opacity-40",
+					// R-157: 所属groupがドラッグの対象になっている間、header行と同系色でハイライト
+					// （「◯◯へ移動」ラベルはheader行のみに表示し、item行はハイライトのみで情報過多を避ける）
+					dropHighlighted && "bg-amber-100 dark:bg-amber-900/40 ring-2 ring-amber-400 dark:ring-amber-500"
 				)}
 			style={{
 				paddingLeft: `${depth * 1.5 + 0.5}rem`
 			}}
+			data-drop-highlighted={dropHighlighted ? "true" : undefined}
 		>
 			<IndentLines depth={depth} />
 
