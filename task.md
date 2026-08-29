@@ -2,18 +2,20 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-156は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
-## R-157 全体一覧ドラッグ範囲拡大 — 仕様化済み（2026-08-29）
+## R-157 全体一覧ドラッグ範囲拡大 — マージ済み・デプロイ待ち（2026-08-29）
 
 仕様: `docs/SPEC/11_全体一覧ドラッグ範囲拡大.md`（正本）。前提のR-155（`docs/SPEC/09_...md`）・R-156（`docs/SPEC/10_...md`）は無変更・不変条件を継承。
 
 - [x] Phase 1-3: 要望記録・現行実装調査（`OverviewItem.tsx`のuseDroppable範囲・`OverviewBoard.tsx`のハイライトロジック・`hierarchy.ts`の`project`フィールド構造）・仕様確定
-- [ ] Phase 4: 実装（TDD、単一Agent、フロントエンドのみ）
-  - [ ] `resolveGroupId`ヘルパー新設（既存`project`フィールドから導出、新規型フィールド追加なし）
-  - [ ] `OverviewItem.tsx`: item行への`useDroppable`追加（id: `item-drop-${wrapper.id}`）、draggable/droppable ref合成、`dropHighlighted` prop導入とスタイル置換
-  - [ ] `OverviewBoard.tsx`: `hoveredGroupId` state・`onDragOver`ハンドラ・`handleDragEnd`のoverId解決部分の変更・`dropDisabledByGroupId`の事前計算
-  - [ ] テスト: `hierarchy.test.ts`（groupId系）・`useOverviewItems.test.ts`（groupId系）・`OverviewBoard.dragMove.test.tsx`（item-drop・ハイライト・サブプロジェクト境界の新規ケース）
-  - [ ] 11番仕様書§7の全テスト項目Green
-- [ ] Phase 5: 全テストGreen確認（`npx vitest run`, `npx tsc --noEmit`）・マージ
+- [x] Phase 4: 実装（TDD、単一Agent、フロントエンドのみ）— `feature/R-157-overview-drag-range`（`8c540ee` Red→`691c25f` Green）
+  - [x] `resolveGroupId`ヘルパー新設（`hierarchy.ts`、既存`project`フィールドから導出、新規型フィールド追加なし）
+  - [x] `OverviewItem.tsx`: item行への`useDroppable`追加（id: `item-drop-${wrapper.id}`）、draggable/droppable ref合成（`setItemNodeRef`）、`dropHighlighted` prop導入とスタイル置換（header行はラベル維持、item行はハイライトのみ）
+  - [x] `OverviewBoard.tsx`: `hoveredGroupId` state・`onDragOver`ハンドラ・`resolveHeaderWrapperFromOverId`（header-*/item-drop-*両対応）・`handleDragEnd`のoverId解決部分の変更・`dropDisabledByGroupId`の事前計算。`computeDragMoveOutcome`（dragMove.ts）は無変更で、item行ドロップもheader行ドロップと完全に同じ処理経路に合流
+  - [x] テスト: `hierarchy.test.ts`（+5）・`useOverviewItems.test.ts`（+1）・`OverviewBoard.dragMove.test.tsx`（+4、onDragOverキャプチャ含む）
+  - [x] 11番仕様書§7の全テスト項目Green
+- [x] Phase 5: 全テストGreen確認・指揮AIによるコードレビュー（diff確認・テスト再実行で妥当性確認）・マージ
+  - フロント1333 passed/1 failed（既知の無関係flake`useYoukanViewModel.capacity.test.tsx`の`shelf.active...`、R-157が触れたファイルを一切importせずmaster単体でも失敗する既存問題）/14 skipped、`npx tsc --noEmit` 0エラー
+  - マージ: `feature/R-157-overview-drag-range`を`master`へマージ（`2e0afd8`、コンフリクトなし）・`git push origin master`成功（`9de4d4b..2e0afd8`）
 - [ ] 本番デプロイ・実機検証（11番仕様書§8、5項目）
 
 詳細: `docs/requests_log.md` R-157行、`docs/SPEC/11_全体一覧ドラッグ範囲拡大.md`
