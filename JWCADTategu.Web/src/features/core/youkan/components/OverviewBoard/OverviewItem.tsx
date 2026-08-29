@@ -5,7 +5,7 @@ import { cn } from '../../../../../lib/utils';
 import { OverviewItemWrapper } from './useOverviewItems';
 import { Folder, FolderOpen, GitBranch } from 'lucide-react';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
-import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS, getItemStatusDotClass } from '../../logic/statusUtils';
 import { formatLatestStartToken } from '../../logic/latestStart';
 
 interface OverviewItemProps {
@@ -28,11 +28,10 @@ interface OverviewItemProps {
 	dropHighlighted?: boolean;
 }
 
-const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: boolean, isDone?: boolean }) => {
+export const StatusDot = ({ item, today, isDone = isItemDone(item) }: { item: Item, today?: string, isDone?: boolean }) => {
 	if (isDone) return null;
-	if (status === 'log') return null;
 
-	if (isEngaged) {
+	if (item.isEngaged && !isOverdueForDot(item, today)) {
 		return (
 			<div className="relative flex items-center justify-center w-[1em] h-[1em] shrink-0">
 				<div className="absolute w-[0.6em] h-[0.6em] rounded-full bg-emerald-500 animate-ping opacity-75" />
@@ -41,37 +40,14 @@ const StatusDot = ({ status, isEngaged, isDone }: { status: string, isEngaged?: 
 		);
 	}
 
-	if (status === 'focus') {
-		return (
-			<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
-				<div className="w-[0.55em] h-[0.55em] rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
-			</div>
-		);
-	}
-
-	// R-125: 後日着手。既存の状態色と被らないteal系
-	if (status === 'todo') {
-		return (
-			<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
-				<div className="w-[0.55em] h-[0.55em] rounded-full bg-teal-500 opacity-90" />
-			</div>
-		);
-	}
-
-	if (status === 'waiting') {
-		return (
-			<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
-				<div className="w-[0.55em] h-[0.55em] rounded-full bg-purple-400 opacity-80" />
-			</div>
-		);
-	}
-
 	return (
 		<div className="flex items-center justify-center w-[1em] h-[1em] shrink-0">
-			<div className="w-[0.45em] h-[0.45em] rounded-full bg-slate-300 dark:bg-slate-600" />
+			<div data-testid="overview-status-dot" className={`w-[0.55em] h-[0.55em] rounded-full opacity-90 ${getItemStatusDotClass(item, today)}`} />
 		</div>
 	);
 };
+
+const isOverdueForDot = (item: Item, today?: string) => getItemStatusDotClass(item, today).includes('rose');
 
 const IndentLines = ({ depth }: { depth: number }) => {
 	if (depth <= 0) return null;
@@ -300,7 +276,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					>
 						{item.title}
 					</span>
-					<StatusDot status={item.status} isEngaged={item.isEngaged} isDone={isDone} />
+					<StatusDot item={item} isDone={isDone} />
 				</div>
 
 				{!isDone && !isTimeEditing && (

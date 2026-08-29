@@ -2,19 +2,103 @@ import { Item } from '../types';
 import { startOfDay, isBefore, isSameDay } from 'date-fns';
 
 export const STATUS_META = {
-    inbox: { label: 'Inbox', icon: 'Inbox', color: 'slate' },
-    // R-125: 「やる」と決めたが今日はやらない、自分の順番待ち。既存の状態色と被らないteal系
-    todo: { label: '後日着手', icon: 'Clock', color: 'teal' },
+    inbox: { label: 'Inbox', icon: 'Inbox', color: 'emerald' },
+    // R-159: 「やる」と決めたが今日はやらない中立的な保留状態
+    todo: { label: '後日着手', icon: 'Clock', color: 'slate' },
     focus: { label: '集中', icon: 'Target', color: 'indigo' },
     waiting: { label: '待ち（外的要因）', icon: 'Hourglass', color: 'amber' },
     pending: { label: '保留（外的要因待ち）', icon: 'Pause', color: 'amber' },
-    someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'purple' },
+    someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'amber' },
     done: { label: '完了', icon: 'CheckCircle', color: 'green' },
     // R-124: 「断る」判断の結果。省スペースな箇所では label、
     // 右クリックメニュー等スペースに余裕がある箇所では labelWide を使う
     // （「キャンセル」だけの婉曲表現を避け、「断った」という判断行為を必ず残す）
     cancelled: { label: '断った', labelWide: 'キャンセル・断った', icon: 'XCircle', color: 'rose' },
 } as const;
+
+export type ItemStatusColors = { bg: string; border: string; text: string };
+export type ItemStatusHexColors = { bg: string; border: string; text: string };
+
+const ITEM_STATUS_COLORS: Record<string, ItemStatusColors> = {
+    inbox: { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-800' },
+    todo: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
+    someday: { bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-800' },
+    focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
+    pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
+    waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
+    done: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-400' },
+    cancelled: { bg: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-400' },
+};
+
+const OVERDUE_ITEM_COLORS: ItemStatusColors = {
+    bg: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-800',
+};
+
+const ITEM_STATUS_HEX_COLORS: Record<string, ItemStatusHexColors> = {
+    inbox: { bg: '#ecfdf5', border: '#6ee7b7', text: '#065f46' },
+    todo: { bg: '#f1f5f9', border: '#cbd5e1', text: '#334155' },
+    someday: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e' },
+    focus: { bg: '#e0e7ff', border: '#818cf8', text: '#3730a3' },
+    pending: { bg: '#fef3c7', border: '#fbbf24', text: '#92400e' },
+    waiting: { bg: '#ffedd5', border: '#fb923c', text: '#9a3412' },
+    done: { bg: '#f3f4f6', border: '#d1d5db', text: '#9ca3af' },
+    cancelled: { bg: '#fff1f2', border: '#fda4af', text: '#fb7185' },
+};
+
+const OVERDUE_ITEM_HEX_COLORS: ItemStatusHexColors = {
+    bg: '#fff1f2', border: '#fda4af', text: '#9f1239',
+};
+
+/** R-159: status と期限超過を同じ要素に描画する画面の共通色決定。期限超過を優先する。 */
+export function getItemStatusColors(
+    item: Pick<Item, 'status' | 'due_date'> | { status?: string | null; due_date?: string | null },
+    today?: string,
+): ItemStatusColors {
+    if (isOverdue(item as Item, today)) return OVERDUE_ITEM_COLORS;
+    return ITEM_STATUS_COLORS[item.status ?? 'inbox'] ?? ITEM_STATUS_COLORS.inbox;
+}
+
+/** R-159: SVG/canvas など Tailwind class を使えない描画向けの同一ルール。 */
+export function getItemStatusHexColors(
+    item: Pick<Item, 'status' | 'due_date'> | { status?: string | null; due_date?: string | null },
+    today?: string,
+): ItemStatusHexColors {
+    if (isOverdue(item as Item, today)) return OVERDUE_ITEM_HEX_COLORS;
+    return ITEM_STATUS_HEX_COLORS[item.status ?? 'inbox'] ?? ITEM_STATUS_HEX_COLORS.inbox;
+}
+
+/** R-159: 全体一覧など小さなステータスドット向け。期限超過は実行中表示を含む状態色より優先する。 */
+export function getItemStatusDotClass(
+    item: Pick<Item, 'status' | 'due_date' | 'isEngaged'>,
+    today?: string,
+): string {
+    if (isOverdue(item as Item, today)) return 'bg-rose-300 dark:bg-rose-700';
+    if (item.isEngaged) return 'bg-emerald-600';
+    switch (item.status) {
+        case 'inbox': return 'bg-emerald-300 dark:bg-emerald-700';
+        case 'focus': return 'bg-blue-600';
+        case 'todo': return 'bg-slate-300 dark:bg-slate-600';
+        case 'waiting': return 'bg-purple-400';
+        case 'someday': return 'bg-amber-300 dark:bg-amber-600';
+        default: return 'bg-slate-300 dark:bg-slate-600';
+    }
+}
+
+/** R-159: カレンダー内アイテム行の左端ステータス帯。既存色を保ちつつ対象3色を統一する。 */
+export function getItemStatusBorderLeftClass(
+    item: Pick<Item, 'status' | 'due_date'>,
+    today?: string,
+): string {
+    if (isOverdue(item as Item, today)) return 'border-l-rose-300';
+    switch (item.status) {
+        case 'inbox': return 'border-l-emerald-300';
+        case 'focus': return 'border-l-orange-400';
+        case 'done': return 'border-l-emerald-400';
+        case 'waiting': return 'border-l-amber-400';
+        case 'someday': return 'border-l-amber-300';
+        default: return 'border-l-slate-300';
+    }
+}
 
 /**
  * R-035: 完了アイテムの共通スタイル。

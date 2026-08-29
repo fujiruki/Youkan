@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Item, JudgmentStatus } from '../types';
-import { isTodayCandidate, isOverdue, STATUS_META, COMPLETED_ITEM_CLASS, isItemDone, isReviewDue } from './statusUtils';
+import { isTodayCandidate, isOverdue, STATUS_META, COMPLETED_ITEM_CLASS, isItemDone, isReviewDue, getItemStatusColors, getItemStatusBorderLeftClass } from './statusUtils';
 
 // Mock helper
 const createItem = (status: JudgmentStatus, overrides: Partial<Item> = {}): Item => ({
@@ -79,13 +79,12 @@ describe('Status Utils (Haruki Model)', () => {
 describe('STATUS_META (R-028)', () => {
     it('someday メタデータが定義されている', () => {
         expect(STATUS_META.someday).toBeDefined();
-        expect(STATUS_META.someday.color).toBe('purple');
+        expect(STATUS_META.someday.color).toBe('amber');
         expect(STATUS_META.someday.label).toContain('いつかやる');
     });
 
-    it('pending と someday は異なる色を持つ', () => {
-        expect(STATUS_META.pending.color).not.toBe(STATUS_META.someday.color);
-        expect(STATUS_META.someday.color).toBe('purple');
+    it('pending と someday は仕様どおり amber 系の色を持つ', () => {
+        expect(STATUS_META.someday.color).toBe('amber');
         expect(STATUS_META.pending.color).toBe('amber');
     });
 
@@ -103,6 +102,42 @@ describe('STATUS_META (R-028)', () => {
     });
 });
 
+describe('getItemStatusColors (R-159)', () => {
+    it('inbox は淡い緑、todo はグレー、someday は黄色を返す', () => {
+        expect(getItemStatusColors({ status: 'inbox' }, '2026-08-29')).toEqual({
+            bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-800',
+        });
+        expect(getItemStatusColors({ status: 'todo' }, '2026-08-29')).toEqual({
+            bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700',
+        });
+        expect(getItemStatusColors({ status: 'someday' }, '2026-08-29')).toEqual({
+            bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-800',
+        });
+    });
+
+    it('期限超過は同一要素のステータス色より淡い赤を優先する', () => {
+        expect(getItemStatusColors({ status: 'inbox', due_date: '2026-08-28' }, '2026-08-29')).toEqual({
+            bg: 'bg-rose-50', border: 'border-rose-300', text: 'text-rose-800',
+        });
+    });
+
+    it('focus / pending / waiting / done の既存色は変えない', () => {
+        expect(getItemStatusColors({ status: 'focus' }, '2026-08-29').bg).toBe('bg-indigo-100');
+        expect(getItemStatusColors({ status: 'pending' }, '2026-08-29').bg).toBe('bg-amber-100');
+        expect(getItemStatusColors({ status: 'waiting' }, '2026-08-29').bg).toBe('bg-orange-100');
+        expect(getItemStatusColors({ status: 'done' }, '2026-08-29').bg).toBe('bg-gray-100');
+    });
+});
+
+describe('getItemStatusBorderLeftClass (R-159)', () => {
+    it('カレンダー行でも inbox / todo / someday / 期限超過の優先順位が一致する', () => {
+        expect(getItemStatusBorderLeftClass({ status: 'inbox' }, '2026-08-29')).toBe('border-l-emerald-300');
+        expect(getItemStatusBorderLeftClass({ status: 'todo' }, '2026-08-29')).toBe('border-l-slate-300');
+        expect(getItemStatusBorderLeftClass({ status: 'someday' }, '2026-08-29')).toBe('border-l-amber-300');
+        expect(getItemStatusBorderLeftClass({ status: 'inbox', due_date: '2026-08-28' }, '2026-08-29')).toBe('border-l-rose-300');
+    });
+});
+
 // R-125: 状態todo（後日着手）
 describe('STATUS_META.todo (R-125)', () => {
     it('todo メタデータが定義されており、ラベルは「後日着手」', () => {
@@ -110,17 +145,9 @@ describe('STATUS_META.todo (R-125)', () => {
         expect(STATUS_META.todo.label).toBe('後日着手');
     });
 
-    it('todo は既存の状態色（inbox/focus/waiting/pending/someday/done/cancelled）と被らない色を持つ', () => {
-        const otherColors = [
-            STATUS_META.inbox.color,
-            STATUS_META.focus.color,
-            STATUS_META.waiting.color,
-            STATUS_META.pending.color,
-            STATUS_META.someday.color,
-            STATUS_META.done.color,
-            STATUS_META.cancelled.color,
-        ];
-        expect(otherColors).not.toContain(STATUS_META.todo.color);
+    it('todo は中立的なグレー、someday は黄色を持つ', () => {
+        expect(STATUS_META.todo.color).toBe('slate');
+        expect(STATUS_META.someday.color).toBe('amber');
     });
 });
 

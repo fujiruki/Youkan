@@ -40,6 +40,7 @@ import { calculateDateBands, calculateDateGroupLayout, type DateBand } from '../
 import { calculateAutoArrange } from '../logic/flowAutoArrange';
 import { calculateVerticalCompact } from '../logic/flowVerticalCompact';
 import { calculateHorizontalCompact } from '../logic/flowHorizontalCompact';
+import { getItemStatusHexColors } from '../logic/statusUtils';
 import { ApiClient } from '../../../../api/client';
 import type { Item, Dependency } from '../types';
 import { useToast } from '../../../../contexts/ToastContext';
@@ -1478,13 +1479,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onOpenItem, currentProjectId, a
             if (node.type === 'projectGroup') return 'transparent';
             const item = (node.data as Record<string, unknown>)?.item as Item | undefined;
             if (!item) return '#94a3b8';
-            switch (item.status) {
-              case 'focus': return '#6366f1';
-              case 'pending': return '#f59e0b';
-              case 'waiting': return '#f97316';
-              case 'done': return '#9ca3af';
-              default: return '#94a3b8';
-            }
+            return getItemStatusHexColors(item).border;
           }}
           className="!bg-white/80 !border-slate-200 no-print"
         />

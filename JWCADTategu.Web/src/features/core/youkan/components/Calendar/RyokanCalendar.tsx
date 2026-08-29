@@ -14,7 +14,7 @@ import { cn } from '../../../../../lib/utils';
 import { ChevronRight } from 'lucide-react';
 import { SimpleModal } from '../Modal/SimpleModal';
 import { DailyCapacityEditor } from '../Settings/DailyCapacityEditor';
-import { isItemDone, COMPLETED_ITEM_CLASS } from '../../logic/statusUtils';
+import { isItemDone, COMPLETED_ITEM_CLASS, getItemStatusBorderLeftClass } from '../../logic/statusUtils';
 import { ExternalEvent } from '../../types/externalEvent';
 import { EventDetailModal } from './EventDetailModal';
 import { MobileBottomSheet } from '../Common/MobileBottomSheet';
@@ -958,9 +958,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 												onClick={() => { onItemClick?.(item); resetHighlights(); }}
 												className={cn(
 													"group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer bg-white dark:bg-slate-900 border-l-4 shadow-sm",
-													item.status === 'focus' ? "border-l-orange-400" :
-														item.status === 'done' ? "border-l-emerald-400" :
-															item.status === 'waiting' ? "border-l-amber-400" : "border-l-slate-300"
+											getItemStatusBorderLeftClass(item)
 												)}
 											>
 												<div className="flex-1 min-w-0">
