@@ -50,8 +50,8 @@ describe('FlowItemNode: R-132 todoノードの配色', () => {
         expect(todoNode.className).toContain('bg-slate-100');
     });
 
-    it('R-159: someday はグレーになる', () => {
-        expect(renderNode('someday').className).toContain('bg-slate-100');
+    it('R-159: someday は黄色になる', () => {
+        expect(renderNode('someday').className).toContain('bg-amber-100');
     });
 
     it('todoノードにteal系の専用色クラスが含まれない', () => {

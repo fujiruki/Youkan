@@ -16,9 +16,9 @@ const dotClass = (value: Item) => {
 };
 
 describe('OverviewItem StatusDot (R-159)', () => {
-    it('inbox は緑、someday はグレー', () => {
+    it('inbox は緑、someday は黄色', () => {
         expect(dotClass(item('inbox'))).toContain('bg-emerald-300');
-        expect(dotClass(item('someday'))).toContain('bg-slate-300');
+        expect(dotClass(item('someday'))).toContain('bg-amber-300');
     });
 
     it('期限超過は inbox の緑より淡い赤を優先する', () => {

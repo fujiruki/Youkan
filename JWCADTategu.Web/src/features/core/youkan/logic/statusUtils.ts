@@ -3,12 +3,12 @@ import { startOfDay, isBefore, isSameDay } from 'date-fns';
 
 export const STATUS_META = {
     inbox: { label: 'Inbox', icon: 'Inbox', color: 'emerald' },
-    // R-125: 「やる」と決めたが今日はやらない、自分の順番待ち。既存の状態色と被らないteal系
-    todo: { label: '後日着手', icon: 'Clock', color: 'teal' },
+    // R-159: 「やる」と決めたが今日はやらない中立的な保留状態
+    todo: { label: '後日着手', icon: 'Clock', color: 'slate' },
     focus: { label: '集中', icon: 'Target', color: 'indigo' },
     waiting: { label: '待ち（外的要因）', icon: 'Hourglass', color: 'amber' },
     pending: { label: '保留（外的要因待ち）', icon: 'Pause', color: 'amber' },
-    someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'slate' },
+    someday: { label: 'いつかやる（自分で寝かせる）', icon: 'Cloud', color: 'amber' },
     done: { label: '完了', icon: 'CheckCircle', color: 'green' },
     // R-124: 「断る」判断の結果。省スペースな箇所では label、
     // 右クリックメニュー等スペースに余裕がある箇所では labelWide を使う
@@ -22,7 +22,7 @@ export type ItemStatusHexColors = { bg: string; border: string; text: string };
 const ITEM_STATUS_COLORS: Record<string, ItemStatusColors> = {
     inbox: { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-800' },
     todo: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-700' },
-    someday: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-600' },
+    someday: { bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-800' },
     focus: { bg: 'bg-indigo-100', border: 'border-indigo-400', text: 'text-indigo-800' },
     pending: { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800' },
     waiting: { bg: 'bg-orange-100', border: 'border-orange-400', text: 'text-orange-800' },
@@ -37,7 +37,7 @@ const OVERDUE_ITEM_COLORS: ItemStatusColors = {
 const ITEM_STATUS_HEX_COLORS: Record<string, ItemStatusHexColors> = {
     inbox: { bg: '#ecfdf5', border: '#6ee7b7', text: '#065f46' },
     todo: { bg: '#f1f5f9', border: '#cbd5e1', text: '#334155' },
-    someday: { bg: '#f1f5f9', border: '#cbd5e1', text: '#475569' },
+    someday: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e' },
     focus: { bg: '#e0e7ff', border: '#818cf8', text: '#3730a3' },
     pending: { bg: '#fef3c7', border: '#fbbf24', text: '#92400e' },
     waiting: { bg: '#ffedd5', border: '#fb923c', text: '#9a3412' },
@@ -77,9 +77,9 @@ export function getItemStatusDotClass(
     switch (item.status) {
         case 'inbox': return 'bg-emerald-300 dark:bg-emerald-700';
         case 'focus': return 'bg-blue-600';
-        case 'todo': return 'bg-teal-500';
+        case 'todo': return 'bg-slate-300 dark:bg-slate-600';
         case 'waiting': return 'bg-purple-400';
-        case 'someday': return 'bg-slate-300 dark:bg-slate-600';
+        case 'someday': return 'bg-amber-300 dark:bg-amber-600';
         default: return 'bg-slate-300 dark:bg-slate-600';
     }
 }
@@ -95,7 +95,7 @@ export function getItemStatusBorderLeftClass(
         case 'focus': return 'border-l-orange-400';
         case 'done': return 'border-l-emerald-400';
         case 'waiting': return 'border-l-amber-400';
-        case 'someday': return 'border-l-slate-300';
+        case 'someday': return 'border-l-amber-300';
         default: return 'border-l-slate-300';
     }
 }
