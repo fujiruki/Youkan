@@ -24,6 +24,11 @@ class IntegrationController extends BaseController {
                 $this->sendError(405, 'Method Not Allowed');
             }
             $this->beaverCapacityCheck();
+        } elseif (preg_match('#^/beaver/project-link/([^/]+)$#', $path, $m)) {
+            if ($method !== 'GET') {
+                $this->sendError(405, 'Method Not Allowed');
+            }
+            $this->beaverProjectLink($m[1]);
         } else {
             http_response_code(404);
             echo json_encode(['error' => 'Integration endpoint not found']);
@@ -116,6 +121,39 @@ class IntegrationController extends BaseController {
         }
         $check['evaluated_at'] = (new DateTime('now', new DateTimeZone('Asia/Tokyo')))->format('Y-m-d\TH:i:sP');
         $this->sendJSON($check);
+    }
+
+    /**
+     * GET /integrations/beaver/project-link/{external_project_id}（R-0160: docs/SPEC/13_Beaver連携プロジェクトURL.md §3・§4）
+     * 同期は一切トリガーしない読み取り専用。既存リンクの youkan_project_id / title / tenant_id のみ返す。
+     */
+    private function beaverProjectLink($rawId) {
+        $svc = $this->requireBeaverService();
+        if (!preg_match('/^\d+$/', $rawId)) {
+            $this->sendError(400, 'external_project_id は整数で指定してください');
+        }
+        $extId = (int)$rawId;
+
+        $stmt = $this->pdo->prepare("SELECT youkan_project_id FROM external_project_links WHERE tenant_id = ? AND source_system = 'beaver' AND external_project_id = ?");
+        $stmt->execute([$svc->getTenantId(), (string)$extId]);
+        $youkanProjectId = $stmt->fetchColumn();
+        if ($youkanProjectId === false) {
+            $this->sendErrorJson(404, ['error' => '連携リンクが存在しません', 'reason' => 'not_found']);
+        }
+
+        $itemStmt = $this->pdo->prepare("SELECT title FROM items WHERE id = ? AND deleted_at IS NULL");
+        $itemStmt->execute([$youkanProjectId]);
+        $title = $itemStmt->fetchColumn();
+        if ($title === false) {
+            $this->sendErrorJson(404, ['error' => 'リンク先のYoukanプロジェクトが見つかりません', 'reason' => 'not_found']);
+        }
+
+        $this->sendJSON([
+            'external_project_id' => $extId,
+            'youkan_project_id' => $youkanProjectId,
+            'title' => $title,
+            'tenant_id' => $svc->getTenantId(),
+        ]);
     }
 
     private function createInboxItem() {

@@ -2,6 +2,15 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-157は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
+## R-0160 Beaver連携: 案件→Youkanプロジェクトの直リンク解決API — 実装完了・マージ待ち（2026-08-31）
+
+Beaverリポジトリからの要望（`docs/requests_log.md` R-0160行）。仕様: `docs/SPEC/13_Beaver連携プロジェクトURL.md`（正本）。実装はCodexへ委譲、指揮AIが再実行して裏取り済み。
+
+- [x] Phase 1-3: Beaver側からの要望受領・実現可能性調査・仕様確定
+- [x] Phase 4: Codexへ実装を委譲（TDD、`IntegrationController.php`へ`GET /beaver/project-link/{id}`追加、新規テスト`test_r0160_beaver_project_link.php`18件）
+- [x] Phase 5: 指揮AIがテスト結果を再実行して裏取り（新規18/18 PASS、既存Beaver連携回帰4ファイル計149アサーション全PASS。全体スイートの既往失敗2件はYoukan既知バックログ`docs/requests.md`【低】項目と一致し本変更と無関係と確認）
+- [ ] コミット・マージ（発注者確認待ち）
+
 ## R-158 フローチャート表示中モーダルの入力遅延調査 — 他要望へ統合（R-075）・完了（2026-08-29）
 
 原文・仕様: `docs/requests_log.md` R-158行。Codexへ調査委譲した結果、同一事象は既にR-075（2026-08-12完了・本番検証済み）で対応済みと判明。現行masterに`SimpleModal.tsx`/`DecisionDetailModal.tsx`の`backdrop-blur-sm`削除が反映済みであることを指揮AIがコードで確認。追加実装なし。
