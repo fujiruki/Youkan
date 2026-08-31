@@ -82,7 +82,10 @@ assert_true('created=1（除外案件は作られない）', ($res['created'] ??
 assert_true('synced=2', ($res['synced'] ?? null) === 2);
 assert_true('error=null', array_key_exists('error', $res) && $res['error'] === null);
 assert_true('skipped=false', ($res['skipped'] ?? null) === false);
-assert_true('(b) itemsはプロジェクト1行のみ（baselineはitems行にならない）', $countItems() === 1 && $countProjects() === 1, 'items=' . $countItems());
+// R-0161: 新規Beaver案件の初回同期では見積・請求の標準タスクも自動生成されるため、
+// items数は「案件1行＋標準タスク2行」の3になる（is_project=1の案件行は1のままで、
+// baseline自体がitem行にならない、という本来の検証意図は変わらない）
+assert_true('(b) itemsは案件1行＋標準タスク2行（baselineはitems行にならない）', $countItems() === 3 && $countProjects() === 1, 'items=' . $countItems());
 assert_true('リンクは1件のみ（除外案件のリンクなし）', $countLinks() === 1);
 $link = $getLink(901);
 assert_true('リンクにBeaver由来値が入る', $link !== null && $link['source_name'] === '案件901' && $link['source_status'] === '受注済' && (int)$link['baseline_minutes'] === 1200 && $link['baseline_source'] === 'manual' && $link['source_delivery_date'] === '2026-09-10', json_encode($link, JSON_UNESCAPED_UNICODE));

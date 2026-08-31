@@ -187,7 +187,12 @@ $http->enqueue(200, [
 [$code, $res] = callBeaver('POST', '/beaver/capacity-check', ['external_project_id' => 101]);
 assert_true('200が返る', $code === 200, "code=$code " . json_encode($res, JSON_UNESCAPED_UNICODE));
 assert_true('Beaver単体GETが呼ばれる', strpos(end($http->calls)['url'] ?? '', '/integrations/youkan/projects/101') !== false, json_encode(array_column($http->calls, 'url')));
-assert_true('S1と同じ判定結果', ($res['external_project_id'] ?? null) === 101 && ($res['feasible'] ?? null) === false && ($res['shortage_minutes'] ?? null) === 360 && ($res['earliest_completion_date'] ?? null) === '2026-08-27', json_encode($res, JSON_UNESCAPED_UNICODE));
+// R-0161: このcapacity-check呼び出しはBeaverSyncService::upsertProject()を経由するため、
+// 案件101は既存リンクへの初回バックフィルとして見積(60分)・請求(30分)の標準タスクが生成される。
+// 案件101のstatus=受注済は§5.3の「見積フェーズを超えた」条件を満たすため見積タスクは同じ同期内でdoneへ遷移し、
+// completedへ60分算入される。結果としてrequired(remaining)=1800-60=1740、
+// 8/26までの空き1440に対し shortage=1740-1440=300 に変わる（テスト1のcheckProject直呼びはsyncを経由しないため360のまま）
+assert_true('S1と同じ判定結果（標準タスク60分がcompletedへ算入されるためshortageは300）', ($res['external_project_id'] ?? null) === 101 && ($res['feasible'] ?? null) === false && ($res['shortage_minutes'] ?? null) === 300 && ($res['earliest_completion_date'] ?? null) === '2026-08-27', json_encode($res, JSON_UNESCAPED_UNICODE));
 assert_true('evaluated_atはJSTオフセット付き', is_string($res['evaluated_at'] ?? null) && str_ends_with($res['evaluated_at'], '+09:00'), json_encode($res['evaluated_at'] ?? null));
 
 echo "\n=== テスト5: Beaver再取得失敗 → 前回同期値で200＋message注記 ===\n";
@@ -195,7 +200,9 @@ echo "\n=== テスト5: Beaver再取得失敗 → 前回同期値で200＋messag
 [$code, $res] = callBeaver('POST', '/beaver/capacity-check', ['external_project_id' => 101]);
 assert_true('200で縮退', $code === 200, "code=$code " . json_encode($res, JSON_UNESCAPED_UNICODE));
 assert_true('message末尾に注記', is_string($res['message'] ?? null) && str_ends_with($res['message'], '（Beaver再取得失敗・前回同期値で判定）'), json_encode($res['message'] ?? null, JSON_UNESCAPED_UNICODE));
-assert_true('判定値は前回同期値ベース', ($res['shortage_minutes'] ?? null) === 360);
+// R-0161: 前段のテスト4で案件101の標準タスクが生成・見積タスクがdone遷移済みのため、
+// 前回同期値ベースの判定もテスト4と同じ300になる
+assert_true('判定値は前回同期値ベース', ($res['shortage_minutes'] ?? null) === 300);
 
 echo "\n=== テスト6: リンクなし＋到達不能は502、Beaver 404はnot_found、除外新規はexcluded_status ===\n";
 [$code, $res] = callBeaver('POST', '/beaver/capacity-check', ['external_project_id' => 999]);

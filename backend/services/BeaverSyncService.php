@@ -16,6 +16,14 @@ class BeaverSyncService {
     public const PAGE_LIMIT = 200;
     public const DEFAULT_EXCLUDED_STATUSES = ['納品済', '完了', '請求済', 'キャンセル'];
 
+    // [R-0161] docs/SPEC/14_Beaver標準事務タスク.md §5.2・§5.3
+    public const DEFAULT_STANDARD_ESTIMATE_MINUTES = 60;
+    public const DEFAULT_STANDARD_INVOICE_MINUTES = 30;
+    private const ESTIMATE_DONE_STATUSES = ['受注済', '進行中', '納品済', '完了', '請求済'];
+    private const INVOICE_ACTIVATE_STATUSES = ['納品済', '完了'];
+    private const CANCELLED_STATUS = 'キャンセル';
+    private const INVOICED_STATUS = '請求済';
+
     private PDO $pdo;
     private array $config; // [api_base, api_token, tenant_id, excluded_statuses]
     private $http; // HttpClient | FakeHttpClient
@@ -274,6 +282,8 @@ class BeaverSyncService {
                 $p['baseline_updated_at'] ?? null, $p['updated_at'] ?? null,
                 $now, $now,
             ]);
+            // [R-0161] 新規作成時は初期値のまま生成する（状態遷移はこの回では適用しない。§5.1）
+            $this->generateStandardTasksIfMissing($projId, $userId, $now);
             return 'created';
         }
 
@@ -304,8 +314,93 @@ class BeaverSyncService {
                     $p['name'] ?? null, $p['delivery_date'] ?? null, $p['customer_name'] ?? '',
                     $now, $link['youkan_project_id'],
                 ]);
+            // [R-0161] 既存Beaver連携案件の再同期: 未生成ならバックフィル、その上でstatus自動遷移を評価する（§5.1・§5.3）
+            $this->generateStandardTasksIfMissing($link['youkan_project_id'], $userId, $now);
+            $this->applyStandardTaskStatusTransition($link['youkan_project_id'], $status, $now);
         }
         return 'updated';
+    }
+
+    /** [R-0161] §5.2: .env未設定時は既定値（見積60分・請求30分）を使う */
+    private function getStandardTaskMinutes(string $role): int {
+        $key = $role === 'invoice' ? 'BEAVER_STANDARD_INVOICE_MINUTES' : 'BEAVER_STANDARD_ESTIMATE_MINUTES';
+        $default = $role === 'invoice' ? self::DEFAULT_STANDARD_INVOICE_MINUTES : self::DEFAULT_STANDARD_ESTIMATE_MINUTES;
+        $val = CryptoService::loadEnvKey($key);
+        return $val !== null && $val !== '' ? (int)$val : $default;
+    }
+
+    /**
+     * [R-0161] §5.1・§5.2: この案件にgenerated_task_linksが1件もなければ、見積・請求の標準タスクを生成する。
+     * 冪等性はUNIQUE(youkan_project_id, task_role)で担保する。
+     */
+    private function generateStandardTasksIfMissing(string $youkanProjectId, string $userId, int $now): void {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM generated_task_links WHERE youkan_project_id = ?");
+        $stmt->execute([$youkanProjectId]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            return;
+        }
+
+        $tasks = [
+            'estimate' => ['title' => '見積', 'status' => 'todo', 'pending_condition' => null],
+            'invoice' => ['title' => '請求', 'status' => 'pending', 'pending_condition' => 'Beaver案件が「納品済」になったら'],
+        ];
+        foreach ($tasks as $role => $t) {
+            $itemId = uniqid('gt-', true);
+            $this->pdo->prepare("
+                INSERT INTO items (id, tenant_id, title, status, created_by, is_project, project_id, parent_id, estimated_minutes, pending_condition, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?)
+            ")->execute([
+                $itemId, $this->getTenantId(), $t['title'], $t['status'], $userId,
+                $youkanProjectId, $this->getStandardTaskMinutes($role), $t['pending_condition'], $now, $now,
+            ]);
+            $this->pdo->prepare("
+                INSERT INTO generated_task_links (id, tenant_id, youkan_project_id, youkan_item_id, task_role, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")->execute([uniqid('gtl-', true), $this->getTenantId(), $youkanProjectId, $itemId, $role, $now]);
+        }
+    }
+
+    /**
+     * [R-0161] §5.3: Beaverステータス連動によるstatus自動遷移。単調前進のみ（done/cancelledへ遷移した後は触らない）。
+     */
+    private function applyStandardTaskStatusTransition(string $youkanProjectId, ?string $beaverStatus, int $now): void {
+        if ($beaverStatus === null) {
+            return;
+        }
+        $stmt = $this->pdo->prepare("SELECT task_role, youkan_item_id FROM generated_task_links WHERE youkan_project_id = ?");
+        $stmt->execute([$youkanProjectId]);
+        $links = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($links as $link) {
+            $itemStmt = $this->pdo->prepare("SELECT id, status FROM items WHERE id = ?");
+            $itemStmt->execute([$link['youkan_item_id']]);
+            $item = $itemStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$item || in_array($item['status'], ['done', 'cancelled'], true)) {
+                continue; // 単調前進のみ。既にdone/cancelledなら以降いかなる自動遷移も行わない
+            }
+
+            $newStatus = null;
+            if ($link['task_role'] === 'estimate') {
+                if ($item['status'] === 'todo' && in_array($beaverStatus, self::ESTIMATE_DONE_STATUSES, true)) {
+                    $newStatus = 'done';
+                } elseif (in_array($item['status'], ['todo', 'pending'], true) && $beaverStatus === self::CANCELLED_STATUS) {
+                    $newStatus = 'cancelled';
+                }
+            } elseif ($link['task_role'] === 'invoice') {
+                if ($item['status'] === 'pending' && in_array($beaverStatus, self::INVOICE_ACTIVATE_STATUSES, true)) {
+                    $newStatus = 'todo';
+                } elseif (in_array($item['status'], ['pending', 'todo'], true) && $beaverStatus === self::INVOICED_STATUS) {
+                    $newStatus = 'done';
+                } elseif (in_array($item['status'], ['pending', 'todo'], true) && $beaverStatus === self::CANCELLED_STATUS) {
+                    $newStatus = 'cancelled';
+                }
+            }
+
+            if ($newStatus !== null) {
+                $this->pdo->prepare("UPDATE items SET status = ?, updated_at = ? WHERE id = ?")
+                    ->execute([$newStatus, $now, $item['id']]);
+            }
+        }
     }
 
     private function fetchProjectLink(string $externalProjectId): ?array {
