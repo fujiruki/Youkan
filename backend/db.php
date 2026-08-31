@@ -512,7 +512,18 @@ function ensureTables($pdo) {
             UNIQUE(tenant_id, source_system, external_work_package_id)
         )",
         "CREATE INDEX IF NOT EXISTS idx_ewpl_youkan_item ON external_work_package_links(youkan_item_id)",
-        "CREATE INDEX IF NOT EXISTS idx_ewpl_project ON external_work_package_links(tenant_id, external_project_id)"
+        "CREATE INDEX IF NOT EXISTS idx_ewpl_project ON external_work_package_links(tenant_id, external_project_id)",
+        // [R-0161] Beaver標準事務タスク（見積・請求）の生成識別（docs/SPEC/14_Beaver標準事務タスク.md §4.1）
+        "CREATE TABLE IF NOT EXISTS generated_task_links (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            youkan_project_id TEXT NOT NULL,
+            youkan_item_id TEXT NOT NULL,
+            task_role TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            UNIQUE(youkan_project_id, task_role)
+        )",
+        "CREATE INDEX IF NOT EXISTS idx_gtl_project ON generated_task_links(youkan_project_id)"
     ];
 
     foreach ($commands as $sql) {
