@@ -2,7 +2,7 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-157は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
-## R-0161 Beaver連携標準事務タスク（見積・請求の自動生成とcapacity算入） — 仕様確定・実装待ち（2026-08-31）
+## R-0161 Beaver連携標準事務タスク（見積・請求の自動生成とcapacity算入） — 完了（2026-08-31）
 
 Beaver→Youkan連携の追加改善。要望原文・判断根拠: `docs/requests_log.md` R-0161行。仕様: `docs/SPEC/14_Beaver標準事務タスク.md`（正本）。Y1（`07_Beaver連携.md`）・Y2（`08_Beaver連携Y2.md`）は無変更で継承。**Y3には進まず本機能完了で停止**（発注者指示）。
 
@@ -10,18 +10,36 @@ Beaver→Youkan連携の追加改善。要望原文・判断根拠: `docs/reques
 - Beaver baseline/work_packagesは`factory`/`site`（生産工数）のみで構成され、見積・請求工数は含まれない → baselineとの二重計上の心配なし
 - 既存`BeaverCapacityService.php`は除外ステータス（納品済等）時にbaselineのみ0化し、末端タスク（`children_sum`）はそのまま残す設計 → **同ファイルへのコード変更は不要**
 
-実装スコープ（Codexへ委譲想定・TDD）:
-- [ ] Phase 4: 実装
-  - [ ] `backend/db.php`: `generated_task_links`テーブル新設（仕様書§4.1）
-  - [ ] `backend/.env.example`等: `BEAVER_STANDARD_ESTIMATE_MINUTES`（既定60）・`BEAVER_STANDARD_INVOICE_MINUTES`（既定30）追加、`CryptoService::loadEnvKey()`パターンで読み込み
-  - [ ] `backend/services/BeaverSyncService.php`: `upsertProject()`内で標準タスク（見積・請求）生成ロジック追加（§5.1・§5.2）。新規案件作成時・既存案件への後追いバックフィルの両方に対応
-  - [ ] 同ファイル: Beaverステータス連動によるstatus自動遷移ロジック追加（§5.3、単調前進のみ・見積todo→done/cancelled、請求pending→todo→done/cancelled）
-  - [ ] `backend/services/BeaverCapacityService.php`: **変更しない**（仕様書§6の結論どおり。誤って触った場合はY1/Y2回帰を必ず確認）
-  - [ ] 仕様書§10の18項目をTDDでカバーする新規テストファイル追加
-- [ ] Phase 5: 指揮AIによるレビュー（diff確認・テスト再実行）・マージ
-- [ ] 本番デプロイ・実機検証（仕様書§12、9項目）。検証用データは終了後に削除・復元
-- [ ] 完了報告（要望原文の完了報告フォーマットに従う: R-ID・仕様書パス・標準タスクのデータ表現・identity規則・見積/請求の標準工数・capacity算入ルール・二重計上防止方法・not_ready/activeの表現・Beaver status連動・納品済/請求済時の挙動・本番検証結果・回帰テスト結果・今後のテンプレート拡張余地）
-- [ ] 完了後はY3には進まず停止
+実装スコープ（Codexへ委譲・TDD）:
+- [x] Phase 4: 実装（`feature/R-0161-beaver-standard-tasks`、コミット`37b7659`・`7f14135`）
+  - [x] `backend/db.php`: `generated_task_links`テーブル新設（仕様書§4.1）
+  - [x] `backend/services/BeaverSyncService.php`: `getStandardTaskMinutes()`で`.env`（`BEAVER_STANDARD_ESTIMATE_MINUTES`既定60・`BEAVER_STANDARD_INVOICE_MINUTES`既定30）を`CryptoService::loadEnvKey()`パターンで読み込み。`.env.example`は元々リポジトリ非管理のため新規ファイルは作成せず（未設定時は既定値でフォールバック動作）
+  - [x] 同ファイル: `generateStandardTasksIfMissing()`で標準タスク（見積・請求）生成（§5.1・§5.2）。新規案件作成時・既存案件への後追いバックフィルの両方に対応
+  - [x] 同ファイル: `applyStandardTaskStatusTransition()`でBeaverステータス連動のstatus自動遷移（§5.3、単調前進のみ）
+  - [x] `backend/services/BeaverCapacityService.php`: 変更なし（指揮AIがdiffで確認済み）
+  - [x] 新規`backend/tests/test_r0161_beaver_standard_tasks.php`（仕様書§10の1〜15番、31/31 PASS）
+  - [x] 既存回帰の陳腐化対応: `test_r153_beaver_sync.php`・`test_r153_beaver_capacity.php`の数値アサーションを指揮AI承認のうえ更新（標準タスク追加という仕様どおりの挙動変化。本来の検証意図は保持）
+- [x] Phase 5: 指揮AIによるレビュー（diff確認・新規31件＋既存Beaver関連198件を独立再実行し報告と一致を確認）・マージ（`master`へ`--no-ff`、`70d2522`）
+- [x] 本番デプロイ・実機検証（仕様書§12、9項目全て✓）。デプロイはCodexへ委譲（フロントエンドテスト1341 passed/0 failed、tsc 0エラー、`upload.ps1`成功、稼働バンドル`index-HoXjFVbF.js`）。実機検証は指揮AIがclaude-in-chromeで実施。詳細は`docs/requests_log.md` R-0161実装・検証記録の行を参照
+- [x] 完了報告（下記参照）
+- [x] 完了後はY3には進まず停止
+
+### 完了報告
+
+- **R-ID**: R-0161
+- **正本仕様書**: `docs/SPEC/14_Beaver標準事務タスク.md`
+- **標準タスクのデータ表現**: `items`の通常末端行（`is_project=0`）として「見積」「請求」を生成。baseline行としては扱わない
+- **identity規則**: 新設`generated_task_links`テーブル、`UNIQUE(youkan_project_id, task_role)`で冪等性を担保（`task_role='estimate'|'invoice'`）
+- **見積/請求の標準工数**: `.env`の`BEAVER_STANDARD_ESTIMATE_MINUTES`（既定60分）・`BEAVER_STANDARD_INVOICE_MINUTES`（既定30分）。生成後はユーザーが個別に`estimated_minutes`を変更可能
+- **capacity算入ルール**: 通常の末端itemとして`children_sum`に自動算入。`effective_total=max(baseline, children_sum)`は無変更
+- **二重計上防止方法**: Beaver B1/B3契約を確認し、baseline/work_packagesは`factory`/`site`（生産工数）のみで構成され見積・請求工数を含まないことを確定。標準タスクはbaselineと独立加算されるため二重計上は構造的に発生しない
+- **not_ready/activeの表現**: 新規フィールドなし。既存の`status='pending'`＋`pending_condition`（R-125）を転用。`pending`はTodayに出ず、capacity計算には算入される
+- **Beaver status連動**: `BeaverSyncService::applyStandardTaskStatusTransition()`で単調前進のみの自動遷移。見積は受注済以降で`done`、請求は納品済/完了で`todo`活性化・請求済で`done`、キャンセルで両方`cancelled`
+- **納品済時の挙動**: 生産baselineのみ0化（既存Y1ロジック、無変更）。請求タスクは`todo`に活性化し工数は`effective_total`に残存（本番実機検証で確認: baseline510→0、effective_total=90維持）
+- **請求済時の挙動**: 請求タスクが自動的に`done`へ遷移（本番実機検証で確認）
+- **本番検証結果**: 仕様書§12の9項目全て✓（既存Beaverテスト案件`external_project_id=52`を再利用。全37件のBeaver連携案件へ標準タスクが自動バックフィルされ本機能が本番稼働開始）
+- **回帰テスト結果**: 新規31/31 PASS、既存Beaver関連5ファイル計198 PASS/0 FAIL（指揮AIが独立再実行して確認）
+- **今後の案件テンプレート拡張余地**: `generated_task_links.task_role`に新しい値（現調・発注・入金確認等）を追加するだけで同じ仕組みを拡張可能（仕様書§9）。今回はestimate/invoiceの2値のみ実装
 
 ## R-0160 Beaver連携: 案件→Youkanプロジェクトの直リンク解決API — 実装完了・マージ待ち（2026-08-31）
 
