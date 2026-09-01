@@ -29,7 +29,18 @@
       "Bash(git add -A --dry-run)",
       "Bash(schtasks /Query *)",
       "Bash(php -m)",
-      "Bash(npm.cmd run test -- --run)"
+      "Bash(npm.cmd run test -- --run)",
+      "Bash(powershell.exe -File upload.ps1)",
+      "Bash(powershell -File upload.ps1)",
+      "Bash(cd /c/Fujiruki/Projects/Youkan && powershell.exe -File upload.ps1)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(powershell.exe -File upload.ps1)",
+      "Bash(powershell -File upload.ps1)",
+      "Bash(cd /c/Fujiruki/Projects/Youkan && powershell.exe -File upload.ps1)"
     ]
   }
 }

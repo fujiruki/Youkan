@@ -89,6 +89,9 @@ Youkan/
 cd JWCADTategu.Web && npm.cmd run test -- --run
 ```
 
+テスト本数が多くログが長くなる場合は `~/.claude/scripts/test-quiet.sh <テストコマンド...>` でラップする（成功時は要約1行のみ、失敗時のみ全出力）。本プロジェクトはテストファイル数が多いため積極的に使うこと。
+例: `~/.claude/scripts/test-quiet.sh npm.cmd run test -- --run`
+
 ## Youkan固有の運用ルール
 
 ### 禁止事項
