@@ -26,6 +26,7 @@ Youkan（羊羹）は「Judgment-Free Work-life Operating System」。
 | 12 | [ステータス色の再調整](spec/12_ステータス色の再調整.md) | Inboxを緑、あとでやるをグレー、期限超過を淡い赤へ統一（R-159） | 2026-08-29 |
 | 13 | [Beaver連携プロジェクトURL](spec/13_Beaver連携プロジェクトURL.md) | 案件→Youkanプロジェクトの直リンク解決API（Beaver「Youkanで見る」ボタン向け、R-0160） | 2026-08-31 |
 | 14 | [Beaver連携標準事務タスク](spec/14_Beaver標準事務タスク.md) | 見積・請求の標準タスクを案件初回同期時に自動生成しcapacityへ算入（R-0161） | 2026-08-31 |
+| 15 | [Beaver標準事務タスク再設計](spec/15_Beaver標準事務タスク再設計.md) | 全体一覧を実タスクのみに保つ（請求pendingを表示除外・見積完了タイミング前倒し）（R-0162） | 2026-09-10 |
 
 ---
 

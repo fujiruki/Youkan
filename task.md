@@ -2,6 +2,30 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-157は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
+## R-0162 Beaver標準事務タスク再設計（全体一覧を実タスクのみに保つ） — 実装中
+
+R-0161（直下セクション参照）の実運用フィードバックに基づく再設計。要望原文・判断根拠: `docs/requests_log.md` R-0162行。仕様: `docs/SPEC/15_Beaver標準事務タスク再設計.md`（正本）。R-0161（`14_Beaver標準事務タスク.md`）・Y1・Y2は無変更で継承。**Y3には進まず本機能完了で停止**（発注者指示）。
+
+事前調査で確定した事実（仕様書§3に反映済み）:
+- 現行`BeaverSyncService.php`のstatus遷移ロジックは要望のライフサイクルとほぼ完全に一致しており、二重計上は構造的に発生しない
+- 問題は全体一覧の表示層のみ（`useOverviewItems.ts`が`status='pending'`を無条件に集約）
+- `pending`は既存の要判断キュー（R-125、Pendingバケット・ReviewSweep）にも使われるため、pending全般ではなくBeaver標準タスクの請求だけに除外対象を限定する必要がある
+- capacity-check（`R-153_capacity_check_api_contract.md`）は仮受注シミュレーションを持たない設計でY1から意図的にスコープ外。今回も追加しない
+- 発注者確認2点（両方採用）: (1) 除外対象はBeaver標準タスクの請求のみに限定、既存の要判断キューは維持 (2) 見積の自動完了タイミングを「受注済」→「見積済」に前倒し（Beaverの実際のstatus値に合わせる）
+
+実装スコープ（Codexへ委譲・TDD、仕様書§4）:
+- [ ] Phase 4: 実装
+  - [ ] `backend/db.php`: `items`へ`generated_task_role TEXT DEFAULT NULL`カラム追加（§4.1）
+  - [ ] `backend/services/BeaverSyncService.php`: `generateStandardTasksIfMissing()`のINSERT文に`generated_task_role`追加、`ESTIMATE_DONE_STATUSES`に`'見積済'`を追加（§4.1・§4.3）
+  - [ ] `backend/BaseController.php`: `mapItemRow()`に`generatedTaskRole`マッピング追加（§4.1）
+  - [ ] フロント`Item`型に`generatedTaskRole`追加
+  - [ ] `JWCADTategu.Web/.../OverviewBoard/useOverviewItems.ts`: `allItemsRaw`構築時に`generatedTaskRole==='invoice' && status==='pending'`を除外（§4.2）
+  - [ ] バックエンドTDD（仕様書§6.1、7項目）・フロントエンドTDD（§6.2、10項目。特に#8「既存Pendingアイテムは表示され続ける」回帰必須）
+- [ ] Phase 5: 指揮AIによるレビュー・マージ
+- [ ] 本番デプロイ・実機検証（仕様書§7）
+- [ ] 完了報告
+- [ ] 完了後はY3には進まず停止
+
 ## R-0161 Beaver連携標準事務タスク（見積・請求の自動生成とcapacity算入） — 完了（2026-08-31）
 
 Beaver→Youkan連携の追加改善。要望原文・判断根拠: `docs/requests_log.md` R-0161行。仕様: `docs/SPEC/14_Beaver標準事務タスク.md`（正本）。Y1（`07_Beaver連携.md`）・Y2（`08_Beaver連携Y2.md`）は無変更で継承。**Y3には進まず本機能完了で停止**（発注者指示）。
