@@ -15,6 +15,11 @@
   - 2026-08-26 R-153本番再検証で発見。`Access-Control-Allow-Origin`が2つ、`Access-Control-Allow-Methods`が値の異なる2つ（`GET, POST, PUT, PATCH, DELETE, OPTIONS`と`GET, POST, PUT, DELETE, OPTIONS`）付与されている。実害は未確認だが将来のブラウザ挙動変化リスクとして記録
   - 未着手
 
+- **【低】** フロントエンド既存テストの既往失敗1件（`useAssigneeView.test.ts`）
+  - 2026-09-10 R-0162デプロイ前検証で発見。`useAssigneeView.test.ts`「取得したアイテムをバケット分類・集計して返す」が`expected [] to deeply equal ['today-1']`でFAIL
+  - R-0162の変更（`useOverviewItems.ts`・`types.ts`等）とは無関係と確認済み（`git stash`でR-0162変更を退避した状態でも同一失敗を再現）
+  - 未着手（原因調査から）
+
 - **【低】** バックエンド既存テストの既往失敗4件の棚卸し（R-153マージ検証で確認。masterでも同一再現、R-153とは無関係）
   - (1) `backend/tests/QuantityServiceTest.php` Context Logic が `Expected 150 (60+90), got 180`（62行目）でFatal error。テストと実装のどちらが正か要調査
   - (2) `backend/tests/feature_dashboard_scope.php` 実DB直書きのレガシースクリプトで、過去実行の残存データによりINSERT一意制約違反（書き込みは失敗しており実DBは汚していない）
