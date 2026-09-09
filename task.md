@@ -2,7 +2,7 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-157は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
-## R-0162 Beaver標準事務タスク再設計（全体一覧を実タスクのみに保つ） — 実装・自動検証完了（レビュー待ち）
+## R-0162 Beaver標準事務タスク再設計（全体一覧を実タスクのみに保つ） — 完了（2026-09-10）
 
 R-0161（直下セクション参照）の実運用フィードバックに基づく再設計。要望原文・判断根拠: `docs/requests_log.md` R-0162行。仕様: `docs/SPEC/15_Beaver標準事務タスク再設計.md`（正本）。R-0161（`14_Beaver標準事務タスク.md`）・Y1・Y2は無変更で継承。**Y3には進まず本機能完了で停止**（発注者指示）。
 
@@ -21,10 +21,22 @@ R-0161（直下セクション参照）の実運用フィードバックに基�
   - [x] フロント`Item`型に`generatedTaskRole`追加
   - [x] `OverviewBoard/useOverviewItems.ts`: pendingのBeaver請求だけを除外
   - [x] TDD: 実装前Redを確認。R-0161拡張37件＋mapping 2件＋フロント対象10件、既存Y1/Y2 Beaver回帰がGreen。`npm.cmd run build`成功
-- [ ] Phase 5: 指揮AIによるレビュー・マージ
-- [ ] 本番デプロイ・実機検証（仕様書§7）
-- [ ] 完了報告
-- [ ] 完了後はY3には進まず停止
+- [x] Phase 5: 指揮AIによるレビュー（diff確認・バックエンド計206件/フロント1342 passed・既存の無関係既往失敗1件を`git stash`で切り分け確認・`npx tsc --noEmit`エラー0）・マージ（`master`へ`--no-ff`）
+- [x] 本番デプロイ（ユーザー指示で指揮AIが`upload.ps1`実行。CodexサンドボックスはSSH権限なしで失敗したため。稼働バンドル`index-DB_WlVZE.js`）
+- [x] 本番実機検証（仕様書§7、claude-in-chromeでBeaver本番の同期API直接操作により実施）。テスト案件`external_project_id=52`で受注済（全体一覧に請求なし・effective_total=600）→納品済（全体一覧に請求あり・effective_total=90に減少・二重計上なし）→請求済（remaining=0）を確認。既存37件バックフィルの表示整合・通常pending（要判断キュー）の表示継続も確認。検証後原状回復（R-0161検証時と同一数値に復帰）
+- [x] 完了報告（下記参照）
+- [x] 完了後はY3には進まず停止
+
+### 完了報告
+
+- **R-ID**: R-0162
+- **正本仕様書**: `docs/SPEC/15_Beaver標準事務タスク再設計.md`
+- **問題の所在**: capacity計算・status遷移ロジックは既に正しく、全体一覧の表示層（`useOverviewItems.ts`が`status='pending'`を無条件表示）だけが原因だった
+- **採用方式**: 新規テーブル・新規status値は追加せず、`items.generated_task_role`（非正規化列）で識別し、`useOverviewItems.ts`で`generatedTaskRole==='invoice' && status==='pending'`のみ除外。既存の要判断キュー（`pending`全般）には影響なし
+- **見積完了タイミング**: `ESTIMATE_DONE_STATUSES`に`見積済`を追加（旧: 受注済から）。要望原文により忠実に
+- **既存データ移行**: R-0161で生成済みの37件を`generated_task_links`からバックフィルするマイグレーションを`db.php`に追加（Codex実装、指揮AI承認）
+- **回帰テスト結果**: バックエンド計206件（新規39件＋既存Beaver回帰167件）全Green、フロントエンド1342 passed/14 skipped（無関係の既往失敗1件は`docs/requests.md`へ別途記録）
+- **本番実機検証結果**: 受注済（全体一覧に請求なし・capacityに将来工数600分）→納品済（全体一覧に請求あり・capacity90分に減少・二重計上なし）→請求済（remaining=0）を実機で確認。既存37件バックフィルの表示整合、通常pending（要判断キュー）の表示継続も確認
 
 ## R-0161 Beaver連携標準事務タスク（見積・請求の自動生成とcapacity算入） — 完了（2026-08-31）
 
