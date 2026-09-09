@@ -2,7 +2,7 @@
 
 前セッション（R-125〜R-152、R-144除く）は本番反映済み。R-144は仕様確定・発注者指示で実装後日（F-57）。R-153〜R-157は前セッションで完了・本番反映済み（詳細は本ファイル下部）。
 
-## R-0162 Beaver標準事務タスク再設計（全体一覧を実タスクのみに保つ） — 実装中
+## R-0162 Beaver標準事務タスク再設計（全体一覧を実タスクのみに保つ） — 実装・自動検証完了（レビュー待ち）
 
 R-0161（直下セクション参照）の実運用フィードバックに基づく再設計。要望原文・判断根拠: `docs/requests_log.md` R-0162行。仕様: `docs/SPEC/15_Beaver標準事務タスク再設計.md`（正本）。R-0161（`14_Beaver標準事務タスク.md`）・Y1・Y2は無変更で継承。**Y3には進まず本機能完了で停止**（発注者指示）。
 
@@ -14,13 +14,13 @@ R-0161（直下セクション参照）の実運用フィードバックに基�
 - 発注者確認2点（両方採用）: (1) 除外対象はBeaver標準タスクの請求のみに限定、既存の要判断キューは維持 (2) 見積の自動完了タイミングを「受注済」→「見積済」に前倒し（Beaverの実際のstatus値に合わせる）
 
 実装スコープ（Codexへ委譲・TDD、仕様書§4）:
-- [ ] Phase 4: 実装
-  - [ ] `backend/db.php`: `items`へ`generated_task_role TEXT DEFAULT NULL`カラム追加（§4.1）
-  - [ ] `backend/services/BeaverSyncService.php`: `generateStandardTasksIfMissing()`のINSERT文に`generated_task_role`追加、`ESTIMATE_DONE_STATUSES`に`'見積済'`を追加（§4.1・§4.3）
-  - [ ] `backend/BaseController.php`: `mapItemRow()`に`generatedTaskRole`マッピング追加（§4.1）
-  - [ ] フロント`Item`型に`generatedTaskRole`追加
-  - [ ] `JWCADTategu.Web/.../OverviewBoard/useOverviewItems.ts`: `allItemsRaw`構築時に`generatedTaskRole==='invoice' && status==='pending'`を除外（§4.2）
-  - [ ] バックエンドTDD（仕様書§6.1、7項目）・フロントエンドTDD（§6.2、10項目。特に#8「既存Pendingアイテムは表示され続ける」回帰必須）
+- [x] Phase 4: 実装・自動検証（2026-09-10）
+  - [x] `backend/db.php`: `items`へ`generated_task_role TEXT DEFAULT NULL`カラム追加。R-0161生成済み行は`generated_task_links`から自動バックフィル
+  - [x] `backend/services/BeaverSyncService.php`: 標準タスク生成時にroleを保存し、`ESTIMATE_DONE_STATUSES`へ`'見積済'`を追加
+  - [x] `backend/BaseController.php`: `mapItemRow()`に`generatedTaskRole`マッピング追加
+  - [x] フロント`Item`型に`generatedTaskRole`追加
+  - [x] `OverviewBoard/useOverviewItems.ts`: pendingのBeaver請求だけを除外
+  - [x] TDD: 実装前Redを確認。R-0161拡張37件＋mapping 2件＋フロント対象10件、既存Y1/Y2 Beaver回帰がGreen。`npm.cmd run build`成功
 - [ ] Phase 5: 指揮AIによるレビュー・マージ
 - [ ] 本番デプロイ・実機検証（仕様書§7）
 - [ ] 完了報告

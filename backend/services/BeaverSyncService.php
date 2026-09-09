@@ -19,7 +19,7 @@ class BeaverSyncService {
     // [R-0161] docs/SPEC/14_Beaver標準事務タスク.md §5.2・§5.3
     public const DEFAULT_STANDARD_ESTIMATE_MINUTES = 60;
     public const DEFAULT_STANDARD_INVOICE_MINUTES = 30;
-    private const ESTIMATE_DONE_STATUSES = ['受注済', '進行中', '納品済', '完了', '請求済'];
+    private const ESTIMATE_DONE_STATUSES = ['見積済', '受注済', '進行中', '納品済', '完了', '請求済'];
     private const INVOICE_ACTIVATE_STATUSES = ['納品済', '完了'];
     private const CANCELLED_STATUS = 'キャンセル';
     private const INVOICED_STATUS = '請求済';
@@ -347,11 +347,11 @@ class BeaverSyncService {
         foreach ($tasks as $role => $t) {
             $itemId = uniqid('gt-', true);
             $this->pdo->prepare("
-                INSERT INTO items (id, tenant_id, title, status, created_by, is_project, project_id, parent_id, estimated_minutes, pending_condition, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?)
+                INSERT INTO items (id, tenant_id, title, status, created_by, is_project, project_id, parent_id, estimated_minutes, pending_condition, generated_task_role, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0, ?, NULL, ?, ?, ?, ?, ?)
             ")->execute([
                 $itemId, $this->getTenantId(), $t['title'], $t['status'], $userId,
-                $youkanProjectId, $this->getStandardTaskMinutes($role), $t['pending_condition'], $now, $now,
+                $youkanProjectId, $this->getStandardTaskMinutes($role), $t['pending_condition'], $role, $now, $now,
             ]);
             $this->pdo->prepare("
                 INSERT INTO generated_task_links (id, tenant_id, youkan_project_id, youkan_item_id, task_role, created_at)

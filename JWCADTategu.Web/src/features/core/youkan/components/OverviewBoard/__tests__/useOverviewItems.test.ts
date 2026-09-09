@@ -30,6 +30,49 @@ const mockViewModel = {
 };
 
 describe('useOverviewItems', () => {
+    it('R-0162: pendingのBeaver請求だけを除外し、通常pendingと実タスクは維持する', () => {
+        const estimate = { ...mockItems[0], id: 'estimate', title: '見積', status: 'todo', projectId: 'p1', generatedTaskRole: 'estimate' } as Item;
+        const pendingInvoice = { ...mockItems[1], id: 'invoice-pending', title: '請求', generatedTaskRole: 'invoice' } as Item;
+        const activeInvoice = { ...mockItems[1], id: 'invoice-active', title: '請求', status: 'todo', generatedTaskRole: 'invoice' } as Item;
+        const ordinaryPending = { ...mockItems[1], id: 'ordinary-pending', title: '通常の要判断', generatedTaskRole: null } as Item;
+        const viewModel = {
+            ...mockViewModel,
+            gdbActive: [estimate, activeInvoice],
+            gdbPreparation: [],
+            gdbIntent: [pendingInvoice, ordinaryPending],
+            gdbLog: [],
+        };
+
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+        const ids = result.current.filter(w => w.type === 'item').map(w => w.item.id);
+
+        expect(ids).toContain('estimate');
+        expect(ids).toContain('invoice-active');
+        expect(ids).toContain('ordinary-pending');
+        expect(ids).not.toContain('invoice-pending');
+    });
+
+    it('R-0162: 複数案件・重複入力でもpending請求は表示されず、表示件数は増殖しない', () => {
+        const invoices = ['a', 'b', 'c'].map((suffix, index) => ({
+            ...mockItems[1], id: `invoice-${suffix}`, projectId: index % 2 === 0 ? 'p1' : 'p2',
+            title: '請求', generatedTaskRole: 'invoice',
+        } as Item));
+        const estimate = { ...mockItems[0], id: 'estimate-once', projectId: 'p1', title: '見積', status: 'todo', generatedTaskRole: 'estimate' } as Item;
+        const viewModel = {
+            ...mockViewModel,
+            gdbActive: [estimate],
+            gdbPreparation: [],
+            gdbIntent: [...invoices, invoices[0], estimate],
+            gdbLog: [],
+        };
+
+        const { result } = renderHook(() => useOverviewItems(viewModel as any));
+        const itemWrappers = result.current.filter(w => w.type === 'item');
+
+        expect(itemWrappers.filter(w => w.item.title === '請求')).toHaveLength(0);
+        expect(itemWrappers.filter(w => w.item.id === 'estimate-once')).toHaveLength(1);
+    });
+
     it('should sort items correctly: No Project -> Company Project -> Personal Project', () => {
         const { result } = renderHook(() => useOverviewItems(mockViewModel as any));
 

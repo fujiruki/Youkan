@@ -109,6 +109,8 @@ $estimate1 = itemOf($pdo, $links1['estimate']['youkan_item_id']);
 $invoice1 = itemOf($pdo, $links1['invoice']['youkan_item_id']);
 assert_true('見積タスク: title=見積・status=todo・is_project=0', $estimate1['title'] === '見積' && $estimate1['status'] === 'todo' && (int)$estimate1['is_project'] === 0, json_encode($estimate1, JSON_UNESCAPED_UNICODE));
 assert_true('請求タスク: title=請求・status=pending・pending_conditionあり', $invoice1['title'] === '請求' && $invoice1['status'] === 'pending' && !empty($invoice1['pending_condition']), json_encode($invoice1, JSON_UNESCAPED_UNICODE));
+assert_true('見積タスクにgenerated_task_role=estimateが保存される', ($estimate1['generated_task_role'] ?? null) === 'estimate', json_encode($estimate1, JSON_UNESCAPED_UNICODE));
+assert_true('請求タスクにgenerated_task_role=invoiceが保存される', ($invoice1['generated_task_role'] ?? null) === 'invoice', json_encode($invoice1, JSON_UNESCAPED_UNICODE));
 assert_true('両タスクとも案件直下（project_id=案件, parent_id=NULL）', $estimate1['project_id'] === $proj1 && $estimate1['parent_id'] === null && $invoice1['project_id'] === $proj1 && $invoice1['parent_id'] === null);
 
 echo "\n=== テスト6: 初期estimated_minutesが.env既定値(60/30)と一致する ===\n";
@@ -122,6 +124,27 @@ $countLinks1 = (int)$pdo->query("SELECT COUNT(*) FROM generated_task_links WHERE
 assert_true('generated_task_linksは2件のまま', $countLinks1 === 2, (string)$countLinks1);
 $itemsCount1 = (int)$pdo->query("SELECT COUNT(*) FROM items WHERE tenant_id = 't_161' AND title IN ('見積','請求')")->fetchColumn();
 assert_true('items側も増えない', $itemsCount1 === 2, (string)$itemsCount1);
+assert_true('再同期後もgenerated_task_roleは変化しない',
+    (itemOf($pdo, $links1['estimate']['youkan_item_id'])['generated_task_role'] ?? null) === 'estimate'
+    && (itemOf($pdo, $links1['invoice']['youkan_item_id'])['generated_task_role'] ?? null) === 'invoice');
+
+echo "\n=== R-0162: R-0161で既に生成済みのタスクをマイグレーション時にバックフィルする ===\n";
+$pdo->prepare("UPDATE items SET generated_task_role = NULL WHERE id IN (?, ?)")
+    ->execute([$links1['estimate']['youkan_item_id'], $links1['invoice']['youkan_item_id']]);
+getDB(); // 既存DBへの自動マイグレーションを再実行
+assert_true('既存見積・請求へgenerated_task_links由来のroleを復元する',
+    (itemOf($pdo, $links1['estimate']['youkan_item_id'])['generated_task_role'] ?? null) === 'estimate'
+    && (itemOf($pdo, $links1['invoice']['youkan_item_id'])['generated_task_role'] ?? null) === 'invoice');
+
+echo "\n=== R-0162: 見積済で見積タスクを完了し、問い合わせでは完了しない ===\n";
+$http->enqueue(200, ['data' => [bvrProject(5, [], ['status' => '問い合わせ'])], 'next_cursor' => null]);
+$svc->sync('full', true, 'u_161');
+$proj5 = projectIdOf($pdo, 5);
+$links5 = taskLinks($pdo, $proj5);
+assert_true('問い合わせでは見積タスクはtodoのまま', itemOf($pdo, $links5['estimate']['youkan_item_id'])['status'] === 'todo');
+$http->enqueue(200, ['data' => [bvrProject(5, [], ['status' => '見積済', 'updated_at' => '2026-08-26T09:00:00+09:00'])], 'next_cursor' => null]);
+$svc->sync('full', true, 'u_161');
+assert_true('見積済で見積タスクがtodoからdoneへ遷移する', itemOf($pdo, $links5['estimate']['youkan_item_id'])['status'] === 'done');
 
 echo "\n=== テスト4・5・10: estimate baseline案件（work_packagesあり）でも生成され、children_sumが正しい ===\n";
 $http->enqueue(200, ['data' => [bvrProject(2, [bvrWp('ext-wp-2-1')], ['baseline_hours' => 3.0])], 'next_cursor' => null]); // 180分。wp+標準タスクの合計より小さくする
