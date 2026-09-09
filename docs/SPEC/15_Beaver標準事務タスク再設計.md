@@ -67,7 +67,7 @@ Todayでは`status IN ('today_commit','focus')`等の限定statusしか対象に
 
 - `backend/db.php` `ensureTables()`: `items`テーブルへ`generated_task_role TEXT DEFAULT NULL`カラムを追加（既存の`ALTER TABLE`追加パターンを踏襲）
 - `backend/services/BeaverSyncService.php` `generateStandardTasksIfMissing()`のINSERT INTO itemsに`generated_task_role`（`'estimate'`または`'invoice'`）を追加
-- `generated_task_links`テーブルは冪等性保証（`UNIQUE(youkan_project_id, task_role)`）のため無変更で残す。`items.generated_task_role`は表示用の非正規化列で、生成時に1回だけ書き込まれ以降変更されない（更新経路がないため不整合は発生しない）
+- `generated_task_links`テーブルは冪等性保証（`UNIQUE(youkan_project_id, task_role)`）のため無変更で残す。`items.generated_task_role`は表示用の非正規化列で、生成時に1回だけ書き込まれ以降変更されない。R-0161で生成済みの既存行は、自動マイグレーション時に`generated_task_links.youkan_item_id`から`task_role`を安全にバックフィルする（`NULL`のリンク済みitemのみ対象）
 - `backend/BaseController.php` `mapItemRow()`に`$item['generatedTaskRole'] = $item['generated_task_role'] ?? null;`を追加。既存の`SELECT items.*`系クエリは全て自動的にこの列を返すため、`ItemController.php`等の個別SQLクエリの変更は不要
 - フロントの`Item`型（`JWCADTategu.Web/src/features/core/youkan/types.ts`等）に`generatedTaskRole?: 'estimate' | 'invoice' | null`を追加
 

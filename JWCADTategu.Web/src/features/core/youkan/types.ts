@@ -150,6 +150,7 @@ export interface Item {
     // --- Pending 付帯情報 [R-125] ---
     pendingCondition?: string | null; // 何が起きたら動かすか
     reviewDate?: string | null;       // 再確認日 "YYYY-MM-DD"
+    generatedTaskRole?: 'estimate' | 'invoice' | null; // [R-0162] Beaver標準タスクの表示用識別子
 
     // --- Business Context [NEW] ---
     domain?: 'business' | 'general' | 'private'; // 業務区分

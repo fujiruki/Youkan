@@ -66,7 +66,7 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			...(gdbActive || []),
 			...(gdbTodo || []),
 			...(gdbPreparation || []),
-			...(gdbIntent || []),
+			...(gdbIntent || []).filter((item: Item) => !(item.generatedTaskRole === 'invoice' && item.status === 'pending')),
 			...(showSomeday ? (gdbSomeday || []) : []),
 			...(todayCandidates || []),
 			...(todayCommits || []),

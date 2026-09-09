@@ -91,7 +91,9 @@ function getDB() {
             'deleted_at' => 'INTEGER DEFAULT NULL', // [v25] Trash
             // [R-125] pending の付帯情報
             'pending_condition' => 'TEXT DEFAULT NULL',
-            'review_date' => 'TEXT DEFAULT NULL'
+            'review_date' => 'TEXT DEFAULT NULL',
+            // [R-0162] Beaver標準タスクを表示層で識別するための非正規化列
+            'generated_task_role' => 'TEXT DEFAULT NULL'
         ];
 
         // 1.2 Check 'users' table columns
@@ -155,6 +157,21 @@ function getDB() {
             }
         }
 
+        // [R-0162] R-0161ですでに生成済みの標準タスクにも表示用identityを付与する。
+        // NULLだけを対象にし、将来の明示値や通常タスクには触れない。
+        $pdo->exec("
+            UPDATE items
+            SET generated_task_role = (
+                SELECT task_role FROM generated_task_links
+                WHERE generated_task_links.youkan_item_id = items.id
+            )
+            WHERE generated_task_role IS NULL
+              AND EXISTS (
+                SELECT 1 FROM generated_task_links
+                WHERE generated_task_links.youkan_item_id = items.id
+              )
+        ");
+
         if ($needsDecisionHoldMigration) {
             // R-125: decision_hold（旧レガシー値）はpendingに概念上吸収する。新規書き込みは行わない
             $pdo->exec("UPDATE items SET status = 'pending' WHERE status = 'decision_hold'");
@@ -208,7 +225,8 @@ function ensureTables($pdo) {
             project_type TEXT DEFAULT NULL,
             client_name TEXT DEFAULT NULL,
             site_name TEXT DEFAULT NULL,
-            gross_profit_target INTEGER DEFAULT 0
+            gross_profit_target INTEGER DEFAULT 0,
+            generated_task_role TEXT DEFAULT NULL
         )",
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
