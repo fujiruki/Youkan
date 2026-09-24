@@ -328,3 +328,33 @@ describe('R-164: work_package header の工場/現場バッジ', () => {
 		expect(badge.getAttribute('title')).toBe('paint');
 	});
 });
+
+describe('R-0170: Beaverバッジを案件名の先頭の丸囲みBアイコンにする', () => {
+	const renderLinked = () => {
+		mockItems = [makeHeaderWrapper(makeProject('root-1'))];
+		withBeaverIntegration(makeOverview());
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+		return screen.getByTestId('overview-beaver-badge');
+	};
+
+	it('案件名より前のDOM順に置かれる', () => {
+		const badge = renderLinked();
+		const title = screen.getByText('Project root-1');
+		expect(badge.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('SVGアイコンで、currentColorを使い、テキストのBは持たない', () => {
+		const badge = renderLinked();
+		const svg = badge.tagName.toLowerCase() === 'svg' ? badge : badge.querySelector('svg');
+		expect(svg).not.toBeNull();
+		expect(svg!.outerHTML).toContain('currentColor');
+		expect(badge.textContent).not.toBe('B');
+		expect(badge.querySelector('circle')).not.toBeNull();
+	});
+
+	it('shrink-0で、右寄せ（ml-auto）ではない', () => {
+		const badge = renderLinked();
+		expect(badge.getAttribute('class')).toContain('shrink-0');
+		expect(badge.getAttribute('class')).not.toContain('ml-auto');
+	});
+});
