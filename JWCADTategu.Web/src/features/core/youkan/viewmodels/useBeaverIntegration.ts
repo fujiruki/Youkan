@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BeaverApi, BeaverOverview, BeaverLink, BeaverWorkPackage } from '../../../../api/beaver';
 
 /**
@@ -7,10 +7,12 @@ import { BeaverApi, BeaverOverview, BeaverLink, BeaverWorkPackage } from '../../
  * - 表示時: sync(diff, force=false) → overview 取得（syncがクールダウンskippedでもoverviewは取る）
  * - 失敗（.env未設定の503含む）時は overview=null とし、Beaver UI を一切出さない
  */
-export const useBeaverIntegration = () => {
+export const useBeaverIntegration = (onSynced?: () => void) => {
 	const [overview, setOverview] = useState<BeaverOverview | null>(null);
 	const [syncing, setSyncing] = useState(false);
 	const [syncFailed, setSyncFailed] = useState(false);
+	const onSyncedRef = useRef(onSynced);
+	onSyncedRef.current = onSynced;
 
 	const fetchOverview = useCallback(async () => {
 		try {
@@ -24,7 +26,8 @@ export const useBeaverIntegration = () => {
 		let cancelled = false;
 		(async () => {
 			try {
-				await BeaverApi.sync('diff', false);
+				const res = await BeaverApi.sync('diff', false);
+				if (!cancelled && ((res.created ?? 0) > 0 || (res.updated ?? 0) > 0)) onSyncedRef.current?.();
 			} catch {
 				// 同期失敗でもoverview取得は試みる（overviewも失敗すればUI非表示）
 			}
@@ -101,6 +104,12 @@ export const workPackageDecomposeLine = (link: BeaverLink): string | null => {
 /** work_package行1件分の「基準◯h／分解済み◯h」1行（APIが返す値をそのまま文言化） */
 export const workPackageRowLine = (wp: BeaverWorkPackage): string =>
 	formatDecomposeLine(wp.baselineMinutes, wp.decomposedMinutes, wp.virtualResidualMinutes, wp.overageMinutes);
+
+const CATEGORY_LABELS: Record<string, string> = { factory: '工場', site: '現場' };
+
+/** R-164: 同一見積行のfactory/site 2件を全体一覧で区別する表示ラベル（未知値は前方互換でそのまま） */
+export const workPackageCategoryLabel = (category: string | null): string | null =>
+	category ? (CATEGORY_LABELS[category] ?? category) : null;
 
 /** R-154: overviewの全work_packagesをyoukanItemIdでMap化する薄いフック */
 export const useWorkPackageSummary = (overview: BeaverOverview | null): Map<string, BeaverWorkPackage> => {

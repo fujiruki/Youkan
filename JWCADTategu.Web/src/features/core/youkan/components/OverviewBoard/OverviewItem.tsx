@@ -24,6 +24,8 @@ interface OverviewItemProps {
 	dropDisabled?: boolean;
 	/** R-156: Beaver連携由来のheader（ルート案件 or work_package）である場合true */
 	isBeaverLinked?: boolean;
+	/** R-164: work_package header の工場/現場ラベル */
+	categoryLabel?: string | null;
 	/** R-157: この行が現在ドラッグでoverされているgroup（header〜配下item行）に属する場合true。ハイライトのみに使い、「◯◯へ移動」ラベルはheader行のみに表示する */
 	dropHighlighted?: boolean;
 }
@@ -76,6 +78,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	onAutoTimeEditDone,
 	dropDisabled,
 	isBeaverLinked,
+	categoryLabel,
 	dropHighlighted
 }) => {
 	const isHeader = wrapper.type === 'header';
@@ -154,6 +157,17 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						<FolderOpen size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					) : (
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
+					)}
+					{categoryLabel && (
+						<span
+							data-testid="overview-wp-category"
+							title={categoryLabel}
+							className={`text-[9px] font-bold w-4 text-center rounded shrink-0 ${
+								categoryLabel === '工場' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+									: categoryLabel === '現場' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
+										: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
+							}`}
+						>{categoryLabel.charAt(0)}</span>
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
 					{isBeaverLinked && depth === 0 && (project as any).clientName && (
