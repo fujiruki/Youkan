@@ -25,6 +25,9 @@ import { useLazyLoadSentinel } from '../../hooks/useLazyLoadSentinel';
 import { Skeleton } from '../../../../../shared/components/Skeleton';
 import { ApiClient } from '../../../../../api/client';
 
+/** R-0163: 本日列の左右枠線（ヘッダー・背景グリッド・アイテム行セルで共通） */
+const TODAY_BORDER_CLASS = 'border-l border-r border-l-amber-500 border-r-amber-500 dark:border-l-amber-400 dark:border-r-amber-400';
+
 /** R-042-Y2: lazy load 1 回あたりの追加ヶ月数（議事録 2026-06-04 §4 採用案） */
 const LAZY_LOAD_MONTHS = 3;
 
@@ -796,7 +799,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									className={cn(
 										`relative flex-none flex flex-col items-center justify-end pb-2 border-r border-slate-100 dark:border-slate-800 transition-colors cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30`,
 										isFirst ? 'border-l-2 border-l-slate-400/80 dark:border-l-slate-500/80' : '',
-										isToday && 'border-l border-r border-amber-300/50 bg-amber-50/40 dark:bg-amber-900/20'
+										isToday && `${TODAY_BORDER_CLASS} bg-amber-50/40 dark:bg-amber-900/20`
 									)}
 									onClick={() => onDateClick?.(day)}
 								>
@@ -1009,7 +1012,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 									className={cn(
 										"flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50",
 										isToday
-											? "bg-amber-50/40 dark:bg-amber-900/20"
+											? `${TODAY_BORDER_CLASS} bg-amber-50/40 dark:bg-amber-900/20`
 											: isSun ? "bg-red-50/20 dark:bg-red-900/5" : isSat ? "bg-blue-50/10 dark:bg-blue-900/5" : "",
 										isFirstOfMonth ? "border-l-2 border-l-slate-300/80 dark:border-l-slate-600/80" : ""
 									)}
@@ -1196,7 +1199,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 													className={cn(
 														"flex-shrink-0 border-r border-slate-50 dark:border-slate-800/50 relative flex items-center justify-center h-full",
 														isTodayCell
-															? "bg-amber-50/40 dark:bg-amber-900/20"
+															? `${TODAY_BORDER_CLASS} bg-amber-50/40 dark:bg-amber-900/20`
 															: isSun ? "bg-red-50/50 dark:bg-red-900/10" : isSat ? "bg-blue-50/30 dark:bg-blue-900/10" : "",
 														!prepDateObj && onUpdateItem ? "cursor-pointer hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20" : ""
 													)}
