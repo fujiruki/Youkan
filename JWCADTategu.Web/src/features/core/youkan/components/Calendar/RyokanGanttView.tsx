@@ -161,7 +161,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
-	const isSyncing = useRef(false);
 	const [dependencies, setDependencies] = useState<Dependency[]>([]);
 	const [constraintError, setConstraintError] = useState<string | null>(null);
 	const [editingTimeItemId, setEditingTimeItemId] = useState<string | null>(null);
@@ -404,30 +403,32 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		};
 	}, [timeBlockDragState, handleTimeBlockDragEnd]);
 
-	// Sync Scroll Logic: Use native event listeners for better control
+	// ヘッダー↔本体の横スクロール同期。
+	// R-0168: 相手へ書き込んだ値は次フレームに自分の scroll イベント（echo）として届く。
+	// rAF フラグで抑止すると本体の smooth スクロール中にフラグが先に解除され、1フレーム前の
+	// ヘッダー位置が本体へ書き戻されてアニメーションが打ち切られていた（1クリックで数px しか動かない）。
+	// 書き込んだ値そのものを覚えておき、それと一致するイベントだけを無視する
 	useEffect(() => {
 		const header = headerContainerRef.current;
 		const body = effectiveScrollRef.current;
 
 		if (!header || !body) return;
 
+		let echoHeaderLeft = -1;
+		let echoBodyLeft = -1;
+
 		const handleHeaderScroll = () => {
-			if (isSyncing.current) return;
-			isSyncing.current = true;
+			if (header.scrollLeft === echoHeaderLeft) return;
+			echoHeaderLeft = -1;
 			body.scrollLeft = header.scrollLeft;
-			requestAnimationFrame(() => {
-				isSyncing.current = false;
-			});
+			echoBodyLeft = body.scrollLeft;
 		};
 
 		const handleBodyScroll = () => {
-			if (isSyncing.current) return;
-			isSyncing.current = true;
+			if (body.scrollLeft === echoBodyLeft) return;
+			echoBodyLeft = -1;
 			header.scrollLeft = body.scrollLeft;
-
-			requestAnimationFrame(() => {
-				isSyncing.current = false;
-			});
+			echoHeaderLeft = header.scrollLeft;
 		};
 
 		header.addEventListener('scroll', handleHeaderScroll, { passive: true });

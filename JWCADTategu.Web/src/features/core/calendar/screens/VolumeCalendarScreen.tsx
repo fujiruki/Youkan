@@ -113,7 +113,7 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	const {
 		currentDate, setCurrentDate,
 		items: rawItems, completedItems, members, projects, loading, error,
-		handlePrevMonth, handleNextMonth, refresh,
+		refresh,
 		capacityConfig,
 		handleUpdateCapacityException
 	} = useVolumeCalendarViewModel({
@@ -137,6 +137,19 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 			visibleMonthTimerRef.current = null;
 		}
 	}, []);
+	// R-0168: 矢印は currentDate を関数型更新で ±1ヶ月し、コミット後の effect で確定した月へ1回だけスクロールする。
+	// クリック時点の currentDate から目標月を計算すると、同一ティックの連打で全クリックが同じ月を指してしまう
+	const monthNavRequestedRef = React.useRef(false);
+	const stepMonth = React.useCallback((delta: number) => {
+		beginProgrammaticMonthScroll();
+		monthNavRequestedRef.current = true;
+		setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+	}, [beginProgrammaticMonthScroll, setCurrentDate]);
+	React.useEffect(() => {
+		if (!monthNavRequestedRef.current) return;
+		monthNavRequestedRef.current = false;
+		calendarRef.current?.scrollToMonth(currentDate.getFullYear(), currentDate.getMonth());
+	}, [currentDate]);
 	const handleVisibleMonthChange = React.useCallback((date: Date) => {
 		if (!isValid(date)) return;
 		if (Date.now() < suppressVisibleMonthUntilRef.current) return;
@@ -286,18 +299,8 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 				<CalendarHeader
 					variant={viewMode === 'gantt' ? 'gantt' : 'grid'}
 					visibleDate={currentDate}
-					onPrevMonth={() => {
-						beginProgrammaticMonthScroll();
-						handlePrevMonth();
-						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
-					}}
-					onNextMonth={() => {
-						beginProgrammaticMonthScroll();
-						handleNextMonth();
-						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
-					}}
+					onPrevMonth={() => stepMonth(-1)}
+					onNextMonth={() => stepMonth(1)}
 					onGoToCurrentMonth={() => {
 						beginProgrammaticMonthScroll();
 						setCurrentDate(new Date());

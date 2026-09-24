@@ -137,8 +137,6 @@ export const useVolumeCalendarViewModel = (filters: FilterProps = {}) => {
 		error,
 		startOfMonth: startOfMonth(currentDate),
 		endOfMonth: endOfMonth(currentDate),
-		handleNextMonth: () => setCurrentDate(addMonths(currentDate, 1)),
-		handlePrevMonth: () => setCurrentDate(subMonths(currentDate, 1)),
 		refresh: loadData,
 		// [NEW] Expose capacity config
 		capacityConfig,

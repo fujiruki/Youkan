@@ -408,13 +408,16 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	// Initial Scroll to Center Today
 	React.useEffect(() => {
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
-			const target = focusDate || today;
+			// R-0168: 矢印起点で range が張り直された直後は focusDate（例: 25日）ではなく
+			// 矢印の目標日（月中央）へ直接置く。目標日は1回で確定し、瞬間移動→戻りの二段階にしない
+			const target = pendingScrollTarget || focusDate || today;
 			// 対象日の要素が実在したときのみ完了扱い（range 更新直後の古い DOM での空振りを避ける）
 			if (scrollToDateElement(target, true)) {
 				setHasInitialScrolled(true);
+				if (target === pendingScrollTarget) setPendingScrollTarget(null);
 			}
 		}
-	}, [allDays, hasInitialScrolled, scrollToDateElement, focusDate, today]);
+	}, [allDays, hasInitialScrolled, scrollToDateElement, focusDate, today, pendingScrollTarget]);
 
 	// [R-151] 表示モード切替時は初期スクロールをやり直す。
 	// scrollTop=0（上方向拡張ゾーン）から表示が始まると拡張が点火して自走するため、
