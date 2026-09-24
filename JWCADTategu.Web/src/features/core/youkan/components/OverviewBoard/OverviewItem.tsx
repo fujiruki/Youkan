@@ -158,10 +158,18 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					) : (
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
-					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
 					{categoryLabel && (
-						<span data-testid="overview-wp-category" className="text-[9px] px-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0">{categoryLabel}</span>
+						<span
+							data-testid="overview-wp-category"
+							title={categoryLabel}
+							className={`text-[9px] font-bold w-4 text-center rounded shrink-0 ${
+								categoryLabel === '工場' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+									: categoryLabel === '現場' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
+										: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
+							}`}
+						>{categoryLabel.charAt(0)}</span>
 					)}
+					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
 					{isBeaverLinked && (
 						<span
 							data-testid="overview-beaver-badge"

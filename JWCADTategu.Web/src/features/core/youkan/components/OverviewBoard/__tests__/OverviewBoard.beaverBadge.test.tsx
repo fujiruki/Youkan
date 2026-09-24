@@ -234,23 +234,46 @@ describe('R-156: OverviewBoard Beaverバッジ', () => {
 	});
 });
 
-describe('R-164: work_package header の工場/現場ラベル', () => {
-	it('同名のfactory/site 2件が区別して表示される', () => {
+describe('R-164: work_package header の工場/現場バッジ', () => {
+	const wp = (id: string, category: string) => ({
+		externalWorkPackageId: `e-${id}`, youkanItemId: id, label: 'どあ', category,
+		baselineMinutes: 60, decomposedMinutes: 0, effectiveTotalMinutes: 60,
+		virtualResidualMinutes: 60, overageMinutes: 0, syncState: 'ok' as const,
+	});
+	const renderWith = (categories: string[]) => {
 		const root = makeProject('root-1');
-		const factory = makeProject('wp-f', { title: 'どあ', projectId: 'root-1' });
-		const site = makeProject('wp-s', { title: 'どあ', projectId: 'root-1' });
-		mockItems = [makeHeaderWrapper(root), makeHeaderWrapper(factory, 1), makeHeaderWrapper(site, 1)];
-		const wp = (id: string, category: string) => ({
-			externalWorkPackageId: `e-${id}`, youkanItemId: id, label: 'どあ', category,
-			baselineMinutes: 60, decomposedMinutes: 0, effectiveTotalMinutes: 60,
-			virtualResidualMinutes: 60, overageMinutes: 0, syncState: 'ok' as const,
-		});
+		const wps = categories.map((c, i) => ({ id: `wp-${i}`, c }));
+		mockItems = [makeHeaderWrapper(root), ...wps.map(w => makeHeaderWrapper(makeProject(w.id, { title: '長い案件名', projectId: 'root-1' }), 1))];
 		const overview = makeOverview();
-		overview.links[0].workPackages = [wp('wp-f', 'factory'), wp('wp-s', 'site')];
+		overview.links[0].workPackages = wps.map(w => wp(w.id, w.c));
 		withBeaverIntegration(overview);
-
 		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+		return screen.getAllByTestId('overview-wp-category');
+	};
 
-		expect(screen.getAllByTestId('overview-wp-category').map(e => e.textContent)).toEqual(['工場', '現場']);
+	it('短縮1文字バッジで、title属性に正式名、shrink-0で見切れない', () => {
+		const badges = renderWith(['factory', 'site']);
+		expect(badges.map(e => e.textContent)).toEqual(['工', '現']);
+		expect(badges.map(e => e.getAttribute('title'))).toEqual(['工場', '現場']);
+		badges.forEach(b => expect(b.className).toContain('shrink-0'));
+	});
+
+	it('案件名の前に置かれる', () => {
+		const [badge] = renderWith(['factory']);
+		const title = screen.getByText('長い案件名');
+		expect(badge.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('色で区別（工場=青系、現場=橙系、未知=グレー）', () => {
+		const badges = renderWith(['factory', 'site', 'paint']);
+		expect(badges[0].className).toContain('blue');
+		expect(badges[1].className).toContain('orange');
+		expect(badges[2].className).toContain('slate');
+	});
+
+	it('未知値は先頭1文字、titleは正式名（値そのまま）', () => {
+		const [badge] = renderWith(['paint']);
+		expect(badge.textContent).toBe('p');
+		expect(badge.getAttribute('title')).toBe('paint');
 	});
 });
