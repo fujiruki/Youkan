@@ -130,6 +130,7 @@ export const ImprovementRequestModal: React.FC<Props> = ({ isOpen, onClose }) =>
           </label>
           <textarea
             id="improvement-request-content"
+            autoFocus
             aria-label="本文"
             value={content}
             onChange={(e) => setContent(e.target.value)}
