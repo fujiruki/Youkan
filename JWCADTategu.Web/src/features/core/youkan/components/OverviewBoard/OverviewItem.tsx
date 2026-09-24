@@ -156,6 +156,14 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
+					{isBeaverLinked && depth === 0 && (project as any).clientName && (
+						<span
+							data-testid="overview-client-name"
+							className="truncate min-w-0 text-[0.75em] font-normal text-slate-400 dark:text-slate-500"
+						>
+							{(project as any).clientName}
+						</span>
+					)}
 					{isBeaverLinked && (
 						<span
 							data-testid="overview-beaver-badge"

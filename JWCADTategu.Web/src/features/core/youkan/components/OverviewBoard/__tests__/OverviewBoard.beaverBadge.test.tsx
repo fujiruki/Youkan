@@ -233,3 +233,54 @@ describe('R-156: OverviewBoard Beaverバッジ', () => {
 		expect(screen.queryAllByTestId('overview-beaver-badge')).toHaveLength(0);
 	});
 });
+
+describe('R-0165: Beaver案件行の得意先名併記', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('Beaver連携の案件行にclientNameが案件名の右側にグレー小文字で表示される', () => {
+		const root = makeProject('root-1', { clientName: '山田建設' });
+		mockItems = [makeHeaderWrapper(root)];
+		withBeaverIntegration(makeOverview());
+
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+
+		const client = screen.getByTestId('overview-client-name');
+		expect(client).toHaveTextContent('山田建設');
+		expect(client.className).toContain('truncate');
+		expect(client.className).toContain('text-slate-400');
+	});
+
+	it('clientNameが空なら表示されない', () => {
+		const root = makeProject('root-1', { clientName: '' });
+		mockItems = [makeHeaderWrapper(root)];
+		withBeaverIntegration(makeOverview());
+
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+
+		expect(screen.queryByTestId('overview-client-name')).not.toBeInTheDocument();
+	});
+
+	it('Beaver連携でない案件行には表示されない', () => {
+		const manual = makeProject('manual-root', { clientName: '山田建設' });
+		mockItems = [makeHeaderWrapper(manual)];
+		withBeaverIntegration(makeOverview());
+
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+
+		expect(screen.queryByTestId('overview-client-name')).not.toBeInTheDocument();
+	});
+
+	it('Beaver連携のサブプロジェクト行には表示されない', () => {
+		const root = makeProject('root-1', { clientName: '山田建設' });
+		const workPackage = makeProject('wp-1', { projectId: 'root-1', clientName: '山田建設' });
+		mockItems = [makeHeaderWrapper(workPackage, 1)];
+		withBeaverIntegration(makeOverview());
+		void root;
+
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+
+		expect(screen.queryByTestId('overview-client-name')).not.toBeInTheDocument();
+	});
+});
