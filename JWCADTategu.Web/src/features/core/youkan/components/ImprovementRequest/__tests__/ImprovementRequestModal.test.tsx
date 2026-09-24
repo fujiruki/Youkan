@@ -37,6 +37,11 @@ describe('ImprovementRequestModal', () => {
     expect(screen.getByRole('button', { name: '送信する' })).toBeInTheDocument();
   });
 
+  it('開いた時点で本文入力欄にフォーカスがある', () => {
+    render(<ImprovementRequestModal isOpen={true} onClose={vi.fn()} />);
+    expect(screen.getByLabelText('本文')).toHaveFocus();
+  });
+
   it('本文が空のとき送信ボタンは無効化される', () => {
     render(<ImprovementRequestModal isOpen={true} onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: '送信する' })).toBeDisabled();
