@@ -158,6 +158,22 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 					) : (
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
+					{isBeaverLinked && (
+						<svg
+							data-testid="overview-beaver-badge"
+							viewBox="0 0 16 16"
+							width="14"
+							height="14"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.2"
+							className="shrink-0 text-slate-500 dark:text-slate-300"
+						>
+							<title>Beaver連携</title>
+							<circle cx="8" cy="8" r="7" />
+							<path d="M6 4.5h2.4a1.6 1.6 0 0 1 0 3.2H6m0 0h2.8a1.9 1.9 0 0 1 0 3.8H6z" strokeLinejoin="round" />
+						</svg>
+					)}
 					{categoryLabel && (
 						<span
 							data-testid="overview-wp-category"
@@ -176,15 +192,6 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 							className="truncate min-w-0 text-[0.75em] font-normal text-slate-400 dark:text-slate-500"
 						>
 							{(project as any).clientName}
-						</span>
-					)}
-					{isBeaverLinked && (
-						<span
-							data-testid="overview-beaver-badge"
-							title="Beaver連携"
-							className="text-[9px] font-bold px-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0"
-						>
-							B
 						</span>
 					)}
 					{dropHighlighted && (
