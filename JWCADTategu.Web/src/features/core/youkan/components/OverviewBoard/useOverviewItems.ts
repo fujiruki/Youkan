@@ -4,6 +4,7 @@ import { useYoukanViewModel } from '../../viewmodels/useYoukanViewModel';
 import { format } from 'date-fns';
 import { buildHierarchicalList } from '../../logic/hierarchy';
 import { buildReviewQueue } from '../../logic/reviewQueue';
+import { isHiddenCalcOnlyItem } from '../../logic/hiddenCalcOnlyItems';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
 import { QuantityContext } from '../../logic/QuantityEngine';
 import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
@@ -66,7 +67,7 @@ export const useOverviewItems = (viewModel: YoukanViewModel, activeProject?: any
 			...(gdbActive || []),
 			...(gdbTodo || []),
 			...(gdbPreparation || []),
-			...(gdbIntent || []).filter((item: Item) => !(item.generatedTaskRole === 'invoice' && item.status === 'pending')),
+			...(gdbIntent || []).filter((item: Item) => !isHiddenCalcOnlyItem(item)),
 			...(showSomeday ? (gdbSomeday || []) : []),
 			...(todayCandidates || []),
 			...(todayCommits || []),

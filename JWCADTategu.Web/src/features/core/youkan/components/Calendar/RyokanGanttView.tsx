@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, formatLatestStartToken, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
+import { isHiddenCalcOnlyItem } from '../../logic/hiddenCalcOnlyItems';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
 import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
@@ -499,7 +500,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		const hierarchicalWrappers = buildHierarchicalList({
 			activeProjectId: focusedProjectId,
 			allProjects: projects,
-			allItems: items,
+			allItems: items.filter(i => !isHiddenCalcOnlyItem(i)),
 			showGroups: showGroups,
 			dependencies: visibleDependencies
 		});
