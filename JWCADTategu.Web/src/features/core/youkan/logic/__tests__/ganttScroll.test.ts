@@ -1,5 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { GANTT_STICKY_COL_WIDTH, calcGanttCenterDayIndex, calcGanttScrollLeftForIndex } from '../ganttScroll';
+import { GANTT_STICKY_COL_WIDTH, calcGanttCenterDayIndex, calcGanttScrollLeftForIndex, canCenterGanttIndex } from '../ganttScroll';
+
+/**
+ * R-0168 §2.1 追加: 表示範囲（allDays）の端に近い日は、固定列を除いた可視領域の中央に置くと
+ * scrollLeft が 0 / 最大でクランプされて届かない。中央に置けるかを事前に判定する
+ */
+describe('R-0168 canCenterGanttIndex（実測: 列幅24・161日・viewport 1920）', () => {
+	const colWidth = 24;
+	const dayCount = 161;
+	const clientWidth = 1920;
+
+	it('10/15（index 109）は中央に置ける', () => {
+		expect(canCenterGanttIndex(109, dayCount, colWidth, clientWidth)).toBe(true);
+	});
+
+	it('11/15（index 140）は右端まで35日分の余白が無く、中央に置けない', () => {
+		expect(canCenterGanttIndex(140, dayCount, colWidth, clientWidth)).toBe(false);
+	});
+
+	it('8/15（index 48）は中央に置けるが 7/15（index 17）は左端の余白が無く置けない', () => {
+		expect(canCenterGanttIndex(48, dayCount, colWidth, clientWidth)).toBe(true);
+		expect(canCenterGanttIndex(17, dayCount, colWidth, clientWidth)).toBe(false);
+	});
+
+	it('可視領域が範囲全体より広いときは、どの index も中央に置けない', () => {
+		expect(canCenterGanttIndex(80, dayCount, 16, 4000)).toBe(false);
+	});
+});
 
 /**
  * R-0168-B: ガントの中央日算出は左固定列256pxを除いた可視領域の中央で行う

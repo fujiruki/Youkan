@@ -6,7 +6,7 @@ import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
-import { GANTT_STICKY_COL_WIDTH } from '../../logic/ganttScroll';
+import { GANTT_STICKY_COL_WIDTH, canCenterGanttIndex } from '../../logic/ganttScroll';
 import { safeParseDate, normalizeDateKey, safeFormat } from '../../logic/dateUtils';
 import { RyokanGridView } from './RyokanGridView';
 import { RyokanTimelineView } from './RyokanTimelineView';
@@ -54,6 +54,20 @@ export const extendRangeEnd = (end: Date, maxEnd: Date): Date | null => {
 	next.setDate(next.getDate() + EXTENSION_STEP_DAYS);
 	return next.getTime() > maxEnd.getTime() ? new Date(maxEnd) : next;
 };
+
+// anchor の月 ±rangeMonths ヶ月を週境界（日〜土）に揃えた表示範囲
+const buildRange = (anchor: Date, rangeMonths: number): { start: Date; end: Date } => {
+	const start = new Date(anchor.getFullYear(), anchor.getMonth() - rangeMonths, 1);
+	start.setDate(start.getDate() - start.getDay());
+	start.setHours(0, 0, 0, 0);
+	const end = new Date(anchor.getFullYear(), anchor.getMonth() + rangeMonths + 1, 0);
+	end.setDate(end.getDate() + (6 - end.getDay()));
+	end.setHours(23, 59, 59, 999);
+	return { start, end };
+};
+
+const isSameRange = (a: { start: Date; end: Date } | null, b: { start: Date; end: Date }) =>
+	!!a && a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
 
 
 export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarProps>(({
@@ -327,6 +341,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 	}), [scrollToCurrentMonthCenter, range]);
 
+	// mini モードは初期 range を ±1ヶ月に縮小（約 90 セル）
+	// スクロールによる自動拡張（handleScroll）は既存挙動のまま
+	const rangeMonths = initialRangeMonths ?? (isMini ? 1 : 2);
+
 	// [FIX] Initialize range with current month +/- 2 months (Total 5 months)
 	React.useEffect(() => {
 		const anchor = focusDate ? new Date(focusDate) : new Date(today);
@@ -349,21 +367,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			}
 		}
 
-		// mini モードは初期 range を ±1ヶ月に縮小（約 90 セル）
-		// スクロールによる自動拡張（handleScroll）は既存挙動のまま
-		const rangeMonths = initialRangeMonths ?? (isMini ? 1 : 2);
-
-		// Start: N months back, align to start of week
-		const start = new Date(anchor.getFullYear(), anchor.getMonth() - rangeMonths, 1);
-		const dayOfWeek = start.getDay();
-		start.setDate(start.getDate() - dayOfWeek);
-		start.setHours(0, 0, 0, 0);
-
-		// End: N months forward, align to end of week
-		const end = new Date(anchor.getFullYear(), anchor.getMonth() + rangeMonths + 1, 0);
-		const endDayOfWeek = end.getDay();
-		end.setDate(end.getDate() + (6 - endDayOfWeek));
-		end.setHours(23, 59, 59, 999);
+		const { start, end } = buildRange(anchor, rangeMonths);
 
 		// [R-151] range 再生成時に拡張上限を張り直し、拡張停止フラグを解除する
 		rangeLimitRef.current = {
@@ -410,11 +414,12 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
 			// R-0168: 矢印起点で range が張り直された直後は focusDate（例: 25日）ではなく
 			// 矢印の目標日（月中央）へ直接置く。目標日は1回で確定し、瞬間移動→戻りの二段階にしない
-			const target = pendingScrollTarget || focusDate || today;
 			// 対象日の要素が実在したときのみ完了扱い（range 更新直後の古い DOM での空振りを避ける）
-			if (scrollToDateElement(target, true)) {
+			if (pendingScrollTarget && scrollToDateElement(pendingScrollTarget, true)) {
 				setHasInitialScrolled(true);
-				if (target === pendingScrollTarget) setPendingScrollTarget(null);
+				setPendingScrollTarget(null);
+			} else if (scrollToDateElement(focusDate || today, true)) {
+				setHasInitialScrolled(true);
 			}
 		}
 	}, [allDays, hasInitialScrolled, scrollToDateElement, focusDate, today, pendingScrollTarget]);
@@ -448,29 +453,31 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	}, [allDays]);
 
 	// [FIX] Process pending scroll targets AFTER range & allDays updates (Reactive Sync)
+	// R-0168 §2.1: 目標日が range 内でも、範囲の端に近いと中央に置けず scrollLeft がクランプされる
+	// （列幅24: 1ヶ月=720px に対し range 5ヶ月≒3864px、可視半幅≒832px）。
+	// その場合は目標月を中心に range を張り直し、初期スクロール効果（瞬間移動）で目標日に着地する
 	React.useEffect(() => {
-		if (pendingScrollTarget && allDays.length > 0) {
-			// 対象日の要素が DOM に実在するときだけスクロールして消費する
-			if (scrollToDateElement(pendingScrollTarget)) {
-				setPendingScrollTarget(null);
-				return;
-			}
-			if (!range || pendingScrollTarget < range.start || pendingScrollTarget > range.end) {
-				// Expand range to encompass target
-				const newStart = new Date(pendingScrollTarget.getFullYear(), pendingScrollTarget.getMonth() - 2, 1);
-				const dayOfWeek = newStart.getDay();
-				newStart.setDate(newStart.getDate() - dayOfWeek);
-				newStart.setHours(0, 0, 0, 0);
-
-				const newEnd = new Date(pendingScrollTarget.getFullYear(), pendingScrollTarget.getMonth() + 3, 0);
-				const endDayOfWeek = newEnd.getDay();
-				newEnd.setDate(newEnd.getDate() + (6 - endDayOfWeek));
-				newEnd.setHours(23, 59, 59, 999);
-
-				setRange({ start: newStart, end: newEnd });
-			}
+		if (!pendingScrollTarget || allDays.length === 0 || !hasInitialScrolled) return;
+		const container = scrollContainerRef.current;
+		const targetKey = normalizeDateKey(pendingScrollTarget);
+		const canCenter = displayMode !== 'gantt' || !container || (() => {
+			const index = allDays.findIndex(d => normalizeDateKey(d) === targetKey);
+			return index >= 0 && canCenterGanttIndex(index, allDays.length, ganttColWidth ?? 24, container.getBoundingClientRect().width);
+		})();
+		if (canCenter && scrollToDateElement(pendingScrollTarget)) {
+			setPendingScrollTarget(null);
+			return;
 		}
-	}, [pendingScrollTarget, allDays, range, scrollToDateElement]);
+		const next = buildRange(pendingScrollTarget, rangeMonths);
+		if (isSameRange(range, next)) {
+			// 目標月中心の range でも中央に置けない（可視領域が range より広い）: 端に寄せて確定する
+			scrollToDateElement(pendingScrollTarget);
+			setPendingScrollTarget(null);
+			return;
+		}
+		setRange(next);
+		setHasInitialScrolled(false);
+	}, [pendingScrollTarget, allDays, range, scrollToDateElement, hasInitialScrolled, displayMode, ganttColWidth, rangeMonths]);
 
 	// 完了タスクを日付キー別にグループ化
 	const completedByDate = useMemo(() => {

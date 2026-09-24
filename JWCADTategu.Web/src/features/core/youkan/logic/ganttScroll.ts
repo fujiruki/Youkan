@@ -10,3 +10,10 @@ export const calcGanttCenterDayIndex = (scrollLeft: number, clientWidth: number,
 /** index番目の日付列を固定列を除いた可視領域の中央に置く scrollLeft */
 export const calcGanttScrollLeftForIndex = (index: number, colWidth: number, clientWidth: number): number =>
 	Math.max(0, index * colWidth + colWidth / 2 - visibleAreaHalf(clientWidth));
+
+/** index番目の日付列を中央に置いたとき、可視領域の左右が dayCount 日分の範囲内に収まる（scrollLeft がクランプされない）か */
+export const canCenterGanttIndex = (index: number, dayCount: number, colWidth: number, clientWidth: number): boolean => {
+	const half = visibleAreaHalf(clientWidth);
+	const center = index * colWidth + colWidth / 2;
+	return center - half >= 0 && center + half <= dayCount * colWidth;
+};
