@@ -24,6 +24,8 @@ interface OverviewItemProps {
 	dropDisabled?: boolean;
 	/** R-156: Beaver連携由来のheader（ルート案件 or work_package）である場合true */
 	isBeaverLinked?: boolean;
+	/** R-164: work_package header の工場/現場ラベル */
+	categoryLabel?: string | null;
 	/** R-157: この行が現在ドラッグでoverされているgroup（header〜配下item行）に属する場合true。ハイライトのみに使い、「◯◯へ移動」ラベルはheader行のみに表示する */
 	dropHighlighted?: boolean;
 }
@@ -76,6 +78,7 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 	onAutoTimeEditDone,
 	dropDisabled,
 	isBeaverLinked,
+	categoryLabel,
 	dropHighlighted
 }) => {
 	const isHeader = wrapper.type === 'header';
@@ -156,6 +159,9 @@ export const OverviewItem: React.FC<OverviewItemProps> = ({
 						<Folder size="1em" className="text-slate-400 dark:text-slate-500 shrink-0" />
 					)}
 					<span className="truncate flex-1 leading-tight" style={{ maxWidth: `${titleLimit || 20}em` }}>{projectTitle}</span>
+					{categoryLabel && (
+						<span data-testid="overview-wp-category" className="text-[9px] px-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0">{categoryLabel}</span>
+					)}
 					{isBeaverLinked && (
 						<span
 							data-testid="overview-beaver-badge"

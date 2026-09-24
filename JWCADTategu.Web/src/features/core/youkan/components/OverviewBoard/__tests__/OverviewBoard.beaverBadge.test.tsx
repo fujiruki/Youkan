@@ -233,3 +233,24 @@ describe('R-156: OverviewBoard Beaverバッジ', () => {
 		expect(screen.queryAllByTestId('overview-beaver-badge')).toHaveLength(0);
 	});
 });
+
+describe('R-164: work_package header の工場/現場ラベル', () => {
+	it('同名のfactory/site 2件が区別して表示される', () => {
+		const root = makeProject('root-1');
+		const factory = makeProject('wp-f', { title: 'どあ', projectId: 'root-1' });
+		const site = makeProject('wp-s', { title: 'どあ', projectId: 'root-1' });
+		mockItems = [makeHeaderWrapper(root), makeHeaderWrapper(factory, 1), makeHeaderWrapper(site, 1)];
+		const wp = (id: string, category: string) => ({
+			externalWorkPackageId: `e-${id}`, youkanItemId: id, label: 'どあ', category,
+			baselineMinutes: 60, decomposedMinutes: 0, effectiveTotalMinutes: 60,
+			virtualResidualMinutes: 60, overageMinutes: 0, syncState: 'ok' as const,
+		});
+		const overview = makeOverview();
+		overview.links[0].workPackages = [wp('wp-f', 'factory'), wp('wp-s', 'site')];
+		withBeaverIntegration(overview);
+
+		render(<OverviewBoard viewModel={createMockViewModel()} onOpenItem={vi.fn()} />);
+
+		expect(screen.getAllByTestId('overview-wp-category').map(e => e.textContent)).toEqual(['工場', '現場']);
+	});
+});

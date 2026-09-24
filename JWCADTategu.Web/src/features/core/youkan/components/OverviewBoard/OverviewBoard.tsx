@@ -31,7 +31,7 @@ import { decisionToStatus } from '../../logic/decisionResolution';
 import { computeDragMoveOutcome } from '../../logic/dragMove';
 import { resolveGroupId } from '../../logic/hierarchy';
 import { useToast } from '../../../../../contexts/ToastContext';
-import { useBeaverIntegration, useWorkPackageSummary } from '../../viewmodels/useBeaverIntegration';
+import { useBeaverIntegration, useWorkPackageSummary, workPackageCategoryLabel } from '../../viewmodels/useBeaverIntegration';
 
 interface OverviewBoardProps {
 	viewModel: any;
@@ -52,7 +52,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 	const items = useOverviewItems(viewModel, activeProject, hideCompleted, showSomeday, needsReviewOnly, lateStartOnly);
 
 	// R-156: 全体一覧Beaver連携バッジ（表示のみ。同期・負荷計算ロジックには触れない）
-	const { overview: beaverOverview, linkByProjectId } = useBeaverIntegration();
+	const { overview: beaverOverview, linkByProjectId } = useBeaverIntegration(() => { viewModel.refreshGdb?.(); });
 	const workPackageSummary = useWorkPackageSummary(beaverOverview);
 	const isBeaverLinkedProject = (projectId: string): boolean =>
 		linkByProjectId.has(String(projectId)) || workPackageSummary.has(String(projectId));
@@ -489,6 +489,7 @@ export const OverviewBoard: React.FC<OverviewBoardProps> = ({ viewModel, activeP
 								dropDisabled={dropDisabled}
 								dropHighlighted={dropHighlighted}
 								isBeaverLinked={w.type === 'header' ? isBeaverLinkedProject(w.projectId) : undefined}
+								categoryLabel={w.type === 'header' ? workPackageCategoryLabel(workPackageSummary.get(String(w.projectId))?.category ?? null) : null}
 							/>
 						);
 					})}
