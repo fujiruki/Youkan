@@ -6,6 +6,7 @@ import { X, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { RyokanCalendarProps, PressureConnection } from './RyokanCalendarTypes';
+import { GANTT_STICKY_COL_WIDTH } from '../../logic/ganttScroll';
 import { safeParseDate, normalizeDateKey, safeFormat } from '../../logic/dateUtils';
 import { RyokanGridView } from './RyokanGridView';
 import { RyokanTimelineView } from './RyokanTimelineView';
@@ -184,8 +185,8 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	}, [onVisibleMonthChange]);
 
 	// [NEW Phase 24] Expose imperative scroll control
-	const scrollToDateElement = useCallback((targetDate: Date, instant: boolean = false) => {
-		if (!scrollContainerRef.current) return;
+	const scrollToDateElement = useCallback((targetDate: Date, instant: boolean = false): boolean => {
+		if (!scrollContainerRef.current) return false;
 		const container = scrollContainerRef.current;
 		const scrollBehavior = instant ? 'instant' as ScrollBehavior : 'smooth' as ScrollBehavior;
 
@@ -194,9 +195,12 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			if (targetEl) {
 				const rect = targetEl.getBoundingClientRect();
 				const containerRect = container.getBoundingClientRect();
-				const scrollOffset = container.scrollLeft + rect.left - containerRect.left - (containerRect.width / 2) + (rect.width / 2);
-				container.scrollTo({ left: scrollOffset, behavior: scrollBehavior });
+				const visibleCenter = GANTT_STICKY_COL_WIDTH + (containerRect.width - GANTT_STICKY_COL_WIDTH) / 2;
+				const scrollOffset = container.scrollLeft + rect.left - containerRect.left - visibleCenter + (rect.width / 2);
+				container.scrollTo({ left: Math.max(0, scrollOffset), behavior: scrollBehavior });
+				return true;
 			}
+			return false;
 		} else {
 			// Vertical scrolling logic for Grid/Timeline
 			const targetKey = normalizeDateKey(targetDate);
@@ -206,7 +210,9 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				const targetRect = targetEl.getBoundingClientRect();
 				const scrollOffset = (targetEl as HTMLElement).offsetTop - (containerRect.height / 2) + (targetRect.height / 2);
 				container.scrollTo({ top: scrollOffset, behavior: scrollBehavior });
+				return true;
 			}
+			return false;
 		}
 	}, [displayMode]);
 
@@ -231,7 +237,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				const lastEl = container.querySelector(`[data-gantt-date="${lastKey}"]`);
 				const lastRect = lastEl ? lastEl.getBoundingClientRect() : firstRect;
 				const monthCenterX = (firstRect.left + lastRect.right) / 2;
-				const viewportCenterX = containerRect.left + containerRect.width / 2;
+				const viewportCenterX = containerRect.left + GANTT_STICKY_COL_WIDTH + (containerRect.width - GANTT_STICKY_COL_WIDTH) / 2;
 				horizontalScroll = Math.max(0, container.scrollLeft + (monthCenterX - viewportCenterX));
 			}
 
@@ -309,6 +315,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			// rangeが今月を含まない場合はrangeを拡張してから再試行
 			if (range && (monthFirstDay < range.start || monthFirstDay > range.end)) {
 				setPendingScrollTarget(now);
+				return;
 			}
 			// DOMの更新後にスクロール実行
 			requestAnimationFrame(() => {
@@ -402,10 +409,12 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	React.useEffect(() => {
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
 			const target = focusDate || today;
-			scrollToDateElement(target, true); // 初回はアニメーションなしで即座に表示
-			setHasInitialScrolled(true);
+			// 対象日の要素が実在したときのみ完了扱い（range 更新直後の古い DOM での空振りを避ける）
+			if (scrollToDateElement(target, true)) {
+				setHasInitialScrolled(true);
+			}
 		}
-	}, [allDays.length, hasInitialScrolled, scrollToDateElement, focusDate, today]);
+	}, [allDays, hasInitialScrolled, scrollToDateElement, focusDate, today]);
 
 	// [R-151] 表示モード切替時は初期スクロールをやり直す。
 	// scrollTop=0（上方向拡張ゾーン）から表示が始まると拡張が点火して自走するため、
@@ -438,6 +447,11 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	// [FIX] Process pending scroll targets AFTER range & allDays updates (Reactive Sync)
 	React.useEffect(() => {
 		if (pendingScrollTarget && allDays.length > 0) {
+			// 対象日の要素が DOM に実在するときだけスクロールして消費する
+			if (scrollToDateElement(pendingScrollTarget)) {
+				setPendingScrollTarget(null);
+				return;
+			}
 			if (!range || pendingScrollTarget < range.start || pendingScrollTarget > range.end) {
 				// Expand range to encompass target
 				const newStart = new Date(pendingScrollTarget.getFullYear(), pendingScrollTarget.getMonth() - 2, 1);
@@ -451,12 +465,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 				newEnd.setHours(23, 59, 59, 999);
 
 				setRange({ start: newStart, end: newEnd });
-				return; // Wait for the next tick when allDays is updated
 			}
-
-			// Proceed to scroll if target is within current DOM
-			scrollToDateElement(pendingScrollTarget);
-			setPendingScrollTarget(null);
 		}
 	}, [pendingScrollTarget, allDays, range, scrollToDateElement]);
 

@@ -44,6 +44,8 @@ export const ganttRowHeightKeyFor = (mode: GanttScaleMode) =>
 /** マンスリーは既存動作維持の24px。時間軸タイムラインは分解能が見えるよう広めから開始する */
 export const ganttDefaultColWidth = (mode: GanttScaleMode) => (mode === 'monthly' ? 24 : 96);
 
+const PROGRAMMATIC_SCROLL_SUPPRESS_MS = 1000;
+
 export const ganttDefaultRowHeight = () => 28;
 
 export const readStoredGanttNumber = (key: string, fallback: number) => {
@@ -126,8 +128,18 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 	React.useEffect(() => () => {
 		if (visibleMonthTimerRef.current !== null) window.clearTimeout(visibleMonthTimerRef.current);
 	}, []);
+	// 矢印・今月ボタン起点のプログラムスクロール中は、スクロール由来の月通知で currentDate を上書きしない
+	const suppressVisibleMonthUntilRef = React.useRef(0);
+	const beginProgrammaticMonthScroll = React.useCallback(() => {
+		suppressVisibleMonthUntilRef.current = Date.now() + PROGRAMMATIC_SCROLL_SUPPRESS_MS;
+		if (visibleMonthTimerRef.current !== null) {
+			window.clearTimeout(visibleMonthTimerRef.current);
+			visibleMonthTimerRef.current = null;
+		}
+	}, []);
 	const handleVisibleMonthChange = React.useCallback((date: Date) => {
 		if (!isValid(date)) return;
+		if (Date.now() < suppressVisibleMonthUntilRef.current) return;
 		if (visibleMonthTimerRef.current !== null) window.clearTimeout(visibleMonthTimerRef.current);
 		visibleMonthTimerRef.current = window.setTimeout(() => {
 			visibleMonthTimerRef.current = null;
@@ -275,16 +287,19 @@ export const VolumeCalendarScreen: React.FC<Props> = ({
 					variant={viewMode === 'gantt' ? 'gantt' : 'grid'}
 					visibleDate={currentDate}
 					onPrevMonth={() => {
+						beginProgrammaticMonthScroll();
 						handlePrevMonth();
 						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
 						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
 					}}
 					onNextMonth={() => {
+						beginProgrammaticMonthScroll();
 						handleNextMonth();
 						const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
 						calendarRef.current?.scrollToMonth(next.getFullYear(), next.getMonth());
 					}}
 					onGoToCurrentMonth={() => {
+						beginProgrammaticMonthScroll();
 						setCurrentDate(new Date());
 						setTimeout(() => {
 							calendarRef.current?.scrollToToday();
