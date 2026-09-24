@@ -7,6 +7,7 @@ import { QuantityEngine, QuantityContext } from '../../logic/QuantityEngine';
 import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, formatLatestStartToken, formatLatestStartTooltip, LatestStartResult } from '../../logic/latestStart';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
+import { calcGanttCenterDayIndex, calcGanttScrollLeftForIndex } from '../../logic/ganttScroll';
 import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
 import { computeDailyTimeBlockLayout, DailyAllocationEntry, TimeBlockLayout, DAY_MINUTES } from '../../logic/ganttTimeBlocks';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
@@ -459,13 +460,8 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		const index = allDays.findIndex(d => isSameDate(d, date));
 		if (index === -1) return;
 
-		const scrollPos = index * colWidth;
-		const containerWidth = effectiveScrollRef.current.clientWidth;
-		// Center the date: (scrollPos) - (containerWidth / 2) + (colWidth / 2)
-		const centerOffset = containerWidth / 2 - colWidth / 2;
-
 		effectiveScrollRef.current.scrollTo({
-			left: Math.max(0, scrollPos - centerOffset),
+			left: calcGanttScrollLeftForIndex(index, colWidth, effectiveScrollRef.current.clientWidth),
 			behavior: 'smooth'
 		});
 	};
@@ -477,8 +473,7 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 
 		const handleScroll = () => {
 			// Calculate date at the center of the viewport
-			const centerOffset = container.scrollLeft + (container.clientWidth / 2);
-			const dayIndex = Math.floor(centerOffset / colWidth);
+			const dayIndex = calcGanttCenterDayIndex(container.scrollLeft, container.clientWidth, colWidth);
 			const centerDate = allDays[Math.max(0, Math.min(dayIndex, allDays.length - 1))];
 
 			if (centerDate) {
