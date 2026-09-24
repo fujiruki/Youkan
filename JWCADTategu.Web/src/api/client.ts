@@ -64,11 +64,12 @@ export class ApiClient {
 			const fresh = this.performRequest<T>(method, path, body, silent);
 			this.inFlightGets.set(dedupKey, fresh);
 			// 完了したらキャッシュから外す（成功/失敗いずれも）
+			// finally が返す派生Promiseの拒否は呼び出し元へ伝わらず Unhandled Rejection になるため、ここで吸収する（拒否は fresh 側で呼び出し元に届く）
 			fresh.finally(() => {
 				if (this.inFlightGets.get(dedupKey) === fresh) {
 					this.inFlightGets.delete(dedupKey);
 				}
-			});
+			}).catch(() => undefined);
 			return fresh;
 		}
 		return this.performRequest<T>(method, path, body, silent, signal);
@@ -200,12 +201,13 @@ export class ApiClient {
 
 	/**
 	 * 指定IDのアイテムを個別取得してバッチとして返す（Promise.all による並列実行）
+	 * ゴミ箱内・アクセス不可のIDは404になるが想定内のためスキップし、エラー通知は出さない（R-0167）
 	 */
 	public static async fetchItemsByIds(ids: string[]): Promise<JudgableItem[]> {
 		if (!ids.length) return [];
 		const results = await Promise.all(
 			ids.map(id =>
-				this.request<JudgableItem>('GET', `/items/${id}`).catch(() => null)
+				this.request<JudgableItem>('GET', `/items/${id}`, undefined, true).catch(() => null)
 			)
 		);
 		return results.filter((item): item is JudgableItem => item !== null);
