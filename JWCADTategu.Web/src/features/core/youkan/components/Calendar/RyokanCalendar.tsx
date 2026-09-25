@@ -150,8 +150,26 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const visibleMonthRafRef = useRef<number | null>(null);
 
-	const [allDays, setAllDays] = useState<Date[]>([]);
 	const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+	// R-0168 §2.1.2: allDays は range から同期的に導出する。state+effect だと「range は新しいが allDays（DOM）は古い」
+	// 中間レンダーが生じ、その古い列位置で算出したスクロール位置へ飛んでいた
+	const allDays = useMemo(() => {
+		if (!range) return [];
+		const days: Date[] = [];
+		const cur = new Date(range.start);
+		if (isNaN(cur.getTime()) || isNaN(range.end.getTime())) {
+			console.warn('[RyokanCalendar] Invalid range detected', range);
+			return days;
+		}
+		while (cur <= range.end) {
+			days.push(new Date(cur));
+			cur.setHours(12, 0, 0, 0);
+			cur.setDate(cur.getDate() + 1);
+			cur.setHours(0, 0, 0, 0);
+			if (days.length > 3000) break; // Hard safety
+		}
+		return days;
+	}, [range]);
 
 	// [R-151] 拡張ラッチ: prepend 発火中は次の拡張を止め、useLayoutEffect の補正完了で解除する
 	const pendingPrependRef = useRef<{ prevScrollHeight: number; prevScrollTop: number } | null>(null);
@@ -384,41 +402,20 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 		}
 	}, [today.getTime(), focusDate?.getTime(), forceScroll, isMini, initialRangeMonths]);
 
-	// Update allDays when range changes
-	React.useEffect(() => {
-		if (!range) return;
-		const days: Date[] = [];
-		let cur = new Date(range.start);
-
-		// [Safety] Ensure start/end are valid
-		if (isNaN(cur.getTime()) || isNaN(range.end.getTime())) {
-			console.warn('[RyokanCalendar] Invalid range detected', range);
-			return;
-		}
-
-		while (cur <= range.end) {
-			days.push(new Date(cur));
-			cur.setHours(12, 0, 0, 0);
-			cur.setDate(cur.getDate() + 1);
-			cur.setHours(0, 0, 0, 0);
-			if (days.length > 3000) break; // Hard safety
-		}
-		setAllDays(days);
-	}, [range]);
-
 	// [NEW] Infinite Scroll & Scroll into View (Center Today)
 	const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
 
 	// Initial Scroll to Center Today
 	React.useEffect(() => {
 		if (allDays.length > 0 && !hasInitialScrolled && scrollContainerRef.current) {
-			// R-0168: 矢印起点で range が張り直された直後は focusDate（例: 25日）ではなく
-			// 矢印の目標日（月中央）へ直接置く。目標日は1回で確定し、瞬間移動→戻りの二段階にしない
-			// 対象日の要素が実在したときのみ完了扱い（range 更新直後の古い DOM での空振りを避ける）
-			if (pendingScrollTarget && scrollToDateElement(pendingScrollTarget, true)) {
+			// R-0168: 月移動中（pendingScrollTarget あり）は focusDate へ瞬間移動せず、
+			// 目標日への smooth スクロール1回だけを pending 側に任せる
+			if (pendingScrollTarget) {
 				setHasInitialScrolled(true);
-				setPendingScrollTarget(null);
-			} else if (scrollToDateElement(focusDate || today, true)) {
+				return;
+			}
+			// 対象日の要素が実在したときのみ完了扱い
+			if (scrollToDateElement(focusDate || today, true)) {
 				setHasInitialScrolled(true);
 			}
 		}
@@ -455,9 +452,10 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 	// [FIX] Process pending scroll targets AFTER range & allDays updates (Reactive Sync)
 	// R-0168 §2.1: 目標日が range 内でも、範囲の端に近いと中央に置けず scrollLeft がクランプされる
 	// （列幅24: 1ヶ月=720px に対し range 5ヶ月≒3864px、可視半幅≒832px）。
-	// その場合は目標月を中心に range を張り直し、初期スクロール効果（瞬間移動）で目標日に着地する
+	// その場合は目標月を中心に range を張り直す。張り直しでは RyokanGanttView の useLayoutEffect が
+	// 視覚位置を保つよう scrollLeft を補正するので、次のレンダーでこの effect が目標日へ smooth で1回だけスクロールする
 	React.useEffect(() => {
-		if (!pendingScrollTarget || allDays.length === 0 || !hasInitialScrolled) return;
+		if (!pendingScrollTarget || allDays.length === 0) return;
 		const container = scrollContainerRef.current;
 		const targetKey = normalizeDateKey(pendingScrollTarget);
 		const canCenter = displayMode !== 'gantt' || !container || (() => {
@@ -476,8 +474,7 @@ export const RyokanCalendar = forwardRef<RyokanCalendarHandle, RyokanCalendarPro
 			return;
 		}
 		setRange(next);
-		setHasInitialScrolled(false);
-	}, [pendingScrollTarget, allDays, range, scrollToDateElement, hasInitialScrolled, displayMode, ganttColWidth, rangeMonths]);
+	}, [pendingScrollTarget, allDays, range, scrollToDateElement, displayMode, ganttColWidth, rangeMonths]);
 
 	// 完了タスクを日付キー別にグループ化
 	const completedByDate = useMemo(() => {

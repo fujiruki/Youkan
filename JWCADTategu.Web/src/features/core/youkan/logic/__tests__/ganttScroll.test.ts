@@ -1,5 +1,38 @@
 import { describe, it, expect } from 'vitest';
-import { GANTT_STICKY_COL_WIDTH, calcGanttCenterDayIndex, calcGanttScrollLeftForIndex, canCenterGanttIndex } from '../ganttScroll';
+import { GANTT_STICKY_COL_WIDTH, calcGanttCenterDayIndex, calcGanttScrollLeftForIndex, canCenterGanttIndex, calcGanttRebasedScrollLeft } from '../ganttScroll';
+
+/**
+ * R-0168 §2.1.2: range 張り直しで allDays の先頭が N 日ずれたとき、同じ日付が同じ画面位置に残る scrollLeft。
+ * 実測値（列幅24・viewport1920）: Jun28始点で 10/15（index109）中央 → Aug30始点（+63日）では index46
+ */
+describe('R-0168 calcGanttRebasedScrollLeft（張り直し時の視覚位置アンカー）', () => {
+	const colWidth = 24;
+	const clientWidth = 1920;
+	const day = (y: number, m: number, d: number) => new Date(y, m, d).getTime();
+
+	it('次月方向: Jun28→Aug30（+63日）の張り直しで 10/15 中央の位置が保たれ、目標 11/15 へは前向きに動く', () => {
+		const before = calcGanttScrollLeftForIndex(109, colWidth, clientWidth);
+		const rebased = calcGanttRebasedScrollLeft(before, day(2026, 5, 28), day(2026, 7, 30), colWidth);
+		expect(rebased).toBe(calcGanttScrollLeftForIndex(46, colWidth, clientWidth));
+		const target = calcGanttScrollLeftForIndex(77, colWidth, clientWidth);
+		expect(target).toBeGreaterThan(rebased);
+		expect(canCenterGanttIndex(77, 161, colWidth, clientWidth)).toBe(true);
+	});
+
+	it('前月方向: Jun28→Apr26（−63日）の張り直しで 8/15 中央の位置が保たれ、目標 7/15 へは後ろ向きに動く', () => {
+		const before = calcGanttScrollLeftForIndex(48, colWidth, clientWidth);
+		const rebased = calcGanttRebasedScrollLeft(before, day(2026, 5, 28), day(2026, 3, 26), colWidth);
+		expect(rebased).toBe(calcGanttScrollLeftForIndex(111, colWidth, clientWidth));
+		const target = calcGanttScrollLeftForIndex(80, colWidth, clientWidth);
+		expect(target).toBeLessThan(rebased);
+		expect(canCenterGanttIndex(80, 161, colWidth, clientWidth)).toBe(true);
+	});
+
+	it('先頭が変わらなければ scrollLeft も変わらない（夏時間の1時間差は日数に丸める）', () => {
+		expect(calcGanttRebasedScrollLeft(1000, day(2026, 5, 28), day(2026, 5, 28), colWidth)).toBe(1000);
+		expect(calcGanttRebasedScrollLeft(1000, day(2026, 2, 1), day(2026, 3, 1), colWidth)).toBe(1000 - 31 * colWidth);
+	});
+});
 
 /**
  * R-0168 §2.1 追加: 表示範囲（allDays）の端に近い日は、固定列を除いた可視領域の中央に置くと
