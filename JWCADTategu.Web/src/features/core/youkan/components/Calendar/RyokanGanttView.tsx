@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Item, Dependency, CapacityConfig, JoinedTenant } from '../../types';
 import { cn } from '../../../../../lib/utils';
 import { format } from 'date-fns';
@@ -8,7 +8,7 @@ import { getLatestStart, resolveSafetyFactor, selectLateStartHighlightIds, forma
 import { isHiddenCalcOnlyItem } from '../../logic/hiddenCalcOnlyItems';
 import { formatMinutes, parseTimeInput } from '../../logic/timeParser';
 import { normalizeDateKey } from '../../logic/dateUtils';
-import { calcGanttCenterDayIndex, calcGanttScrollLeftForIndex } from '../../logic/ganttScroll';
+import { calcGanttCenterDayIndex, calcGanttScrollLeftForIndex, calcGanttRebasedScrollLeft } from '../../logic/ganttScroll';
 import { buildHierarchicalList, HierarchicalWrapper } from '../../logic/hierarchy';
 import { computeDailyTimeBlockLayout, DailyAllocationEntry, TimeBlockLayout, DAY_MINUTES } from '../../logic/ganttTimeBlocks';
 import { DependencyRepository } from '../../repositories/DependencyRepository';
@@ -161,7 +161,6 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 	const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const headerContainerRef = useRef<HTMLDivElement>(null);
-	const isSyncing = useRef(false);
 	const [dependencies, setDependencies] = useState<Dependency[]>([]);
 	const [constraintError, setConstraintError] = useState<string | null>(null);
 	const [editingTimeItemId, setEditingTimeItemId] = useState<string | null>(null);
@@ -404,30 +403,32 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 		};
 	}, [timeBlockDragState, handleTimeBlockDragEnd]);
 
-	// Sync Scroll Logic: Use native event listeners for better control
+	// ヘッダー↔本体の横スクロール同期。
+	// R-0168: 相手へ書き込んだ値は次フレームに自分の scroll イベント（echo）として届く。
+	// rAF フラグで抑止すると本体の smooth スクロール中にフラグが先に解除され、1フレーム前の
+	// ヘッダー位置が本体へ書き戻されてアニメーションが打ち切られていた（1クリックで数px しか動かない）。
+	// 書き込んだ値そのものを覚えておき、それと一致するイベントだけを無視する
 	useEffect(() => {
 		const header = headerContainerRef.current;
 		const body = effectiveScrollRef.current;
 
 		if (!header || !body) return;
 
+		let echoHeaderLeft = -1;
+		let echoBodyLeft = -1;
+
 		const handleHeaderScroll = () => {
-			if (isSyncing.current) return;
-			isSyncing.current = true;
+			if (header.scrollLeft === echoHeaderLeft) return;
+			echoHeaderLeft = -1;
 			body.scrollLeft = header.scrollLeft;
-			requestAnimationFrame(() => {
-				isSyncing.current = false;
-			});
+			echoBodyLeft = body.scrollLeft;
 		};
 
 		const handleBodyScroll = () => {
-			if (isSyncing.current) return;
-			isSyncing.current = true;
+			if (body.scrollLeft === echoBodyLeft) return;
+			echoBodyLeft = -1;
 			header.scrollLeft = body.scrollLeft;
-
-			requestAnimationFrame(() => {
-				isSyncing.current = false;
-			});
+			echoHeaderLeft = header.scrollLeft;
 		};
 
 		header.addEventListener('scroll', handleHeaderScroll, { passive: true });
@@ -438,6 +439,20 @@ export const RyokanGanttView: React.FC<GanttViewProps> = ({
 			body.removeEventListener('scroll', handleBodyScroll);
 		};
 	}, []);
+
+	// R-0168 §2.1.2: 表示範囲（allDays）の先頭がずれる張り直しでは、同じ日付が同じ画面位置に残るよう
+	// 描画前（useLayoutEffect）に scrollLeft を補正する。張り直し自体では何も動かず、
+	// 目標日へのスクロールは RyokanCalendar 側が補正後に1回だけ行う
+	const prevFirstDayRef = useRef<number | null>(null);
+	useLayoutEffect(() => {
+		const first = allDays.length > 0 ? allDays[0].getTime() : null;
+		const prev = prevFirstDayRef.current;
+		prevFirstDayRef.current = first;
+		const body = effectiveScrollRef.current;
+		if (prev === null || first === null || prev === first || !body) return;
+		body.scrollLeft = Math.max(0, calcGanttRebasedScrollLeft(body.scrollLeft, prev, first, colWidth));
+		if (headerContainerRef.current) headerContainerRef.current.scrollLeft = body.scrollLeft;
+	}, [allDays, colWidth]);
 
 	// [PHASE 24] Handle external focusDate change
 	// [FIX] focusDateによる強制スクロールを削除し、RyokanCalendar側のpendingScrollTargetによる同期管理へ移行（スクロールの競合防止）

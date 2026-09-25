@@ -82,6 +82,22 @@ describe('R-0168-C VolumeCalendarScreen 月移動', () => {
 		expect(scrollToMonth.mock.calls.map(c => c[1])).toEqual([9, 10, 11, 0]);
 	});
 
+	it('同期連打（8回を同一ティックで）でも押した回数分の月へ進み、スクロール目標は最終月になる', () => {
+		render(<VolumeCalendarScreen onNavigateHome={() => { }} />);
+		const next = screen.getByText('next');
+		act(() => { for (let i = 0; i < 8; i++) next.click(); });
+		expect(screen.getByTestId('label')).toHaveTextContent('5');
+		expect(scrollToMonth).toHaveBeenLastCalledWith(2027, 4);
+	});
+
+	it('前月・次月を交互に連打しても最終的に押した回数の差分だけ移動する', () => {
+		render(<VolumeCalendarScreen onNavigateHome={() => { }} />);
+		const seq = ['next', 'next', 'prev', 'next', 'next', 'prev', 'next'];
+		seq.forEach(name => fireEvent.click(screen.getByText(name)));
+		expect(screen.getByTestId('label')).toHaveTextContent('12');
+		expect(scrollToMonth).toHaveBeenLastCalledWith(2026, 11);
+	});
+
 	it('矢印から十分時間が経ったスクロール由来の月通知は従来どおり反映される', () => {
 		render(<VolumeCalendarScreen onNavigateHome={() => { }} />);
 		fireEvent.click(screen.getByText('next'));
